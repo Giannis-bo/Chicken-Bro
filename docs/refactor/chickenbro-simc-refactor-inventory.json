@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "3925d10243a7ee6d4f43a921392f49312f947aca",
+  "generatedFromCommit": "6d97ceee9d4a6b41158582678ec517a27a063851",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "25049f3a03f8b5503b4f2306ef97c4d4d2259d4467eefb92cc43a5fbd784a8a8",
   "entryCount": 2855,
@@ -903,8 +903,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 5323,
-      "sha256": "014ffed7c74af041a3ee0af1cfbd576e71100d39bcd0cbe58a819f013b89276f"
+      "bytes": 5347,
+      "sha256": "03647f6cf1f3dbb1bb9f5168cc76dd76d3b43d892fa98ef8eae20acc3456bdc2"
     },
     {
       "path": "apps/mini-taro/src/pages/news/detail.config.ts",
@@ -1543,8 +1543,8 @@
       "owner": "Chickenbro and SimC Mini Program",
       "reason": "Conversation, SimC submission, task list, and task detail are the approved product capabilities.",
       "matchedRule": "mini-client-core-capabilities",
-      "bytes": 5537,
-      "sha256": "5f2bf8a0d484d918c7d5258fb5a5d4fdf4c8bc4ac5adfb86ee2fd480894f7546"
+      "bytes": 5561,
+      "sha256": "58054afa8d83804291b26dfc06a94fbb25d31b689e151418b9e2e6f93dc4aa8d"
     },
     {
       "path": "apps/mini-taro/src/web/WebShell.tsx",
@@ -13533,8 +13533,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 20295,
-      "sha256": "4b78ec1cb8c0f470f5981ec0482763167dd78c5eb1d0d91ea1059a6b50dab951"
+      "bytes": 20909,
+      "sha256": "1d1a07071638e654c15c3bf1161a60d481e3a7a7b063a35fafcab8a24eb95ec7"
     },
     {
       "path": "docs/chickenbro-simc-production-runbook.md",
@@ -19973,8 +19973,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 3265,
-      "sha256": "d8ff1c86a297c48c83dce242d6b273e001b3715f0b1185d27cef5f5de4e9f979"
+      "bytes": 3859,
+      "sha256": "1a6f9c1bd768d397ded3e1ebe89aff774fc7b81624803002a3ec5792f526b5dd"
     },
     {
       "path": "packages/domain/src/chat.ts",
@@ -19983,8 +19983,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 4470,
-      "sha256": "e9df305d34e66fedad50214f91885bf2f6fbea637f2a30b2e5cfb8d22e4c3a63"
+      "bytes": 4610,
+      "sha256": "61b1629a05330bd82db9212e46b83790ac46f3953c570dd670ccd8cfd38020e7"
     },
     {
       "path": "packages/domain/src/entities.ts",
@@ -20133,8 +20133,8 @@
       "owner": "Dual-client identity and platform API",
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
-      "bytes": 3532,
-      "sha256": "308d93b738cf12e63a82916e606c5a46840e2ef05e3777fa8c789ea957a36187"
+      "bytes": 3790,
+      "sha256": "b25ef87f2f1dbb91cf19cceb30e21f349c4d496385498fb911e9029ab12dceea"
     },
     {
       "path": "packages/domain/src/web-auth.ts",
@@ -20144,7 +20144,7 @@
       "reason": "Typed Chat, SimC, authentication, transport, and package entrypoints are direct inputs to both clients.",
       "matchedRule": "shared-target-platform-contracts",
       "bytes": 4578,
-      "sha256": "5e0cb63bb59667a2b259103b9f08bd9a7039828425665cc2dcdb6dec842b228c"
+      "sha256": "7f18f5c6c0e635c9b264a2cf546b851b764daae0efd04908f322338a333f8944"
     },
     {
       "path": "packages/domain/tsconfig.json",
@@ -22093,8 +22093,8 @@
       "owner": "Modular v2 API",
       "reason": "The API shell is restricted to identity, conversation, SimC, health, and stable error handling.",
       "matchedRule": "server-target-api-shell",
-      "bytes": 6509,
-      "sha256": "a1b60eb00d3837e06efee2948d2ca3cbf91d5f828e10d261aa4624985b07247f"
+      "bytes": 6510,
+      "sha256": "f2369565c1426e95ca24ae91adac144fb55112799b2f90d8001cb29259952e9e"
     },
     {
       "path": "server/app/api/routes/health.py",
@@ -22153,8 +22153,8 @@
       "owner": "Modular v2 application",
       "reason": "Identity, Chickenbro, SimC, worker, platform, and integration owners form the new server core.",
       "matchedRule": "server-target-domain-owners",
-      "bytes": 21329,
-      "sha256": "42af34e055a0c627e7bfb8ba7cf7c8b5b31ac1e5d143f6d8bf889981b97596ac"
+      "bytes": 21330,
+      "sha256": "fe57f8659bcd3afa4e8f14ae7ff5fdcfb202da01e70c8dd75e179e44fcff07d7"
     },
     {
       "path": "server/app/chickenbro/codex_adapter.py",
@@ -25533,8 +25533,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 40763,
-      "sha256": "8e0abab0ba1f6d6375ad98eec821a46ffe63ef9bf9b77a788d9814e863a264a2"
+      "bytes": 41254,
+      "sha256": "aa3aec94b5d78540ba01b19605b1579c98471ce16ea40815f0bc64b6c415352c"
     },
     {
       "path": "tests/app_chickenbro_codex_adapter_test.py",
@@ -28587,5 +28587,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "cddb28a265ca9de94cf823b54a84797437008dff6f3b9ee2febaba61f91699c0"
+  "inventorySha256": "e062e984f6f7f75aee4c64a46cd55c5a62155e070f3531f37aaaf14d81d24ab8"
 }
