@@ -249,14 +249,14 @@ for index, item in enumerate(resources):
                 not isinstance(observed.get("tableCount"), int)
                 or isinstance(observed.get("tableCount"), bool)
                 or observed["tableCount"] <= 0
-                or not isinstance(observed.get("approximateRows"), int)
-                or isinstance(observed.get("approximateRows"), bool)
-                or observed["approximateRows"] < 0
+                or not isinstance(observed.get("exactRows"), int)
+                or isinstance(observed.get("exactRows"), bool)
+                or observed["exactRows"] < 0
                 or not isinstance(observed.get("owner"), str)
                 or re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", observed["owner"]) is None
                 or not isinstance(observed.get("allowsConnections"), bool)
             ):
-                raise SystemExit(f"ready capacity database {resource_id} lacks table/row counts")
+                raise SystemExit(f"ready capacity database {resource_id} lacks exact table/row counts")
         if kind != "postgres_database" and not re.fullmatch(r"[0-9a-f]{64}", str(item.get("contentSha256") or "")):
             raise SystemExit(f"ready filesystem resource {resource_id} lacks content identity")
         if not isinstance(item.get("deleteAfter"), str):
@@ -411,7 +411,7 @@ run_remote_apply() {
     "REMOTE_RECOVERY_MANIFEST_PATH=${REMOTE_RECOVERY_MANIFEST}" \
     "RETIREMENT_SCOPE=${SCOPE}" \
     bash -s <<'REMOTE'
-set -euo pipefail
+set -Eeuo pipefail
 
 die_remote() {
   printf 'retire_chickenbro_legacy_remote: %s\n' "$*" >&2
@@ -600,7 +600,7 @@ for database in capacity["exactDatabaseAllowlist"]:
     rows.append("\t".join([
         db_item["id"], database, env_item["id"], env_path,
         env_item["contentSha256"], str(observed["sizeBytes"]),
-        str(observed["tableCount"]), str(observed["approximateRows"]),
+        str(observed["tableCount"]), str(observed["exactRows"]),
         observed["owner"], "true" if observed["allowsConnections"] else "false",
     ]))
 
@@ -708,40 +708,82 @@ validate_capacity_env_file() {
 
 fresh_database_counts() {
   local target="$1"
-  sudo -n -u postgres psql --no-psqlrc --dbname="${target}" --tuples-only --no-align \
-    --field-separator=$'\t' --set=ON_ERROR_STOP=1 \
-    --command="SELECT count(*)::bigint, COALESCE(sum(n_live_tup), 0)::bigint FROM pg_stat_user_tables"
+  local table_count exact_count_query exact_row_count
+  table_count="$(sudo -n -u postgres psql --no-psqlrc --dbname="${target}" --tuples-only --no-align \
+    --set=ON_ERROR_STOP=1 --command="SELECT count(*)::bigint FROM pg_stat_user_tables")" \
+    || return 1
+  exact_count_query="$(sudo -n -u postgres psql --no-psqlrc --dbname="${target}" --tuples-only --no-align \
+    --set=ON_ERROR_STOP=1 --command="SELECT 'SELECT ' || COALESCE(string_agg(format('(SELECT count(*)::bigint FROM %I.%I)', schemaname, relname), ' + ' ORDER BY schemaname, relname), '0') FROM pg_stat_user_tables")" \
+    || return 1
+  [[ "${exact_count_query}" == SELECT\ * ]] || return 1
+  exact_row_count="$(sudo -n -u postgres psql --no-psqlrc --dbname="${target}" --tuples-only --no-align \
+    --set=ON_ERROR_STOP=1 --command="${exact_count_query}")" \
+    || return 1
+  [[ "${table_count}" =~ ^[0-9]+$ && "${exact_row_count}" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\t%s\n' "${table_count}" "${exact_row_count}"
+}
+
+probe_capacity_database_existence() {
+  local target="$1"
+  local probe_output
+  if ! probe_output="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+    --set=ON_ERROR_STOP=1 --set=target="${target}" \
+    --command="SELECT count(*) FROM pg_database WHERE datname = :'target'" 2>/dev/null)"; then
+    printf '%s\n' 'unknown'
+    return 1
+  fi
+  case "${probe_output}" in
+    1)
+      printf '%s\n' 'present'
+      ;;
+    0)
+      printf '%s\n' 'absent'
+      ;;
+    *)
+      printf '%s\n' 'unknown'
+      return 1
+      ;;
+  esac
+}
+
+capacity_preflight_pair() {
+  local db_id="$1" database="$2" env_id="$3" env_path="$4" env_sha="$5"
+  local expected_size="$6" expected_table_count="$7" expected_exact_row_count="$8" expected_owner="$9" expected_allows="${10}"
+  local exists connections current_size current_counts current_table_count current_row_count current_identity current_owner current_allows references
+  validate_capacity_env_file "${env_path}" "${env_sha}"
+  if ! exists="$(probe_capacity_database_existence "${database}")"; then
+    die_remote "capacity database existence is unknown: ${database}"
+  fi
+  [[ "${exists}" == "present" ]] || die_remote "capacity database is missing: ${database}"
+  connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+    --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
+  [[ "${connections}" == "0" ]] || die_remote "capacity database gained active connections: ${database}"
+  current_size="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+    --set=target="${database}" --command="SELECT pg_database_size(:'target')")"
+  [[ "${current_size}" == "${expected_size}" ]] || die_remote "capacity database size identity changed: ${database}"
+  current_counts="$(fresh_database_counts "${database}" | tr -d ' ')" \
+    || die_remote "capacity database exact table/row count failed: ${database}"
+  IFS=$'\t' read -r current_table_count current_row_count <<< "${current_counts}"
+  [[ "${current_table_count}" == "${expected_table_count}" && "${current_row_count}" == "${expected_exact_row_count}" ]] \
+    || die_remote "capacity database exact table/row counts changed: ${database}"
+  current_identity="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+    --field-separator=$'\t' --set=target="${database}" \
+    --command="SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'")"
+  IFS=$'\t' read -r current_owner current_allows <<< "${current_identity}"
+  [[ "${current_owner}" == "${expected_owner}" && "${current_allows}" == "${expected_allows}" ]] \
+    || die_remote "capacity database owner/connection identity changed: ${database}"
+  references="$(runtime_configuration_references "${database}" | LC_ALL=C sort -u)"
+  [[ "${references}" == "${env_path}" ]] \
+    || die_remote "database configuration references differ from exact companion: ${database}"
+  [[ "$(process_environment_reference_count "${database}")" == "0" ]] \
+    || die_remote "capacity database still has a running process reference: ${database}"
 }
 
 capacity_preflight_all_pairs() {
-  local db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows
-  local exists connections current_size current_counts current_table_count current_row_count current_identity current_owner current_allows references
-  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
-    validate_capacity_env_file "${env_path}" "${env_sha}"
-    exists="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-      --set=target="${database}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'")"
-    [[ "${exists}" == "1" ]] || die_remote "capacity database is missing: ${database}"
-    connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-      --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
-    [[ "${connections}" == "0" ]] || die_remote "capacity database gained active connections: ${database}"
-    current_size="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-      --set=target="${database}" --command="SELECT pg_database_size(:'target')")"
-    [[ "${current_size}" == "${expected_size}" ]] || die_remote "capacity database size identity changed: ${database}"
-    current_counts="$(fresh_database_counts "${database}" | tr -d ' ')"
-    IFS=$'\t' read -r current_table_count current_row_count <<< "${current_counts}"
-    [[ "${current_table_count}" == "${expected_table_count}" && "${current_row_count}" == "${expected_row_count}" ]] \
-      || die_remote "capacity database table/row counts changed: ${database}"
-    current_identity="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-      --field-separator=$'\t' --set=target="${database}" \
-      --command="SELECT pg_get_userbyid(datdba), CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'")"
-    IFS=$'\t' read -r current_owner current_allows <<< "${current_identity}"
-    [[ "${current_owner}" == "${expected_owner}" && "${current_allows}" == "${expected_allows}" ]] \
-      || die_remote "capacity database owner/connection identity changed: ${database}"
-    references="$(runtime_configuration_references "${database}" | LC_ALL=C sort -u)"
-    [[ "${references}" == "${env_path}" ]] \
-      || die_remote "database configuration references differ from exact companion: ${database}"
-    [[ "$(process_environment_reference_count "${database}")" == "0" ]] \
-      || die_remote "capacity database still has a running process reference: ${database}"
+  local db_id database env_id env_path env_sha expected_size expected_table_count expected_exact_row_count expected_owner expected_allows
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_exact_row_count expected_owner expected_allows; do
+    capacity_preflight_pair "${db_id}" "${database}" "${env_id}" "${env_path}" "${env_sha}" \
+      "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
   done < "${CAPACITY_PAIRS}"
 }
 
@@ -775,7 +817,7 @@ else:
                 "exists": True,
                 "sizeBytes": int(os.environ["JOURNAL_SIZE"]),
                 "tableCount": int(os.environ["JOURNAL_TABLE_COUNT"]),
-                "approximateRows": int(os.environ["JOURNAL_ROW_COUNT"]),
+                "exactRows": int(os.environ["JOURNAL_ROW_COUNT"]),
                 "owner": os.environ["JOURNAL_OWNER"],
                 "allowsConnections": os.environ["JOURNAL_ALLOWS"] == "true",
                 "activeConnections": 0,
@@ -790,6 +832,8 @@ else:
         "events": [],
     }
 payload["events"].append({"status": os.environ["JOURNAL_STATUS"], "at": now})
+payload["latestStatus"] = os.environ["JOURNAL_STATUS"]
+payload["updatedAt"] = now
 if os.environ["JOURNAL_AFTER_DATABASE_EXISTS"]:
     payload["after"] = {
         "database": {"exists": os.environ["JOURNAL_AFTER_DATABASE_EXISTS"] == "true"},
@@ -816,10 +860,14 @@ capacity_pair_failure() {
   local exit_code="$1"
   trap - ERR
   set +e
-  local exists recovery_incomplete="false" restored_allows="" restored_env_sha="" restored_env_exists="false"
-  exists="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
-    --set=target="${PAIR_DATABASE}" --command="SELECT count(*) FROM pg_database WHERE datname = :'target'" 2>/dev/null)"
-  if [[ "${exists}" == "1" ]]; then
+  local existence_state existence_probe_status=0 recovery_incomplete="false"
+  local restored_allows="" restored_env_sha="" restored_env_exists="false"
+  existence_state="$(probe_capacity_database_existence "${PAIR_DATABASE}")" || existence_probe_status=$?
+  if [[ "${existence_probe_status}" -ne 0 || "${existence_state}" == "unknown" ]]; then
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "failed_existence_unknown" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_EXACT_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      || true
+  elif [[ "${existence_state}" == "present" ]]; then
     if [[ "${PAIR_DATABASE_FENCED}" == "true" ]]; then
       restore_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
         --set=target="${PAIR_DATABASE}" --set=allows="${PAIR_EXPECTED_ALLOWS}" \
@@ -842,12 +890,16 @@ capacity_pair_failure() {
     recovery_status="failed_recovered"
     [[ "${recovery_incomplete}" == "false" ]] || recovery_status="failed_recovery_incomplete"
     write_capacity_pair_journal "${PAIR_JOURNAL}" "${recovery_status}" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
-      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_EXACT_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
       true "${restored_env_exists}" || true
-  else
+  elif [[ "${existence_state}" == "absent" ]]; then
     write_capacity_pair_journal "${PAIR_JOURNAL}" "failed_after_drop" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
-      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_EXACT_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
       false false
+  else
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "failed_existence_unknown" "${PAIR_DATABASE}" "${PAIR_ENV_PATH}" \
+      "${PAIR_ENV_SHA}" "${PAIR_SIZE}" "${PAIR_TABLE_COUNT}" "${PAIR_EXACT_ROW_COUNT}" "${PAIR_OWNER}" "${PAIR_EXPECTED_ALLOWS}" \
+      || true
   fi
   exit "${exit_code}"
 }
@@ -857,22 +909,16 @@ capacity_pair_abort() {
   return 1
 }
 
-capacity_apply_pairs() {
-  local db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows
-  install -d -o root -g root -m 0700 -- "${RUN_ROOT}/pair-journals"
-  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
-    write_capacity_pair_journal "${RUN_ROOT}/pair-journals/${db_id}.json" "preflight_complete" \
-      "${database}" "${env_path}" "${env_sha}" "${expected_size}" "${expected_table_count}" \
-      "${expected_row_count}" "${expected_owner}" "${expected_allows}"
-  done < "${CAPACITY_PAIRS}"
-
-  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_row_count expected_owner expected_allows; do
+capacity_apply_pair() {
+    local db_id="$1" database="$2" env_id="$3" env_path="$4" env_sha="$5"
+    local expected_size="$6" expected_table_count="$7" expected_exact_row_count="$8" expected_owner="$9" expected_allows="${10}"
+    local fence_statement connections current_allows drop_statement post_drop_state
     PAIR_DATABASE="${database}"
     PAIR_ENV_PATH="${env_path}"
     PAIR_ENV_SHA="${env_sha}"
     PAIR_SIZE="${expected_size}"
     PAIR_TABLE_COUNT="${expected_table_count}"
-    PAIR_ROW_COUNT="${expected_row_count}"
+    PAIR_EXACT_ROW_COUNT="${expected_exact_row_count}"
     PAIR_OWNER="${expected_owner}"
     PAIR_EXPECTED_ALLOWS="${expected_allows}"
     PAIR_QUARANTINE_TARGET="${RUN_ROOT}/${env_id}"
@@ -881,10 +927,15 @@ capacity_apply_pairs() {
     PAIR_DATABASE_FENCED="false"
     trap 'capacity_pair_failure "$?"' ERR
 
+    # Recheck this exact pair after earlier pairs completed and immediately before its first mutation.
+    capacity_preflight_pair "${db_id}" "${database}" "${env_id}" "${env_path}" "${env_sha}" \
+      "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "env_move_intent" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     mv -- "${env_path}" "${PAIR_QUARANTINE_TARGET}"
     PAIR_ENV_MOVED="true"
     write_capacity_pair_journal "${PAIR_JOURNAL}" "env_quarantined" "${database}" "${env_path}" \
-      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     if [[ -e "${env_path}" || -L "${env_path}" ]]; then
       capacity_pair_abort "database companion env still exists: ${database}"
     fi
@@ -894,33 +945,58 @@ capacity_apply_pairs() {
 
     fence_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
       --set=target="${database}" --command="SELECT format('ALTER DATABASE %I WITH ALLOW_CONNECTIONS false', :'target')")"
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "fence_intent" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
       --command="${fence_statement}" >/dev/null
     PAIR_DATABASE_FENCED="true"
+    current_allows="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
+      --set=target="${database}" --command="SELECT CASE WHEN datallowconn THEN 'true' ELSE 'false' END FROM pg_database WHERE datname = :'target'")"
+    [[ "${current_allows}" == "false" ]] \
+      || capacity_pair_abort "database connection fence is not observable: ${database}"
     sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 --set=target="${database}" \
       --command="SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()" >/dev/null
     write_capacity_pair_journal "${PAIR_JOURNAL}" "connections_fenced" "${database}" "${env_path}" \
-      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     connections="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
       --set=target="${database}" --command="SELECT count(*) FROM pg_stat_activity WHERE datname = :'target' AND pid <> pg_backend_pid()")"
     if [[ "${connections}" != "0" ]]; then
       capacity_pair_abort "database gained a connection after fencing: ${database}"
     fi
 
-    write_capacity_pair_journal "${PAIR_JOURNAL}" "drop_started" "${database}" "${env_path}" \
-      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}"
     drop_statement="$(sudo -n -u postgres psql --no-psqlrc --dbname=postgres --tuples-only --no-align \
       --set=ON_ERROR_STOP=1 --set=target="${database}" --command="SELECT format('DROP DATABASE %I', :'target')")"
+    write_capacity_pair_journal "${PAIR_JOURNAL}" "drop_intent" "${database}" "${env_path}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
     sudo -n -u postgres psql --no-psqlrc --dbname=postgres --set=ON_ERROR_STOP=1 \
       --command="${drop_statement}" >/dev/null
+    if ! post_drop_state="$(probe_capacity_database_existence "${database}")"; then
+      capacity_pair_abort "database existence is unknown after drop: ${database}"
+    fi
+    [[ "${post_drop_state}" == "absent" ]] \
+      || capacity_pair_abort "database still exists after drop: ${database}"
     write_capacity_pair_journal "${PAIR_JOURNAL}" "completed" "${database}" "${env_path}" \
-      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_row_count}" "${expected_owner}" "${expected_allows}" \
+      "${env_sha}" "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}" \
       false false
     record_result "${env_id}" "file" "${env_path}" "deleted" \
       "{\"exists\":true,\"realpath\":\"${env_path}\",\"sha256\":\"${env_sha}\"}" '{"exists":false}'
     record_result "${db_id}" "postgres_database" "${database}" "deleted" \
-      "{\"exists\":true,\"sizeBytes\":${expected_size},\"tableCount\":${expected_table_count},\"approximateRows\":${expected_row_count},\"owner\":\"${expected_owner}\"}" '{"exists":false}'
+      "{\"exists\":true,\"sizeBytes\":${expected_size},\"tableCount\":${expected_table_count},\"exactRows\":${expected_exact_row_count},\"owner\":\"${expected_owner}\"}" '{"exists":false}'
     trap - ERR
+}
+
+capacity_apply_pairs() {
+  local db_id database env_id env_path env_sha expected_size expected_table_count expected_exact_row_count expected_owner expected_allows
+  install -d -o root -g root -m 0700 -- "${RUN_ROOT}/pair-journals"
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_exact_row_count expected_owner expected_allows; do
+    write_capacity_pair_journal "${RUN_ROOT}/pair-journals/${db_id}.json" "preflight_complete" \
+      "${database}" "${env_path}" "${env_sha}" "${expected_size}" "${expected_table_count}" \
+      "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
+  done < "${CAPACITY_PAIRS}"
+
+  while IFS=$'\t' read -r db_id database env_id env_path env_sha expected_size expected_table_count expected_exact_row_count expected_owner expected_allows; do
+    capacity_apply_pair "${db_id}" "${database}" "${env_id}" "${env_path}" "${env_sha}" \
+      "${expected_size}" "${expected_table_count}" "${expected_exact_row_count}" "${expected_owner}" "${expected_allows}"
   done < "${CAPACITY_PAIRS}"
 }
 

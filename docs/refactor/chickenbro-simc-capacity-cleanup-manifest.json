@@ -76,6 +76,7 @@
       ],
       "tableCount": 71,
       "approximateRows": 2115416,
+      "exactRows": null,
       "configurationReferences": [
         "/etc/wow-backend-candidate-gear-evidence-r14.env"
       ],
@@ -108,6 +109,7 @@
       ],
       "tableCount": 71,
       "approximateRows": 2375154,
+      "exactRows": null,
       "configurationReferences": [
         "/etc/wow-backend-candidate-gear-evidence-r24.env"
       ],
@@ -140,6 +142,7 @@
       ],
       "tableCount": 71,
       "approximateRows": 2767097,
+      "exactRows": null,
       "configurationReferences": [
         "/etc/wow-backend-candidate-gear-evidence-r22.env"
       ],
@@ -172,6 +175,7 @@
       ],
       "tableCount": 71,
       "approximateRows": 2632122,
+      "exactRows": null,
       "configurationReferences": [
         "/etc/wow-backend-candidate-gear-evidence-r23.env"
       ],
@@ -220,7 +224,7 @@
     "hash-bound whitelist recovery manifest with isolated restore reconciliation",
     "fresh exact target identity from Tencent instance metadata",
     "fresh zero-connection, zero-reference and zero-open-handle probe per exact database",
-    "fresh table and row count comparison for every exact database",
+    "fresh exact COUNT(*) row identity for every exact database",
     "regular non-symlink companion env with exact /etc realpath and content hash",
     "all-pair mutation-free preflight followed by durable per-pair boundary journals",
     "explicit wow_test read-only protection",

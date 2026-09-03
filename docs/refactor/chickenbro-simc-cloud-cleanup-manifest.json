@@ -1749,6 +1749,7 @@
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2115416,
+        "exactRows": null,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1766,7 +1767,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
-        "fresh_table_and_row_count_probe_required",
+        "fresh_exact_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1785,6 +1786,7 @@
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2375154,
+        "exactRows": null,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1802,7 +1804,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
-        "fresh_table_and_row_count_probe_required",
+        "fresh_exact_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1821,6 +1823,7 @@
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2767097,
+        "exactRows": null,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1838,7 +1841,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
-        "fresh_table_and_row_count_probe_required",
+        "fresh_exact_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"
@@ -1857,6 +1860,7 @@
         "allowsConnections": true,
         "tableCount": 71,
         "approximateRows": 2632122,
+        "exactRows": null,
         "connections": 0
       },
       "replacement": "removed with no target-product replacement",
@@ -1874,7 +1878,7 @@
         "whitelist_restore_verification_not_run",
         "fresh_target_identity_probe_required",
         "fresh_zero_connection_probe_required",
-        "fresh_table_and_row_count_probe_required",
+        "fresh_exact_table_and_row_count_probe_required",
         "fresh_configuration_reference_probe_required",
         "companion_env_absence_required",
         "reviewed_manifest_sha_required"

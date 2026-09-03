@@ -17,6 +17,10 @@ function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex')
 }
 
+function extractShellFunction(source, name) {
+  return source.match(new RegExp(`${name}\\(\\) \\{[\\s\\S]*?\\n\\}`))?.[0] || ''
+}
+
 function sourceAndValidate(kind, target, scope = 'full_retirement') {
   return spawnSync('bash', ['-c', 'source "$1"; validate_deletion_target "$2" "$3" "$4"', 'test', scriptPath, kind, target, scope], {
     cwd: repositoryRoot,
@@ -154,6 +158,8 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   for (const resource of resources.filter((item) => item.capacityPreCleanup && item.kind === 'postgres_database')) {
     assert.equal(resource.observed.tableCount, 71)
     assert.ok(Number.isInteger(resource.observed.approximateRows))
+    assert.equal(resource.observed.exactRows, null)
+    assert.ok(resource.blockedReasons.includes('fresh_exact_table_and_row_count_probe_required'))
   }
 
   const protectedTargets = new Set(manifest.protectedResources.map((item) => item.target))
@@ -336,10 +342,12 @@ test('capacity apply preflights every pair before mutation and journals each irr
   assert.ok(preflightCall > 0 && applyCall > preflightCall, 'all-pair preflight must precede apply')
   assert.match(source, /fresh_database_counts/)
   assert.match(source, /expected_table_count/)
-  assert.match(source, /expected_row_count/)
+  assert.match(source, /expected_exact_row_count/)
   assert.match(source, /preflight_complete/)
+  assert.match(source, /env_move_intent/)
   assert.match(source, /env_quarantined/)
-  assert.match(source, /drop_started/)
+  assert.match(source, /fence_intent/)
+  assert.match(source, /drop_intent/)
   assert.match(source, /completed/)
   assert.match(source, /failed_recovered/)
   assert.match(source, /ALTER DATABASE %I WITH ALLOW_CONNECTIONS/)
@@ -347,6 +355,162 @@ test('capacity apply preflights every pair before mutation and journals each irr
   assert.match(source, /os\.replace/)
   assert.match(source, /"before"/)
   assert.match(source, /"after"/)
+})
+
+test('ready capacity databases require a reviewed exact-row identity, never planner statistics', (t) => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-exact-rows-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  const database = manifest.resources.find((item) => item.capacityPreCleanup && item.kind === 'postgres_database')
+  database.gateStatus = 'ready'
+  database.restoreCheck = 'not_required'
+  database.deleteAfter = '2026-09-03T00:00:00Z'
+  delete database.observed.exactRows
+  const changedManifest = path.join(directory, 'manifest.json')
+  fs.writeFileSync(changedManifest, `${JSON.stringify(manifest)}\n`)
+
+  const result = spawnSync('bash', [scriptPath, '--manifest', changedManifest, '--dry-run'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /exact table\/row counts/i)
+})
+
+test('database row identity executes exact COUNT queries and rejects planner-stat shortcuts', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'fresh_database_counts')
+  assert.ok(helper, 'missing fresh_database_counts helper')
+  const result = spawnSync('bash', ['-c', [
+    'set -euo pipefail',
+    'sudo() {',
+    '  local arguments="$*"',
+    '  [[ "${arguments}" != *"n_live_tup"* ]] || return 91',
+    '  if [[ "${arguments}" == *"SELECT count(*)::bigint FROM pg_stat_user_tables"* ]]; then printf "2\\n"; return 0; fi',
+    '  if [[ "${arguments}" == *"string_agg(format"* ]]; then printf "SELECT (SELECT count(*)::bigint FROM app.first) + (SELECT count(*)::bigint FROM app.second)\\n"; return 0; fi',
+    '  if [[ "${arguments}" == *"SELECT (SELECT count(*)::bigint FROM app.first)"* ]]; then printf "37\\n"; return 0; fi',
+    '  return 92',
+    '}',
+    helper,
+    'fresh_database_counts reviewed_database',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout.trim(), '2\t37')
+})
+
+test('database existence probe returns unknown on command failure instead of absent', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'probe_capacity_database_existence')
+  assert.ok(helper, 'missing probe_capacity_database_existence helper')
+  const result = spawnSync('bash', ['-c', [
+    'set -u',
+    'sudo() { return 55; }',
+    helper,
+    'set +e',
+    'output="$(probe_capacity_database_existence reviewed_database)"',
+    'probe_status=$?',
+    'printf "%s:%s\\n" "${probe_status}" "${output}"',
+    '[[ "${probe_status}" -ne 0 && "${output}" == "unknown" ]]',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /^[1-9][0-9]*:unknown$/m)
+})
+
+test('each pair rechecks immediately and journals intent before every crash boundary', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const helper = extractShellFunction(source, 'capacity_apply_pair')
+  assert.ok(helper, 'missing capacity_apply_pair helper')
+
+  for (const boundary of ['env_move', 'fence', 'drop']) {
+    const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), `chickenbro-${boundary}-`))
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+    const envPath = path.join(directory, 'reviewed.env')
+    fs.writeFileSync(envPath, 'DATABASE=reviewed_database\n')
+    const logPath = path.join(directory, 'events.log')
+    const result = spawnSync('bash', ['-c', [
+      'set -euo pipefail',
+      `RUN_ROOT=${JSON.stringify(directory)}`,
+      `TEST_LOG=${JSON.stringify(logPath)}`,
+      `FAIL_BOUNDARY=${JSON.stringify(boundary)}`,
+      'capacity_preflight_pair() { printf "preflight\\n" >> "${TEST_LOG}"; }',
+      'write_capacity_pair_journal() { printf "journal:%s\\n" "$2" >> "${TEST_LOG}"; }',
+      'capacity_pair_failure() { printf "failure:%s\\n" "$1" >> "${TEST_LOG}"; exit "$1"; }',
+      'runtime_configuration_references() { return 0; }',
+      'record_result() { return 0; }',
+      'mv() {',
+      '  printf "mutate:env_move\\n" >> "${TEST_LOG}"',
+      '  [[ "${FAIL_BOUNDARY}" != "env_move" ]] || return 71',
+      '  command mv "$@"',
+      '}',
+      'sudo() {',
+      '  local arguments="$*"',
+      '  if [[ "${arguments}" == *"SELECT format(\'ALTER DATABASE"* ]]; then printf "ALTER DATABASE reviewed_database WITH ALLOW_CONNECTIONS false\\n"; return 0; fi',
+      '  if [[ "${arguments}" == *"--command=ALTER DATABASE"* ]]; then printf "mutate:fence\\n" >> "${TEST_LOG}"; [[ "${FAIL_BOUNDARY}" != "fence" ]] || return 72; return 0; fi',
+      '  if [[ "${arguments}" == *"SELECT CASE WHEN datallowconn"* ]]; then printf "false\\n"; return 0; fi',
+      '  if [[ "${arguments}" == *"pg_terminate_backend"* ]]; then return 0; fi',
+      '  if [[ "${arguments}" == *"SELECT count(*) FROM pg_stat_activity"* ]]; then printf "0\\n"; return 0; fi',
+      '  if [[ "${arguments}" == *"SELECT format(\'DROP DATABASE"* ]]; then printf "DROP DATABASE reviewed_database\\n"; return 0; fi',
+      '  if [[ "${arguments}" == *"--command=DROP DATABASE"* ]]; then printf "mutate:drop\\n" >> "${TEST_LOG}"; [[ "${FAIL_BOUNDARY}" != "drop" ]] || return 73; return 0; fi',
+      '  return 74',
+      '}',
+      helper,
+      `capacity_apply_pair db-id reviewed_database env-id ${JSON.stringify(envPath)} ${'a'.repeat(64)} 100 2 37 postgres true`,
+    ].join('\n')], { encoding: 'utf8' })
+    assert.notEqual(result.status, 0, `${boundary} unexpectedly succeeded`)
+    const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
+    assert.equal(events[0], 'preflight', `${boundary} mutated before its immediate recheck`)
+    const intent = {
+      env_move: 'journal:env_move_intent',
+      fence: 'journal:fence_intent',
+      drop: 'journal:drop_intent',
+    }[boundary]
+    assert.ok(events.indexOf(intent) >= 0, `${boundary} intent was not persisted`)
+    assert.ok(events.indexOf(intent) < events.indexOf(`mutate:${boundary}`), `${boundary} intent followed mutation`)
+  }
+})
+
+test('between-pair drift aborts before the later pair mutates', (t) => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const preflightAll = extractShellFunction(source, 'capacity_preflight_all_pairs')
+  const applyAll = extractShellFunction(source, 'capacity_apply_pairs')
+  assert.ok(preflightAll && applyAll, 'missing capacity pair orchestration helpers')
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-between-pairs-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const pairsPath = path.join(directory, 'pairs.tsv')
+  const logPath = path.join(directory, 'events.log')
+  const sha = 'a'.repeat(64)
+  fs.writeFileSync(pairsPath, [
+    `db-one\treviewed_one\tenv-one\t/etc/one.env\t${sha}\t100\t2\t37\tpostgres\ttrue`,
+    `db-two\treviewed_two\tenv-two\t/etc/two.env\t${sha}\t200\t3\t41\tpostgres\ttrue`,
+  ].join('\n') + '\n')
+
+  const result = spawnSync('bash', ['-c', [
+    'set -euo pipefail',
+    `RUN_ROOT=${JSON.stringify(directory)}`,
+    `CAPACITY_PAIRS=${JSON.stringify(pairsPath)}`,
+    `TEST_LOG=${JSON.stringify(logPath)}`,
+    'DRIFTED=false',
+    'install() { command mkdir -p "${9}"; }',
+    'capacity_preflight_pair() {',
+    '  printf "preflight:%s\\n" "$2" >> "${TEST_LOG}"',
+    '  if [[ "$2" == "reviewed_two" && "${DRIFTED}" == "true" ]]; then return 86; fi',
+    '}',
+    'write_capacity_pair_journal() { printf "journal:%s\\n" "$3" >> "${TEST_LOG}"; }',
+    'capacity_apply_pair() {',
+    '  capacity_preflight_pair "$@"',
+    '  printf "mutate:%s\\n" "$2" >> "${TEST_LOG}"',
+    '  [[ "$2" != "reviewed_one" ]] || DRIFTED=true',
+    '}',
+    preflightAll,
+    applyAll,
+    'capacity_preflight_all_pairs',
+    'capacity_apply_pairs',
+  ].join('\n')], { encoding: 'utf8' })
+  assert.equal(result.status, 86, result.stderr)
+  const events = fs.readFileSync(logPath, 'utf8').trim().split('\n')
+  assert.ok(events.includes('mutate:reviewed_one'))
+  assert.equal(events.filter((event) => event === 'preflight:reviewed_two').length, 2)
+  assert.ok(!events.includes('mutate:reviewed_two'))
 })
 
 test('capacity database preflight permits only its exact companion then requires zero references after quarantine', () => {
@@ -363,6 +527,12 @@ test('remote metadata refresh precedes temporary files and quarantine directorie
   assert.ok(metadata > 0)
   assert.ok(metadata < remote.indexOf('MANIFEST_TMP="$(mktemp)"'))
   assert.ok(metadata < remote.indexOf('install -d -o root -g root -m 0700 -- "${RUN_ROOT}"'))
+})
+
+test('remote recovery traps inherit through apply helpers', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  const remote = source.slice(source.indexOf("bash -s <<'REMOTE'"))
+  assert.match(remote, /^bash -s <<'REMOTE'\nset -Eeuo pipefail/m)
 })
 
 test('manifest and dry-run contain no secret-bearing fields or values', () => {

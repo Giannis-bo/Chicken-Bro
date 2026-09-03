@@ -497,6 +497,35 @@ def validate_local_app_dsn(dsn: str, expected_database: str) -> str:
     return name
 
 
+def _capture_relation_content_identity(
+    connection: Any,
+    relations: Iterable[tuple[str, str]],
+    *,
+    invalid_code: str,
+) -> dict[str, dict[str, Any]]:
+    identities: dict[str, dict[str, Any]] = {}
+    for schema_name, relation_name in relations:
+        if schema_name not in RESTORE_SCHEMAS or DATABASE_NAME.fullmatch(relation_name) is None:
+            raise MigrationError(invalid_code)
+        digest = hashlib.sha256()
+        row_count = 0
+        cursor = connection.execute(
+            f'SELECT to_jsonb(row_value) FROM "{schema_name}"."{relation_name}" AS row_value '
+            "ORDER BY to_jsonb(row_value)::text",
+        )
+        for (raw_row,) in cursor:
+            row = json.loads(raw_row) if isinstance(raw_row, str) else raw_row
+            encoded = canonical_json(row).encode("utf-8")
+            digest.update(len(encoded).to_bytes(8, byteorder="big"))
+            digest.update(encoded)
+            row_count += 1
+        identities[f"{schema_name}.{relation_name}"] = {
+            "rowCount": row_count,
+            "contentHash": digest.hexdigest(),
+        }
+    return identities
+
+
 def capture_restore_identity(connection: Any, expected_database: str) -> dict[str, Any]:
     """Read a deterministic schema/table/content identity without changing the database."""
 
@@ -610,6 +639,133 @@ def capture_restore_identity(connection: Any, expected_database: str) -> dict[st
         """,
         (list(RESTORE_SCHEMAS),),
     ).fetchall()
+    sequence_rows = connection.execute(
+        """
+        SELECT namespace.nspname, relation.relname,
+               pg_catalog.pg_get_userbyid(relation.relowner),
+               pg_catalog.format_type(sequence_record.seqtypid, NULL),
+               sequence_record.seqstart, sequence_record.seqincrement,
+               sequence_record.seqmin, sequence_record.seqmax,
+               sequence_record.seqcache, sequence_record.seqcycle
+        FROM pg_catalog.pg_sequence AS sequence_record
+        JOIN pg_catalog.pg_class AS relation ON relation.oid = sequence_record.seqrelid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = ANY(%s)
+        ORDER BY namespace.nspname, relation.relname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    sequences: dict[str, dict[str, Any]] = {}
+    for sequence_row in sequence_rows:
+        schema_name, sequence_name = sequence_row[:2]
+        if schema_name not in RESTORE_SCHEMAS or DATABASE_NAME.fullmatch(sequence_name) is None:
+            raise MigrationError("RESTORE_SEQUENCE_IDENTITY_INVALID")
+        state = connection.execute(
+            f'SELECT last_value, is_called FROM "{schema_name}"."{sequence_name}"',
+        ).fetchone()
+        if state is None or len(state) != 2 or not isinstance(state[1], bool):
+            raise MigrationError("RESTORE_SEQUENCE_STATE_UNAVAILABLE")
+        sequences[f"{schema_name}.{sequence_name}"] = {
+            "definition": sequence_row[2:],
+            "lastValue": state[0],
+            "isCalled": state[1],
+        }
+    view_rows = connection.execute(
+        """
+        SELECT schemaname, viewname, definition
+        FROM pg_catalog.pg_views
+        WHERE schemaname = ANY(%s)
+        ORDER BY schemaname, viewname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    materialized_view_rows = connection.execute(
+        """
+        SELECT schemaname, matviewname, matviewowner, tablespace,
+               hasindexes, ispopulated, definition
+        FROM pg_catalog.pg_matviews
+        WHERE schemaname = ANY(%s)
+        ORDER BY schemaname, matviewname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    type_rows = connection.execute(
+        """
+        SELECT namespace.nspname, type_record.typname, type_record.typtype,
+               type_record.typcategory,
+               pg_catalog.format_type(type_record.typelem, NULL),
+               pg_catalog.format_type(type_record.typbasetype, NULL),
+               type_record.typnotnull, type_record.typdefault,
+               pg_catalog.pg_get_userbyid(type_record.typowner),
+               COALESCE((
+                   SELECT string_agg(acl_item::text, E'\n' ORDER BY acl_item::text)
+                   FROM unnest(type_record.typacl) AS acl_item
+               ), '')
+        FROM pg_catalog.pg_type AS type_record
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+        WHERE namespace.nspname = ANY(%s)
+          AND NOT (type_record.typcategory = 'A' AND type_record.typelem <> 0)
+        ORDER BY namespace.nspname, type_record.typname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    domain_constraint_rows = connection.execute(
+        """
+        SELECT namespace.nspname, type_record.typname, constraint_record.conname,
+               pg_catalog.pg_get_constraintdef(constraint_record.oid, true)
+        FROM pg_catalog.pg_constraint AS constraint_record
+        JOIN pg_catalog.pg_type AS type_record ON type_record.oid = constraint_record.contypid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+        WHERE namespace.nspname = ANY(%s) AND constraint_record.contypid <> 0
+        ORDER BY namespace.nspname, type_record.typname, constraint_record.conname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    composite_attribute_rows = connection.execute(
+        """
+        SELECT namespace.nspname, type_record.typname, attribute_record.attname,
+               attribute_record.attnum,
+               pg_catalog.format_type(attribute_record.atttypid, attribute_record.atttypmod),
+               attribute_record.attcollation::pg_catalog.regcollation::text
+        FROM pg_catalog.pg_attribute AS attribute_record
+        JOIN pg_catalog.pg_type AS type_record ON type_record.typrelid = attribute_record.attrelid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+        WHERE namespace.nspname = ANY(%s)
+          AND type_record.typtype = 'c'
+          AND attribute_record.attnum > 0
+          AND NOT attribute_record.attisdropped
+        ORDER BY namespace.nspname, type_record.typname, attribute_record.attnum
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    enum_rows = connection.execute(
+        """
+        SELECT namespace.nspname, type_record.typname,
+               enum_record.enumsortorder, enum_record.enumlabel
+        FROM pg_catalog.pg_enum AS enum_record
+        JOIN pg_catalog.pg_type AS type_record ON type_record.oid = enum_record.enumtypid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+        WHERE namespace.nspname = ANY(%s)
+        ORDER BY namespace.nspname, type_record.typname, enum_record.enumsortorder
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
+    range_rows = connection.execute(
+        """
+        SELECT namespace.nspname, type_record.typname,
+               pg_catalog.format_type(range_record.rngsubtype, NULL),
+               range_record.rngcollation::pg_catalog.regcollation::text,
+               range_record.rngcanonical::pg_catalog.regprocedure::text,
+               range_record.rngsubdiff::pg_catalog.regprocedure::text,
+               pg_catalog.format_type(range_record.rngmultitypid, NULL)
+        FROM pg_catalog.pg_range AS range_record
+        JOIN pg_catalog.pg_type AS type_record ON type_record.oid = range_record.rngtypid
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+        WHERE namespace.nspname = ANY(%s)
+        ORDER BY namespace.nspname, type_record.typname
+        """,
+        (list(RESTORE_SCHEMAS),),
+    ).fetchall()
     table_rows = connection.execute(
         """
         SELECT table_schema, table_name
@@ -620,26 +776,37 @@ def capture_restore_identity(connection: Any, expected_database: str) -> dict[st
         (list(RESTORE_SCHEMAS),),
     ).fetchall()
 
-    tables: dict[str, dict[str, Any]] = {}
-    for schema_name, table_name in table_rows:
-        if schema_name not in RESTORE_SCHEMAS or DATABASE_NAME.fullmatch(table_name) is None:
-            raise MigrationError("RESTORE_TABLE_IDENTITY_INVALID")
-        digest = hashlib.sha256()
-        row_count = 0
-        cursor = connection.execute(
-            f'SELECT to_jsonb(row_value) FROM "{schema_name}"."{table_name}" AS row_value '
-            "ORDER BY to_jsonb(row_value)::text",
-        )
-        for (raw_row,) in cursor:
-            row = json.loads(raw_row) if isinstance(raw_row, str) else raw_row
-            encoded = canonical_json(row).encode("utf-8")
-            digest.update(len(encoded).to_bytes(8, byteorder="big"))
-            digest.update(encoded)
-            row_count += 1
-        tables[f"{schema_name}.{table_name}"] = {
-            "rowCount": row_count,
-            "contentHash": digest.hexdigest(),
-        }
+    tables = _capture_relation_content_identity(
+        connection,
+        table_rows,
+        invalid_code="RESTORE_TABLE_IDENTITY_INVALID",
+    )
+    populated_materialized_views: list[tuple[str, str]] = []
+    materialized_views: dict[str, dict[str, Any]] = {}
+    for materialized_view_row in materialized_view_rows:
+        schema_name, view_name = materialized_view_row[:2]
+        is_populated = materialized_view_row[5]
+        if (
+            schema_name not in RESTORE_SCHEMAS
+            or DATABASE_NAME.fullmatch(view_name) is None
+            or not isinstance(is_populated, bool)
+        ):
+            raise MigrationError("RESTORE_MATERIALIZED_VIEW_IDENTITY_INVALID")
+        key = f"{schema_name}.{view_name}"
+        if is_populated:
+            populated_materialized_views.append((schema_name, view_name))
+        else:
+            materialized_views[key] = {
+                "rowCount": None,
+                "contentHash": None,
+                "isPopulated": False,
+            }
+    for key, identity in _capture_relation_content_identity(
+        connection,
+        populated_materialized_views,
+        invalid_code="RESTORE_MATERIALIZED_VIEW_IDENTITY_INVALID",
+    ).items():
+        materialized_views[key] = {**identity, "isPopulated": True}
 
     return {
         "schemaHash": content_hash({
@@ -651,7 +818,16 @@ def capture_restore_identity(connection: Any, expected_database: str) -> dict[st
             "functions": function_rows,
             "triggers": trigger_rows,
             "policies": policy_rows,
+            "views": view_rows,
+            "materializedViews": materialized_view_rows,
+            "types": type_rows,
+            "domainConstraints": domain_constraint_rows,
+            "compositeAttributes": composite_attribute_rows,
+            "enumLabels": enum_rows,
+            "ranges": range_rows,
         }),
+        "sequences": sequences,
+        "materializedViews": materialized_views,
         "tables": tables,
     }
 

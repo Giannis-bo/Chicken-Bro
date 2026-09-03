@@ -13,6 +13,93 @@ from server.migrations.product.postgres_legacy import (
 )
 
 
+class _IdentityCursor:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def fetchone(self):
+        return self.rows[0] if self.rows else None
+
+    def fetchall(self):
+        return self.rows
+
+    def __iter__(self):
+        return iter(self.rows)
+
+
+class _ReadOnlyIdentityConnection:
+    def __init__(
+        self,
+        database,
+        *,
+        table_rows=(),
+        table_contents=None,
+        triggers=(),
+        sequences=(),
+        sequence_states=None,
+        views=(),
+        materialized_views=(),
+        materialized_view_contents=None,
+        types=(),
+        domain_constraints=(),
+        composite_attributes=(),
+        enum_labels=(),
+        ranges=(),
+    ):
+        self.database = database
+        self.table_rows = list(table_rows)
+        self.table_contents = table_contents or {}
+        self.triggers = list(triggers)
+        self.sequences = list(sequences)
+        self.sequence_states = sequence_states or {}
+        self.views = list(views)
+        self.materialized_views = list(materialized_views)
+        self.materialized_view_contents = materialized_view_contents or {}
+        self.types = list(types)
+        self.domain_constraints = list(domain_constraints)
+        self.composite_attributes = list(composite_attributes)
+        self.enum_labels = list(enum_labels)
+        self.ranges = list(ranges)
+        self.statements = []
+
+    def execute(self, query, _params=None):
+        normalized = " ".join(query.split())
+        self.statements.append(normalized)
+        if "current_setting('transaction_read_only')" in normalized:
+            return _IdentityCursor([(self.database, "on")])
+        if "FROM information_schema.tables" in normalized:
+            return _IdentityCursor(self.table_rows)
+        if "FROM pg_catalog.pg_trigger" in normalized:
+            return _IdentityCursor(self.triggers)
+        if "FROM pg_catalog.pg_sequence" in normalized:
+            return _IdentityCursor(self.sequences)
+        if "FROM pg_catalog.pg_views" in normalized:
+            return _IdentityCursor(self.views)
+        if "FROM pg_catalog.pg_matviews" in normalized:
+            return _IdentityCursor(self.materialized_views)
+        if "FROM pg_catalog.pg_enum" in normalized:
+            return _IdentityCursor(self.enum_labels)
+        if "FROM pg_catalog.pg_range" in normalized:
+            return _IdentityCursor(self.ranges)
+        if "FROM pg_catalog.pg_type" in normalized:
+            return _IdentityCursor(self.types)
+        if "constraint_record.contypid" in normalized:
+            return _IdentityCursor(self.domain_constraints)
+        if "attribute_record.attrelid" in normalized:
+            return _IdentityCursor(self.composite_attributes)
+        if normalized.startswith("SELECT last_value, is_called FROM"):
+            for (schema_name, sequence_name), state in self.sequence_states.items():
+                if f'"{schema_name}"."{sequence_name}"' in normalized:
+                    return _IdentityCursor([state])
+            return _IdentityCursor([])
+        if "SELECT to_jsonb(row_value)" in normalized:
+            for contents in (self.materialized_view_contents, self.table_contents):
+                for (schema_name, table_name), rows in contents.items():
+                    if f'"{schema_name}"."{table_name}"' in normalized:
+                        return _IdentityCursor([(row,) for row in rows])
+        return _IdentityCursor([])
+
+
 class PostgresLegacyMigrationTest(unittest.TestCase):
     def test_normalizes_only_the_reviewed_mini_app_identity_context(self):
         rows = {
@@ -212,44 +299,15 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
                 validate_local_app_dsn(dsn, "wow_test")
 
     def test_restore_comparison_rejects_a_missing_row_without_repairing_it(self):
-        class Cursor:
-            def __init__(self, rows):
-                self.rows = rows
-
-            def fetchone(self):
-                return self.rows[0] if self.rows else None
-
-            def fetchall(self):
-                return self.rows
-
-            def __iter__(self):
-                return iter(self.rows)
-
-        class ReadOnlyConnection:
-            def __init__(self, database, rows, *, triggers=()):
-                self.database = database
-                self.rows = rows
-                self.triggers = list(triggers)
-                self.statements = []
-
-            def execute(self, query, _params=None):
-                normalized = " ".join(query.split())
-                self.statements.append(normalized)
-                if "current_setting('transaction_read_only')" in normalized:
-                    return Cursor([(self.database, "on")])
-                if "FROM information_schema.tables" in normalized:
-                    return Cursor([("chat", "messages")])
-                if "FROM pg_catalog.pg_trigger" in normalized:
-                    return Cursor(self.triggers)
-                if "SELECT to_jsonb(row_value)" in normalized:
-                    return Cursor([(row,) for row in self.rows])
-                return Cursor([])
-
-        candidate_connection = ReadOnlyConnection(
-            "chickenbro_prod", [{"id": "message-a"}, {"id": "message-b"}],
+        candidate_connection = _ReadOnlyIdentityConnection(
+            "chickenbro_prod",
+            table_rows=[("chat", "messages")],
+            table_contents={("chat", "messages"): [{"id": "message-a"}, {"id": "message-b"}]},
         )
-        restored_connection = ReadOnlyConnection(
-            "chickenbro_restore_verify_a", [{"id": "message-a"}],
+        restored_connection = _ReadOnlyIdentityConnection(
+            "chickenbro_restore_verify_a",
+            table_rows=[("chat", "messages")],
+            table_contents={("chat", "messages"): [{"id": "message-a"}]},
         )
         candidate = capture_restore_identity(candidate_connection, "chickenbro_prod")
         restored = capture_restore_identity(restored_connection, "chickenbro_restore_verify_a")
@@ -261,18 +319,166 @@ class PostgresLegacyMigrationTest(unittest.TestCase):
         for statement in candidate_connection.statements + restored_connection.statements:
             self.assertRegex(statement, r"^SELECT\b")
 
-        candidate_with_trigger = ReadOnlyConnection(
+        candidate_with_trigger = _ReadOnlyIdentityConnection(
             "chickenbro_prod",
-            [{"id": "message-a"}],
+            table_rows=[("chat", "messages")],
+            table_contents={("chat", "messages"): [{"id": "message-a"}]},
             triggers=[("simc", "simulation_results", "immutable", "CREATE TRIGGER immutable ...")],
         )
-        restored_without_trigger = ReadOnlyConnection(
-            "chickenbro_restore_verify_b", [{"id": "message-a"}],
+        restored_without_trigger = _ReadOnlyIdentityConnection(
+            "chickenbro_restore_verify_b",
+            table_rows=[("chat", "messages")],
+            table_contents={("chat", "messages"): [{"id": "message-a"}]},
         )
         candidate = capture_restore_identity(candidate_with_trigger, "chickenbro_prod")
         restored = capture_restore_identity(restored_without_trigger, "chickenbro_restore_verify_b")
         with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
             compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_sequence_state_drift(self):
+        definition = ("ops", "event_sequence", "wow_migrator", "bigint", 1, 1, 1, 9223372036854775807, 1, False)
+        candidate = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_prod",
+                sequences=[definition],
+                sequence_states={("ops", "event_sequence"): (42, True)},
+            ),
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_sequence",
+                sequences=[definition],
+                sequence_states={("ops", "event_sequence"): (41, True)},
+            ),
+            "chickenbro_restore_verify_sequence",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_view_definition_drift(self):
+        materialized_view = (
+            "ops", "usage_rollup", "wow_migrator", None, False, True,
+            " SELECT user_id, count(*) AS total FROM ops.usage_counters GROUP BY user_id;",
+        )
+        candidate = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_prod",
+                views=[("chat", "conversation_summary", " SELECT id, title FROM chat.conversations;")],
+                materialized_views=[materialized_view],
+            ),
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_view",
+                views=[("chat", "conversation_summary", " SELECT id FROM chat.conversations;")],
+                materialized_views=[materialized_view],
+            ),
+            "chickenbro_restore_verify_view",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_materialized_view_content_drift(self):
+        definition = (
+            "ops", "usage_rollup", "wow_migrator", None, False, True,
+            " SELECT user_id, count(*) AS total FROM ops.usage_counters GROUP BY user_id;",
+        )
+        candidate = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_prod",
+                materialized_views=[definition],
+                materialized_view_contents={
+                    ("ops", "usage_rollup"): [{"user_id": "user-a", "total": 2}],
+                },
+            ),
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_matview",
+                materialized_views=[definition],
+                materialized_view_contents={
+                    ("ops", "usage_rollup"): [{"user_id": "user-a", "total": 1}],
+                },
+            ),
+            "chickenbro_restore_verify_matview",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_product_type_drift(self):
+        type_definition = ("simc", "result_state", "e", "E", "-", "-", False, None, "wow_migrator", "")
+        candidate = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_prod",
+                types=[type_definition],
+                enum_labels=[("simc", "result_state", 1.0, "queued"), ("simc", "result_state", 2.0, "done")],
+            ),
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_type",
+                types=[type_definition],
+                enum_labels=[("simc", "result_state", 1.0, "queued"), ("simc", "result_state", 2.0, "failed")],
+            ),
+            "chickenbro_restore_verify_type",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_domain_constraint_drift(self):
+        type_definition = ("identity", "account_name", "d", "S", "-", "text", False, None, "wow_migrator", "")
+        candidate = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_prod",
+                types=[type_definition],
+                domain_constraints=[("identity", "account_name", "account_name_check", "CHECK (VALUE <> '')")],
+            ),
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_domain",
+                types=[type_definition],
+                domain_constraints=[("identity", "account_name", "account_name_check", "CHECK (length(VALUE) > 1)")],
+            ),
+            "chickenbro_restore_verify_domain",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+
+    def test_restore_comparison_rejects_composite_attribute_drift(self):
+        type_definition = ("ops", "usage_bucket", "c", "C", "-", "-", False, None, "wow_migrator", "")
+        candidate_connection = _ReadOnlyIdentityConnection(
+            "chickenbro_prod",
+            types=[type_definition],
+            composite_attributes=[("ops", "usage_bucket", "total", 1, "bigint", "-")],
+        )
+        candidate = capture_restore_identity(
+            candidate_connection,
+            "chickenbro_prod",
+        )
+        restored = capture_restore_identity(
+            _ReadOnlyIdentityConnection(
+                "chickenbro_restore_verify_composite",
+                types=[type_definition],
+                composite_attributes=[("ops", "usage_bucket", "total", 1, "integer", "-")],
+            ),
+            "chickenbro_restore_verify_composite",
+        )
+
+        with self.assertRaisesRegex(MigrationError, "RESTORE_DATABASE_IDENTITY_MISMATCH"):
+            compare_restore_identities(candidate, restored)
+        type_query = next(statement for statement in candidate_connection.statements if "FROM pg_catalog.pg_type" in statement)
+        self.assertNotIn("type_record.typrelid = 0", type_query)
 
 
 if __name__ == "__main__":
