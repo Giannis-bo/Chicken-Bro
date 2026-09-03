@@ -127,29 +127,18 @@ class OwnerIsolationTest(unittest.TestCase):
         conversation_id = UUID("00000000-0000-4000-8000-000000000052")
         message_id = UUID("00000000-0000-4000-8000-000000000053")
         now = datetime(2026, 9, 3, 11, 0, tzinfo=timezone.utc)
-        cursor = RecordingCursor([
-            (
-                message_id,
-                conversation_id,
-                owner_id,
-                "user",
-                "同一问题",
-                "client-idempotent",
-                now,
-            ),
-        ])
-        repository = PostgresChatRepository(
-            lambda: RecordingConnection(cursor),
-        )
-        self.assertTrue(
-            hasattr(repository, "get_message_by_client_id"),
-            "formal idempotent message lookup is missing",
-        )
-
-        message = repository.get_message_by_client_id(
+        cursor = RecordingCursor([(
+            message_id,
+            conversation_id,
             owner_id,
+            "user",
+            "同一问题",
             "client-idempotent",
-        )
+            now,
+        )])
+        repository = PostgresChatRepository(lambda: RecordingConnection(cursor))
+
+        message = repository.get_message_by_client_id(owner_id, "client-idempotent")
 
         self.assertEqual(message.id, message_id)
         statement, parameters = cursor.executed[0]
@@ -193,69 +182,6 @@ class OwnerIsolationTest(unittest.TestCase):
         statement, parameters = cursor.executed[0]
         self.assertIn("WHERE user_id = %s AND user_message_id = %s", statement)
         self.assertEqual(parameters, (owner_id, user_message_id))
-
-    def test_postgres_replay_run_lookup_is_bound_to_owner_and_run_id(self):
-        owner_id = UUID("00000000-0000-0000-0000-000000000071")
-        conversation_id = UUID("00000000-0000-4000-8000-000000000072")
-        user_message_id = UUID("00000000-0000-4000-8000-000000000073")
-        run_id = UUID("00000000-0000-4000-8000-000000000074")
-        now = datetime(2026, 9, 3, 11, 10, tzinfo=timezone.utc)
-        cursor = RecordingCursor([
-            (
-                run_id,
-                owner_id,
-                conversation_id,
-                user_message_id,
-                None,
-                "failed",
-                "codex-test",
-                "CODEX_TIMEOUT",
-                now,
-                now,
-                "request-replay-run",
-            ),
-        ])
-        repository = PostgresChatRepository(
-            lambda: RecordingConnection(cursor),
-        )
-        self.assertTrue(
-            hasattr(repository, "get_agent_run"),
-            "owner-scoped replay lookup is missing",
-        )
-
-        run = repository.get_agent_run(owner_id, run_id)
-
-        self.assertEqual(run.id, run_id)
-        self.assertEqual(run.public_error_code, "CODEX_TIMEOUT")
-        statement, parameters = cursor.executed[0]
-        self.assertIn("WHERE user_id = %s AND id = %s", statement)
-        self.assertEqual(parameters, (owner_id, run_id))
-
-    def test_postgres_agent_run_start_persists_idempotency_key(self):
-        owner_id = UUID("00000000-0000-0000-0000-000000000081")
-        conversation_id = UUID("00000000-0000-4000-8000-000000000082")
-        user_message_id = UUID("00000000-0000-4000-8000-000000000083")
-        now = datetime(2026, 9, 3, 11, 15, tzinfo=timezone.utc)
-        cursor = RecordingCursor([])
-        repository = PostgresChatRepository(
-            lambda: RecordingConnection(cursor),
-        )
-
-        try:
-            run = repository.start_agent_run(
-                owner_id,
-                conversation_id,
-                user_message_id,
-                now,
-                idempotency_key="request-persisted",
-            )
-        except TypeError as error:
-            self.fail(f"AgentRun start rejected formal idempotency: {error}")
-
-        self.assertEqual(run.idempotency_key, "request-persisted")
-        statement, parameters = cursor.executed[0]
-        self.assertIn("idempotency_key", statement)
-        self.assertEqual(parameters[-1], "request-persisted")
 
     def test_postgres_agent_run_idempotency_lookup_is_owner_scoped(self):
         owner_id = UUID("00000000-0000-0000-0000-000000000091")

@@ -58,17 +58,6 @@ class MemoryChatRepository:
             if item["user_id"] == user_id and item["conversation_id"] == conversation_id
         ]
 
-    def find_message_by_client_id(self, user_id, conversation_id, client_message_id):
-        return next(
-            (
-                item for item in self.messages
-                if item["user_id"] == user_id
-                and item["conversation_id"] == conversation_id
-                and item["client_message_id"] == client_message_id
-            ),
-            None,
-        )
-
     def get_message_by_client_id(self, user_id, client_message_id):
         return next(
             (
@@ -98,10 +87,6 @@ class MemoryChatRepository:
             ),
             None,
         )
-
-    def get_agent_run(self, user_id, run_id):
-        run = self.runs.get(run_id)
-        return run if run is not None and run["user_id"] == user_id else None
 
     def insert_message(self, user_id, conversation_id, role, content, client_message_id, now):
         if role is MessageRole.ASSISTANT and self.fail_assistant_insert:
@@ -945,14 +930,12 @@ class ChatApplicationTest(unittest.TestCase):
             codex=replay_codex,
             clock=lambda: self.now,
         )
-        self.assertTrue(
-            hasattr(replay_application, "replay_run"),
-            "public persisted-run replay is missing",
-        )
-
-        replayed = list(replay_application.replay_run(
+        replayed = list(replay_application.stream_message(
             self.principal,
-            UUID(completed[-1].run_id),
+            self.conversation_id,
+            "断线前的问题",
+            client_message_id="client-replay-success",
+            idempotency_key="request-replay-success",
         ))
 
         self.assertEqual(replay_codex.calls, 0)
@@ -987,9 +970,12 @@ class ChatApplicationTest(unittest.TestCase):
         )
 
         try:
-            replayed = list(replay_application.replay_run(
+            replayed = list(replay_application.stream_message(
                 self.principal,
-                UUID(failed[-1].run_id),
+                self.conversation_id,
+                "失败也要重放",
+                client_message_id="client-replay-failed",
+                idempotency_key="request-replay-failed",
             ))
         except ChatApplicationError as error:
             self.fail(f"failed run replay returned {error.code}")
@@ -1004,19 +990,14 @@ class ChatApplicationTest(unittest.TestCase):
         self.assertEqual(replayed[-1].run_id, failed[-1].run_id)
 
     def test_replay_streaming_run_fails_before_emitting_an_event(self):
-        user_message = self.repository.insert_message(
+        _user_message, run = self.repository.start_message_run(
             self.user_id,
             self.conversation_id,
-            MessageRole.USER,
             "仍在运行",
             "client-still-running",
+            "request-still-running",
             self.now,
-        )
-        run = self.repository.start_agent_run(
-            self.user_id,
-            self.conversation_id,
-            user_message["id"],
-            self.now,
+            runtime_revision="codex:test:1",
         )
         replay_codex = FakeCodex(error=AssertionError("Codex must not run during replay"))
         replay_application = ChatApplication(
@@ -1024,7 +1005,13 @@ class ChatApplicationTest(unittest.TestCase):
             codex=replay_codex,
             clock=lambda: self.now,
         )
-        replay = replay_application.replay_run(self.principal, run["id"])
+        replay = replay_application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "仍在运行",
+            client_message_id="client-still-running",
+            idempotency_key="request-still-running",
+        )
 
         with self.assertRaisesRegex(ChatApplicationError, "CHAT_RUN_IN_PROGRESS"):
             next(replay)

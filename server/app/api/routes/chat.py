@@ -90,7 +90,6 @@ def _detail_payload(view: object) -> dict[str, object]:
 def _raise_chat_error(error: ChatApplicationError) -> None:
     status_code = {
         "CONVERSATION_NOT_FOUND": 404,
-        "CHAT_RUN_NOT_FOUND": 404,
         "INVALID_CURSOR": 422,
         "MESSAGE_REQUIRED": 422,
         "MESSAGE_TOO_LONG": 422,

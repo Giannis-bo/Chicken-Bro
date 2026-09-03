@@ -123,27 +123,6 @@ class PostgresChatRepository:
                 rows = cursor.fetchall()
         return [self._message_from_row(row) for row in rows]
 
-    def find_message_by_client_id(
-        self,
-        user_id: UUID,
-        conversation_id: UUID,
-        client_message_id: str | None,
-    ) -> Message | None:
-        if not client_message_id:
-            return None
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at
-                    FROM chat.messages
-                    WHERE user_id = %s AND conversation_id = %s AND client_message_id = %s
-                    """,
-                    (user_id, conversation_id, client_message_id),
-                )
-                row = cursor.fetchone()
-        return self._message_from_row(row) if row is not None else None
-
     def get_message_by_client_id(
         self,
         user_id: UUID,
@@ -205,55 +184,6 @@ class PostgresChatRepository:
                 )
                 row = cursor.fetchone()
         return self._agent_run_from_row(row) if row is not None else None
-
-    def get_agent_run(self, user_id: UUID, run_id: UUID) -> AgentRun | None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT id, user_id, conversation_id, user_message_id,
-                           assistant_message_id, status, runtime_revision,
-                           public_error_code, started_at, finished_at,
-                           idempotency_key
-                    FROM chat.agent_runs
-                    WHERE user_id = %s AND id = %s
-                    """,
-                    (user_id, run_id),
-                )
-                row = cursor.fetchone()
-        return self._agent_run_from_row(row) if row is not None else None
-
-    def insert_message(
-        self,
-        user_id: UUID,
-        conversation_id: UUID,
-        role: MessageRole,
-        content: str,
-        client_message_id: str | None,
-        now: datetime,
-    ) -> Message:
-        message_id = uuid4()
-        role_value = role.value if isinstance(role, MessageRole) else str(role)
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO chat.messages (
-                        id, conversation_id, user_id, role, content, client_message_id, created_at
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (message_id, conversation_id, user_id, role_value, content, client_message_id, now),
-                )
-        return Message(
-            id=message_id,
-            conversation_id=conversation_id,
-            user_id=user_id,
-            role=MessageRole(role_value),
-            content=content,
-            client_message_id=client_message_id,
-            created_at=now,
-        )
 
     def start_message_run(
         self,
@@ -386,51 +316,6 @@ class PostgresChatRepository:
             content=content,
             client_message_id=None,
             created_at=now,
-        )
-
-    def start_agent_run(
-        self,
-        user_id: UUID,
-        conversation_id: UUID,
-        user_message_id: UUID,
-        now: datetime,
-        *,
-        idempotency_key: str,
-        runtime_revision: str = "codex:native:unversioned",
-    ) -> AgentRun:
-        run_id = uuid4()
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO chat.agent_runs (
-                        id, user_id, conversation_id, user_message_id, status,
-                        runtime_revision, started_at, idempotency_key
-                    )
-                    VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
-                    """,
-                    (
-                        run_id,
-                        user_id,
-                        conversation_id,
-                        user_message_id,
-                        runtime_revision,
-                        now,
-                        idempotency_key,
-                    ),
-                )
-        return AgentRun(
-            id=run_id,
-            user_id=user_id,
-            conversation_id=conversation_id,
-            user_message_id=user_message_id,
-            assistant_message_id=None,
-            status=AgentRunStatus.STREAMING,
-            runtime_revision=runtime_revision,
-            public_error_code="",
-            started_at=now,
-            finished_at=None,
-            idempotency_key=idempotency_key,
         )
 
     def finish_agent_run(

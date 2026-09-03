@@ -168,16 +168,6 @@ class ChatApplication:
             "messages": self._repository.list_messages(principal.user_id, conversation_id),
         }
 
-    def replay_run(
-        self,
-        principal: Principal,
-        run_id: UUID,
-    ) -> Iterator[ChatEvent]:
-        run = self._repository.get_agent_run(principal.user_id, run_id)
-        if run is None:
-            raise ChatApplicationError("CHAT_RUN_NOT_FOUND", "chat run not found")
-        yield from self._replay_agent_run(principal, run)
-
     def _find_idempotent_run(
         self,
         principal: Principal,
