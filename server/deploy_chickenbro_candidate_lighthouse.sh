@@ -300,6 +300,26 @@ die_remote() {
   exit 1
 }
 
+validate_nginx_owner() {
+  local label="$1"
+  local site="$2"
+  local owner="$3"
+  local allowed_legacy_enabled="${4:-}"
+  [[ -f "${site}" && -f "${owner}" ]] || die_remote "${label} Nginx owner is missing"
+  if [[ "${owner}" == /etc/nginx/sites-available/* ]]; then
+    :
+  elif [[ -n "${allowed_legacy_enabled}" \
+    && "${site}" == "${allowed_legacy_enabled}" \
+    && "${owner}" == "${allowed_legacy_enabled}" \
+    && ! -L "${site}" ]]; then
+    :
+  else
+    die_remote "${label} Nginx owner is outside the reviewed paths"
+  fi
+  [[ "$(stat -c '%U:%G:%a' "${owner}")" == "root:root:644" ]] \
+    || die_remote "${label} Nginx owner metadata is invalid"
+}
+
 for command_name in python3 psql pg_dump pg_restore createdb dropdb nginx systemctl tar sha256sum curl stat df awk grep readlink; do
   command -v "${command_name}" >/dev/null 2>&1 || die_remote "missing command: ${command_name}"
 done
@@ -446,10 +466,9 @@ sudo -n -u "${REMOTE_USER}" "${EXISTING_RUNTIME_PYTHON}" -c \
 [[ -f "${WWW_NGINX_SITE}" && -f "${API_NGINX_SITE}" ]] || die_remote "existing Nginx owners are missing"
 WWW_NGINX_OWNER="$(readlink -f -- "${WWW_NGINX_SITE}")"
 API_NGINX_OWNER="$(readlink -f -- "${API_NGINX_SITE}")"
-[[ "${WWW_NGINX_OWNER}" == /etc/nginx/sites-available/* ]] \
-  || die_remote "WWW Nginx owner is outside sites-available"
-[[ "${API_NGINX_OWNER}" == /etc/nginx/sites-available/* ]] \
-  || die_remote "API Nginx owner is outside sites-available"
+validate_nginx_owner WWW "${WWW_NGINX_SITE}" "${WWW_NGINX_OWNER}"
+validate_nginx_owner API "${API_NGINX_SITE}" "${API_NGINX_OWNER}" \
+  /etc/nginx/sites-enabled/api.chickenbro.cloud
 grep -Eq 'server_name[[:space:]]+www\.chickenbro\.cloud' "${WWW_NGINX_OWNER}" \
   || die_remote "WWW Nginx owner is not the expected host"
 grep -Eq 'server_name[[:space:]]+api\.chickenbro\.cloud' "${API_NGINX_OWNER}" \
@@ -639,11 +658,34 @@ die_remote() {
   exit 1
 }
 
+validate_nginx_owner() {
+  local label="$1"
+  local site="$2"
+  local owner="$3"
+  local allowed_legacy_enabled="${4:-}"
+  [[ -f "${site}" && -f "${owner}" ]] || die_remote "${label} Nginx owner is missing"
+  if [[ "${owner}" == /etc/nginx/sites-available/* ]]; then
+    :
+  elif [[ -n "${allowed_legacy_enabled}" \
+    && "${site}" == "${allowed_legacy_enabled}" \
+    && "${owner}" == "${allowed_legacy_enabled}" \
+    && ! -L "${site}" ]]; then
+    :
+  else
+    die_remote "${label} Nginx owner is outside the reviewed paths"
+  fi
+  [[ "$(stat -c '%U:%G:%a' "${owner}")" == "root:root:644" ]] \
+    || die_remote "${label} Nginx owner metadata is invalid"
+}
+
 BACKUP_DIR="${REMOTE_RECOVERY_ROOT}/${RUN_ID}"
 STAGE_DIR="/opt/chickenbro-candidate-staging/${RUN_ID}"
 CODE_NEW_DIR="${CANDIDATE_ROOT}.new-${RUN_ID}"
 WWW_NGINX_OWNER="$(readlink -f -- "${WWW_NGINX_SITE}")"
 API_NGINX_OWNER="$(readlink -f -- "${API_NGINX_SITE}")"
+validate_nginx_owner WWW "${WWW_NGINX_SITE}" "${WWW_NGINX_OWNER}"
+validate_nginx_owner API "${API_NGINX_SITE}" "${API_NGINX_OWNER}" \
+  /etc/nginx/sites-enabled/api.chickenbro.cloud
 WEB_RELEASE_DIR="${WEB_ROOT}/releases/${SOURCE_MANIFEST_SHA256}"
 WEB_CURRENT_LINK="${WEB_ROOT}/current"
 MIGRATION_REPORT="${BACKUP_DIR}/migration-report.json"
@@ -1048,16 +1090,29 @@ snippet = snippet_path.read_text(encoding="utf-8")
 begin_text = str(begin)
 end_text = str(end)
 
-def remove_section(text, start, finish):
-    while start in text:
-        left, remainder = text.split(start, 1)
-        if finish not in remainder:
-            raise SystemExit("unterminated existing candidate Nginx section")
-        _, right = remainder.split(finish, 1)
-        text = left.rstrip() + "\n" + right.lstrip("\n")
-    return text
+def remove_section(text, start, finish, ambiguous_message):
+    starts = text.count(start)
+    finishes = text.count(finish)
+    if starts != finishes or starts > 1:
+        raise SystemExit(ambiguous_message)
+    if starts == 0:
+        return text
+    left, remainder = text.split(start, 1)
+    _, right = remainder.split(finish, 1)
+    return left.rstrip() + "\n" + right.lstrip("\n")
 
-site = remove_section(site, begin_text, end_text)
+site = remove_section(
+    site,
+    "# BEGIN CHICKENBRO V2 CANDIDATE",
+    "# END CHICKENBRO V2 CANDIDATE",
+    "legacy candidate nginx markers are ambiguous",
+)
+site = remove_section(
+    site,
+    begin_text,
+    end_text,
+    "candidate nginx markers are ambiguous",
+)
 if begin_text not in snippet or end_text not in snippet:
     raise SystemExit("candidate Nginx source section is missing")
 section = begin_text + snippet.split(begin_text, 1)[1].split(end_text, 1)[0] + end_text

@@ -756,6 +756,26 @@ die_remote() {
   exit 1
 }
 
+validate_nginx_owner() {
+  local label="$1"
+  local site="$2"
+  local owner="$3"
+  local allowed_legacy_enabled="${4:-}"
+  [[ -f "${site}" && -f "${owner}" ]] || die_remote "${label} Nginx owner is missing"
+  if [[ "${owner}" == /etc/nginx/sites-available/* ]]; then
+    :
+  elif [[ -n "${allowed_legacy_enabled}" \
+    && "${site}" == "${allowed_legacy_enabled}" \
+    && "${owner}" == "${allowed_legacy_enabled}" \
+    && ! -L "${site}" ]]; then
+    :
+  else
+    die_remote "${label} Nginx owner is outside the reviewed paths"
+  fi
+  [[ "$(stat -c '%U:%G:%a' "${owner}")" == "root:root:644" ]] \
+    || die_remote "${label} Nginx owner metadata is invalid"
+}
+
 LEGACY_WRITER_UNITS=(
   wow-attribute-rule-audit.service
   wow-backend.service
@@ -1201,8 +1221,9 @@ install -d -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0700 /var/lib/chickenbro
 
 WWW_NGINX_OWNER="$(readlink -f -- "${WWW_NGINX_SITE}")"
 API_NGINX_OWNER="$(readlink -f -- "${API_NGINX_SITE}")"
-[[ "${WWW_NGINX_OWNER}" == /etc/nginx/sites-available/* ]] || die_remote "WWW Nginx owner is invalid"
-[[ "${API_NGINX_OWNER}" == /etc/nginx/sites-available/* ]] || die_remote "API Nginx owner is invalid"
+validate_nginx_owner WWW "${WWW_NGINX_SITE}" "${WWW_NGINX_OWNER}"
+validate_nginx_owner API "${API_NGINX_SITE}" "${API_NGINX_OWNER}" \
+  /etc/nginx/sites-enabled/api.chickenbro.cloud
 grep -Eq 'server_name[[:space:]]+www\.chickenbro\.cloud' "${WWW_NGINX_OWNER}" \
   || die_remote "WWW Nginx owner mismatch"
 grep -Eq 'server_name[[:space:]]+api\.chickenbro\.cloud' "${API_NGINX_OWNER}" \

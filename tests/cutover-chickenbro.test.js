@@ -560,6 +560,9 @@ test('rollback may restore legacy writes only before the irreversible first-writ
 test('cutover records redacted identities and never serializes credentials', () => {
   const script = readScript()
 
+  assert.match(script, /validate_nginx_owner\(\)/)
+  assert.match(script, /API_NGINX_SITE.*API_NGINX_OWNER.*api\.chickenbro\.cloud/s)
+
   for (const field of [
     'writeFenceAt',
     'fullWatermark',
