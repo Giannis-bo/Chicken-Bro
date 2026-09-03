@@ -13,7 +13,7 @@ REMOTE_HOST="${WOW_LIGHTHOUSE_HOST:-124.223.51.33}"
 REMOTE_USER="${WOW_LIGHTHOUSE_USER:-ubuntu}"
 REMOTE_RECOVERY_MANIFEST="${WOW_CHICKENBRO_REMOTE_RECOVERY_MANIFEST:-/var/lib/chickenbro-recovery/whitelist-recovery.json}"
 SSH_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
-SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+SSH_OPTS=(-o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=10)
 
 die() {
   printf 'retire_chickenbro_legacy: %s\n' "$*" >&2

@@ -117,15 +117,15 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
   assert.equal(manifest.capacityPreCleanup.authorized, true)
   assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
-    observedAt: '2026-09-03T06:18:34Z',
-    manifestSha256: '5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78',
+    observedAt: '2026-09-03T06:38:07Z',
+    manifestSha256: '22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd',
     status: 'failed_before_mutation',
-    reasonCode: 'kernel_thread_environ_esrch_misclassified',
+    reasonCode: 'ssh_idle_transport_closed',
     databasesPresent: 4,
     envFilesPresent: 4,
     activeConnections: 0,
     pairJournalCount: 0,
-    kernelThreadEnvironErrors: 93,
+    transportExitCode: 255,
     mutationPerformed: false,
   })
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
@@ -904,6 +904,13 @@ test('remote metadata refresh precedes temporary files and quarantine directorie
   assert.ok(rootCheck > 0 && rootCheck < metadata)
   assert.ok(metadata < remote.indexOf('MANIFEST_TMP="$(mktemp)"'))
   assert.ok(metadata < remote.indexOf('install -d -o root -g root -m 0700 -- "${RUN_ROOT}"'))
+})
+
+test('long-running retirement scans keep the SSH transport alive', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+
+  assert.match(source, /SSH_OPTS=.*ServerAliveInterval=30/)
+  assert.match(source, /SSH_OPTS=.*ServerAliveCountMax=10/)
 })
 
 test('the complete remote heredoc enters one non-interactive root context and rejects non-root execution', () => {
