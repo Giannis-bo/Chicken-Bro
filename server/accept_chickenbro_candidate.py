@@ -760,7 +760,7 @@ class PostgresAcceptanceSeeder:
                     WHERE users.status = 'active'
                       AND identities.provider = 'wechat_mini'
                       AND identities.app_context = %s
-                      AND identities.provider_subject NOT LIKE 'candidate-isolation-%'
+                      AND identities.provider_subject NOT LIKE 'candidate-isolation-%%'
                     ORDER BY users.created_at, users.id
                     LIMIT 1
                     """,
