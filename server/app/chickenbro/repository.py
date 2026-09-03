@@ -185,6 +185,31 @@ class PostgresChatRepository:
                 row = cursor.fetchone()
         return self._agent_run_from_row(row) if row is not None else None
 
+    def recover_stale_agent_runs(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        stale_before: datetime,
+        finished_at: datetime,
+    ) -> int:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE chat.agent_runs
+                    SET status = 'failed',
+                        assistant_message_id = NULL,
+                        public_error_code = 'CODEX_EXECUTION_FAILED',
+                        finished_at = %s
+                    WHERE user_id = %s
+                      AND conversation_id = %s
+                      AND status = 'streaming'
+                      AND started_at <= %s
+                    """,
+                    (finished_at, user_id, conversation_id, stale_before),
+                )
+                return int(cursor.rowcount)
+
     def start_message_run(
         self,
         user_id: UUID,

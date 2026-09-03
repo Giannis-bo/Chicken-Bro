@@ -3,7 +3,7 @@ import json
 import re
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4, uuid5
 
@@ -21,6 +21,7 @@ class ChatApplicationError(ValueError):
 
 
 CHAT_TIMEOUT_SECONDS = 180
+CHAT_STALE_RUN_GRACE_SECONDS = 60
 CHAT_CONVERSATION_NAMESPACE = UUID("83b4eebf-fcf3-51ea-b9ff-d676d1957f48")
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
 
@@ -102,6 +103,7 @@ class ChatApplication:
         codex: CodexChatPort,
         clock: Callable[[], datetime] | None = None,
         timeout_seconds: int = CHAT_TIMEOUT_SECONDS,
+        stale_run_grace_seconds: int = CHAT_STALE_RUN_GRACE_SECONDS,
         max_message_chars: int = 4000,
         max_output_chars: int = 8000,
     ):
@@ -109,6 +111,7 @@ class ChatApplication:
         self._codex = codex
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._timeout_seconds = max(1, timeout_seconds)
+        self._stale_run_grace_seconds = max(1, stale_run_grace_seconds)
         self._max_message_chars = max(1, max_message_chars)
         self._max_output_chars = max(1, max_output_chars)
 
@@ -254,6 +257,7 @@ class ChatApplication:
             client_message_id = str(client_message_id).strip()
             if not client_message_id or len(client_message_id) > 128:
                 raise ChatApplicationError("CLIENT_MESSAGE_ID_INVALID", "client message id is invalid")
+        self._recover_stale_agent_runs(principal, conversation_id)
         existing_run = self._find_idempotent_run(
             principal,
             conversation_id,
@@ -423,6 +427,28 @@ class ChatApplication:
                 sequence,
                 CodexStreamError("CODEX_EXECUTION_FAILED"),
             )
+
+    def _recover_stale_agent_runs(
+        self,
+        principal: Principal,
+        conversation_id: UUID,
+    ) -> None:
+        now = _utc(self._clock)
+        stale_before = now - timedelta(
+            seconds=self._timeout_seconds + self._stale_run_grace_seconds,
+        )
+        try:
+            self._repository.recover_stale_agent_runs(
+                principal.user_id,
+                conversation_id,
+                stale_before,
+                now,
+            )
+        except Exception as error:
+            raise ChatApplicationError(
+                "CHAT_PERSISTENCE_FAILED",
+                "stale agent runs could not be recovered",
+            ) from error
 
     def _cancel_run(self, principal: Principal, run: Any) -> None:
         try:

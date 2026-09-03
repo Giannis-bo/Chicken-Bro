@@ -170,6 +170,8 @@ Chat 的服务端事实流是：
 
 列表按 `(updated_at, id)` 使用稳定游标。重连从持久化消息/AgentRun 恢复，不能再次调用模型伪造相同 run。第二个用户访问第一个用户的 ID 时对外返回 404，避免枚举。
 
+正常断流由当前请求收口 AgentRun；若 API 进程在用户消息落库后退出，则同一请求重试或下一次发送会在 Codex 执行超时再加 60 秒安全宽限期后，以 owner + conversation + `started_at` 条件原子地把遗留 `streaming` 收口为可重试的 `CODEX_EXECUTION_FAILED`。宽限期内仍返回 `CHAT_RUN_IN_PROGRESS`，且恢复绝不再次调用模型。只读会话 GET 不承担这一状态写入。
+
 会话标题与 `chat.conversations.title` 共用 256 字符上限；正式迁移、创建 API、application 和双端 response guard 必须接受同一完整范围。白名单迁移允许保留空标题，双端对空标题统一显示“炸鸡队长对话”，但不改写持久化事实。
 
 ## SimC 语义

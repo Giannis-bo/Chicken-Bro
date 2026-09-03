@@ -228,6 +228,30 @@ class MemoryChatRepository:
             "finished_at": finished_at,
         })
 
+    def recover_stale_agent_runs(
+        self,
+        user_id,
+        conversation_id,
+        stale_before,
+        finished_at,
+    ):
+        recovered = 0
+        for run in self.runs.values():
+            if (
+                run["user_id"] == user_id
+                and run["conversation_id"] == conversation_id
+                and run["status"] is AgentRunStatus.STREAMING
+                and run["started_at"] <= stale_before
+            ):
+                run.update({
+                    "status": AgentRunStatus.FAILED,
+                    "assistant_message_id": None,
+                    "public_error_code": "CODEX_EXECUTION_FAILED",
+                    "finished_at": finished_at,
+                })
+                recovered += 1
+        return recovered
+
     @staticmethod
     def assert_owner(row, user_id):
         if row["user_id"] != user_id:
@@ -1033,6 +1057,81 @@ class ChatApplicationTest(unittest.TestCase):
             next(replay)
 
         self.assertEqual(replay_codex.calls, 0)
+
+    def test_replay_recovers_a_stale_streaming_run_without_calling_codex(self):
+        started_at = self.now - timedelta(seconds=16)
+        _user_message, run = self.repository.start_message_run(
+            self.user_id,
+            self.conversation_id,
+            "进程退出前的问题",
+            "client-stale-run",
+            "request-stale-run",
+            started_at,
+            runtime_revision="codex:test:1",
+        )
+        replay_codex = FakeCodex(error=AssertionError("Codex must not rerun a stale request"))
+        replay_application = ChatApplication(
+            repository=self.repository,
+            codex=replay_codex,
+            clock=lambda: self.now,
+            timeout_seconds=10,
+            stale_run_grace_seconds=5,
+        )
+
+        replayed = list(replay_application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "进程退出前的问题",
+            client_message_id="client-stale-run",
+            idempotency_key="request-stale-run",
+        ))
+
+        self.assertEqual([event.event_type for event in replayed], ["started", "failed"])
+        self.assertEqual(replayed[-1].error_code, "CODEX_EXECUTION_FAILED")
+        self.assertTrue(replayed[-1].retryable)
+        self.assertEqual(replay_codex.calls, 0)
+        self.assertEqual(run["status"], AgentRunStatus.FAILED)
+        self.assertEqual(run["finished_at"], self.now)
+
+    def test_new_send_recovers_stale_runs_but_preserves_fresh_runs(self):
+        _old_message, stale = self.repository.start_message_run(
+            self.user_id,
+            self.conversation_id,
+            "旧运行",
+            "client-stale-load",
+            "request-stale-load",
+            self.now - timedelta(seconds=16),
+            runtime_revision="codex:test:1",
+        )
+        _fresh_message, fresh = self.repository.start_message_run(
+            self.user_id,
+            self.conversation_id,
+            "新运行",
+            "client-fresh-load",
+            "request-fresh-load",
+            self.now - timedelta(seconds=14),
+            runtime_revision="codex:test:1",
+        )
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex([{"type": "completed", "text": "新回答"}]),
+            clock=lambda: self.now,
+            timeout_seconds=10,
+            stale_run_grace_seconds=5,
+        )
+
+        events = list(application.stream_message(
+            self.principal,
+            self.conversation_id,
+            "新问题",
+            client_message_id="client-after-stale",
+            idempotency_key="request-after-stale",
+        ))
+
+        self.assertEqual(stale["status"], AgentRunStatus.FAILED)
+        self.assertEqual(stale["public_error_code"], "CODEX_EXECUTION_FAILED")
+        self.assertEqual(fresh["status"], AgentRunStatus.STREAMING)
+        self.assertEqual([event.event_type for event in events], ["started", "completed"])
 
 
 class FormalChatPaginationTest(unittest.TestCase):

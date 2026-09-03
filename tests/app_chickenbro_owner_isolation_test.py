@@ -223,6 +223,38 @@ class OwnerIsolationTest(unittest.TestCase):
         self.assertIn("WHERE user_id = %s AND idempotency_key = %s", statement)
         self.assertEqual(parameters, (owner_id, "request-owner-scoped"))
 
+    def test_postgres_stale_run_recovery_is_owner_conversation_and_deadline_scoped(self):
+        owner_id = UUID("00000000-0000-0000-0000-000000000095")
+        conversation_id = UUID("00000000-0000-4000-8000-000000000096")
+        stale_before = datetime(2026, 9, 3, 11, 18, tzinfo=timezone.utc)
+        finished_at = datetime(2026, 9, 3, 11, 20, tzinfo=timezone.utc)
+        cursor = RecordingCursor([])
+        repository = PostgresChatRepository(lambda: RecordingConnection(cursor))
+
+        recovered = repository.recover_stale_agent_runs(
+            owner_id,
+            conversation_id,
+            stale_before,
+            finished_at,
+        )
+
+        self.assertEqual(recovered, 1)
+        statement, parameters = cursor.executed[0]
+        self.assertIn("UPDATE chat.agent_runs", statement)
+        self.assertIn("status = 'streaming'", statement)
+        self.assertIn("started_at <= %s", statement)
+        self.assertIn("user_id = %s", statement)
+        self.assertIn("conversation_id = %s", statement)
+        self.assertEqual(
+            parameters,
+            (
+                finished_at,
+                owner_id,
+                conversation_id,
+                stale_before,
+            ),
+        )
+
     def test_postgres_message_and_run_start_share_one_rollback_boundary(self):
         owner_id = UUID("00000000-0000-0000-0000-0000000000a1")
         conversation_id = UUID("00000000-0000-4000-8000-0000000000a2")
