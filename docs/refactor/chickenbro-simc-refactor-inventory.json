@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "b2ab61d9ea42f8fd28339fbfb97e40092a449e5d",
+  "generatedFromCommit": "de645a9807517d876ea51f865237497821f9aa7c",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
   "entryCount": 2858,
@@ -14843,8 +14843,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 77159,
-      "sha256": "b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a"
+      "bytes": 77576,
+      "sha256": "5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78"
     },
     {
       "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
@@ -24613,8 +24613,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 76883,
-      "sha256": "790b9ed8e396cb4207525b94741670004e588cc55ec9fb14e70832f28c5a0e6e"
+      "bytes": 76856,
+      "sha256": "d90f8ed2b7eae578a882d866834982647dcdacbf35a148be784c0bbbc3ccb2c6"
     },
     {
       "path": "server/s2_community_exact.py",
@@ -27893,8 +27893,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 41834,
-      "sha256": "733d0781c252a1f771ac84432928c1070e23ffa429aaaa48fe3bfb5a067905e3"
+      "bytes": 42653,
+      "sha256": "a9074d998cfe0741ea4725acc48bb6d6b3d492269ad825eb4477f3e60fac0170"
     },
     {
       "path": "tests/runtime-asset-slot-mapping.test.js",
@@ -28617,5 +28617,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "7f3f2623de83aefd4f2745608a7b5a475f1675b403b2f9b8810dd4d6154554b0"
+  "inventorySha256": "75147e06f5323bfeb19d29106899d7a58416d49297b2660db84d8b83b0bb0351"
 }
