@@ -555,6 +555,7 @@
         "tests/app_identity_api_test.py",
         "tests/app_identity_application_test.py",
         "tests/app_identity_repository_test.py",
+        "tests/app_runtime_readiness_test.py",
         "tests/app_simc_api_test.py",
         "tests/app_simc_cross_client_test.py",
         "tests/app_simc_result_semantics_test.py",
