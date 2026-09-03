@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from server.app.api.dependencies import (
     require_mini_principal,
@@ -27,15 +27,29 @@ router = APIRouter()
 
 
 class WebLoginCreateBody(BaseModel):
-    browserVerifier: str
+    model_config = ConfigDict(extra="forbid")
+
+    browserVerifier: str = Field(
+        min_length=43,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
 
 
 class MiniExchangeBody(BaseModel):
-    code: str
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=512, pattern=r"^\S+$")
 
 
 class MiniConfirmBody(BaseModel):
-    sceneTicket: str
+    model_config = ConfigDict(extra="forbid")
+
+    sceneTicket: str = Field(
+        min_length=1,
+        max_length=32,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
 
 
 def _status_for_code(code: str) -> int:

@@ -49,7 +49,18 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 const QR_DATA_URL_PATTERN = /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/u
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function hasExactResponseKeys(
+  value: Record<string, unknown>,
+  required: readonly string[],
+): boolean {
+  const allowed = new Set([...required, 'requestId'])
+  const actual = Object.keys(value)
+  return required.every((key) => Object.prototype.hasOwnProperty.call(value, key))
+    && actual.every((key) => allowed.has(key))
+    && actual.length <= required.length + 1
 }
 
 function isIsoDate(value: unknown): value is string {
@@ -70,7 +81,7 @@ export function isValidIdempotencyKey(value: unknown): value is string {
 
 export function isWebLoginCreated(value: unknown): value is WebLoginCreated {
   if (!isRecord(value)) return false
-  if ('sceneTicket' in value) return false
+  if (!hasExactResponseKeys(value, ['sessionId', 'expiresAt', 'qrDataUrl'])) return false
   const qrDataUrl = value['qrDataUrl']
   return UUID_PATTERN.test(String(value['sessionId'] ?? ''))
     && isIsoDate(value['expiresAt'])
@@ -82,34 +93,43 @@ export function isWebLoginCreated(value: unknown): value is WebLoginCreated {
 
 export function isWebLoginStatusResponse(value: unknown): value is WebLoginStatusResponse {
   if (!isRecord(value)) return false
-  return ['pending', 'confirmed', 'expired', 'cancelled', 'consumed'].includes(String(value['status']))
+  return hasExactResponseKeys(value, ['status', 'expiresAt'])
+    && ['pending', 'confirmed', 'expired', 'cancelled', 'consumed'].includes(String(value['status']))
     && isIsoDate(value['expiresAt'])
     && isRequestId(value['requestId'])
 }
 
 export function isWebLoginExchangeResponse(value: unknown): value is WebLoginExchangeResponse {
   if (!isRecord(value)) return false
-  return value['authenticated'] === true && isRequestId(value['requestId'])
+  return hasExactResponseKeys(value, ['authenticated'])
+    && value['authenticated'] === true
+    && isRequestId(value['requestId'])
 }
 
 export function isMiniExchangeResponse(value: unknown): value is MiniExchangeResponse {
   if (!isRecord(value)) return false
   const accessToken = value['accessToken']
-  return typeof accessToken === 'string'
+  return hasExactResponseKeys(value, ['accessToken', 'expiresAt'])
+    && typeof accessToken === 'string'
     && accessToken.length >= 16
+    && accessToken.length <= 512
+    && !/\s/u.test(accessToken)
     && isIsoDate(value['expiresAt'])
     && isRequestId(value['requestId'])
 }
 
 export function isConfirmResponse(value: unknown): value is ConfirmResponse {
   if (!isRecord(value)) return false
-  return value['confirmed'] === true && isRequestId(value['requestId'])
+  return hasExactResponseKeys(value, ['confirmed'])
+    && value['confirmed'] === true
+    && isRequestId(value['requestId'])
 }
 
 export function isMeResponse(value: unknown): value is MeResponse {
   if (!isRecord(value)) return false
   const displayName = value['displayName']
-  return value['connected'] === true
+  return hasExactResponseKeys(value, ['connected', 'displayName'])
+    && value['connected'] === true
     && typeof displayName === 'string'
     && displayName.length <= 128
     && isRequestId(value['requestId'])
@@ -117,5 +137,7 @@ export function isMeResponse(value: unknown): value is MeResponse {
 
 export function isLogoutResponse(value: unknown): value is LogoutResponse {
   if (!isRecord(value)) return false
-  return value['loggedOut'] === true && isRequestId(value['requestId'])
+  return hasExactResponseKeys(value, ['loggedOut'])
+    && value['loggedOut'] === true
+    && isRequestId(value['requestId'])
 }

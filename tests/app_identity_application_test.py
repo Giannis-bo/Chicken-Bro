@@ -199,8 +199,10 @@ class FixedWechatGateway:
     def __init__(self, *, openid="same-openid", unionid="optional-union"):
         self.identity = WechatIdentity(openid=openid, unionid=unionid)
         self.scenes = []
+        self.exchange_codes = []
 
     def exchange_code(self, code):
+        self.exchange_codes.append(code)
         return self.identity
 
     def create_mini_code(self, *, scene, page, env_version):
@@ -269,6 +271,20 @@ class AppIdentityApplicationTest(unittest.TestCase):
             repository.web_login_sessions[created.session.id].status,
             WebLoginSessionStatus.CONSUMED,
         )
+
+    def test_invalid_mini_code_is_rejected_before_the_provider_call(self):
+        repository = InMemoryIdentityRepository()
+        gateway = FixedWechatGateway()
+        application = self._application(repository, gateway)
+
+        for invalid_code in (None, "", " ", "code with space", "code\n", "x" * 513):
+            with self.subTest(invalid_code=invalid_code):
+                with self.assertRaises(AuthApplicationError) as caught:
+                    application.exchange_mini_code(invalid_code)
+                self.assertEqual(caught.exception.code, "VALIDATION_ERROR")
+
+        self.assertEqual(gateway.exchange_codes, [])
+        self.assertEqual(repository.identities, {})
 
     def test_expired_idempotent_create_returns_the_original_result_without_reinserting(self):
         """Catches a unique-key failure when a client retries its original create request."""

@@ -307,6 +307,12 @@ class WebAuthApplication:
         return WebLoginStatusView(status=cancelled.status, expires_at=cancelled.expires_at)
 
     def exchange_mini_code(self, code: str) -> IssuedSession:
+        if (
+            not isinstance(code, str)
+            or not 1 <= len(code) <= 512
+            or any(character.isspace() for character in code)
+        ):
+            raise AuthApplicationError("VALIDATION_ERROR", "WeChat authorization code is invalid")
         try:
             identity = self._wechat_gateway.exchange_code(code)
         except WechatNotConfiguredError:

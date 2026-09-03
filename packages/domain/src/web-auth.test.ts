@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  isConfirmResponse,
+  isLogoutResponse,
+  isMeResponse,
+  isMiniExchangeResponse,
   isValidBrowserVerifier,
   isWebLoginCreated,
+  isWebLoginExchangeResponse,
   isWebLoginStatusResponse,
 } from './web-auth'
 
@@ -52,5 +57,40 @@ describe('web auth domain contracts', () => {
       status: 'bound',
       expiresAt: '2026-09-01T10:00:00.000Z',
     })).toBe(false)
+  })
+
+  it('rejects unexpected fields from every identity response', () => {
+    const responses: ReadonlyArray<[(value: unknown) => boolean, Record<string, unknown>]> = [
+      [isWebLoginCreated, {
+        sessionId: '00000000-0000-4000-8000-000000000000',
+        expiresAt: '2026-09-01T10:00:00.000Z',
+        qrDataUrl: 'data:image/png;base64,AA==',
+      }],
+      [isWebLoginStatusResponse, {
+        status: 'pending',
+        expiresAt: '2026-09-01T10:00:00.000Z',
+      }],
+      [isWebLoginExchangeResponse, { authenticated: true }],
+      [isMiniExchangeResponse, {
+        accessToken: 'mini-secret-token',
+        expiresAt: '2026-09-01T10:00:00.000Z',
+      }],
+      [isConfirmResponse, { confirmed: true }],
+      [isMeResponse, { connected: true, displayName: '已连接微信账号' }],
+      [isLogoutResponse, { loggedOut: true }],
+    ]
+
+    for (const [validate, payload] of responses) {
+      expect(validate(payload)).toBe(true)
+      expect(validate({ ...payload, userId: 'must-not-cross-the-boundary' })).toBe(false)
+      expect(validate({ ...payload, openid: 'must-not-cross-the-boundary' })).toBe(false)
+    }
+  })
+
+  it('rejects malformed or unbounded Mini bearer credentials', () => {
+    const base = { expiresAt: '2026-09-01T10:00:00.000Z' }
+    expect(isMiniExchangeResponse({ ...base, accessToken: 'x'.repeat(16) })).toBe(true)
+    expect(isMiniExchangeResponse({ ...base, accessToken: 'contains space token' })).toBe(false)
+    expect(isMiniExchangeResponse({ ...base, accessToken: 'x'.repeat(513) })).toBe(false)
   })
 })
