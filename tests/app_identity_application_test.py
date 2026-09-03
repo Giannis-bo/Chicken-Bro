@@ -29,9 +29,6 @@ class InMemoryIdentityRepository:
         self.atomic_web_cancellations = 0
         self.atomic_web_expirations = 0
 
-    def get_user(self, user_id):
-        return Principal(user_id=user_id, session_kind="mini_bearer") if user_id in self.users else None
-
     def upsert_wechat_mini_identity(self, *, app_context, provider_subject, union_id, now):
         key = ("wechat_mini", app_context, provider_subject)
         if key not in self.identities:

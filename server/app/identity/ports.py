@@ -30,15 +30,7 @@ class WechatProviderError(WechatAdapterError):
     pass
 
 
-class PrincipalResolver(Protocol):
-    def resolve(self, credential: str) -> Principal | None:
-        raise NotImplementedError
-
-
 class IdentityRepository(Protocol):
-    def get_user(self, user_id: UUID) -> Principal | None:
-        raise NotImplementedError
-
     def upsert_wechat_mini_identity(
         self,
         *,
@@ -126,15 +118,6 @@ class IdentityRepository(Protocol):
 
     def get_public_user(self, user_id: UUID) -> PublicUser | None:
         raise NotImplementedError
-
-
-class WebLoginSessionRepository(Protocol):
-    def get(self, session_id: UUID) -> WebLoginSession | None:
-        raise NotImplementedError
-
-    def save(self, session: WebLoginSession) -> None:
-        raise NotImplementedError
-
 
 class WechatMiniGateway(Protocol):
     def exchange_code(self, code: str) -> WechatIdentity:

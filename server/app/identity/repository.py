@@ -27,18 +27,6 @@ class PostgresIdentityRepository:
     def __init__(self, connection_factory: Callable[[], Any]):
         self._connection_factory = connection_factory
 
-    def get_user(self, user_id: UUID) -> Principal | None:
-        with self._connection_factory() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT id FROM identity.users WHERE id = %s AND status = 'active'",
-                    (user_id,),
-                )
-                row = cursor.fetchone()
-        if row is None:
-            return None
-        return Principal(user_id=UUID(str(_row_value(row, "id", 0))), session_kind="mini_bearer")
-
     def record_auth_audit(self, event: AuthAuditEvent) -> None:
         payload = json.dumps(
             event.payload(),
