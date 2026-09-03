@@ -128,7 +128,9 @@ def _profile_endpoint(region: str, realm: str, name: str) -> str | None:
     host, namespace, locale, _oauth_host = config
     return (
         f"https://{host}/profile/wow/character/"
-        f"{quote(realm, safe='-_.~')}/{quote(name, safe='-_.~')}?"
+        # Blizzard profile routes use lowercase slugs even when the display
+        # name in the primary source preserves title case.
+        f"{quote(realm, safe='-_.~')}/{quote(name.lower(), safe='-_.~')}?"
         + urlencode({"namespace": namespace, "locale": locale})
     )
 

@@ -299,6 +299,44 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertIsNotNone(enrichment)
         self.assertEqual(enrichment.character["level"], 80)
 
+    def test_official_profile_uses_lowercase_character_slug_for_blizzard_lookup(self):
+        official = {
+            "name": "Mandur",
+            "realm": {"slug": "hyjal"},
+            "level": 90,
+            "race": {"name": "Dwarf"},
+            "character_class": {"name": "Shaman"},
+            "active_spec": {"name": "Elemental"},
+        }
+
+        class CaptureGateway:
+            def __init__(self):
+                self.url = ""
+
+            def fetch_json(self, url, *, headers=None):
+                self.url = url
+                return official
+
+        gateway = CaptureGateway()
+        enrichment = BlizzardProfileEnricher(
+            gateway,
+            token_provider=lambda: "short-lived-token",
+        ).enrich(
+            parse_character_source_url(
+                "https://raider.io/characters/eu/hyjal/Mandur"
+            ),
+            {
+                "name": "Mandur",
+                "realm": "Hyjal",
+                "region": "eu",
+                "classKey": "shaman",
+                "specKey": "elemental",
+            },
+        )
+
+        self.assertIsNotNone(enrichment)
+        self.assertIn("/character/hyjal/mandur?", gateway.url)
+
     def test_raiderio_last_crawled_at_is_a_bounded_source_revision(self):
         payload = json.loads((FIXTURE_DIR / "raiderio_ready.json").read_text())
         payload.pop("profileRevision")
