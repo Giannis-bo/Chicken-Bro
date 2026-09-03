@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 白名单恢复证明已通过，容量预清理已完成 1 组、剩余 3 组，candidate apply 与真实双端验收仍须按独立 gate 顺序完成
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 白名单恢复证明与四组容量预清理均已通过，容量门已打开，candidate apply 与真实双端验收仍须按独立 gate 顺序完成
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -11,17 +11,17 @@
 | 项目 | 已记录的只读事实 |
 | --- | ---: |
 | 根分区总量 | 73,859,022,848 bytes |
-| 根分区已用 | 57,303,183,360 bytes |
-| 根分区可用 | 13,425,606,656 bytes |
-| PostgreSQL 所有非模板数据库合计 | 34,068,882,144 bytes |
-| PostgreSQL 目录 | 34,170,141,282 bytes |
-| 数据库数量 | 32 |
+| 根分区已用 | 40,024,940,544 bytes |
+| 根分区可用 | 30,703,849,472 bytes |
+| PostgreSQL 所有非模板数据库合计 | 16,773,148,315 bytes |
+| PostgreSQL 目录 | 16,874,423,837 bytes |
+| 数据库数量 | 29 |
 | `wow-*` unit 数量 | 32 |
-| 容量门禁 | `blocked_until_remaining_exact_capacity_cleanup` |
+| 容量门禁 | `capacity_preflight_required` |
 | 当前目标 identity | Tencent CVM `ins-93tgv1rb` / `ap-shanghai` / `ap-shanghai-2`，SSH alias `wow-lighthouse`，公网 `124.223.51.33` |
 | 失效 provider evidence | `lhins-dr6tkl63` / Guangzhou；不属于本目标，不能参与 gate |
 
-这些数字来自 `2026-09-03T07:58:56Z` fresh 只读快照。首组 evidence 库已不存在，其原 env 已按运行哈希隔离；剩余三个精确 evidence 库仍存在且连接数均为 0。这个快照只证明当前存在性、容量和连接状态，下一次 apply 仍必须从实例 metadata 刷新 exact identity、库大小、精确行数、env 哈希/realpath、配置引用、进程引用和 open handle；HTTP 200 或单个服务 active 不能解锁后续步骤。
+这些数字来自 `2026-09-03T09:05:42Z` fresh 只读快照。四个精确 evidence 库与四个原 env 路径均已不存在；env 内容按两次 reviewed manifest SHA 隔离，文件均为 `0600 root:root`、哈希逐项匹配，四条配对日志均为 `reconciled_completed`。`wow_test`、`chickenbro_prod` 与独立恢复库仍受保护；旧生产会按请求短暂连接 `wow_test`，这不等同于清理目标仍被引用。该快照只打开 candidate 容量预检，HTTP 200 或单个服务 active 仍不能解锁生产切流或完整退役。
 
 ## 绝对安全边界
 
@@ -375,7 +375,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 - manifest SHA 与 apply 参数一致；
 - 回滚包保留窗口有书面状态。
 
-当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖 fresh 只读清单里的全部 `wow-*` unit 和仍存在的全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 以 `exactDatabaseAllowlist` 保留原四组授权边界，以 `completedPairs` 固定首组的日志/隔离哈希，以 `pendingDatabaseAllowlist` 只选中剩余三库及三份 env；未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源被列入 `unresolvedRequiredTargets`，不能因未知而省略。
+当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖 fresh 只读清单里的全部 `wow-*` unit 和仍存在的全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 继续以 `exactDatabaseAllowlist` 保留原四组授权边界，`completedPairs` 固定四组日志、运行根和隔离哈希，`pendingDatabaseAllowlist=[]` 且 `authorized=false`，因此不会重复执行。未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源仍列入 `unresolvedRequiredTargets`，不能因未知而省略。
 
 本地评审入口默认只解析清单，不连接云端、不停服务、不删数据：
 
@@ -386,9 +386,9 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
   --dry-run
 ```
 
-当前清单固定 `deletionAuthorized=false`，所有资源均为 `blocked`。容量 apply 使用 `--capacity-pre-cleanup --manifest-sha <sha> --recovery-manifest-sha <sha>`，并在任何 mutation 前拒绝未授权清单或不匹配恢复清单；远端再次校验 metadata、env hash/realpath/consumer、数据库大小/连接/配置引用。完整 Phase 6 还要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
+当前清单固定 `deletionAuthorized=false`，剩余 76 个资源全部为 `blocked`。容量 scope 已关闭，dry-run 返回 0 个 pending 目标，任何新的 `--capacity-pre-cleanup --apply` 都会在 SSH 前因 `authorized=false` 被拒绝。完整 Phase 6 仍要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
 
-apply 只接受精确名称。容量 scope 对当前 pending env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；已在 `completedPairs` 中对账的配对不会进入新的执行计划。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
+apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；四组均已写入 `completedPairs`，不会进入新的执行计划。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
 
 退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 

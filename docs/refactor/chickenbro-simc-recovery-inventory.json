@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "status": "business_whitelist_restore_verified_capacity_precleanup_partial",
-  "observedAt": "2026-09-03T07:58:56Z",
+  "status": "business_whitelist_restore_verified_capacity_precleanup_complete",
+  "observedAt": "2026-09-03T09:05:42Z",
   "invalidatedProviderInventory": {
     "instanceId": "lhins-dr6tkl63",
     "region": "ap-guangzhou",
@@ -53,14 +53,13 @@
       "wow_gear_evidence_15f514d5_r23"
     ],
     "completed": [
-      "wow_gear_evidence_01adf184_r14"
-    ],
-    "pending": [
+      "wow_gear_evidence_01adf184_r14",
       "wow_gear_evidence_0be65754_r24",
       "wow_gear_evidence_145dee16_r22",
       "wow_gear_evidence_15f514d5_r23"
     ],
-    "freshLiveInventoryRequiredBeforeApply": true
+    "pending": [],
+    "freshLiveInventoryRequiredBeforeApply": false
   },
   "mutationPerformed": true,
   "providerEvidenceStatus": "invalidated_wrong_target",
@@ -155,8 +154,8 @@
     "currentIndependentBackup": false,
     "whitelistRestoreVerified": true,
     "candidateDatabaseProvisioningAuthorized": true,
-    "capacityPreCleanupAuthorized": true,
+    "capacityPreCleanupAuthorized": false,
     "wowTestRetirementAuthorized": false,
-    "nextDecision": "Continue only the three remaining reviewed capacity pairs with fresh exact recovery, inventory and cleanup manifest hashes, then refresh capacity and deploy the isolated candidate. The first pair is already reconciled complete; full legacy retirement and wow_test deletion remain unauthorized."
+    "nextDecision": "deploy_isolated_candidate"
   }
 }

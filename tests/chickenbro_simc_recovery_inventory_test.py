@@ -14,7 +14,7 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(inventory["schemaVersion"], 2)
         self.assertEqual(
             inventory["status"],
-            "business_whitelist_restore_verified_capacity_precleanup_partial",
+            "business_whitelist_restore_verified_capacity_precleanup_complete",
         )
         self.assertTrue(inventory["mutationPerformed"])
 
@@ -53,16 +53,14 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertEqual(inventory["rejectedEvidenceDatabases"]["recoveryRequired"], False)
         self.assertEqual(
             inventory["rejectedEvidenceDatabases"]["completed"],
-            ["wow_gear_evidence_01adf184_r14"],
-        )
-        self.assertEqual(
-            inventory["rejectedEvidenceDatabases"]["pending"],
             [
+                "wow_gear_evidence_01adf184_r14",
                 "wow_gear_evidence_0be65754_r24",
                 "wow_gear_evidence_145dee16_r22",
                 "wow_gear_evidence_15f514d5_r23",
             ],
         )
+        self.assertEqual(inventory["rejectedEvidenceDatabases"]["pending"], [])
 
         snapshots = inventory["providerSnapshots"]
         self.assertEqual(snapshots["visibleCount"], 1)
@@ -78,8 +76,9 @@ class ChickenbroSimcRecoveryInventoryTest(unittest.TestCase):
         self.assertFalse(conclusions["currentIndependentBackup"])
         self.assertTrue(conclusions["whitelistRestoreVerified"])
         self.assertTrue(conclusions["candidateDatabaseProvisioningAuthorized"])
-        self.assertTrue(conclusions["capacityPreCleanupAuthorized"])
+        self.assertFalse(conclusions["capacityPreCleanupAuthorized"])
         self.assertFalse(conclusions["wowTestRetirementAuthorized"])
+        self.assertEqual(conclusions["nextDecision"], "deploy_isolated_candidate")
 
 
 if __name__ == "__main__":

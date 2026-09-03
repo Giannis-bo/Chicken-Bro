@@ -24,9 +24,23 @@ EXPECTED_COMPANION_HASHES = {
     "wow_gear_evidence_145dee16_r22": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
     "wow_gear_evidence_15f514d5_r23": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
 }
-COMPLETED_DATABASE = "wow_gear_evidence_01adf184_r14"
-PENDING_DATABASES = {
-    name: facts for name, facts in EXPECTED_DATABASES.items() if name != COMPLETED_DATABASE
+COMPLETED_EVIDENCE = {
+    "wow_gear_evidence_01adf184_r14": (
+        "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+        "2026-09-03T07:56:29Z",
+    ),
+    "wow_gear_evidence_0be65754_r24": (
+        "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+        "2026-09-03T08:40:39Z",
+    ),
+    "wow_gear_evidence_145dee16_r22": (
+        "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+        "2026-09-03T08:50:47Z",
+    ),
+    "wow_gear_evidence_15f514d5_r23": (
+        "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+        "2026-09-03T09:01:32Z",
+    ),
 }
 
 
@@ -38,7 +52,7 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["schemaVersion"], 2)
         self.assertEqual(payload["mode"], "dry-run")
         self.assertFalse(payload["deletionAuthorized"])
-        self.assertTrue(payload["capacityPreCleanupAuthorized"])
+        self.assertFalse(payload["capacityPreCleanupAuthorized"])
         self.assertEqual(
             payload["targetIdentity"],
             {
@@ -60,47 +74,34 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertEqual(payload["businessRecovery"]["restoreReconciliationStatus"], "matched")
         self.assertEqual(payload["rejectedEvidenceRecovery"], {"required": False})
         self.assertEqual(payload["authorizedDatabaseAllowlist"], list(EXPECTED_DATABASES))
-        self.assertEqual(payload["pendingDatabaseAllowlist"], list(PENDING_DATABASES))
+        self.assertEqual(payload["pendingDatabaseAllowlist"], [])
         self.assertEqual(
             payload["completedPairs"],
-            [{
-                "database": COMPLETED_DATABASE,
-                "envFile": EXPECTED_COMPANIONS[COMPLETED_DATABASE],
-                "sizeBytesReleased": EXPECTED_DATABASES[COMPLETED_DATABASE][0],
-                "runManifestSha256": "7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
-                "journalStatus": "reconciled_completed",
-                "observedAt": "2026-09-03T07:56:29Z",
-                "databaseAbsent": True,
-                "originalEnvAbsent": True,
-                "quarantinedEnvSha256": EXPECTED_COMPANION_HASHES[COMPLETED_DATABASE],
-            }],
+            [
+                {
+                    "database": name,
+                    "envFile": EXPECTED_COMPANIONS[name],
+                    "sizeBytesReleased": EXPECTED_DATABASES[name][0],
+                    "runManifestSha256": COMPLETED_EVIDENCE[name][0],
+                    "journalStatus": "reconciled_completed",
+                    "observedAt": COMPLETED_EVIDENCE[name][1],
+                    "databaseAbsent": True,
+                    "originalEnvAbsent": True,
+                    "quarantinedEnvSha256": EXPECTED_COMPANION_HASHES[name],
+                }
+                for name in EXPECTED_DATABASES
+            ],
         )
         recovery_inventory = ROOT / payload["evidence"]["recoveryInventory"]
         self.assertTrue(recovery_inventory.is_file())
-        self.assertEqual(payload["totalCandidateBytes"], sum(item[0] for item in PENDING_DATABASES.values()))
+        self.assertEqual(payload["totalCandidateBytes"], 0)
         self.assertEqual(
             payload["evidence"]["configurationScanRoots"],
             ["/etc", "/opt/chickenbro", "/opt/wow-mini-program", "/opt/wow-v2-staging", "/var/www"],
         )
 
         candidates = {item["name"]: item for item in payload["candidates"]}
-        self.assertEqual(set(candidates), set(PENDING_DATABASES))
-        for name, (size_bytes, exact_rows) in PENDING_DATABASES.items():
-            candidate = candidates[name]
-            self.assertEqual(candidate["kind"], "postgres_database")
-            self.assertEqual(candidate["sizeBytes"], size_bytes)
-            self.assertEqual(candidate["currentConnections"], 0)
-            self.assertIsInstance(candidate["approximateRows"], int)
-            self.assertEqual(candidate["exactRows"], exact_rows)
-            self.assertEqual(candidate["configurationReferences"], [EXPECTED_COMPANIONS[name]])
-            self.assertEqual(candidate["requiredAbsentCompanion"], EXPECTED_COMPANIONS[name])
-            self.assertEqual(candidate["sameRootBackupMatches"], [])
-            self.assertEqual(candidate["decision"], "rejected_evidence_exact_precleanup")
-            self.assertFalse(candidate["recoveryRequired"])
-            self.assertEqual(
-                candidate["applyStatus"],
-                "ready_for_reviewed_capacity_precleanup",
-            )
+        self.assertEqual(candidates, {})
 
         requirements = set(payload["requiredBeforeApply"])
         self.assertIn("hash-bound whitelist recovery manifest with isolated restore reconciliation", requirements)
@@ -111,26 +112,9 @@ class ChickenbroSimcCapacityCleanupManifestTest(unittest.TestCase):
         self.assertIn("regular non-symlink companion env with exact /etc realpath and content hash", requirements)
         self.assertIn("all-pair mutation-free preflight followed by durable per-pair boundary journals", requirements)
         self.assertFalse(any("archive for every exact database" in item for item in requirements))
-        self.assertEqual(
-            payload["capacityCleanupCompanions"],
-            [
-                {
-                    "database": name,
-                    "envFile": EXPECTED_COMPANIONS[name],
-                    "observedAt": next(
-                        item["observedAt"]
-                        for item in payload["capacityCleanupCompanions"]
-                        if item["database"] == name
-                    ),
-                    "contentSha256": EXPECTED_COMPANION_HASHES[name],
-                    "systemdUnitReferences": [],
-                    "runningProcessReferences": 0,
-                    "openHandles": 0,
-                    "applyStatus": "ready_for_reviewed_capacity_precleanup",
-                }
-                for name in PENDING_DATABASES
-            ],
-        )
+        self.assertEqual(payload["capacityCleanupCompanions"], [])
+        self.assertTrue(payload["nonClaims"]["capacityGateCleared"])
+        self.assertTrue(payload["nonClaims"]["capacityCleanupComplete"])
 
         serialized = json.dumps(payload, sort_keys=True).lower()
         for forbidden in ("password", "secret", "token", "cookie", "openid", "pgpass"):

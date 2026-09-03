@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "observedAt": "2026-09-03T07:58:56Z",
+  "observedAt": "2026-09-03T09:05:42Z",
   "deletionAuthorized": false,
-  "capacityPreCleanupAuthorized": true,
-  "purpose": "Exact rejected-evidence capacity remediation after valid business-whitelist restore verification",
-  "totalCandidateBytes": 17295733829,
+  "capacityPreCleanupAuthorized": false,
+  "purpose": "Completed exact rejected-evidence capacity remediation after valid business-whitelist restore verification",
+  "totalCandidateBytes": 0,
   "targetIdentity": {
     "provider": "tencent_cvm",
     "instanceId": "ins-93tgv1rb",
@@ -35,11 +35,7 @@
     "wow_gear_evidence_145dee16_r22",
     "wow_gear_evidence_15f514d5_r23"
   ],
-  "pendingDatabaseAllowlist": [
-    "wow_gear_evidence_0be65754_r24",
-    "wow_gear_evidence_145dee16_r22",
-    "wow_gear_evidence_15f514d5_r23"
-  ],
+  "pendingDatabaseAllowlist": [],
   "completedPairs": [
     {
       "database": "wow_gear_evidence_01adf184_r14",
@@ -51,11 +47,44 @@
       "databaseAbsent": true,
       "originalEnvAbsent": true,
       "quarantinedEnvSha256": "e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1"
+    },
+    {
+      "database": "wow_gear_evidence_0be65754_r24",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r24.env",
+      "sizeBytesReleased": 5517827095,
+      "runManifestSha256": "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+      "journalStatus": "reconciled_completed",
+      "observedAt": "2026-09-03T08:40:39Z",
+      "databaseAbsent": true,
+      "originalEnvAbsent": true,
+      "quarantinedEnvSha256": "00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2"
+    },
+    {
+      "database": "wow_gear_evidence_145dee16_r22",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r22.env",
+      "sizeBytesReleased": 5964094487,
+      "runManifestSha256": "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+      "journalStatus": "reconciled_completed",
+      "observedAt": "2026-09-03T08:50:47Z",
+      "databaseAbsent": true,
+      "originalEnvAbsent": true,
+      "quarantinedEnvSha256": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a"
+    },
+    {
+      "database": "wow_gear_evidence_15f514d5_r23",
+      "envFile": "/etc/wow-backend-candidate-gear-evidence-r23.env",
+      "sizeBytesReleased": 5813812247,
+      "runManifestSha256": "3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+      "journalStatus": "reconciled_completed",
+      "observedAt": "2026-09-03T09:01:32Z",
+      "databaseAbsent": true,
+      "originalEnvAbsent": true,
+      "quarantinedEnvSha256": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68"
     }
   ],
   "evidence": {
     "capacityInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "capacityInventorySha256": "b404fc891feed5537c16a51c109f9bf4177ab18e77a0851144cd2e48b50d08f4",
+    "capacityInventorySha256": "9102cd7f64cb8f0b5e0485e8ff2712b5293537df3070bbb444176c1af2d5be2e",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
     "liveProbeTransport": "authorized read-only SSH",
     "blockDevices": [
@@ -81,139 +110,8 @@
     ],
     "sameRootArchiveScanRoot": "/var/backups"
   },
-  "candidates": [
-    {
-      "name": "wow_gear_evidence_0be65754_r24",
-      "kind": "postgres_database",
-      "sizeBytes": 5517827095,
-      "owner": "postgres",
-      "allowsConnections": true,
-      "connectionLimit": -1,
-      "currentConnections": 0,
-      "observedCommittedTransactions": 488,
-      "observedRolledBackTransactions": 0,
-      "historicalLastConnection": "unavailable_current_zero_only",
-      "schemaNames": [
-        "analytics",
-        "app",
-        "cache",
-        "content",
-        "identity",
-        "knowledge",
-        "ops",
-        "public"
-      ],
-      "tableCount": 71,
-      "approximateRows": 2375154,
-      "exactRows": 2375007,
-      "configurationReferences": [
-        "/etc/wow-backend-candidate-gear-evidence-r24.env"
-      ],
-      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r24.env",
-      "sameRootBackupMatches": [],
-      "decision": "rejected_evidence_exact_precleanup",
-      "recoveryRequired": false,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    },
-    {
-      "name": "wow_gear_evidence_145dee16_r22",
-      "kind": "postgres_database",
-      "sizeBytes": 5964094487,
-      "owner": "wow_app",
-      "allowsConnections": true,
-      "connectionLimit": -1,
-      "currentConnections": 0,
-      "observedCommittedTransactions": 488,
-      "observedRolledBackTransactions": 0,
-      "historicalLastConnection": "unavailable_current_zero_only",
-      "schemaNames": [
-        "analytics",
-        "app",
-        "cache",
-        "content",
-        "identity",
-        "knowledge",
-        "ops",
-        "public"
-      ],
-      "tableCount": 71,
-      "approximateRows": 2767097,
-      "exactRows": 2802680,
-      "configurationReferences": [
-        "/etc/wow-backend-candidate-gear-evidence-r22.env"
-      ],
-      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r22.env",
-      "sameRootBackupMatches": [],
-      "decision": "rejected_evidence_exact_precleanup",
-      "recoveryRequired": false,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    },
-    {
-      "name": "wow_gear_evidence_15f514d5_r23",
-      "kind": "postgres_database",
-      "sizeBytes": 5813812247,
-      "owner": "postgres",
-      "allowsConnections": true,
-      "connectionLimit": -1,
-      "currentConnections": 0,
-      "observedCommittedTransactions": 490,
-      "observedRolledBackTransactions": 0,
-      "historicalLastConnection": "unavailable_current_zero_only",
-      "schemaNames": [
-        "analytics",
-        "app",
-        "cache",
-        "content",
-        "identity",
-        "knowledge",
-        "ops",
-        "public"
-      ],
-      "tableCount": 71,
-      "approximateRows": 2632122,
-      "exactRows": 2658418,
-      "configurationReferences": [
-        "/etc/wow-backend-candidate-gear-evidence-r23.env"
-      ],
-      "requiredAbsentCompanion": "/etc/wow-backend-candidate-gear-evidence-r23.env",
-      "sameRootBackupMatches": [],
-      "decision": "rejected_evidence_exact_precleanup",
-      "recoveryRequired": false,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    }
-  ],
-  "capacityCleanupCompanions": [
-    {
-      "database": "wow_gear_evidence_0be65754_r24",
-      "envFile": "/etc/wow-backend-candidate-gear-evidence-r24.env",
-      "observedAt": "2026-09-03T05:52:56Z",
-      "contentSha256": "00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2",
-      "systemdUnitReferences": [],
-      "runningProcessReferences": 0,
-      "openHandles": 0,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    },
-    {
-      "database": "wow_gear_evidence_145dee16_r22",
-      "envFile": "/etc/wow-backend-candidate-gear-evidence-r22.env",
-      "observedAt": "2026-09-03T05:53:13Z",
-      "contentSha256": "af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a",
-      "systemdUnitReferences": [],
-      "runningProcessReferences": 0,
-      "openHandles": 0,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    },
-    {
-      "database": "wow_gear_evidence_15f514d5_r23",
-      "envFile": "/etc/wow-backend-candidate-gear-evidence-r23.env",
-      "observedAt": "2026-09-03T05:53:28Z",
-      "contentSha256": "37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68",
-      "systemdUnitReferences": [],
-      "runningProcessReferences": 0,
-      "openHandles": 0,
-      "applyStatus": "ready_for_reviewed_capacity_precleanup"
-    }
-  ],
+  "candidates": [],
+  "capacityCleanupCompanions": [],
   "requiredBeforeApply": [
     "hash-bound whitelist recovery manifest with isolated restore reconciliation",
     "fresh exact target identity from Tencent instance metadata",
@@ -229,6 +127,7 @@
     "unusedForever": false,
     "whitelistRestoreVerified": true,
     "safeToDelete": true,
-    "capacityGateCleared": false
+    "capacityGateCleared": true,
+    "capacityCleanupComplete": true
   }
 }

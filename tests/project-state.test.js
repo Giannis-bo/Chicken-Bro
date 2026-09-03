@@ -22,7 +22,7 @@ test('project state names only the approved dual-client Chat and SimC product', 
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.schemaVersion, 2)
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_6')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_5')
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
@@ -40,11 +40,11 @@ test('project state preserves the live safety boundary instead of claiming compl
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.delivery.phase1, 'local_verified')
-  assert.equal(state.delivery.phase2, 'whitelist_recovery_verified_capacity_precleanup_partial')
+  assert.equal(state.delivery.phase2, 'whitelist_recovery_verified_capacity_gate_open')
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
   assert.equal(state.delivery.phase5, 'local_verified_live_acceptance_blocked')
-  assert.equal(state.delivery.phase6, 'capacity_precleanup_partial_1_completed_3_remaining_full_retirement_blocked')
+  assert.equal(state.delivery.phase6, 'capacity_precleanup_complete_full_retirement_blocked')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
     deletable: 2588,
     retained: 267,
@@ -53,8 +53,8 @@ test('project state preserves the live safety boundary instead of claiming compl
     phase5Accepted: false,
   })
   assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
-    total: 82,
-    ready: 6,
+    total: 76,
+    ready: 0,
     blocked: 76,
     unresolvedRequiredTargets: 2,
   })
@@ -70,10 +70,10 @@ test('project state preserves the live safety boundary instead of claiming compl
     'accepted_production_restore_verified',
   ])
   assert.deepEqual(state.gates.capacityPreCleanup, {
-    authorized: true,
+    authorized: false,
     exactRejectedDatabaseCount: 4,
-    completedDatabaseCount: 1,
-    remainingDatabaseCount: 3,
+    completedDatabaseCount: 4,
+    remainingDatabaseCount: 0,
     requiresPhase5Acceptance: false,
     requiresWhitelistRestoreVerification: true,
     protectsWowTest: true,
@@ -90,7 +90,7 @@ test('all execution authorities and refactor evidence are explicit existing file
   }
   assert.equal(
     state.refactorEvidence.capacityGate,
-    'blocked_until_remaining_exact_capacity_cleanup',
+    'capacity_preflight_required',
   )
   assert.deepEqual(state.refactorEvidence.targetIdentity, {
     provider: 'tencent_cvm',
@@ -102,7 +102,7 @@ test('all execution authorities and refactor evidence are explicit existing file
     refreshRequiredBeforeApply: true,
   })
   assert.equal(state.refactorEvidence.localCleanupApplyAllowed, false)
-  assert.equal(state.refactorEvidence.capacityPreCleanupApplyAllowed, true)
+  assert.equal(state.refactorEvidence.capacityPreCleanupApplyAllowed, false)
   assert.equal(state.refactorEvidence.cloudCleanupApplyAllowed, false)
 })
 

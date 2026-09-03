@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "updatedAt": "2026-09-03",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
-  "status": "whitelist_recovery_verified_capacity_precleanup_partial",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_5",
+  "status": "whitelist_recovery_verified_capacity_gate_open_candidate_deployment_next",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -27,11 +27,11 @@
   },
   "delivery": {
     "phase1": "local_verified",
-    "phase2": "whitelist_recovery_verified_capacity_precleanup_partial",
+    "phase2": "whitelist_recovery_verified_capacity_gate_open",
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "local_verified_live_acceptance_blocked",
-    "phase6": "capacity_precleanup_partial_1_completed_3_remaining_full_retirement_blocked"
+    "phase6": "capacity_precleanup_complete_full_retirement_blocked"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -51,10 +51,10 @@
       "accepted_production_restore_verified"
     ],
     "capacityPreCleanup": {
-      "authorized": true,
+      "authorized": false,
       "exactRejectedDatabaseCount": 4,
-      "completedDatabaseCount": 1,
-      "remainingDatabaseCount": 3,
+      "completedDatabaseCount": 4,
+      "remainingDatabaseCount": 0,
       "requiresPhase5Acceptance": false,
       "requiresWhitelistRestoreVerification": true,
       "protectsWowTest": true
@@ -67,7 +67,7 @@
     "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
     "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-    "capacityGate": "blocked_until_remaining_exact_capacity_cleanup",
+    "capacityGate": "capacity_preflight_required",
     "targetIdentity": {
       "provider": "tencent_cvm",
       "instanceId": "ins-93tgv1rb",
@@ -77,7 +77,7 @@
       "sshTarget": "wow-lighthouse",
       "refreshRequiredBeforeApply": true
     },
-    "observedRootFreeBytes": 13425606656,
+    "observedRootFreeBytes": 30703849472,
     "observedLegacyDatabaseBytes": 16391437335,
     "whitelistRecovery": {
       "status": "restore_verified",
@@ -96,13 +96,13 @@
       "phase5Accepted": false
     },
     "cloudCleanupDryRun": {
-      "total": 82,
-      "ready": 6,
+      "total": 76,
+      "ready": 0,
       "blocked": 76,
       "unresolvedRequiredTargets": 2
     },
     "localCleanupApplyAllowed": false,
-    "capacityPreCleanupApplyAllowed": true,
+    "capacityPreCleanupApplyAllowed": false,
     "cloudCleanupApplyAllowed": false
   },
   "executionAuthority": {

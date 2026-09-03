@@ -115,17 +115,17 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.equal(manifest.businessRecovery.status, 'restore_verified')
   assert.equal(manifest.businessRecovery.manifestSchema, 'chickenbro-whitelist-recovery-v1')
   assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
-  assert.equal(manifest.capacityPreCleanup.authorized, true)
+  assert.equal(manifest.capacityPreCleanup.authorized, false)
   assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
-    observedAt: '2026-09-03T07:56:29Z',
-    manifestSha256: '7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9',
-    status: 'partial_completed',
-    reasonCode: 'result_journal_shell_default_brace',
-    databasesPresent: 3,
-    envFilesPresent: 3,
+    observedAt: '2026-09-03T09:02:56Z',
+    manifestSha256: '3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec',
+    status: 'completed',
+    reasonCode: null,
+    databasesPresent: 0,
+    envFilesPresent: 0,
     activeConnections: 0,
     pairJournalCount: 4,
-    completedPairCount: 1,
+    completedPairCount: 4,
     mutationPerformed: true,
   })
   assert.equal(manifest.capacityPreCleanup.requiresPhase5Acceptance, false)
@@ -139,11 +139,7 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
       'wow_gear_evidence_15f514d5_r23',
     ],
   )
-  assert.deepEqual(manifest.capacityPreCleanup.pendingDatabaseAllowlist, [
-    'wow_gear_evidence_0be65754_r24',
-    'wow_gear_evidence_145dee16_r22',
-    'wow_gear_evidence_15f514d5_r23',
-  ])
+  assert.deepEqual(manifest.capacityPreCleanup.pendingDatabaseAllowlist, [])
   assert.deepEqual(
     manifest.capacityPreCleanup.completedPairs.map((item) => ({
       database: item.database,
@@ -153,14 +149,40 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
       originalEnvAbsent: item.originalEnvAbsent,
       quarantinedEnvSha256: item.quarantinedEnvSha256,
     })),
-    [{
-      database: 'wow_gear_evidence_01adf184_r14',
-      envFile: '/etc/wow-backend-candidate-gear-evidence-r14.env',
-      journalStatus: 'reconciled_completed',
-      databaseAbsent: true,
-      originalEnvAbsent: true,
-      quarantinedEnvSha256: 'e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1',
-    }],
+    [
+      {
+        database: 'wow_gear_evidence_01adf184_r14',
+        envFile: '/etc/wow-backend-candidate-gear-evidence-r14.env',
+        journalStatus: 'reconciled_completed',
+        databaseAbsent: true,
+        originalEnvAbsent: true,
+        quarantinedEnvSha256: 'e4f0e3cdf8d3574dc9daaa020cc6777ac591c0e068ba9e1dc5cc034ba9d4f8e1',
+      },
+      {
+        database: 'wow_gear_evidence_0be65754_r24',
+        envFile: '/etc/wow-backend-candidate-gear-evidence-r24.env',
+        journalStatus: 'reconciled_completed',
+        databaseAbsent: true,
+        originalEnvAbsent: true,
+        quarantinedEnvSha256: '00f0e3856318a4ca20ac8d824545330d5dfb876c7978a58f4664dce8e7297ff2',
+      },
+      {
+        database: 'wow_gear_evidence_145dee16_r22',
+        envFile: '/etc/wow-backend-candidate-gear-evidence-r22.env',
+        journalStatus: 'reconciled_completed',
+        databaseAbsent: true,
+        originalEnvAbsent: true,
+        quarantinedEnvSha256: 'af56e04898b7739e2520940feb9d967bb55afc1d1a83ccd1b55055ee258a340a',
+      },
+      {
+        database: 'wow_gear_evidence_15f514d5_r23',
+        envFile: '/etc/wow-backend-candidate-gear-evidence-r23.env',
+        journalStatus: 'reconciled_completed',
+        databaseAbsent: true,
+        originalEnvAbsent: true,
+        quarantinedEnvSha256: '37ebf357edf4670ef52c3cee6525ba8e95df2ce8b8e37adb6e5acedeeeae2f68',
+      },
+    ],
   )
   assert.deepEqual(manifest.capacityPreCleanup.configurationScanRoots, [
     '/etc',
@@ -175,8 +197,8 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   assert.ok(Array.isArray(resources) && resources.length > 0)
   assert.equal(new Set(resources.map((item) => item.id)).size, resources.length)
   assert.equal(new Set(resources.map((item) => `${item.kind}:${item.target}`)).size, resources.length)
-  assert.ok(resources.filter((item) => item.capacityPreCleanup).every((item) => item.gateStatus === 'ready'))
-  assert.ok(resources.filter((item) => !item.capacityPreCleanup).every((item) => item.gateStatus === 'blocked'))
+  assert.equal(resources.filter((item) => item.capacityPreCleanup).length, 0)
+  assert.ok(resources.every((item) => item.gateStatus === 'blocked'))
 
   const unitTargets = new Set(
     resources.filter((item) => item.kind === 'systemd_unit').map((item) => item.target),
@@ -232,13 +254,13 @@ test('dry-run reports every resource and never authorizes mutation', () => {
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.counts.total, manifest.resources.length)
-  assert.equal(payload.counts.blocked, manifest.resources.length - 6)
-  assert.equal(payload.counts.ready, 6)
+  assert.equal(payload.counts.blocked, manifest.resources.length)
+  assert.equal(payload.counts.ready, 0)
   assert.equal(payload.unresolvedBlockerCount, manifest.unresolvedRequiredTargets.length)
-  assert.equal(payload.results.filter((item) => item.status === 'ready').length, 6)
+  assert.equal(payload.results.filter((item) => item.status === 'ready').length, 0)
 })
 
-test('capacity pre-cleanup dry-run reports only the exact three remaining databases and env companions', () => {
+test('completed capacity pre-cleanup dry-run reports no pending resources', () => {
   const result = spawnSync('bash', [
     scriptPath,
     '--manifest', manifestPath,
@@ -249,28 +271,13 @@ test('capacity pre-cleanup dry-run reports only the exact three remaining databa
   const payload = JSON.parse(result.stdout)
   assert.equal(payload.scope, 'capacity_pre_cleanup')
   assert.equal(payload.mutationAuthorized, false)
-  assert.equal(payload.counts.total, 6)
-  assert.equal(payload.counts.ready, 6)
+  assert.equal(payload.counts.total, 0)
+  assert.equal(payload.counts.ready, 0)
   assert.equal(payload.counts.blocked, 0)
-  assert.deepEqual(
-    payload.results.filter((item) => item.kind === 'postgres_database').map((item) => item.target),
-    [
-      'wow_gear_evidence_0be65754_r24',
-      'wow_gear_evidence_145dee16_r22',
-      'wow_gear_evidence_15f514d5_r23',
-    ],
-  )
-  assert.deepEqual(
-    payload.results.filter((item) => item.kind === 'file').map((item) => item.target),
-    [
-      '/etc/wow-backend-candidate-gear-evidence-r24.env',
-      '/etc/wow-backend-candidate-gear-evidence-r22.env',
-      '/etc/wow-backend-candidate-gear-evidence-r23.env',
-    ],
-  )
+  assert.deepEqual(payload.results, [])
 })
 
-test('partial capacity apply validates the completed prefix and sends only pending pairs to SSH', (t) => {
+test('completed capacity state refuses another apply before SSH', (t) => {
   const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-partial-capacity-'))
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
   const marker = path.join(directory, 'ssh-called')
@@ -290,11 +297,12 @@ test('partial capacity apply validates the completed prefix and sends only pendi
     encoding: 'utf8',
     env: { ...process.env, PATH: `${directory}:${process.env.PATH}` },
   })
-  assert.equal(result.status, 77, result.stderr)
-  assert.equal(fs.readFileSync(marker, 'utf8'), 'reached')
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /capacityPreCleanup\.authorized=true/i)
+  assert.equal(fs.existsSync(marker), false)
 })
 
-test('partial capacity manifest rejects a completed database that reappears in fresh inventory', (t) => {
+test('completed capacity manifest rejects a completed database that reappears in fresh inventory', (t) => {
   const directory = fs.mkdtempSync(path.join(repositoryRoot, '.chickenbro-partial-inventory-'))
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
@@ -581,24 +589,11 @@ test('capacity apply preflights every pair before mutation and journals each irr
   assert.match(source, /"after"/)
 })
 
-test('ready capacity databases require a reviewed exact-row identity, never planner statistics', (t) => {
-  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'chickenbro-exact-rows-'))
-  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  const database = manifest.resources.find((item) => item.capacityPreCleanup && item.kind === 'postgres_database')
-  database.gateStatus = 'ready'
-  database.restoreCheck = 'not_required'
-  database.deleteAfter = '2026-09-03T00:00:00Z'
-  delete database.observed.exactRows
-  const changedManifest = path.join(directory, 'manifest.json')
-  fs.writeFileSync(changedManifest, `${JSON.stringify(manifest)}\n`)
-
-  const result = spawnSync('bash', [scriptPath, '--manifest', changedManifest, '--dry-run'], {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-  })
-  assert.notEqual(result.status, 0)
-  assert.match(result.stderr, /exact table\/row counts/i)
+test('capacity manifest validator retains the exact-row identity gate after completion', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+  assert.match(source, /observed\.get\("exactRows"\)/)
+  assert.match(source, /ready capacity database .* lacks exact table\/row counts/)
+  assert.doesNotMatch(source, /n_live_tup/)
 })
 
 test('database row identity executes exact COUNT queries and rejects planner-stat shortcuts', () => {

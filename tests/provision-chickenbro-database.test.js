@@ -145,7 +145,7 @@ test('GNU df capacity probe does not combine POSIX mode with output selection', 
   }
 })
 
-test('local dry-run emits redacted blocked JSON and performs no prerequisite command check', () => {
+test('local dry-run emits the refreshed redacted capacity gate and performs no prerequisite command check', () => {
   const result = run([], {
     WOW_REBUILD_BACKUP_ROOT: '/do-not-print/private-backup',
     WOW_REBUILD_MANAGEMENT_ROLE: 'do_not_print_role',
@@ -158,7 +158,7 @@ test('local dry-run emits redacted blocked JSON and performs no prerequisite com
   assert.equal(payload.sourceDatabase, 'wow_test')
   assert.equal(
     payload.capacityGate,
-    'blocked_until_whitelist_recovery_and_exact_capacity_cleanup_or_storage_expansion',
+    'capacity_preflight_required',
   )
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.inventorySha, inventorySha())

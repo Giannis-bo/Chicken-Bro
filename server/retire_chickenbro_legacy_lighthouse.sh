@@ -210,10 +210,11 @@ pending_capacity_databases = capacity.get("pendingDatabaseAllowlist")
 completed_capacity_pairs = capacity.get("completedPairs")
 if (
     not isinstance(pending_capacity_databases, list)
-    or not pending_capacity_databases
     or not isinstance(completed_capacity_pairs, list)
 ):
     raise SystemExit("capacity pre-cleanup pending/completed partition is required")
+if capacity.get("authorized") is not bool(pending_capacity_databases):
+    raise SystemExit("capacity pre-cleanup authorization must match pending work")
 completed_capacity_databases = []
 for item in completed_capacity_pairs:
     if not isinstance(item, dict):
