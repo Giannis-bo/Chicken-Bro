@@ -34,6 +34,7 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
     return () => {
       disposedRef.current = true
       unsubscribe()
+      model.dispose()
     }
   }, [model])
 

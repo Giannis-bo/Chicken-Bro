@@ -72,7 +72,9 @@ export class ChatModel {
   private streamRequestId = ''
   private streamRunId = ''
   private streamGeneration = 0
+  private historyGeneration = 0
   private pendingCreate: { title: string; idempotencyKey: string } | null = null
+  private createInFlight: Promise<ConversationSummary | null> | null = null
 
   constructor(
     private readonly client: ChatClient,
@@ -93,6 +95,9 @@ export class ChatModel {
   }
 
   async load(): Promise<void> {
+    const viewGeneration = this.beginViewRequest()
+    const historyGeneration = this.historyGeneration + 1
+    this.historyGeneration = historyGeneration
     this.update({ phase: 'loading', errorCode: '', errorMessage: '', retryable: false })
     let auth: ClientAuthContext
     try {
@@ -102,6 +107,10 @@ export class ChatModel {
       return
     }
     const result = await this.client.list({ limit: 20 }, { auth })
+    if (
+      viewGeneration !== this.streamGeneration
+      || historyGeneration !== this.historyGeneration
+    ) return
     if (result.fromFallback) {
       this.apiFailure(result, '会话历史加载失败')
       return
@@ -119,11 +128,14 @@ export class ChatModel {
       retryable: false,
     })
     const first = conversations[0]
-    if (first) await this.open(first.id)
+    if (first && viewGeneration === this.streamGeneration) await this.open(first.id)
   }
 
   async loadMore(): Promise<void> {
     if (!this.state.nextCursor) return
+    const generation = this.historyGeneration + 1
+    this.historyGeneration = generation
+    const viewGeneration = this.streamGeneration
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -135,26 +147,24 @@ export class ChatModel {
       { cursor: this.state.nextCursor, limit: 20 },
       { auth },
     )
+    if (generation !== this.historyGeneration) return
     if (result.fromFallback) {
-      this.apiFailure(result, '更多会话加载失败')
+      if (viewGeneration === this.streamGeneration) this.apiFailure(result, '更多会话加载失败')
       return
     }
     const byId = new Map(this.state.conversations.map((item) => [item.id, item]))
     result.payload.items.forEach((item) => byId.set(item.id, item))
     this.update({
-      phase: 'ready',
       conversations: [...byId.values()],
       nextCursor: result.payload.nextCursor,
-      errorCode: '',
-      errorMessage: '',
-      retryable: false,
+      ...(viewGeneration === this.streamGeneration
+        ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
+        : {}),
     })
   }
 
   async open(conversationId: string): Promise<void> {
-    this.activeStream?.abort()
-    this.activeStream = null
-    this.streamGeneration += 1
+    const generation = this.beginViewRequest()
     this.update({ phase: 'loading', pendingUserContent: '', streamText: '' })
     let auth: ClientAuthContext
     try {
@@ -164,6 +174,7 @@ export class ChatModel {
       return
     }
     const result = await this.client.get(conversationId, { auth })
+    if (generation !== this.streamGeneration) return
     if (result.fromFallback) {
       this.apiFailure(result, '会话内容加载失败')
       return
@@ -177,7 +188,18 @@ export class ChatModel {
     })
   }
 
-  async create(title?: string): Promise<ConversationSummary | null> {
+  create(title?: string): Promise<ConversationSummary | null> {
+    if (this.createInFlight) return this.createInFlight
+    const operation = this.createOnce(title)
+    const tracked = operation.finally(() => {
+      if (this.createInFlight === tracked) this.createInFlight = null
+    })
+    this.createInFlight = tracked
+    return tracked
+  }
+
+  private async createOnce(title?: string): Promise<ConversationSummary | null> {
+    const viewGeneration = this.beginViewRequest()
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -199,7 +221,7 @@ export class ChatModel {
       { auth, idempotencyKey: pending.idempotencyKey },
     )
     if (result.fromFallback) {
-      this.apiFailure(result, '新建会话失败')
+      if (viewGeneration === this.streamGeneration) this.apiFailure(result, '新建会话失败')
       return null
     }
     if (this.pendingCreate === pending) this.pendingCreate = null
@@ -208,7 +230,7 @@ export class ChatModel {
       ...this.state.conversations.filter((item) => item.id !== result.payload.id),
     ]
     this.update({ conversations })
-    await this.open(result.payload.id)
+    if (viewGeneration === this.streamGeneration) await this.open(result.payload.id)
     return result.payload
   }
 
@@ -275,10 +297,20 @@ export class ChatModel {
   }
 
   dispose(): void {
-    this.activeStream?.abort()
+    const activeStream = this.activeStream
     this.activeStream = null
     this.streamGeneration += 1
+    this.historyGeneration += 1
+    activeStream?.abort()
     this.listeners.clear()
+  }
+
+  private beginViewRequest(): number {
+    const activeStream = this.activeStream
+    this.activeStream = null
+    this.streamGeneration += 1
+    activeStream?.abort()
+    return this.streamGeneration
   }
 
   private onStreamEvent(event: ChatEventEnvelope, conversationId: string, generation: number): void {

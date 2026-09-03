@@ -148,6 +148,10 @@ export class SimcModel {
   private readonly maxPolls: number
   private pendingSubmission: { identity: string; idempotencyKey: string } | null = null
   private submitInFlight: Promise<SimulationJobDetail | null> | null = null
+  private sourceGeneration = 0
+  private jobsGeneration = 0
+  private activeJobGeneration = 0
+  private operationGeneration = 0
 
   constructor(
     private readonly client: SimcClient,
@@ -170,7 +174,13 @@ export class SimcModel {
   }
 
   async resolveSource(sourceUrl: string): Promise<SourceSnapshotView | null> {
+    const operationGeneration = this.operationGeneration + 1
+    this.operationGeneration = operationGeneration
+    const generation = this.sourceGeneration + 1
+    this.sourceGeneration = generation
+    this.activeJobGeneration += 1
     if (!isSupportedCharacterSourceUrl(sourceUrl)) {
+      this.update({ snapshot: null, activeJob: null })
       this.fail('INVALID_LINK', '只接受 Raider.IO 或 Warcraft Logs 的角色链接', false)
       return null
     }
@@ -193,18 +203,35 @@ export class SimcModel {
     try {
       result = await this.client.createSnapshot({ sourceUrl }, { auth })
     } catch (error) {
-      this.fail('INVALID_LINK', error instanceof Error ? error.message : '角色链接无效', false)
+      if (
+        generation === this.sourceGeneration
+        && operationGeneration === this.operationGeneration
+      ) {
+        this.fail('INVALID_LINK', error instanceof Error ? error.message : '角色链接无效', false)
+      }
       return null
     }
+    if (generation !== this.sourceGeneration) return null
     if (result.fromFallback) {
-      this.apiFailure(result, '角色快照读取失败')
+      if (operationGeneration === this.operationGeneration) {
+        this.apiFailure(result, '角色快照读取失败')
+      }
       return null
     }
-    this.update({ phase: 'ready', snapshot: result.payload })
+    this.update({
+      snapshot: result.payload,
+      ...(operationGeneration === this.operationGeneration
+        ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
+        : {}),
+    })
     return result.payload
   }
 
   async loadJobs(cursor?: string): Promise<void> {
+    const operationGeneration = this.operationGeneration + 1
+    this.operationGeneration = operationGeneration
+    const generation = this.jobsGeneration + 1
+    this.jobsGeneration = generation
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -214,8 +241,11 @@ export class SimcModel {
     }
     this.update({ phase: 'loading', errorCode: '', errorMessage: '', retryable: false })
     const result = await this.client.listJobs({ ...(cursor ? { cursor } : {}), limit: 20 }, { auth })
+    if (generation !== this.jobsGeneration) return
     if (result.fromFallback) {
-      this.apiFailure(result, '模拟任务历史加载失败')
+      if (operationGeneration === this.operationGeneration) {
+        this.apiFailure(result, '模拟任务历史加载失败')
+      }
       return
     }
     const jobs = cursor
@@ -223,12 +253,11 @@ export class SimcModel {
       : [...result.payload.items]
     const byId = new Map(jobs.map((job) => [job.id, job]))
     this.update({
-      phase: 'ready',
       jobs: [...byId.values()],
       nextCursor: result.payload.nextCursor,
-      errorCode: '',
-      errorMessage: '',
-      retryable: false,
+      ...(operationGeneration === this.operationGeneration
+        ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
+        : {}),
     })
   }
 
@@ -241,6 +270,8 @@ export class SimcModel {
   }
 
   private async submitJobOnce(scenario: SimulationScenarioRequest): Promise<SimulationJobDetail | null> {
+    const operationGeneration = this.operationGeneration + 1
+    this.operationGeneration = operationGeneration
     const snapshot = this.state.snapshot
     if (!snapshot || snapshot.readiness !== 'READY_FOR_SIMC') {
       this.fail('SNAPSHOT_NOT_READY', '角色快照尚不满足 SimC 执行条件', false)
@@ -258,6 +289,8 @@ export class SimcModel {
       ? this.pendingSubmission
       : { identity, idempotencyKey: idempotencyKey(this.requestId()) }
     this.pendingSubmission = pending
+    const activeJobGeneration = this.activeJobGeneration + 1
+    this.activeJobGeneration = activeJobGeneration
     this.update({ phase: 'submitting', errorCode: '', errorMessage: '', retryable: false })
     let result: ApiResult<SimulationJobDetail>
     try {
@@ -266,26 +299,54 @@ export class SimcModel {
         { auth, idempotencyKey: pending.idempotencyKey },
       )
     } catch (error) {
-      this.fail('SCENARIO_INVALID', error instanceof Error ? error.message : '模拟场景无效', false)
+      if (
+        activeJobGeneration === this.activeJobGeneration
+        && operationGeneration === this.operationGeneration
+      ) {
+        this.fail('SCENARIO_INVALID', error instanceof Error ? error.message : '模拟场景无效', false)
+      }
       return null
     }
     if (result.fromFallback) {
-      this.apiFailure(result, '模拟任务提交失败')
+      if (
+        activeJobGeneration === this.activeJobGeneration
+        && operationGeneration === this.operationGeneration
+      ) {
+        this.apiFailure(result, '模拟任务提交失败')
+      }
       return null
     }
     if (this.pendingSubmission === pending) this.pendingSubmission = null
     this.update({
-      phase: 'ready',
-      activeJob: result.payload,
+      ...(activeJobGeneration === this.activeJobGeneration ? { activeJob: result.payload } : {}),
       jobs: [
         result.payload,
         ...this.state.jobs.filter((job) => job.id !== result.payload.id),
       ],
+      ...(operationGeneration === this.operationGeneration
+        ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
+        : {}),
     })
-    return result.payload
+    return (
+      activeJobGeneration === this.activeJobGeneration
+      && operationGeneration === this.operationGeneration
+    ) ? result.payload : null
   }
 
   async loadJob(jobId: string): Promise<SimulationJobDetail | null> {
+    const operationGeneration = this.operationGeneration + 1
+    this.operationGeneration = operationGeneration
+    const generation = this.activeJobGeneration + 1
+    this.activeJobGeneration = generation
+    return this.loadJobForGeneration(jobId, generation, operationGeneration)
+  }
+
+  private async loadJobForGeneration(
+    jobId: string,
+    generation: number,
+    operationGeneration: number,
+    cancelled?: () => boolean,
+  ): Promise<SimulationJobDetail | null> {
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -294,16 +355,18 @@ export class SimcModel {
       return null
     }
     const result = await this.client.getJob(jobId, { auth })
+    if (generation !== this.activeJobGeneration || cancelled?.()) return null
     if (result.fromFallback) {
-      this.apiFailure(result, '模拟任务读取失败')
+      if (operationGeneration === this.operationGeneration) {
+        this.apiFailure(result, '模拟任务读取失败')
+      }
       return null
     }
     this.update({
-      phase: 'ready',
       activeJob: result.payload,
-      errorCode: '',
-      errorMessage: '',
-      retryable: false,
+      ...(operationGeneration === this.operationGeneration
+        ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
+        : {}),
     })
     return result.payload
   }
@@ -312,17 +375,40 @@ export class SimcModel {
     jobId: string,
     options: SimulationPollOptions = {},
   ): Promise<SimulationJobDetail | null> {
+    const operationGeneration = this.operationGeneration + 1
+    this.operationGeneration = operationGeneration
+    const generation = this.activeJobGeneration + 1
+    this.activeJobGeneration = generation
     for (let attempt = 0; attempt < this.maxPolls; attempt += 1) {
-      if (options.cancelled?.()) return null
-      const job = await this.loadJob(jobId)
+      if (generation !== this.activeJobGeneration || options.cancelled?.()) return null
+      const job = await this.loadJobForGeneration(
+        jobId,
+        generation,
+        operationGeneration,
+        options.cancelled,
+      )
       if (!job || !shouldPollSimulationJob(job)) return job
       if (attempt === this.maxPolls - 1) {
-        this.fail('SIMC_POLL_LIMIT', '任务仍在运行，请稍后手动刷新', true)
+        if (
+          generation === this.activeJobGeneration
+          && operationGeneration === this.operationGeneration
+          && !options.cancelled?.()
+        ) {
+          this.fail('SIMC_POLL_LIMIT', '任务仍在运行，请稍后手动刷新', true)
+        }
         return null
       }
       await this.sleep(simulationPollDelay(attempt))
     }
     return null
+  }
+
+  dispose(): void {
+    this.sourceGeneration += 1
+    this.jobsGeneration += 1
+    this.activeJobGeneration += 1
+    this.operationGeneration += 1
+    this.listeners.clear()
   }
 
   private apiFailure(result: ApiResult<unknown>, fallback: string): void {

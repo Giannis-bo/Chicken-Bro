@@ -20,7 +20,13 @@ export default function SimcPage() {
   const [targets, setTargets] = useState('1')
   const [iterations, setIterations] = useState('300')
 
-  useEffect(() => model.subscribe(setState), [model])
+  useEffect(() => {
+    const unsubscribe = model.subscribe(setState)
+    return () => {
+      unsubscribe()
+      model.dispose()
+    }
+  }, [model])
 
   const ensureSession = async () => {
     if (!sessions.getValid()) await sessions.login()

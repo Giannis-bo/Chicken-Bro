@@ -17,7 +17,13 @@ export default function SimcTasksPage() {
   )
   const [state, setState] = useState<SimcModelState>(() => model.get())
 
-  useEffect(() => model.subscribe(setState), [model])
+  useEffect(() => {
+    const unsubscribe = model.subscribe(setState)
+    return () => {
+      unsubscribe()
+      model.dispose()
+    }
+  }, [model])
 
   const loginAndLoad = async () => {
     try {

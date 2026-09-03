@@ -25,6 +25,7 @@ export default function SimcTaskDetailPage() {
     return () => {
       cancelled.current = true
       unsubscribe()
+      model.dispose()
     }
   }, [model])
 

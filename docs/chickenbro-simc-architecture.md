@@ -253,7 +253,7 @@ pages/simc/task-detail
 pages/auth/web-login-confirm # 辅助认证，不进 TabBar
 ```
 
-Web 复用相同 domain guard、typed client 与 Chat/SimC feature model，但使用独立 Web Shell 和 Cookie/CSRF transport。客户端本地存储只保存有界 Mini Session 或渲染缓存；刷新后的业务事实必须从服务端重建。
+Web 复用相同 domain guard、typed client 与 Chat/SimC feature model，但使用独立 Web Shell 和 Cookie/CSRF transport。客户端本地存储只保存有界 Mini Session 或渲染缓存；刷新后的业务事实必须从服务端重建。所有异步列表、详情、来源解析、任务提交、轮询和流恢复都遵循“最后一次用户意图获胜”：旧响应可以在不冲突时补充服务端列表，但不得覆盖较新的选择、流、阶段或错误状态；页面卸载后未完成响应一律失效。同一时刻的重复 Chat 创建、消息发送和 SimC 提交还必须在客户端合并，并由服务端幂等键再次兜底。
 
 ## 迁移与切流
 

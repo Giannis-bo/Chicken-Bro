@@ -28,6 +28,13 @@ const snapshot: SourceSnapshotView = {
   fetchedAt: now,
   provenance: { sourceRevision: 'rio-1', sourceRawSha256: 'a'.repeat(64) },
 }
+const otherSnapshot: SourceSnapshotView = {
+  ...snapshot,
+  id: '00000000-0000-4000-8000-000000000604',
+  sourceUrl: 'https://raider.io/characters/eu/tarren-mill/Othersample',
+  sourceKey: 'eu|tarren-mill|Othersample',
+  revision: 2,
+}
 const queued: SimulationJobDetail = {
   id: '00000000-0000-4000-8000-000000000602',
   snapshotId: snapshot.id,
@@ -69,6 +76,10 @@ const succeeded: SimulationJobDetail = {
     },
     createdAt: now,
   },
+}
+const otherJob: SimulationJobDetail = {
+  ...queued,
+  id: '00000000-0000-4000-8000-000000000605',
 }
 
 function success<T>(payload: T): ApiResult<T> {
@@ -243,5 +254,134 @@ describe('SimcModel', () => {
     await expect(second).resolves.toEqual(queued)
     expect(client.submitKeys).toEqual(['simc-request-0001'])
     expect(requestId).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the latest source selection when an older snapshot arrives last', async () => {
+    const client = new FakeSimcClient()
+    const finishes = new Map<string, (result: ApiResult<SourceSnapshotView>) => void>()
+    client.createSnapshot = vi.fn((request, options) => {
+      client.calls.push({ name: 'snapshot', auth: options.auth })
+      return new Promise<ApiResult<SourceSnapshotView>>((resolve) => {
+        finishes.set(request.sourceUrl, resolve)
+      })
+    })
+    const model = new SimcModel(client, () => auth)
+
+    const first = model.resolveSource(snapshot.sourceUrl)
+    const second = model.resolveSource(otherSnapshot.sourceUrl)
+    finishes.get(otherSnapshot.sourceUrl)?.(success(otherSnapshot))
+    await second
+    finishes.get(snapshot.sourceUrl)?.(success(snapshot))
+    await first
+
+    expect(model.get().snapshot).toEqual(otherSnapshot)
+  })
+
+  it('keeps the latest task history load when an older page arrives last', async () => {
+    const client = new FakeSimcClient()
+    const finishes: Array<(result: ApiResult<SimulationJobPage>) => void> = []
+    client.listJobs = vi.fn((_request, options) => {
+      client.calls.push({ name: 'list', auth: options.auth })
+      return new Promise<ApiResult<SimulationJobPage>>((resolve) => { finishes.push(resolve) })
+    })
+    const model = new SimcModel(client, () => auth)
+
+    const first = model.loadJobs()
+    const second = model.loadJobs()
+    finishes[1]?.(success({ items: [otherJob], nextCursor: null }))
+    await second
+    finishes[0]?.(success({ items: [queued], nextCursor: null }))
+    await first
+
+    expect(model.get().jobs).toEqual([otherJob])
+  })
+
+  it('does not let an older history failure block a newer source result', async () => {
+    const client = new FakeSimcClient()
+    let finishHistory!: (result: ApiResult<SimulationJobPage>) => void
+    client.listJobs = vi.fn((_request, options) => {
+      client.calls.push({ name: 'list', auth: options.auth })
+      return new Promise<ApiResult<SimulationJobPage>>((resolve) => { finishHistory = resolve })
+    })
+    const model = new SimcModel(client, () => auth)
+
+    const history = model.loadJobs()
+    await model.resolveSource(snapshot.sourceUrl)
+    finishHistory({
+      payload: { items: [], nextCursor: null },
+      fromFallback: true,
+      error: '旧历史请求失败',
+      problemCode: 'SIMC_REQUEST_FAILED',
+      httpStatus: 0,
+    })
+    await history
+
+    expect(model.get()).toMatchObject({ phase: 'ready', snapshot, errorCode: '' })
+  })
+
+  it('keeps the latest selected task when an older detail arrives last', async () => {
+    const client = new FakeSimcClient()
+    const finishes = new Map<string, (result: ApiResult<SimulationJobDetail>) => void>()
+    client.getJob = vi.fn((jobId, options) => {
+      client.calls.push({ name: 'getJob', auth: options.auth })
+      return new Promise<ApiResult<SimulationJobDetail>>((resolve) => {
+        finishes.set(jobId, resolve)
+      })
+    })
+    const model = new SimcModel(client, () => auth)
+
+    const first = model.loadJob(queued.id)
+    const second = model.loadJob(otherJob.id)
+    finishes.get(otherJob.id)?.(success(otherJob))
+    await second
+    finishes.get(queued.id)?.(success(queued))
+    await first
+
+    expect(model.get().activeJob).toEqual(otherJob)
+  })
+
+  it('stops an older poll from overwriting a newer task selection', async () => {
+    const client = new FakeSimcClient()
+    const finishes = new Map<string, (result: ApiResult<SimulationJobDetail>) => void>()
+    client.getJob = vi.fn((jobId, options) => {
+      client.calls.push({ name: 'getJob', auth: options.auth })
+      return new Promise<ApiResult<SimulationJobDetail>>((resolve) => {
+        finishes.set(jobId, resolve)
+      })
+    })
+    const model = new SimcModel(client, () => auth)
+
+    const polling = model.pollJob(queued.id)
+    const selection = model.loadJob(otherJob.id)
+    finishes.get(otherJob.id)?.(success(otherJob))
+    await selection
+    finishes.get(queued.id)?.(success(queued))
+    await expect(polling).resolves.toBeNull()
+
+    expect(model.get().activeJob).toEqual(otherJob)
+  })
+
+  it('keeps a newer task selection when an older submission finishes later', async () => {
+    const client = new FakeSimcClient()
+    let finishSubmit!: (result: ApiResult<SimulationJobDetail>) => void
+    client.createJob = vi.fn((_request, options) => {
+      client.calls.push({ name: 'submit', auth: options.auth })
+      client.submitKeys.push(options.idempotencyKey)
+      return new Promise<ApiResult<SimulationJobDetail>>((resolve) => { finishSubmit = resolve })
+    })
+    client.getJob = vi.fn(async (_jobId, options) => {
+      client.calls.push({ name: 'getJob', auth: options.auth })
+      return success(otherJob)
+    })
+    const model = new SimcModel(client, () => auth, { requestId: () => 'simc-request-0001' })
+    await model.resolveSource(snapshot.sourceUrl)
+
+    const submission = model.submitJob({ fightStyle: 'Patchwerk' })
+    await model.loadJob(otherJob.id)
+    finishSubmit(success(queued))
+    await expect(submission).resolves.toBeNull()
+
+    expect(model.get().activeJob).toEqual(otherJob)
+    expect(model.get().jobs).toContainEqual(queued)
   })
 })
