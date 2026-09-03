@@ -31,7 +31,8 @@ function success<T>(payload: T): ApiResult<T> {
 
 class FakeChatClient implements ChatClient {
   detail: ConversationDetail = { ...conversation, messages: [] }
-  readonly calls: Array<{ name: string; auth: ClientAuthContext }> = []
+  readonly calls: Array<{ name: string; auth: ClientAuthContext; idempotencyKey?: string }> = []
+  createFailures = 0
   streamOptions: ChatStreamOptions | null = null
   readonly abort = vi.fn()
 
@@ -47,7 +48,20 @@ class FakeChatClient implements ChatClient {
     _request: Parameters<ChatClient['create']>[0],
     options: Parameters<ChatClient['create']>[1],
   ): Promise<ApiResult<ConversationSummary>> {
-    this.calls.push({ name: 'create', auth: options.auth })
+    this.calls.push({
+      name: 'create',
+      auth: options.auth,
+      idempotencyKey: options.idempotencyKey,
+    })
+    if (this.createFailures > 0) {
+      this.createFailures -= 1
+      return {
+        payload: conversation,
+        fromFallback: true,
+        error: 'network interrupted',
+        httpStatus: 0,
+      }
+    }
     return success(conversation)
   }
 
@@ -132,6 +146,26 @@ describe('ChatModel', () => {
     expect(model.get().phase).toBe('ready')
     expect(model.get().pendingUserContent).toBe('')
     expect(client.calls.filter((call) => call.name === 'get')).toHaveLength(2)
+  })
+
+  it('reuses one conversation creation identity after an uncertain transport failure', async () => {
+    const client = new FakeChatClient()
+    client.createFailures = 1
+    const requestId = vi.fn()
+      .mockReturnValueOnce('create-request-0001')
+      .mockReturnValueOnce('unexpected-second-key')
+    const model = new ChatModel(client, () => auth, { requestId })
+
+    await expect(model.create('  新对话  ')).resolves.toBeNull()
+    await expect(model.create('新对话')).resolves.toEqual(conversation)
+
+    const creates = client.calls.filter((call) => call.name === 'create')
+    expect(creates).toHaveLength(2)
+    expect(creates.map((call) => call.idempotencyKey)).toEqual([
+      'create-request-0001',
+      'create-request-0001',
+    ])
+    expect(requestId).toHaveBeenCalledOnce()
   })
 
   it('aborts a sequence gap and never presents the partial stream as persisted history', async () => {

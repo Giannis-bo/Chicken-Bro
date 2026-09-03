@@ -345,19 +345,40 @@ def run_candidate_acceptance(
         raise AcceptanceError("SHARED_OWNER_FAILED")
 
     nonce = _hash("acceptance-run", seed.web_login_session_id)[:12]
+    mini_conversation_body = {"title": f"acceptance-mini-{nonce}"}
+    mini_conversation_headers = {
+        "Idempotency-Key": f"acceptance-mini-conversation-{nonce}",
+    }
     mini_conversation = _identifier(
         _require(
             api.request(
                 "mini",
                 "POST",
                 f"{prefix}/chat/conversations",
-                body={"title": f"acceptance-mini-{nonce}"},
+                body=mini_conversation_body,
+                headers=mini_conversation_headers,
             ),
             201,
             "MINI_CHAT_CREATE_FAILED",
         ),
         "MINI_CHAT_CREATE_FAILED",
     )
+    mini_conversation_replay = _identifier(
+        _require(
+            api.request(
+                "mini",
+                "POST",
+                f"{prefix}/chat/conversations",
+                body=mini_conversation_body,
+                headers=mini_conversation_headers,
+            ),
+            201,
+            "CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED",
+        ),
+        "CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED",
+    )
+    if mini_conversation_replay != mini_conversation:
+        raise AcceptanceError("CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED")
     web_conversations = _require(
         api.request("web", "GET", f"{prefix}/chat/conversations"),
         200,
@@ -421,20 +442,41 @@ def run_candidate_acceptance(
     ) != mini_message_count:
         raise AcceptanceError("CHAT_IDEMPOTENT_REPLAY_FAILED")
 
+    web_conversation_body = {"title": f"acceptance-web-{nonce}"}
+    web_conversation_headers = {
+        **web_write,
+        "Idempotency-Key": f"acceptance-web-conversation-{nonce}",
+    }
     web_conversation = _identifier(
         _require(
             api.request(
                 "web",
                 "POST",
                 f"{prefix}/chat/conversations",
-                body={"title": f"acceptance-web-{nonce}"},
-                headers=web_write,
+                body=web_conversation_body,
+                headers=web_conversation_headers,
             ),
             201,
             "WEB_CHAT_CREATE_FAILED",
         ),
         "WEB_CHAT_CREATE_FAILED",
     )
+    web_conversation_replay = _identifier(
+        _require(
+            api.request(
+                "web",
+                "POST",
+                f"{prefix}/chat/conversations",
+                body=web_conversation_body,
+                headers=web_conversation_headers,
+            ),
+            201,
+            "CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED",
+        ),
+        "CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED",
+    )
+    if web_conversation_replay != web_conversation:
+        raise AcceptanceError("CHAT_CREATE_IDEMPOTENT_REPLAY_FAILED")
     mini_conversations = _require(
         api.request("mini", "GET", f"{prefix}/chat/conversations"),
         200,

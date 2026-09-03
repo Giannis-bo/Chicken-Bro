@@ -40,7 +40,7 @@ describe('formal Chat client', () => {
       const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
 
       await client.list({}, { auth })
-      await client.create({}, { auth })
+      await client.create({}, { auth, idempotencyKey: 'create-request-one' })
 
       expect(transport.requests.map((call) => call.path)).toEqual([
         '/api/v2-candidate/chat/conversations',
@@ -57,7 +57,10 @@ describe('formal Chat client', () => {
     const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
 
     await client.list({ limit: 20 }, { auth })
-    await client.create({ title: '跨端' }, { auth })
+    await client.create(
+      { title: '跨端' },
+      { auth, idempotencyKey: 'create-request-one' },
+    )
     await client.get('conversation/one', { auth })
 
     expect(transport.requests.map((call) => call.path)).toEqual([
@@ -72,6 +75,9 @@ describe('formal Chat client', () => {
       expect(call.options.baseUrl).toBeUndefined()
       expect(call.options.header?.['Authorization']).toBeUndefined()
     }
+    expect(transport.requests[1]?.options.header).toEqual({
+      'Idempotency-Key': 'create-request-one',
+    })
   })
 
   it('delegates Web Cookie and CSRF credentials to the transport', async () => {
@@ -81,16 +87,35 @@ describe('formal Chat client', () => {
 
     await client.list({}, { auth })
     await client.get('conversation-one', { auth })
-    await client.create({ title: 'Web 跨端' }, { auth })
+    await client.create(
+      { title: 'Web 跨端' },
+      { auth, idempotencyKey: 'web-create-request-one' },
+    )
 
-    for (const call of transport.requests) {
+    for (const [index, call] of transport.requests.entries()) {
       expect(call.options.auth).toEqual(auth)
       expect(call.options.credentials).toBeUndefined()
       expect(call.options.baseUrl).toBeUndefined()
-      expect(call.options.header).toBeUndefined()
+      expect(call.options.header).toEqual(index === 2
+        ? { 'Idempotency-Key': 'web-create-request-one' }
+        : undefined)
       expect(call.options.header?.['Authorization']).toBeUndefined()
       expect(call.options.header?.['X-CSRF-Token']).toBeUndefined()
     }
+  })
+
+  it('rejects an invalid conversation creation idempotency key before transport', () => {
+    const transport = new RecordingTransport()
+    const client = createChatClient(transport)
+
+    expect(() => client.create(
+      { title: '不会发送' },
+      {
+        auth: { kind: 'mini', accessToken: 'mini-token' },
+        idempotencyKey: 'contains whitespace',
+      },
+    )).toThrow('idempotency key is invalid')
+    expect(transport.requests).toEqual([])
   })
 
   it('streams formal SSE with auth context and validates events', () => {

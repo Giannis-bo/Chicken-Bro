@@ -71,6 +71,7 @@ export class ChatModel {
   private streamSequence = 0
   private streamRequestId = ''
   private streamRunId = ''
+  private pendingCreate: { title: string; idempotencyKey: string } | null = null
 
   constructor(
     private readonly client: ChatClient,
@@ -182,15 +183,24 @@ export class ChatModel {
       this.authFailure(error)
       return null
     }
+    const normalizedTitle = title?.trim() ?? ''
+    const pending = this.pendingCreate?.title === normalizedTitle
+      ? this.pendingCreate
+      : {
+          title: normalizedTitle,
+          idempotencyKey: boundedRequestId(this.requestId(), 'conversation'),
+        }
+    this.pendingCreate = pending
     this.update({ phase: 'loading', errorCode: '', errorMessage: '', retryable: false })
     const result = await this.client.create(
-      title?.trim() ? { title: title.trim() } : {},
-      { auth },
+      normalizedTitle ? { title: normalizedTitle } : {},
+      { auth, idempotencyKey: pending.idempotencyKey },
     )
     if (result.fromFallback) {
       this.apiFailure(result, '新建会话失败')
       return null
     }
+    if (this.pendingCreate === pending) this.pendingCreate = null
     const conversations = [
       result.payload,
       ...this.state.conversations.filter((item) => item.id !== result.payload.id),

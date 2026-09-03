@@ -135,6 +135,7 @@ def list_conversations(
 @router.post("/conversations", status_code=201)
 def create_conversation(
     body: ConversationCreateBody | None = None,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_mutating_principal),
     application: ChatApplication = Depends(chat_application),
 ) -> dict[str, object]:
@@ -142,6 +143,7 @@ def create_conversation(
         conversation = application.create_conversation(
             principal,
             body.title if body is not None else "炸鸡队长对话",
+            idempotency_key=idempotency_key or "",
         )
     except ChatApplicationError as error:
         _raise_chat_error(error)

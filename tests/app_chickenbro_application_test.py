@@ -19,9 +19,12 @@ class MemoryChatRepository:
         self.fail_success_finish_once = False
         self.race_existing_on_start = False
 
-    def create_conversation(self, user_id, title, now):
+    def create_conversation(self, user_id, conversation_id, title, now):
+        existing = self.conversations.get((user_id, conversation_id))
+        if existing is not None:
+            return existing
         conversation = {
-            "id": uuid4(),
+            "id": conversation_id,
             "user_id": user_id,
             "title": title,
             "status": ConversationStatus.ACTIVE,
@@ -294,8 +297,49 @@ class ChatApplicationTest(unittest.TestCase):
             session_kind="mini_bearer",
         )
         self.repository = MemoryChatRepository()
-        conversation = self.repository.create_conversation(self.user_id, "测试会话", self.now)
+        conversation = self.repository.create_conversation(
+            self.user_id,
+            uuid4(),
+            "测试会话",
+            self.now,
+        )
         self.conversation_id = conversation["id"]
+
+    def test_create_conversation_reuses_one_identity_and_rejects_changed_title(self):
+        application = ChatApplication(
+            repository=self.repository,
+            codex=FakeCodex(),
+            clock=lambda: self.now,
+        )
+
+        first = application.create_conversation(
+            self.principal,
+            "跨端会话",
+            idempotency_key="conversation-request-1",
+        )
+        second = application.create_conversation(
+            self.principal,
+            "跨端会话",
+            idempotency_key="conversation-request-1",
+        )
+
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(len(self.repository.conversations), 2)
+        with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_CONFLICT"):
+            application.create_conversation(
+                self.principal,
+                "另一个标题",
+                idempotency_key="conversation-request-1",
+            )
+
+        for invalid_key in ("short", " leading-space", "contains space", "bad/control\n"):
+            with self.subTest(invalid_key=invalid_key):
+                with self.assertRaisesRegex(ChatApplicationError, "IDEMPOTENCY_KEY_INVALID"):
+                    application.create_conversation(
+                        self.principal,
+                        "无效请求",
+                        idempotency_key=invalid_key,
+                    )
 
     def test_completed_codex_stream_persists_assistant_only_after_completion(self):
         application = ChatApplication(

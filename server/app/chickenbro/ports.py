@@ -27,7 +27,13 @@ class CodexPort(Protocol):
 
 
 class ChatRepository(Protocol):
-    def create_conversation(self, user_id: UUID, title: str, now: datetime) -> Any:
+    def create_conversation(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        title: str,
+        now: datetime,
+    ) -> Any:
         raise NotImplementedError
 
     def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Any | None:

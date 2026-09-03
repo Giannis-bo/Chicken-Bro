@@ -21,6 +21,10 @@ export interface ChatRequestOptions {
   auth: ClientAuthContext
 }
 
+export interface ChatCreateOptions extends ChatRequestOptions {
+  idempotencyKey: string
+}
+
 export interface ChatListRequest {
   cursor?: string
   limit?: number
@@ -43,7 +47,7 @@ export interface ChatStreamOptions extends ChatRequestOptions {
 
 export interface ChatClient {
   list(request: ChatListRequest, options: ChatRequestOptions): Promise<ApiResult<ConversationPage>>
-  create(request: ChatCreateRequest, options: ChatRequestOptions): Promise<ApiResult<ConversationSummary>>
+  create(request: ChatCreateRequest, options: ChatCreateOptions): Promise<ApiResult<ConversationSummary>>
   get(conversationId: string, options: ChatRequestOptions): Promise<ApiResult<ConversationDetail>>
   streamMessage(
     conversationId: string,
@@ -85,6 +89,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     config: {
       method?: 'GET' | 'POST'
       mutating: boolean
+      idempotencyKey?: string
       fallback: () => T
       validate: (value: unknown) => boolean
     },
@@ -92,6 +97,9 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     return transport.request(path, {
       ...(config.method === undefined ? {} : { method: config.method }),
       ...(data === undefined ? {} : { data }),
+      ...(config.idempotencyKey === undefined
+        ? {}
+        : { header: { 'Idempotency-Key': config.idempotencyKey } }),
       auth: options.auth,
       responseMode: 'structured-problem',
       fallback: config.fallback,
@@ -118,10 +126,14 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     },
 
     create(createRequest, options) {
+      if (!isValidIdempotencyKey(options.idempotencyKey)) {
+        throw new TypeError('idempotency key is invalid')
+      }
       const data = createRequest.title === undefined ? {} : { title: createRequest.title }
       return request(apiV2Path('/chat/conversations'), data, options, {
         method: 'POST',
         mutating: true,
+        idempotencyKey: options.idempotencyKey,
         fallback: emptyConversation,
         validate: isConversationSummary,
       })

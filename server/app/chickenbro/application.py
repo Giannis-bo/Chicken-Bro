@@ -1,10 +1,11 @@
 import base64
 import json
+import re
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
 from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus
@@ -20,6 +21,8 @@ class ChatApplicationError(ValueError):
 
 
 CHAT_TIMEOUT_SECONDS = 180
+CHAT_CONVERSATION_NAMESPACE = UUID("83b4eebf-fcf3-51ea-b9ff-d676d1957f48")
+_IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,14 @@ def _decode_conversation_cursor(cursor: str) -> tuple[datetime, UUID]:
         raise ChatApplicationError("INVALID_CURSOR", "conversation cursor is invalid") from error
 
 
+def _bounded_idempotency_key(value: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ChatApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
+    if not _IDEMPOTENCY_KEY.fullmatch(value):
+        raise ChatApplicationError("IDEMPOTENCY_KEY_INVALID", "idempotency key is invalid")
+    return value
+
+
 class ChatApplication:
     def __init__(
         self,
@@ -101,9 +112,31 @@ class ChatApplication:
         self._max_message_chars = max(1, max_message_chars)
         self._max_output_chars = max(1, max_output_chars)
 
-    def create_conversation(self, principal: Principal, title: str = "炸鸡队长对话") -> Any:
+    def create_conversation(
+        self,
+        principal: Principal,
+        title: str = "炸鸡队长对话",
+        *,
+        idempotency_key: str,
+    ) -> Any:
         bounded_title = str(title or "炸鸡队长对话").strip()[:80] or "炸鸡队长对话"
-        return self._repository.create_conversation(principal.user_id, bounded_title, _utc(self._clock))
+        key = _bounded_idempotency_key(idempotency_key)
+        conversation_id = uuid5(
+            CHAT_CONVERSATION_NAMESPACE,
+            f"{principal.user_id}:{key}",
+        )
+        conversation = self._repository.create_conversation(
+            principal.user_id,
+            conversation_id,
+            bounded_title,
+            _utc(self._clock),
+        )
+        if str(_value(conversation, "title", "")) != bounded_title:
+            raise ChatApplicationError(
+                "IDEMPOTENCY_CONFLICT",
+                "idempotency identity belongs to a different conversation request",
+            )
+        return conversation
 
     def list_conversations(
         self,
@@ -225,11 +258,7 @@ class ChatApplication:
             raise ChatApplicationError("MESSAGE_REQUIRED", "message is required")
         if len(message) > self._max_message_chars:
             raise ChatApplicationError("MESSAGE_TOO_LONG", "message is too long")
-        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
-            raise ChatApplicationError("IDEMPOTENCY_KEY_REQUIRED", "idempotency key is required")
-        idempotency_key = idempotency_key.strip()
-        if len(idempotency_key) > 128:
-            raise ChatApplicationError("IDEMPOTENCY_KEY_INVALID", "idempotency key is invalid")
+        idempotency_key = _bounded_idempotency_key(idempotency_key)
 
         if client_message_id is not None:
             client_message_id = str(client_message_id).strip()

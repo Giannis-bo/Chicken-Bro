@@ -50,6 +50,35 @@ class RecordingConnection:
 
 
 class OwnerIsolationTest(unittest.TestCase):
+    def test_postgres_conversation_create_uses_the_supplied_idempotent_identity(self):
+        owner_id = UUID("00000000-0000-4000-8000-000000000031")
+        conversation_id = UUID("00000000-0000-5000-8000-000000000032")
+        now = datetime(2026, 9, 3, 10, 0, tzinfo=timezone.utc)
+        cursor = RecordingCursor([
+            (
+                conversation_id,
+                owner_id,
+                "跨端会话",
+                "active",
+                now,
+                now,
+            ),
+        ])
+        repository = PostgresChatRepository(lambda: RecordingConnection(cursor))
+
+        conversation = repository.create_conversation(
+            owner_id,
+            conversation_id,
+            "跨端会话",
+            now,
+        )
+
+        self.assertEqual(conversation.id, conversation_id)
+        statement, parameters = cursor.executed[0]
+        self.assertIn("ON CONFLICT (id) DO NOTHING", statement)
+        self.assertIn("RETURNING id, user_id, title, status, created_at, updated_at", statement)
+        self.assertEqual(parameters[0], conversation_id)
+
     def test_postgres_conversation_page_uses_owner_scoped_keyset_query(self):
         owner = Principal(
             user_id=UUID("00000000-0000-0000-0000-000000000041"),

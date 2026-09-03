@@ -1,7 +1,7 @@
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from server.app.chickenbro.domain import (
     AgentRun,
@@ -25,25 +25,39 @@ class PostgresChatRepository:
     def __init__(self, connection_factory: Callable[[], Any]):
         self._connection_factory = connection_factory
 
-    def create_conversation(self, user_id: UUID, title: str, now: datetime) -> Conversation:
-        conversation_id = uuid4()
+    def create_conversation(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        title: str,
+        now: datetime,
+    ) -> Conversation:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
                     INSERT INTO chat.conversations (id, user_id, title, status, created_at, updated_at)
                     VALUES (%s, %s, %s, 'active', %s, %s)
+                    ON CONFLICT (id) DO NOTHING
+                    RETURNING id, user_id, title, status, created_at, updated_at
                     """,
                     (conversation_id, user_id, title, now, now),
                 )
-        return Conversation(
-            id=conversation_id,
-            user_id=user_id,
-            title=title,
-            status=ConversationStatus.ACTIVE,
-            created_at=now,
-            updated_at=now,
-        )
+                row = cursor.fetchone()
+                if row is None:
+                    cursor.execute(
+                        """
+                        SELECT id, user_id, title, status, created_at, updated_at
+                        FROM chat.conversations
+                        WHERE user_id = %s AND id = %s
+                        FOR SHARE
+                        """,
+                        (user_id, conversation_id),
+                    )
+                    row = cursor.fetchone()
+                if row is None:
+                    raise RuntimeError("idempotent conversation identity is owned by another user")
+        return self._conversation_from_row(row)
 
     def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Conversation | None:
         with self._connection_factory() as connection:

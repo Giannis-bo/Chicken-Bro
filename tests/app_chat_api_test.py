@@ -101,7 +101,7 @@ class FormalChatApiTest(unittest.TestCase):
     def test_mini_bearer_can_create_and_list_bounded_public_conversations(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers=mini_headers(),
+            headers={**mini_headers(), "Idempotency-Key": "mini-create-1"},
             json={"title": "跨端会话"},
         )
         listed = self.client.get(
@@ -119,10 +119,41 @@ class FormalChatApiTest(unittest.TestCase):
             self.assertNotIn("user_id", encoded)
             self.assertNotIn("userId", encoded)
 
+    def test_conversation_creation_requires_and_replays_one_idempotent_request(self):
+        missing_key = self.client.post(
+            "/api/v2/chat/conversations",
+            headers=mini_headers(),
+            json={"title": "幂等会话"},
+        )
+        headers = {**mini_headers(), "Idempotency-Key": "mini-create-replay-1"}
+        created = self.client.post(
+            "/api/v2/chat/conversations",
+            headers=headers,
+            json={"title": "幂等会话"},
+        )
+        replayed = self.client.post(
+            "/api/v2/chat/conversations",
+            headers=headers,
+            json={"title": "幂等会话"},
+        )
+        conflicting = self.client.post(
+            "/api/v2/chat/conversations",
+            headers=headers,
+            json={"title": "另一个会话"},
+        )
+
+        self.assertEqual(missing_key.status_code, 422)
+        self.assertEqual(missing_key.json()["error"]["code"], "IDEMPOTENCY_KEY_REQUIRED")
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(replayed.status_code, 201)
+        self.assertEqual(replayed.json()["id"], created.json()["id"])
+        self.assertEqual(conflicting.status_code, 409)
+        self.assertEqual(conflicting.json()["error"]["code"], "IDEMPOTENCY_CONFLICT")
+
     def test_web_cookie_can_read_but_cannot_write_without_origin_and_csrf(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers=mini_headers(),
+            headers={**mini_headers(), "Idempotency-Key": "mini-create-2"},
             json={"title": "只读检查"},
         )
 
@@ -132,12 +163,16 @@ class FormalChatApiTest(unittest.TestCase):
         )
         missing_origin = self.client.post(
             "/api/v2/chat/conversations",
+            headers={"Idempotency-Key": "web-create-no-origin"},
             cookies=web_cookies(csrf=True),
             json={"title": "不应创建"},
         )
         missing_csrf = self.client.post(
             "/api/v2/chat/conversations",
-            headers=web_write_headers(csrf=False),
+            headers={
+                **web_write_headers(csrf=False),
+                "Idempotency-Key": "web-create-no-csrf",
+            },
             cookies=web_cookies(),
             json={"title": "仍不应创建"},
         )
@@ -151,7 +186,7 @@ class FormalChatApiTest(unittest.TestCase):
     def test_stream_is_no_store_unbuffered_and_contains_only_public_events(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers=mini_headers(),
+            headers={**mini_headers(), "Idempotency-Key": "mini-create-3"},
             json={"title": "流式会话"},
         ).json()
 
@@ -191,7 +226,7 @@ class FormalChatApiTest(unittest.TestCase):
     def test_stream_requires_a_single_formal_transport_and_idempotency_key(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers=mini_headers(),
+            headers={**mini_headers(), "Idempotency-Key": "mini-create-4"},
             json={"title": "认证边界"},
         ).json()
         path = f"/api/v2/chat/conversations/{created['id']}/messages/stream"
