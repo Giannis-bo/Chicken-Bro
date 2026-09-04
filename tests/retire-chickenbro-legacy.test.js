@@ -63,6 +63,35 @@ test('protected targets and broad or unresolved targets are rejected', () => {
   }
 })
 
+test('no-backup retirement requires explicit irreversible authorization', () => {
+  const source = fs.readFileSync(scriptPath, 'utf8')
+
+  assert.match(source, /--no-independent-backup/)
+  assert.match(source, /--irreversible-no-backup-confirmation/)
+  assert.match(source, /I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE/)
+  assert.match(source, /none_user_authorized/)
+
+  const missingConfirmation = spawnSync('bash', [
+    scriptPath,
+    '--manifest', manifestPath,
+    '--apply',
+    '--no-independent-backup',
+  ], { cwd: repositoryRoot, encoding: 'utf8' })
+  assert.notEqual(missingConfirmation.status, 0)
+  assert.match(missingConfirmation.stderr, /requires --irreversible-no-backup-confirmation/i)
+
+  const capacityNoBackup = spawnSync('bash', [
+    scriptPath,
+    '--manifest', manifestPath,
+    '--capacity-pre-cleanup',
+    '--apply',
+    '--no-independent-backup',
+    '--irreversible-no-backup-confirmation', 'I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE',
+  ], { cwd: repositoryRoot, encoding: 'utf8' })
+  assert.notEqual(capacityNoBackup.status, 0)
+  assert.match(capacityNoBackup.stderr, /only valid for full retirement/i)
+})
+
 test('capacity pre-cleanup accepts only the four exact databases and env companions', () => {
   const allowlist = [
     'wow_gear_evidence_01adf184_r14',

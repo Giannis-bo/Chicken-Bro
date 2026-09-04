@@ -37,6 +37,12 @@
     "implementationAuthorized": true,
     "terminalGoalAuthorized": true,
     "cleanupIntentAuthorized": true,
+    "cleanupBackupMode": {
+      "status": "none_user_authorized",
+      "confirmation": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE",
+      "scope": ["production_cutover", "legacy_retirement"],
+      "recordedAt": "2026-09-04"
+    },
     "phase5Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json",
     "productionCutoverAuthorized": false,
     "productionCutoverReady": false,

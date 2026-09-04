@@ -3,6 +3,8 @@ set -euo pipefail
 
 # State contract: preflight -> write_fenced -> delta_migrated -> switched -> accepted_write
 MODE="dry-run"
+BACKUP_MODE="independent"
+NO_BACKUP_CONFIRMATION=""
 CANDIDATE_COMMIT=""
 REVIEWED_INVENTORY_SHA=""
 REVIEWED_BACKUP_MANIFEST_SHA=""
@@ -14,6 +16,8 @@ CUTOVER_EVIDENCE_PATH=""
 CUTOVER_EVIDENCE_SHA=""
 PRODUCTION_ACCEPTANCE_PATH=""
 PRODUCTION_ACCEPTANCE_SHA=""
+
+NO_BACKUP_CONFIRMATION_TEXT="I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -60,6 +64,7 @@ usage() {
     'Usage:' \
     '  server/cutover_chickenbro_lighthouse.sh --dry-run [--candidate-commit <40-char-sha>]' \
     '  server/cutover_chickenbro_lighthouse.sh --apply --candidate-commit <40-char-sha> --inventory-sha <sha256> --backup-manifest-sha <sha256> --candidate-evidence-path <absolute-remote-path> --candidate-evidence-sha <sha256> --real-acceptance-path <absolute-remote-path> --real-acceptance-sha <sha256>' \
+    '  server/cutover_chickenbro_lighthouse.sh --apply --no-independent-backup --irreversible-no-backup-confirmation I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE --candidate-commit <40-char-sha> --inventory-sha <sha256> --candidate-evidence-path <absolute-remote-path> --candidate-evidence-sha <sha256> --real-acceptance-path <absolute-remote-path> --real-acceptance-sha <sha256>' \
     '  server/cutover_chickenbro_lighthouse.sh --seal-accepted-write --candidate-commit <40-char-sha> --cutover-evidence-path <absolute-remote-path> --cutover-evidence-sha <sha256> --production-acceptance-path <absolute-remote-path> --production-acceptance-sha <sha256>' >&2
 }
 
@@ -130,6 +135,15 @@ while [[ $# -gt 0 ]]; do
       MODE="seal-accepted-write"
       shift
       ;;
+    --no-independent-backup)
+      BACKUP_MODE="none_user_authorized"
+      shift
+      ;;
+    --irreversible-no-backup-confirmation)
+      [[ $# -ge 2 ]] || die "--irreversible-no-backup-confirmation requires a value"
+      NO_BACKUP_CONFIRMATION="$2"
+      shift 2
+      ;;
     --candidate-commit)
       [[ $# -ge 2 ]] || die "--candidate-commit requires a value"
       CANDIDATE_COMMIT="$2"
@@ -196,6 +210,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "${BACKUP_MODE}" == "none_user_authorized" ]]; then
+  [[ "${MODE}" == "apply" ]] || die "--no-independent-backup is only valid with --apply"
+  [[ "${NO_BACKUP_CONFIRMATION}" == "${NO_BACKUP_CONFIRMATION_TEXT}" ]] \
+    || die "--no-independent-backup requires --irreversible-no-backup-confirmation ${NO_BACKUP_CONFIRMATION_TEXT}"
+  [[ -z "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] \
+    || die "--no-independent-backup cannot be combined with --backup-manifest-sha"
+elif [[ -n "${NO_BACKUP_CONFIRMATION}" ]]; then
+  die "--irreversible-no-backup-confirmation requires --no-independent-backup"
+fi
+
 validate_value REMOTE_HOST "${REMOTE_HOST}" '^[A-Za-z0-9_.:-]+$'
 validate_value REMOTE_USER "${REMOTE_USER}" '^[A-Za-z_][A-Za-z0-9_.-]*$'
 validate_value PRODUCTION_CODEX_PROFILE "${PRODUCTION_CODEX_PROFILE}" '^/home/[A-Za-z_][A-Za-z0-9_.-]*/\.codex/chickenbro-production\.config\.toml$'
@@ -204,8 +228,10 @@ validate_value REMOTE_BACKUP_MANIFEST "${REMOTE_BACKUP_MANIFEST}" '^/[A-Za-z0-9_
   || die "production Codex profile must belong to the remote service user"
 [[ "${REMOTE_BACKUP_MANIFEST}" == /* && "${REMOTE_BACKUP_MANIFEST}" != *".."* ]] \
   || die "invalid REMOTE_BACKUP_MANIFEST"
-[[ "${REMOTE_BACKUP_MANIFEST}" != /var/* && "${REMOTE_BACKUP_MANIFEST}" != /opt/* ]] \
-  || die "backup manifest must be on the reviewed independent backup mount"
+if [[ "${BACKUP_MODE}" == "independent" ]]; then
+  [[ "${REMOTE_BACKUP_MANIFEST}" != /var/* && "${REMOTE_BACKUP_MANIFEST}" != /opt/* ]] \
+    || die "backup manifest must be on the reviewed independent backup mount"
+fi
 [[ -f "${INVENTORY_FILE}" ]] || die "cloud inventory is missing"
 
 CURRENT_COMMIT="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
@@ -264,13 +290,17 @@ fi
 
 if [[ "${MODE}" == "apply" ]]; then
   [[ -n "${REVIEWED_INVENTORY_SHA}" ]] || die "--apply requires --inventory-sha"
-  [[ -n "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] || die "--apply requires --backup-manifest-sha"
+  if [[ "${BACKUP_MODE}" == "independent" ]]; then
+    [[ -n "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] || die "--apply requires --backup-manifest-sha"
+  fi
   [[ -n "${CANDIDATE_EVIDENCE_PATH}" ]] || die "--apply requires --candidate-evidence-path"
   [[ -n "${CANDIDATE_EVIDENCE_SHA}" ]] || die "--apply requires --candidate-evidence-sha"
   [[ -n "${REAL_ACCEPTANCE_PATH}" ]] || die "--apply requires --real-acceptance-path"
   [[ -n "${REAL_ACCEPTANCE_SHA}" ]] || die "--apply requires --real-acceptance-sha"
   validate_value REVIEWED_INVENTORY_SHA "${REVIEWED_INVENTORY_SHA}" '^[0-9a-f]{64}$'
-  validate_value REVIEWED_BACKUP_MANIFEST_SHA "${REVIEWED_BACKUP_MANIFEST_SHA}" '^[0-9a-f]{64}$'
+  if [[ "${BACKUP_MODE}" == "independent" ]]; then
+    validate_value REVIEWED_BACKUP_MANIFEST_SHA "${REVIEWED_BACKUP_MANIFEST_SHA}" '^[0-9a-f]{64}$'
+  fi
   validate_value CANDIDATE_EVIDENCE_SHA "${CANDIDATE_EVIDENCE_SHA}" '^[0-9a-f]{64}$'
   validate_value REAL_ACCEPTANCE_SHA "${REAL_ACCEPTANCE_SHA}" '^[0-9a-f]{64}$'
   validate_remote_evidence_path CANDIDATE_EVIDENCE_PATH "${CANDIDATE_EVIDENCE_PATH}"
@@ -703,6 +733,7 @@ scp_remote "${PRODUCTION_ARCHIVE}" "${SSH_TARGET}:${REMOTE_ARCHIVE}"
 
 REMOTE_ENV=(
   "REMOTE_USER=${REMOTE_USER}"
+  "BACKUP_MODE=${BACKUP_MODE}"
   "CANDIDATE_COMMIT=${CANDIDATE_COMMIT}"
   "REVIEWED_INVENTORY_SHA=${REVIEWED_INVENTORY_SHA}"
   "REVIEWED_BACKUP_MANIFEST_SHA=${REVIEWED_BACKUP_MANIFEST_SHA}"
@@ -1011,9 +1042,16 @@ done
 [[ -f "${REMOTE_ARCHIVE}" ]] || die_remote "production archive is missing"
 [[ "$(sha256sum "${REMOTE_ARCHIVE}" | awk '{print $1}')" == "${PRODUCTION_ARCHIVE_SHA256}" ]] \
   || die_remote "production archive SHA mismatch"
-[[ -f "${REMOTE_BACKUP_MANIFEST}" ]] || die_remote "independent backup manifest is missing"
-[[ "$(sha256sum "${REMOTE_BACKUP_MANIFEST}" | awk '{print $1}')" == "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] \
-  || die_remote "independent backup manifest SHA mismatch"
+if [[ "${BACKUP_MODE}" == "independent" ]]; then
+  [[ -f "${REMOTE_BACKUP_MANIFEST}" ]] || die_remote "independent backup manifest is missing"
+  [[ "$(sha256sum "${REMOTE_BACKUP_MANIFEST}" | awk '{print $1}')" == "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] \
+    || die_remote "independent backup manifest SHA mismatch"
+elif [[ "${BACKUP_MODE}" == "none_user_authorized" ]]; then
+  [[ -z "${REVIEWED_BACKUP_MANIFEST_SHA}" ]] \
+    || die_remote "no-backup cutover received an independent backup identity"
+else
+  die_remote "unknown backup mode"
+fi
 [[ -f "${CANDIDATE_EVIDENCE_PATH}" ]] || die_remote "candidate acceptance evidence is missing"
 [[ "$(sha256sum "${CANDIDATE_EVIDENCE_PATH}" | awk '{print $1}')" == "${CANDIDATE_EVIDENCE_SHA}" ]] \
   || die_remote "candidate acceptance SHA mismatch"
@@ -1023,7 +1061,7 @@ done
 
 python3 - "${REMOTE_BACKUP_MANIFEST}" "${CANDIDATE_EVIDENCE_PATH}" "${REAL_ACCEPTANCE_PATH}" \
   "${CANDIDATE_COMMIT}" "${CANDIDATE_EVIDENCE_SHA}" "${REVIEWED_INVENTORY_SHA}" \
-  "${REVIEWED_BACKUP_MANIFEST_SHA}" <<'PY'
+  "${REVIEWED_BACKUP_MANIFEST_SHA}" "${BACKUP_MODE}" <<'PY'
 import hashlib
 import json
 import re
@@ -1032,7 +1070,8 @@ from datetime import datetime
 from pathlib import Path
 
 backup_path, candidate_path, real_path = map(Path, sys.argv[1:4])
-commit, candidate_sha, inventory_sha, backup_sha = sys.argv[4:]
+commit, candidate_sha, inventory_sha, backup_sha = sys.argv[4:8]
+backup_mode = sys.argv[8] if len(sys.argv) > 8 else "independent"
 sha = re.compile(r"[0-9a-f]{64}\Z")
 
 def fail(message):
@@ -1076,49 +1115,54 @@ def verify_file(raw_path, root, expected_sha, expected_bytes=None):
     if digest.hexdigest() != expected_sha:
         fail("independent backup manifest is not restore-verified")
 
-backup = read_private(backup_path, "independent backup manifest")
-required_backup_keys = {
-    "schemaVersion", "backupId", "sourceDatabase", "archivePath", "archiveSha256",
-    "archiveBytes", "createdAt", "deviceId", "encrypted",
-    "sensitiveConfigurationEncrypted", "encryption", "restoreVerified", "restore",
-}
-if set(backup) != required_backup_keys or backup.get("schemaVersion") != "chickenbro-independent-backup-v1":
-    fail("independent backup manifest is not restore-verified")
-if backup.get("sourceDatabase") != "wow_test" or backup.get("restoreVerified") is not True:
-    fail("independent backup manifest is not restore-verified")
-if backup.get("encrypted") is not True or backup.get("sensitiveConfigurationEncrypted") is not True:
-    fail("independent backup manifest is not restore-verified")
-root = backup_path.parent.resolve(strict=True)
-if str(backup.get("deviceId")) != str(root.stat().st_dev):
-    fail("independent backup manifest is not restore-verified")
-archive_sha = str(backup.get("archiveSha256", ""))
-archive_bytes = backup.get("archiveBytes")
-if sha.fullmatch(archive_sha) is None or not isinstance(archive_bytes, int) or isinstance(archive_bytes, bool) or archive_bytes <= 0:
-    fail("independent backup manifest is not restore-verified")
-encryption = backup.get("encryption")
-if not isinstance(encryption, dict) or encryption.get("scheme") not in {"age", "gpg", "kms-envelope"}:
-    fail("independent backup manifest is not restore-verified")
-if sha.fullmatch(str(encryption.get("keyReferenceSha256", ""))) is None:
-    fail("independent backup manifest is not restore-verified")
-restore = backup.get("restore")
-expected_restore_keys = {
-    "targetDatabase", "commandExitCode", "schemaVerified", "rowSampleVerified",
-    "hashSampleVerified", "verifiedAt", "operator", "evidencePath", "evidenceSha256",
-}
-if not isinstance(restore, dict) or set(restore) != expected_restore_keys:
-    fail("independent backup manifest is not restore-verified")
-if not re.fullmatch(r"chickenbro_restore_verify_[a-z0-9_]{1,40}", str(restore.get("targetDatabase", ""))):
-    fail("independent backup manifest is not restore-verified")
-if any(restore.get(key) is not True for key in ("schemaVerified", "rowSampleVerified", "hashSampleVerified")):
-    fail("independent backup manifest is not restore-verified")
-if restore.get("commandExitCode") != 0 or sha.fullmatch(str(restore.get("evidenceSha256", ""))) is None:
-    fail("independent backup manifest is not restore-verified")
-created_at = parse_time(backup.get("createdAt"), "backup")
-verified_at = parse_time(restore.get("verifiedAt"), "restore")
-if verified_at < created_at:
-    fail("independent backup manifest is not restore-verified")
-verify_file(backup.get("archivePath"), root, archive_sha, archive_bytes)
-verify_file(restore.get("evidencePath"), root, str(restore.get("evidenceSha256")))
+if backup_mode == "independent":
+    backup = read_private(backup_path, "independent backup manifest")
+    required_backup_keys = {
+        "schemaVersion", "backupId", "sourceDatabase", "archivePath", "archiveSha256",
+        "archiveBytes", "createdAt", "deviceId", "encrypted",
+        "sensitiveConfigurationEncrypted", "encryption", "restoreVerified", "restore",
+    }
+    if set(backup) != required_backup_keys or backup.get("schemaVersion") != "chickenbro-independent-backup-v1":
+        fail("independent backup manifest is not restore-verified")
+    if backup.get("sourceDatabase") != "wow_test" or backup.get("restoreVerified") is not True:
+        fail("independent backup manifest is not restore-verified")
+    if backup.get("encrypted") is not True or backup.get("sensitiveConfigurationEncrypted") is not True:
+        fail("independent backup manifest is not restore-verified")
+    root = backup_path.parent.resolve(strict=True)
+    if str(backup.get("deviceId")) != str(root.stat().st_dev):
+        fail("independent backup manifest is not restore-verified")
+    archive_sha = str(backup.get("archiveSha256", ""))
+    archive_bytes = backup.get("archiveBytes")
+    if sha.fullmatch(archive_sha) is None or not isinstance(archive_bytes, int) or isinstance(archive_bytes, bool) or archive_bytes <= 0:
+        fail("independent backup manifest is not restore-verified")
+    encryption = backup.get("encryption")
+    if not isinstance(encryption, dict) or encryption.get("scheme") not in {"age", "gpg", "kms-envelope"}:
+        fail("independent backup manifest is not restore-verified")
+    if sha.fullmatch(str(encryption.get("keyReferenceSha256", ""))) is None:
+        fail("independent backup manifest is not restore-verified")
+    restore = backup.get("restore")
+    expected_restore_keys = {
+        "targetDatabase", "commandExitCode", "schemaVerified", "rowSampleVerified",
+        "hashSampleVerified", "verifiedAt", "operator", "evidencePath", "evidenceSha256",
+    }
+    if not isinstance(restore, dict) or set(restore) != expected_restore_keys:
+        fail("independent backup manifest is not restore-verified")
+    if not re.fullmatch(r"chickenbro_restore_verify_[a-z0-9_]{1,40}", str(restore.get("targetDatabase", ""))):
+        fail("independent backup manifest is not restore-verified")
+    if any(restore.get(key) is not True for key in ("schemaVerified", "rowSampleVerified", "hashSampleVerified")):
+        fail("independent backup manifest is not restore-verified")
+    if restore.get("commandExitCode") != 0 or sha.fullmatch(str(restore.get("evidenceSha256", ""))) is None:
+        fail("independent backup manifest is not restore-verified")
+    created_at = parse_time(backup.get("createdAt"), "backup")
+    verified_at = parse_time(restore.get("verifiedAt"), "restore")
+    if verified_at < created_at:
+        fail("independent backup manifest is not restore-verified")
+    verify_file(backup.get("archivePath"), root, archive_sha, archive_bytes)
+    verify_file(restore.get("evidencePath"), root, str(restore.get("evidenceSha256")))
+elif backup_mode == "none_user_authorized":
+    backup = None
+else:
+    fail("unknown backup mode")
 
 candidate = read_private(candidate_path, "candidate acceptance")
 if candidate.get("status") != "candidate_deployed_user_acceptance_pending":
@@ -1127,8 +1171,11 @@ if candidate.get("branchCommit") != commit:
     fail("candidate acceptance commit mismatch")
 if candidate.get("inventorySha256") != inventory_sha:
     fail("candidate acceptance inventory mismatch")
-if candidate.get("independentBackupManifestSha256") != backup_sha:
-    fail("candidate acceptance backup mismatch")
+if backup_mode == "independent":
+    if candidate.get("independentBackupManifestSha256") != backup_sha:
+        fail("candidate acceptance backup mismatch")
+elif candidate.get("independentBackupManifestSha256") is not None:
+    fail("no-backup candidate acceptance must not contain an independent backup identity")
 if candidate.get("realDualClientAcceptance") != "pending":
     fail("candidate evidence must keep realDualClientAcceptance pending")
 automated = candidate.get("automatedAcceptance")
@@ -1193,10 +1240,12 @@ for payload in (candidate, real):
             fail("acceptance evidence contains a forbidden credential or provider subject")
 PY
 
-BACKUP_DEVICE="$(stat -c '%d' "$(dirname -- "${REMOTE_BACKUP_MANIFEST}")")"
-POSTGRES_DEVICE="$(stat -c '%d' /var/lib/postgresql)"
-[[ "${BACKUP_DEVICE}" != "${POSTGRES_DEVICE}" ]] \
-  || die_remote "backup and PostgreSQL data share a device"
+if [[ "${BACKUP_MODE}" == "independent" ]]; then
+  BACKUP_DEVICE="$(stat -c '%d' "$(dirname -- "${REMOTE_BACKUP_MANIFEST}")")"
+  POSTGRES_DEVICE="$(stat -c '%d' /var/lib/postgresql)"
+  [[ "${BACKUP_DEVICE}" != "${POSTGRES_DEVICE}" ]] \
+    || die_remote "backup and PostgreSQL data share a device"
+fi
 [[ -d "${CANDIDATE_ROOT}" ]] || die_remote "accepted candidate root is missing"
 [[ "$(<"${CANDIDATE_ROOT}/BRANCH_COMMIT")" == "${CANDIDATE_COMMIT}" ]] \
   || die_remote "deployed candidate commit mismatch"
@@ -1735,7 +1784,7 @@ export FULL_MIGRATION_REPORT_SHA256 DELTA_MIGRATION_REPORT_SHA256
 export API_SERVICE_IDENTITY WORKER_SERVICE_IDENTITY SIMC_UPDATE_SERVICE_IDENTITY WWW_NGINX_IDENTITY API_NGINX_IDENTITY
 export DEPLOYED_MANIFEST_IDENTITY CODEX_PROFILE_IDENTITY SOURCE_DATABASE_READ_ONLY MIGRATION_IDS CUTOVER_EVIDENCE
 export CANDIDATE_EVIDENCE_SHA REAL_ACCEPTANCE_SHA REVIEWED_INVENTORY_SHA REVIEWED_BACKUP_MANIFEST_SHA
-export CANDIDATE_COMMIT PRODUCTION_WEB_BUILD_IDENTITY PRODUCTION_WEAPP_BUILD_IDENTITY
+export CANDIDATE_COMMIT PRODUCTION_WEB_BUILD_IDENTITY PRODUCTION_WEAPP_BUILD_IDENTITY BACKUP_MODE
 python3 - <<'PY'
 import json
 import os
@@ -1748,7 +1797,12 @@ payload = {
     "state": "switched",
     "branchCommit": os.environ["CANDIDATE_COMMIT"],
     "inventorySha256": os.environ["REVIEWED_INVENTORY_SHA"],
-    "independentBackupManifestSha256": os.environ["REVIEWED_BACKUP_MANIFEST_SHA"],
+    "backupMode": os.environ["BACKUP_MODE"],
+    "independentBackupManifestSha256": (
+        os.environ["REVIEWED_BACKUP_MANIFEST_SHA"]
+        if os.environ["BACKUP_MODE"] == "independent"
+        else None
+    ),
     "candidateEvidenceSha256": os.environ["CANDIDATE_EVIDENCE_SHA"],
     "realAcceptanceSha256": os.environ["REAL_ACCEPTANCE_SHA"],
     "writeFenceAt": os.environ["WRITE_FENCE_AT"],

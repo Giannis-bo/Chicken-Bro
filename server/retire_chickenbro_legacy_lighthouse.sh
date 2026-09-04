@@ -3,9 +3,13 @@ set -euo pipefail
 
 MODE="dry-run"
 SCOPE="full_retirement"
+BACKUP_MODE="independent"
+NO_BACKUP_CONFIRMATION=""
 MANIFEST_FILE=""
 REVIEWED_MANIFEST_SHA=""
 REVIEWED_RECOVERY_MANIFEST_SHA=""
+
+NO_BACKUP_CONFIRMATION_TEXT="I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
@@ -25,7 +29,8 @@ usage() {
     'Usage:' \
     '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --dry-run' \
     '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --capacity-pre-cleanup --apply --manifest-sha <sha256> --recovery-manifest-sha <sha256>' \
-    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --manifest-sha <sha256> --recovery-manifest-sha <sha256>' >&2
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --manifest-sha <sha256> --recovery-manifest-sha <sha256>' \
+    '  server/retire_chickenbro_legacy_lighthouse.sh --manifest <json> --apply --no-independent-backup --irreversible-no-backup-confirmation I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE --manifest-sha <sha256>' >&2
 }
 
 sha256_file() {
@@ -411,7 +416,7 @@ PY
 }
 
 assert_apply_ready() {
-  python3 - "${MANIFEST_FILE}" "${REVIEWED_RECOVERY_MANIFEST_SHA}" "${SCOPE}" <<'PY'
+  python3 - "${MANIFEST_FILE}" "${REVIEWED_RECOVERY_MANIFEST_SHA}" "${SCOPE}" "${BACKUP_MODE}" <<'PY'
 import json
 import re
 import sys
@@ -421,6 +426,7 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 recovery_sha = sys.argv[2]
 scope = sys.argv[3]
+backup_mode = sys.argv[4]
 capacity = payload.get("capacityPreCleanup") or {}
 if scope == "capacity_pre_cleanup":
     if capacity.get("authorized") is not True:
@@ -444,14 +450,17 @@ if scope == "capacity_pre_cleanup":
     ):
         raise SystemExit("blocked cleanup manifest lacks matching whitelist restore evidence")
 else:
-    recovery = payload.get("acceptedProductionRecovery") or {}
-    if (
-        recovery.get("status") != "restore_verified"
-        or recovery.get("manifestSchema") != "chickenbro-accepted-production-recovery-v1"
-        or recovery.get("manifestSha256") != recovery_sha
-        or recovery.get("sourceDatabase") != "chickenbro_prod"
-    ):
-        raise SystemExit("blocked cleanup manifest lacks accepted production recovery evidence")
+    if backup_mode == "independent":
+        recovery = payload.get("acceptedProductionRecovery") or {}
+        if (
+            recovery.get("status") != "restore_verified"
+            or recovery.get("manifestSchema") != "chickenbro-accepted-production-recovery-v1"
+            or recovery.get("manifestSha256") != recovery_sha
+            or recovery.get("sourceDatabase") != "chickenbro_prod"
+        ):
+            raise SystemExit("blocked cleanup manifest lacks accepted production recovery evidence")
+    elif backup_mode != "none_user_authorized":
+        raise SystemExit("unknown cleanup backup mode")
 if payload.get("sourceInventory", {}).get("freshness") != "fresh":
     raise SystemExit("blocked cleanup manifest uses a stale cloud inventory")
 resources = [
@@ -484,7 +493,7 @@ for item in resources:
         raise SystemExit(f"invalid delete-after boundary: {item.get('id')}")
     if boundary > now:
         raise SystemExit(f"delete-after boundary has not elapsed: {item.get('id')}")
-if not re.fullmatch(r"[0-9a-f]{64}", recovery_sha):
+if backup_mode == "independent" and not re.fullmatch(r"[0-9a-f]{64}", recovery_sha):
     raise SystemExit("invalid recovery manifest SHA-256")
 PY
 }
@@ -499,6 +508,7 @@ run_remote_apply() {
     "REVIEWED_REMOTE_RECOVERY_SHA=${REVIEWED_RECOVERY_MANIFEST_SHA}" \
     "REMOTE_RECOVERY_MANIFEST_PATH=${REMOTE_RECOVERY_MANIFEST}" \
     "RETIREMENT_SCOPE=${SCOPE}" \
+    "RETIREMENT_BACKUP_MODE=${BACKUP_MODE}" \
     bash -s <<'REMOTE'
 set -Eeuo pipefail
 
@@ -538,11 +548,15 @@ RESULTS_TMP="$(mktemp)"
 printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
 [[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
   || die_remote "manifest SHA-256 changed in transit"
-[[ -f "${REMOTE_RECOVERY_MANIFEST_PATH}" ]] || die_remote "restore-verified whitelist recovery manifest is missing"
-[[ "$(sha256sum -- "${REMOTE_RECOVERY_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_RECOVERY_SHA}" ]] \
-  || die_remote "recovery manifest SHA-256 mismatch"
+if [[ "${RETIREMENT_BACKUP_MODE}" == "independent" ]]; then
+  [[ -f "${REMOTE_RECOVERY_MANIFEST_PATH}" ]] || die_remote "restore-verified production recovery manifest is missing"
+  [[ "$(sha256sum -- "${REMOTE_RECOVERY_MANIFEST_PATH}" | awk '{print $1}')" == "${REVIEWED_REMOTE_RECOVERY_SHA}" ]] \
+    || die_remote "recovery manifest SHA-256 mismatch"
+elif [[ "${RETIREMENT_BACKUP_MODE}" != "none_user_authorized" ]]; then
+  die_remote "unknown cleanup backup mode"
+fi
 
-python3 - "${REMOTE_RECOVERY_MANIFEST_PATH}" "${RETIREMENT_SCOPE}" <<'PY'
+python3 - "${REMOTE_RECOVERY_MANIFEST_PATH}" "${RETIREMENT_SCOPE}" "${RETIREMENT_BACKUP_MODE}" <<'PY'
 import hashlib
 import json
 import re
@@ -551,6 +565,11 @@ from pathlib import Path
 
 manifest_path = Path(sys.argv[1])
 scope = sys.argv[2]
+backup_mode = sys.argv[3]
+if scope != "capacity_pre_cleanup" and backup_mode == "none_user_authorized":
+    raise SystemExit(0)
+if scope == "capacity_pre_cleanup" and backup_mode != "independent":
+    raise SystemExit("capacity cleanup requires its whitelist recovery evidence")
 expected_schema = (
     "chickenbro-whitelist-recovery-v1"
     if scope == "capacity_pre_cleanup"
@@ -1511,6 +1530,37 @@ else
 if [[ "${RUN_ROOT_EXISTED}" == "true" ]]; then
   die_remote "existing full-retirement run requires explicit recovery; refusing mutation replay"
 fi
+
+remove_reviewed_target() {
+  local kind="$1"
+  local target="$2"
+  case "${kind}" in
+    systemd_unit|file)
+      rm -f -- "${target}"
+      ;;
+    directory)
+      TARGET="${target}" python3 - <<'PY'
+import os
+import shutil
+from pathlib import Path
+
+target = Path(os.environ["TARGET"])
+if target.is_symlink() or not target.is_dir() or target.resolve() != target:
+    raise SystemExit("reviewed directory is not a real exact directory")
+if os.path.ismount(target):
+    raise SystemExit("reviewed directory is a mount point")
+for root, directories, _ in os.walk(target):
+    if any(os.path.ismount(Path(root) / name) for name in directories):
+        raise SystemExit("reviewed directory contains a nested mount point")
+shutil.rmtree(target)
+PY
+      ;;
+    *)
+      die_remote "unsupported irreversible target kind: ${kind}"
+      ;;
+  esac
+}
+
 while IFS=$'\t' read -r resource_id kind target content_sha observed_size required_absent_companion; do
   quarantine_target="${RUN_ROOT}/${resource_id}"
   case "${kind}" in
@@ -1536,7 +1586,11 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       [[ -z "${reverse_dependencies}" ]] || die_remote "unit still has reverse dependencies: ${target}"
       systemctl stop "${target}" >/dev/null 2>&1 || true
       systemctl disable "${target}" >/dev/null 2>&1 || true
-      mv -- "${unit_path}" "${quarantine_target}"
+      if [[ "${RETIREMENT_BACKUP_MODE}" == "none_user_authorized" ]]; then
+        remove_reviewed_target "${kind}" "${unit_path}"
+      else
+        mv -- "${unit_path}" "${quarantine_target}"
+      fi
       record_result "${resource_id}" "${kind}" "${target}" "deleted"
       ;;
     file)
@@ -1558,7 +1612,11 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
       fi
       [[ "${actual_file_sha}" == "${content_sha}" ]] \
         || die_remote "file identity changed: ${target}"
-      mv -- "${target}" "${quarantine_target}"
+      if [[ "${RETIREMENT_BACKUP_MODE}" == "none_user_authorized" ]]; then
+        remove_reviewed_target "${kind}" "${target}"
+      else
+        mv -- "${target}" "${quarantine_target}"
+      fi
       record_result "${resource_id}" "${kind}" "${target}" "deleted"
       ;;
     postgres_database)
@@ -1627,7 +1685,11 @@ SQL
         || die_remote "directory configuration-reference probe failed: ${target}"
       [[ "${references}" == "clear" ]] || die_remote "directory still has configuration references: ${target}"
       [[ "$(tree_sha256 "${target}")" == "${content_sha}" ]] || die_remote "directory identity changed: ${target}"
-      mv -- "${target}" "${quarantine_target}"
+      if [[ "${RETIREMENT_BACKUP_MODE}" == "none_user_authorized" ]]; then
+        remove_reviewed_target "${kind}" "${target}"
+      else
+        mv -- "${target}" "${quarantine_target}"
+      fi
       record_result "${resource_id}" "${kind}" "${target}" "deleted"
       ;;
     *)
@@ -1650,7 +1712,7 @@ if [[ "${RETIREMENT_SCOPE}" != "capacity_pre_cleanup" ]]; then
 fi
 protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command="SELECT count(*) FROM pg_database WHERE datname = 'chickenbro_prod'")"
 [[ "${protected_database_exists}" == "1" ]] || die_remote "protected production database changed during retirement"
-RESULTS_TMP="${RESULTS_TMP}" MANIFEST_SHA="${REVIEWED_REMOTE_MANIFEST_SHA}" RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" \
+RESULTS_TMP="${RESULTS_TMP}" MANIFEST_SHA="${REVIEWED_REMOTE_MANIFEST_SHA}" RECOVERY_SHA="${REVIEWED_REMOTE_RECOVERY_SHA}" BACKUP_MODE="${RETIREMENT_BACKUP_MODE}" \
   python3 - <<'PY' | tee "${RUN_ROOT}/result.json"
 import json
 import os
@@ -1661,6 +1723,7 @@ results = [json.loads(line) for line in Path(os.environ["RESULTS_TMP"]).read_tex
 print(json.dumps({
     "status": "applied",
     "manifestSha256": os.environ["MANIFEST_SHA"],
+    "backupMode": os.environ["BACKUP_MODE"],
     "whitelistRecoveryManifestSha256": os.environ["RECOVERY_SHA"],
     "completedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
     "results": results,
@@ -1689,6 +1752,15 @@ main() {
         SCOPE="capacity_pre_cleanup"
         shift
         ;;
+      --no-independent-backup)
+        BACKUP_MODE="none_user_authorized"
+        shift
+        ;;
+      --irreversible-no-backup-confirmation)
+        [[ $# -ge 2 ]] || die "--irreversible-no-backup-confirmation requires a value"
+        NO_BACKUP_CONFIRMATION="$2"
+        shift 2
+        ;;
       --manifest-sha)
         [[ $# -ge 2 ]] || die "--manifest-sha requires a value"
         REVIEWED_MANIFEST_SHA="$2"
@@ -1710,6 +1782,19 @@ main() {
     esac
   done
 
+  if [[ "${BACKUP_MODE}" == "none_user_authorized" ]]; then
+    [[ "${SCOPE}" == "full_retirement" ]] \
+      || die "--no-independent-backup is only valid for full retirement"
+    [[ "${MODE}" == "apply" ]] \
+      || die "--no-independent-backup is only valid with --apply"
+    [[ "${NO_BACKUP_CONFIRMATION}" == "${NO_BACKUP_CONFIRMATION_TEXT}" ]] \
+      || die "--no-independent-backup requires --irreversible-no-backup-confirmation ${NO_BACKUP_CONFIRMATION_TEXT}"
+    [[ -z "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]] \
+      || die "--no-independent-backup cannot be combined with --recovery-manifest-sha"
+  elif [[ -n "${NO_BACKUP_CONFIRMATION}" ]]; then
+    die "--irreversible-no-backup-confirmation requires --no-independent-backup"
+  fi
+
   [[ -n "${MANIFEST_FILE}" && -f "${MANIFEST_FILE}" ]] || die "--manifest must name an existing JSON file"
   validate_manifest_schema
   validate_manifest_targets
@@ -1719,12 +1804,18 @@ main() {
     return 0
   fi
 
-  if [[ -z "${REVIEWED_MANIFEST_SHA}" || -z "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]]; then
-    die "--apply requires --manifest-sha and --recovery-manifest-sha"
+  if [[ "${BACKUP_MODE}" == "independent" ]]; then
+    [[ -n "${REVIEWED_MANIFEST_SHA}" && -n "${REVIEWED_RECOVERY_MANIFEST_SHA}" ]] \
+      || die "--apply requires --manifest-sha and --recovery-manifest-sha"
+  else
+    [[ -n "${REVIEWED_MANIFEST_SHA}" ]] || die "--apply requires --manifest-sha"
   fi
-  [[ "${REVIEWED_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ \
-    && "${REVIEWED_RECOVERY_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
-    || die "--apply requires valid SHA-256 identities"
+  [[ "${REVIEWED_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
+    || die "--apply requires a valid manifest SHA-256 identity"
+  if [[ "${BACKUP_MODE}" == "independent" ]]; then
+    [[ "${REVIEWED_RECOVERY_MANIFEST_SHA}" =~ ^[0-9a-f]{64}$ ]] \
+      || die "--apply requires a valid recovery manifest SHA-256 identity"
+  fi
   [[ "${REMOTE_HOST}" =~ ^[A-Za-z0-9.-]+$ && "${REMOTE_USER}" =~ ^[a-z_][a-z0-9_-]*$ ]] \
     || die "invalid remote host or user"
   [[ "${REMOTE_RECOVERY_MANIFEST}" =~ ^/[A-Za-z0-9_./-]+$ \

@@ -46,7 +46,7 @@ git diff --check
 
 ## Candidate 与切流
 
-Candidate 部署前必须刷新云端只读清单并通过容量及独立恢复门禁。部署与切流命令默认 dry-run；apply 只能使用审核过的 commit、inventory SHA 和 backup manifest SHA。
+Candidate 部署前必须刷新云端只读清单并通过容量及白名单恢复门禁。部署与切流命令默认 dry-run；apply 只能使用审核过的 commit、inventory SHA 和对应恢复身份。生产切流和 legacy 退役本轮可在用户明确授权后使用 `--no-independent-backup --irreversible-no-backup-confirmation I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE`，该模式只免除独立备份/恢复副本，不免除迁移核对、真实双端业务验收、首条新写入、稳定健康和零引用检查。
 
 ```bash
 bash server/deploy_chickenbro_candidate_lighthouse.sh --dry-run
@@ -68,7 +68,7 @@ node scripts/apply-chickenbro-simc-local-cleanup.js \
   --dry-run
 ```
 
-云端退休同样默认 dry-run，并保护 `chickenbro_prod`、`chickenbro-api.service`、`chickenbro-worker.service`、当前 Web/Mini identity、Nginx/TLS 与 `/opt/wow-simc/current`。数据库删除还要求零连接、零配置引用和独立恢复验证。
+云端退休同样默认 dry-run，并保护 `chickenbro_prod`、`chickenbro-api.service`、`chickenbro-worker.service`、当前 Web/Mini identity、Nginx/TLS 与 `/opt/wow-simc/current`。数据库删除还要求零连接、零配置引用；独立恢复验证由默认恢复模式或本轮显式无备份授权二选一。
 
 ## 最终完成
 

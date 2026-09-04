@@ -1,6 +1,6 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 白名单恢复证明与四组容量预清理均已通过，容量门已打开，candidate apply 与真实双端验收仍须按独立 gate 顺序完成
+状态：当前生产操作权威；Phase 5 候选部署、PostgreSQL 白名单迁移适配器与自动化双端验收已完成本地实现和验证；2026-09-03 白名单恢复证明与四组容量预清理均已通过，容量门已打开，candidate apply 与真实双端验收仍须按独立 gate 顺序完成。2026-09-04 用户明确授权切流后不制作独立备份并直接永久清理旧目标，但当前云端仍只有 candidate，不能提前删除旧生产。
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -26,7 +26,7 @@
 ## 绝对安全边界
 
 - 不读取、打印或提交 env 值、DSN、PGPASS、微信凭据、Codex 配置、Cookie、Bearer、OpenID 或第三方 token。
-- 不在有效业务白名单尚未完成迁移、核对、导出、隔离恢复与第二次核对时执行容量预清理；不在已接受生产数据缺少恢复验证时执行最终退役。
+- 不在有效业务白名单尚未完成迁移、核对、导出、隔离恢复与第二次核对时执行容量预清理；不在已接受生产数据缺少恢复验证或用户明确无备份授权时执行最终退役。
 - 四个明确拒绝的 evidence/test 数据库不建立恢复副本，也不上传 COS；其内容在精确容量预清理后不可恢复。它们的删除前恢复权威是 `chickenbro-whitelist-recovery-v1` 业务白名单清单，而不是 evidence 数据归档。
 - 不把 `wow_test` 当作普通测试库。它当前仍是 legacy/正式 v2 的运行数据面。
 - 不直接手写 `DROP DATABASE`、宽泛递归删除或批量停服务。只有仓库内通过测试的精确 manifest/apply 脚本可以执行变更。
@@ -330,7 +330,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 
 切流窗口固定顺序：
 
-1. 确认候选、备份、恢复、容量、全量迁移和真实用户验收均已通过。
+1. 确认候选、容量、全量迁移和真实用户验收均已通过；恢复门禁使用已接受生产恢复证据，或使用本轮用户明确授权的无备份模式。
 2. 把 legacy 产品写入口置为只读，保留健康/读取和明确维护文案。
 3. 记录 write watermark、活动连接、队列和运行中 job。
 4. 等待/收口允许完成的 job，执行唯一一次只读 delta。
@@ -368,7 +368,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 
 - 正式切流稳定窗口结束；
 - 真实 Mini/Web Chat 与 SimC 验收有明确用户确认；
-- 新库备份和恢复演练通过；
+- 新库备份和恢复演练通过，或 cleanup manifest 记录本轮无备份永久清理授权；
 - legacy 无连接、无 open handle、无 systemd/Nginx/env/caller 引用；
 - 文档链接图和代码 caller graph 对每个删除目标为零；
 - cleanup manifest 列出精确路径/库/unit/env、hash/bytes/reason/restore identity；
@@ -388,7 +388,7 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
 
 当前清单固定 `deletionAuthorized=false`，剩余 76 个资源全部为 `blocked`。容量 scope 已关闭，dry-run 返回 0 个 pending 目标，任何新的 `--capacity-pre-cleanup --apply` 都会在 SSH 前因 `authorized=false` 被拒绝。完整 Phase 6 仍要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
 
-apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；四组均已写入 `completedPairs`，不会进入新的执行计划。完整 Phase 6 中，unit 会先检查反向依赖再停止、禁用并移动 unit 文件；其他旧文件/目录也先核对 SHA/realpath，再移动到该精确 quarantine。目录隔离只是可恢复退役，不是永久清除；永久删除仍要等 Task 5 的回滚窗口到期。
+apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；四组均已写入 `completedPairs`，不会进入新的执行计划。完整 Phase 6 默认会把 unit、旧文件和目录移动到精确 quarantine；本轮用户已选择无备份永久删除时，必须同时传入 `--no-independent-backup` 与确认词 `I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE`，脚本会在同样的依赖、引用、SHA/realpath 和生产健康检查之后删除精确目标，不保留旧目标副本。无论哪种模式，都不会删除 Chickenbro 新生产、SimC runtime、PostgreSQL 数据根、TLS 或当前 Nginx owner。
 
 退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 
@@ -403,7 +403,7 @@ apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到�
 - API/Worker/SimC 语义 smoke；
 - 两个用户的 owner 隔离；
 - 同一用户 Mini/Web 的 Chat 与 SimC 双向同步；
-- 备份恢复与清理后的最新 inventory；
+- 备份恢复或明确无备份授权，以及清理后的最新 inventory；
 - 旧 route、unit、timer、数据库、目录和文档/代码 manifest 目标全部不存在；
 - 用户明确确认真实双端结果。
 

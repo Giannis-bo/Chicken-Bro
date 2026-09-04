@@ -27,17 +27,20 @@ function evidenceValidatorSource() {
   const source = readScript()
   const marker = 'import hashlib\nimport json\nimport re\nimport sys\nfrom datetime import datetime\nfrom pathlib import Path\n\nbackup_path, candidate_path, real_path'
   const start = source.indexOf(marker)
-  const end = source.indexOf('\nPY\n\nBACKUP_DEVICE=', start)
+  const end = source.indexOf('\nPY\n\nif [[ "${BACKUP_MODE}" == "independent" ]]', start)
   assert.ok(start >= 0 && end > start, 'embedded cutover evidence validator must be extractable')
   return source.slice(start, end)
 }
 
-function runEvidenceValidator(mutate = ({ backup, candidate, real, automated }) => ({
+function runEvidenceValidator(
+  mutate = ({ backup, candidate, real, automated }) => ({
   backup,
   candidate,
   real,
   automated,
-})) {
+  }),
+  backupMode = 'independent',
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chickenbro-cutover-evidence-'))
   const candidateRoot = path.join(root, 'candidate-runs', 'run-1')
   fs.mkdirSync(candidateRoot, { recursive: true, mode: 0o700 })
@@ -66,7 +69,7 @@ function runEvidenceValidator(mutate = ({ backup, candidate, real, automated }) 
       status: 'candidate_deployed_user_acceptance_pending',
       branchCommit: commit,
       inventorySha256: inventorySha,
-      independentBackupManifestSha256: backupManifestSha,
+      independentBackupManifestSha256: backupMode === 'independent' ? backupManifestSha : null,
       deployedManifestSha256: 'f'.repeat(64),
       webBuildIdentity: automated.webBuildIdentity,
       weappBuildIdentity: automated.weappBuildIdentity,
@@ -154,11 +157,13 @@ function runEvidenceValidator(mutate = ({ backup, candidate, real, automated }) 
     fs.writeFileSync(candidatePath, candidateBytes, { mode: 0o600 })
     fs.writeFileSync(realPath, `${JSON.stringify(real)}\n`, { mode: 0o600 })
     const backupPath = path.join(root, 'restore-verified.json')
-    fs.writeFileSync(backupPath, `${JSON.stringify(backup)}\n`, { mode: 0o600 })
+    if (backupMode === 'independent') {
+      fs.writeFileSync(backupPath, `${JSON.stringify(backup)}\n`, { mode: 0o600 })
+    }
 
     return spawnSync('python3', [
       '-', backupPath, candidatePath, realPath, commit, sha256(candidateBytes),
-      inventorySha, backupManifestSha,
+      inventorySha, backupMode === 'independent' ? backupManifestSha : '', backupMode,
     ], {
       encoding: 'utf8',
       input: evidenceValidatorSource(),
@@ -285,6 +290,17 @@ test('cutover is an explicit monotonic state machine with exact evidence inputs'
 
   assert.doesNotMatch(script, /(?:find|ls)[^\n]*(?:latest|candidate-acceptance|real-acceptance)/i)
   assert.doesNotMatch(script, /sort[^\n]*(?:tail|head)[^\n]*(?:acceptance|evidence)/i)
+})
+
+test('no-backup cutover requires explicit irreversible authorization and records the mode', () => {
+  const script = readScript()
+
+  assert.match(script, /--no-independent-backup/)
+  assert.match(script, /--irreversible-no-backup-confirmation/)
+  assert.match(script, /I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE/)
+  assert.match(script, /none_user_authorized/)
+  assert.match(script, /independentBackupManifestSha256/)
+  assert.match(script, /backupMode/)
 })
 
 test('public activation and accepted-write sealing are separate monotonic gates', () => {
@@ -414,6 +430,20 @@ test('candidate and real dual-client acceptance are separately validated', () =>
 test('cutover evidence validator accepts only restore-verified, ready and cross-client-passed evidence', () => {
   const valid = runEvidenceValidator()
   assert.equal(valid.status, 0, valid.stderr)
+
+  const noBackup = runEvidenceValidator(undefined, 'none_user_authorized')
+  assert.equal(noBackup.status, 0, noBackup.stderr)
+
+  const noBackupWithIdentity = runEvidenceValidator(
+    ({ backup, candidate, real, automated }) => ({
+      backup,
+      candidate: { ...candidate, independentBackupManifestSha256: 'c'.repeat(64) },
+      real,
+      automated,
+    }),
+    'none_user_authorized',
+  )
+  assert.notEqual(noBackupWithIdentity.status, 0)
 
   const mutations = [
     ({ backup, candidate, real, automated }) => ({

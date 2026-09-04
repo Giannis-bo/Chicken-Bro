@@ -6,8 +6,8 @@
   "status": "capacity_precleanup_complete_candidate_deployment_ready_full_retirement_blocked",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "02f6c034011e9a0e0162527e560981cc338e7b3a30f73ca180be064368e7f09c",
-    "observedAt": "2026-09-03T09:44:15Z",
+    "sha256": "44828cd8d4f64a3cb3b033e565e7b8f521b48ef56977a7220b5c613d9450906b",
+    "observedAt": "2026-09-04T02:23:06Z",
     "freshness": "fresh"
   },
   "targetIdentity": {
