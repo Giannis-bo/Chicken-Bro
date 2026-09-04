@@ -98,8 +98,11 @@ def _read_private(path: Path, label: str) -> Mapping[str, Any]:
 
 def _write_private(path: Path, payload: Mapping[str, Any]) -> None:
     resolved = path.resolve(strict=False)
-    allowed_root = Path("/var/lib/chickenbro").resolve(strict=False)
-    if allowed_root not in resolved.parents:
+    allowed_roots = {
+        Path("/var/lib/chickenbro").resolve(strict=False),
+        Path("/var/lib/chickenbro-recovery").resolve(strict=False),
+    }
+    if not any(root == resolved or root in resolved.parents for root in allowed_roots):
         raise AcceptanceEvidenceError("EVIDENCE_PATH_INVALID")
     resolved.parent.mkdir(parents=True, exist_ok=True)
     temporary = resolved.with_name(f".{resolved.name}.{os.getpid()}.tmp")
