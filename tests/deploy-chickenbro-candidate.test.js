@@ -164,6 +164,9 @@ test('formal production and candidate services have separate roots, ports and se
   assert.doesNotMatch(candidateApi, /WOW_WEB_PROTOTYPE/)
   assert.match(candidateApi, /WOW_WECHAT_ENV_VERSION=trial/)
   assert.match(candidateApi, /WOW_WECHAT_CHECK_PATH=0/)
+  for (const service of [productionApi, candidateApi]) {
+    assert.match(service, /Environment=NO_PROXY=127\.0\.0\.1,localhost,::1,169\.254\.169\.254,raider\.io,www\.raider\.io,warcraftlogs\.com,www\.warcraftlogs\.com,\.api\.blizzard\.com,.*gateway\.battlenet\.com\.cn/)
+  }
 
   assert.match(worker, /EnvironmentFile=-?\/etc\/chickenbro-worker\.env/)
   assert.match(worker, /\/opt\/chickenbro-runtime\/bin\/python -m server\.app\.worker\.main/)
