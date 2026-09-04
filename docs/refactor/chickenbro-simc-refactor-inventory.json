@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "0fc02bd598aa9c6d49a395145b16f2abdb1ece5f",
+  "generatedFromCommit": "29bfaba9bc2050fca914d78922dff46ae468f874",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "41686da2b4fd1c90c6df4541ed0bca1ba045473e1772ed8c2ba90d4d48e90f09",
   "entryCount": 2861,
@@ -22993,8 +22993,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 86561,
-      "sha256": "02d35ec5a09eeddaaa391cfa2c7959ecaf4e25b9d4c87fce527b7814f77e54f5"
+      "bytes": 86585,
+      "sha256": "2c9e26f0ab510a0eb48a475cd61e1e4895bb58fe2ea5f74684c38269f4359a71"
     },
     {
       "path": "server/data/midnight-season-1-crafted-pve-membership.json",
@@ -26363,8 +26363,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 27766,
-      "sha256": "9b1de8bf497e5605cb83b027fe7fbe5863325d20196fb16c74bc53b02d2fc43a"
+      "bytes": 28043,
+      "sha256": "cb2718935061fd7d4e791e22dad9a167be368e80ee724442cda371bfb026d477"
     },
     {
       "path": "tests/data_health_followup_test.py",
@@ -28647,5 +28647,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "142b9e2f28edb08e584b92d18b79d685af01ff4d3bde55737c3339beeb77b0d6"
+  "inventorySha256": "ca7238f8a63a541c716d7712e07ea8bb6599c48eeb8ab68f9cc2c0f45e6cc6ba"
 }
