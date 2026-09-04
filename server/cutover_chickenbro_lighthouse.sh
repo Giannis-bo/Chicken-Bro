@@ -1386,11 +1386,11 @@ TARGET_CONNECTION_COUNT="$(sudo -n -u postgres psql -At --dbname=postgres \
   --command="SELECT count(*) FROM pg_stat_activity WHERE datname = '${PRODUCTION_DATABASE}'")"
 [[ "${TARGET_CONNECTION_COUNT}" == "0" ]] || die_remote "production database has unexpected active connections"
 SOURCE_DATABASE_DEFAULT="$(sudo -n -u postgres psql -At --dbname=postgres \
-  --command="SELECT COALESCE(array_to_string(datconfig, ','), '') FROM pg_database WHERE datname = 'wow_test'")"
+  --command="SELECT COALESCE(array_to_string(setconfig, ','), '') FROM pg_db_role_setting WHERE setdatabase = (SELECT oid FROM pg_database WHERE datname = 'wow_test') AND setrole = 0")"
 SOURCE_ROLE_DEFAULT="$(sudo -n -u postgres psql -At --dbname=postgres \
   --command="SELECT COALESCE(array_to_string(setconfig, ','), '') FROM pg_db_role_setting WHERE setdatabase = (SELECT oid FROM pg_database WHERE datname = 'wow_test') AND setrole = (SELECT oid FROM pg_roles WHERE rolname = 'wow_app')")"
 TARGET_DATABASE_DEFAULT="$(sudo -n -u postgres psql -At --dbname=postgres \
-  --command="SELECT COALESCE(array_to_string(datconfig, ','), '') FROM pg_database WHERE datname = 'chickenbro_prod'")"
+  --command="SELECT COALESCE(array_to_string(setconfig, ','), '') FROM pg_db_role_setting WHERE setdatabase = (SELECT oid FROM pg_database WHERE datname = 'chickenbro_prod') AND setrole = 0")"
 TARGET_ROLE_DEFAULT="$(sudo -n -u postgres psql -At --dbname=postgres \
   --command="SELECT COALESCE(array_to_string(setconfig, ','), '') FROM pg_db_role_setting WHERE setdatabase = (SELECT oid FROM pg_database WHERE datname = 'chickenbro_prod') AND setrole = (SELECT oid FROM pg_roles WHERE rolname = 'wow_app')")"
 [[ "${SOURCE_DATABASE_DEFAULT}" != *"default_transaction_read_only=on"* ]] \
