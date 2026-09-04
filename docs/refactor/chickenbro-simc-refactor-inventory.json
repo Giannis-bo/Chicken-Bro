@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "443a7dc59ef8e37027d26a25b3cd614b733a2664",
+  "generatedFromCommit": "8362cd65b9d4eef6952f19e01d9c135bb61b9523",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "41686da2b4fd1c90c6df4541ed0bca1ba045473e1772ed8c2ba90d4d48e90f09",
   "entryCount": 2861,
@@ -22993,8 +22993,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 85734,
-      "sha256": "db4272cc3027f2540f575605d7df0e0e679e89fe36005bcafd52cc6ed5fabe38"
+      "bytes": 86210,
+      "sha256": "df0a00b0da867c8d077589d414f200749177b600120cc2304d12dd27492d0fab"
     },
     {
       "path": "server/data/midnight-season-1-crafted-pve-membership.json",
@@ -28647,5 +28647,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "1a96cf36abeceaf1c6f82577dddc3cb552665b89b7f808dedf42b94cf0532cc8"
+  "inventorySha256": "51b9358075a62fa8675a6153fa451c0490cf01ab62eced5e95776df60fc544df"
 }
