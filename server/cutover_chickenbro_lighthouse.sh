@@ -697,6 +697,7 @@ git -C "${REPO_ROOT}" archive "${CANDIDATE_COMMIT}" -- \
   server/__init__.py \
   server/app \
   server/codex_worker.py \
+  server/accept_chickenbro_dual_client.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
   server/chickenbro_simc_runtime_update.sh \

@@ -586,6 +586,17 @@ test('production pgpass is readable by the production service user', () => {
   )
 })
 
+test('production archive contains the dual-client acceptance module', () => {
+  const script = readScript()
+  const archiveStart = script.indexOf('git -C "${REPO_ROOT}" archive')
+  const archiveEnd = script.indexOf('| tar -xf - -C "${LOCAL_STAGE}"', archiveStart)
+  assert.ok(archiveStart >= 0 && archiveEnd > archiveStart, 'production archive command is required')
+  assert.match(
+    script.slice(archiveStart, archiveEnd),
+    /server\/accept_chickenbro_dual_client\.py/,
+  )
+})
+
 test('rollback may restore legacy writes only before the irreversible first-write boundary', () => {
   const script = readScript()
   const preWrite = functionBody(script, 'pre_write_rollback', 'post_write_recovery')
