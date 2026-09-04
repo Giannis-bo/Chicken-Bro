@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "3f3d93975a83cc21d2a62033a446048d5101fb02",
+  "generatedFromCommit": "bd01ce69c006c243841dc0ae0d9167b6ed6abd32",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
   "sourceRulesSha256": "41686da2b4fd1c90c6df4541ed0bca1ba045473e1772ed8c2ba90d4d48e90f09",
   "entryCount": 2861,
@@ -22023,8 +22023,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 21669,
-      "sha256": "6992686fa4a7128e6752ac98a1cf6642db5e6a748f1643e5e91cd8a4bc6df7e1"
+      "bytes": 21798,
+      "sha256": "9d8c3bbb07987127a413f59c2aa182f8eaf52f51fced033359c1af4219a18c1d"
     },
     {
       "path": "server/analytics.py",
@@ -28647,5 +28647,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "2a435cb27085ef25fb523a25aad4e23d21954d31c3c72c6e322fa1801b6c8d3a"
+  "inventorySha256": "322514ad1845da38f06e6d53abd14b0178004041fbf2f3569337e5ac1637eeb6"
 }
