@@ -516,23 +516,24 @@ input:focus-visible {
   inset: 0;
   overflow: hidden;
   perspective: 1500px;
-  perspective-origin: 100% 52%;
+  perspective-origin: 50% 52%;
 }
 
 .chat-scene {
   position: absolute;
-  right: 1%;
+  left: 2%;
+  right: auto;
   bottom: 2%;
   z-index: 1;
   width: 96%;
   height: 92%;
   object-fit: contain;
-  object-position: right bottom;
+  object-position: center bottom;
   opacity: var(--scene-opacity, 0.44);
   filter: var(--scene-filter, saturate(0.68) contrast(1.08));
   mix-blend-mode: multiply;
-  transform: perspective(1500px) rotateY(-7deg) translateZ(-24px) scale(0.96);
-  transform-origin: 100% 64%;
+  transform: perspective(1500px) rotateY(-7deg) translateZ(-24px) scale(0.96) translateX(-4%);
+  transform-origin: 50% 64%;
   backface-visibility: hidden;
 }
 
@@ -1120,13 +1121,14 @@ input:focus-visible {
   }
 
   .chat-scene {
-    right: -7%;
+    left: -11%;
+    right: auto;
     bottom: 1%;
     width: 122%;
     height: 91%;
-    object-position: right bottom;
+    object-position: center bottom;
     opacity: 0.34;
-    transform: perspective(1100px) rotateY(-4deg) translateZ(-14px) scale(0.98);
+    transform: perspective(1100px) rotateY(-4deg) translateZ(-14px) scale(0.98) translateX(-2%);
   }
 
   .chat-art-wash {
