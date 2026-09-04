@@ -1306,6 +1306,12 @@ install -d -o root -g root -m 0700 "${REMOTE_CUTOVER_ROOT}"
 install -d -o root -g root -m 0700 "${RUN_DIR}"
 install -d -o root -g root -m 0755 "${STAGE_DIR}"
 tar -xzf "${REMOTE_ARCHIVE}" -C "${STAGE_DIR}"
+# The macOS-created archive carries its top-level temporary-directory mode and
+# owner. Normalize that directory before the service user imports the staged
+# migration package; otherwise a mode-0700 archive root makes `server` appear
+# absent even though the files were extracted successfully.
+chown root:root "${STAGE_DIR}"
+chmod 0755 "${STAGE_DIR}"
 [[ "$(sha256sum "${STAGE_DIR}/deploy-manifest.sha256" | awk '{print $1}')" == "${PRODUCTION_MANIFEST_SHA256}" ]] \
   || die_remote "production manifest SHA mismatch"
 (

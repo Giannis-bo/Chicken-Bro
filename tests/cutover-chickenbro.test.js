@@ -497,6 +497,16 @@ test('full migration precedes the write fence and one reconciled delta follows i
   assert.doesNotMatch(script, /--captured-watermark/)
 })
 
+test('the extracted production stage stays traversable by the service user', () => {
+  const script = readScript()
+  const extracted = script.indexOf('tar -xzf "${REMOTE_ARCHIVE}" -C "${STAGE_DIR}"')
+  const migration = script.indexOf('--mode full')
+  const normalized = script.indexOf('chmod 0755 "${STAGE_DIR}"', extracted)
+
+  assert.ok(extracted >= 0, 'production archive extraction is required')
+  assert.ok(normalized > extracted && normalized < migration, 'stage root permissions must be restored after extraction')
+})
+
 test('the fence stops an exact reviewed writer set and makes wow_test read only', () => {
   const script = readScript()
 
