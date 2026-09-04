@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "generatedFromCommit": "3b3b6285af0b3d7c5219086cef5abae8568ebe0b",
+  "generatedFromCommit": "3f3d93975a83cc21d2a62033a446048d5101fb02",
   "excludedSelfPath": "docs/refactor/chickenbro-simc-refactor-inventory.json",
-  "sourceRulesSha256": "84cfdeeaf7652ccff23c8817063b02d94b0ff7e966a4c06f72522e35290cdcb3",
-  "entryCount": 2859,
+  "sourceRulesSha256": "41686da2b4fd1c90c6df4541ed0bca1ba045473e1772ed8c2ba90d4d48e90f09",
+  "entryCount": 2861,
   "unresolvedCount": 0,
   "dispositionCounts": {
     "delete": 2588,
-    "keep": 271
+    "keep": 273
   },
   "categoryCounts": {
     "current-control-plane": 21,
@@ -29,11 +29,11 @@
     "repository-tooling": 11,
     "target-client-code": 56,
     "target-database-code": 6,
-    "target-deployment-code": 20,
+    "target-deployment-code": 21,
     "target-server-code": 51,
     "target-shared-code": 26,
     "target-tooling": 5,
-    "target-verification": 51
+    "target-verification": 52
   },
   "entries": [
     {
@@ -13533,8 +13533,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 22984,
-      "sha256": "76abcd0ef4dbc461235e2bac0efa77f03413d7669753910ee4dac88ff294d333"
+      "bytes": 23170,
+      "sha256": "498232f9d1747269e0aaebcbeeee9e14294eb15b4e92758008bcc553f3ec4fd5"
     },
     {
       "path": "docs/chickenbro-simc-production-runbook.md",
@@ -13543,8 +13543,8 @@
       "owner": "Chickenbro Chat and SimC product",
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "matchedRule": "retained-product-documentation",
-      "bytes": 35369,
-      "sha256": "0315397741e9b7b28a3ac35532bb5dbb134ba3d53c4e16cdf19a8adb0944d737"
+      "bytes": 36049,
+      "sha256": "d9c951454f91552dcd2d152e2c0b6e4d937e11c345aa955736118072b1f7f98a"
     },
     {
       "path": "docs/community-template-import-full-chain-runbook.md",
@@ -14863,8 +14863,8 @@
       "owner": "Refactor inventory",
       "reason": "Deterministic disposition rules, generator, and focused verification.",
       "matchedRule": "rebuild-inventory-owner",
-      "bytes": 25720,
-      "sha256": "2b316fdd92676b77700f3b308dbb641acae6ca5fb6bb5939f3a54470ac2e2e0d"
+      "bytes": 25819,
+      "sha256": "da4907e493f7a0d1688bada18ed0ea56d7c0db1a21ab9f05475771787f196050"
     },
     {
       "path": "docs/refactor/chickenbro-simc-recovery-inventory.json",
@@ -15173,8 +15173,8 @@
       "owner": "Target workspace",
       "reason": "Repository policy, package, TypeScript, lint, and build configuration directly support the reduced product.",
       "matchedRule": "repository-scaffold",
-      "bytes": 3951,
-      "sha256": "b59090a0257ad17d5793aa83c03fd5e2461896e4f67494478319559d143b2b0f"
+      "bytes": 3985,
+      "sha256": "c663702e941cd7dbc7550c55eda21ef829c9dcf773cabe8f611bda245fa97ac2"
     },
     {
       "path": "packages/api-client/package.json",
@@ -22013,8 +22013,18 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 42018,
-      "sha256": "f226a919572ec215ef066732ae0c0b4695f20600844b2fd074bd3cb839e359c9"
+      "bytes": 43415,
+      "sha256": "383c68d0cafb26aed2c5746f9258631d9c29d82ba0cd9ce0d1be2820d662ee60"
+    },
+    {
+      "path": "server/accept_chickenbro_dual_client.py",
+      "disposition": "keep",
+      "category": "target-deployment-code",
+      "owner": "Chickenbro and SimC runtime",
+      "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
+      "matchedRule": "target-chickenbro-deployment",
+      "bytes": 21669,
+      "sha256": "6992686fa4a7128e6752ac98a1cf6642db5e6a748f1643e5e91cd8a4bc6df7e1"
     },
     {
       "path": "server/analytics.py",
@@ -22983,8 +22993,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 84737,
-      "sha256": "3cd32b848929dec3bbf8880e648687313e25b52bb333829855053b99ecb6ef95"
+      "bytes": 85588,
+      "sha256": "f4ec3de7f030fd0ea5dd36af5baf579b5ea77989dcb7c9c29d09af125846e541"
     },
     {
       "path": "server/data/midnight-season-1-crafted-pve-membership.json",
@@ -23093,8 +23103,8 @@
       "owner": "Chickenbro and SimC runtime",
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "matchedRule": "target-chickenbro-deployment",
-      "bytes": 66819,
-      "sha256": "31f541b20498e4ae71c25d1f0c6532bb9aa0cc935a261122437680c2b9307a37"
+      "bytes": 66863,
+      "sha256": "0e6915da8d6feb10e36bb7680bf2c494da6d94b09507f01ad055bf4cac1ac6dd"
     },
     {
       "path": "server/deploy_lighthouse.sh",
@@ -26053,8 +26063,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 17830,
-      "sha256": "a7144f7e77ef744b044176f972b8c757d7b60582ac71c05f9e7783e2b6be96e3"
+      "bytes": 20189,
+      "sha256": "0dad994e0e6915dc07c8862e2be79ab31454f7ea95ed4483796cfeb73d0a4eee"
     },
     {
       "path": "tests/capture-ui-review-cache.test.js",
@@ -26353,8 +26363,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 26865,
-      "sha256": "6762b6eb63634b0e133ff67da82258817e1a7c9e454c65a668b3b450ccfd90e8"
+      "bytes": 27240,
+      "sha256": "b37e5a67f4a52edc051d410f29129ec7ca25ea4ad9c6d1a52b7a9fcb9a84bf02"
     },
     {
       "path": "tests/data_health_followup_test.py",
@@ -26403,8 +26413,8 @@
       "owner": "Chat and SimC verification suite",
       "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
       "matchedRule": "retained-target-tests",
-      "bytes": 22238,
-      "sha256": "00ca7c10d838158222e39d68b4cdc59da74acde805a4b33b20429c0f8154c784"
+      "bytes": 22298,
+      "sha256": "fc32ad1d160542a54a606cba31c25bb884d2c45d572f6212df2274853bd2e71d"
     },
     {
       "path": "tests/deploy-script.test.js",
@@ -26465,6 +26475,16 @@
       "matchedRule": "remaining-tests",
       "bytes": 10677,
       "sha256": "5d53fc6c0c02eb0eb449edc640da77a0f6fba03a108c71a8c5a141474236a453"
+    },
+    {
+      "path": "tests/dual_client_acceptance_test.py",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "Chat and SimC verification suite",
+      "reason": "These tests cover the retained backend, clients, clean migration, build, candidate, cutover, cleanup, and control-plane contracts.",
+      "matchedRule": "retained-target-tests",
+      "bytes": 4770,
+      "sha256": "a675e0c36501c952e5b8092e7e40af4cd6e7408e2a624bc70ba268e47986a4f5"
     },
     {
       "path": "tests/exact_runtime_authority_release_store_test.py",
@@ -28627,5 +28647,5 @@
       "sha256": "4736cc276f788e5427d17e51499c110336106bb64db4c827e2d576629d8f281f"
     }
   ],
-  "inventorySha256": "d33455236e7d3d0a3b70b4265b8def113690d7940c2e0b59d31ec22009098529"
+  "inventorySha256": "2a435cb27085ef25fb523a25aad4e23d21954d31c3c72c6e322fa1801b6c8d3a"
 }
