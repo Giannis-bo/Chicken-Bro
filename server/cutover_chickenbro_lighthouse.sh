@@ -1609,7 +1609,7 @@ Path(os.environ["PRODUCTION_WORKER_ENV"] + ".new").write_text("\n".join(worker_l
 PY
 install -o root -g root -m 0600 "${PRODUCTION_API_ENV}.new" "${PRODUCTION_API_ENV}"
 install -o root -g root -m 0600 "${PRODUCTION_WORKER_ENV}.new" "${PRODUCTION_WORKER_ENV}"
-install -o root -g root -m 0600 "${PRODUCTION_PGPASSFILE}.new" "${PRODUCTION_PGPASSFILE}"
+install -o "${REMOTE_USER}" -g "${REMOTE_USER}" -m 0600 "${PRODUCTION_PGPASSFILE}.new" "${PRODUCTION_PGPASSFILE}"
 install -o root -g root -m 0600 "${LEGACY_SOURCE_ENV}" "${PRODUCTION_SOURCE_ENV}"
 rm -f "${PRODUCTION_API_ENV}.new" "${PRODUCTION_WORKER_ENV}.new" "${PRODUCTION_PGPASSFILE}.new"
 export PGPASSFILE="${PRODUCTION_PGPASSFILE}"

@@ -578,6 +578,14 @@ test('the public switch reuses the accepted candidate identity on chickenbro_pro
   assert.match(script, /export PGPASSFILE="\$\{PRODUCTION_PGPASSFILE\}"/)
 })
 
+test('production pgpass is readable by the production service user', () => {
+  const script = readScript()
+  assert.match(
+    script,
+    /install -o "\$\{REMOTE_USER\}" -g "\$\{REMOTE_USER\}" -m 0600 "\$\{PRODUCTION_PGPASSFILE\}\.new" "\$\{PRODUCTION_PGPASSFILE\}"/,
+  )
+})
+
 test('rollback may restore legacy writes only before the irreversible first-write boundary', () => {
   const script = readScript()
   const preWrite = functionBody(script, 'pre_write_rollback', 'post_write_recovery')
