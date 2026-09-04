@@ -595,6 +595,10 @@ test('production archive contains the dual-client acceptance module', () => {
     script.slice(archiveStart, archiveEnd),
     /server\/accept_chickenbro_dual_client\.py/,
   )
+  assert.match(
+    script.slice(archiveStart, archiveEnd),
+    /server\/accept_chickenbro_candidate\.py/,
+  )
 })
 
 test('rollback may restore legacy writes only before the irreversible first-write boundary', () => {

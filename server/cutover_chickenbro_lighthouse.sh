@@ -340,6 +340,7 @@ for required in \
   server/__init__.py \
   server/app \
   server/codex_worker.py \
+  server/accept_chickenbro_candidate.py \
   server/accept_chickenbro_dual_client.py \
   server/migrations/__init__.py \
   server/migrations/product/0001_chickenbro_simc_core.sql \
@@ -697,6 +698,7 @@ git -C "${REPO_ROOT}" archive "${CANDIDATE_COMMIT}" -- \
   server/__init__.py \
   server/app \
   server/codex_worker.py \
+  server/accept_chickenbro_candidate.py \
   server/accept_chickenbro_dual_client.py \
   server/chickenbro_native_mcp.py \
   server/chickenbro_public_web_research.py \
