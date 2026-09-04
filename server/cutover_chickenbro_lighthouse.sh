@@ -1468,8 +1468,15 @@ export PGPASSFILE="${PRODUCTION_PGPASSFILE}.new"
 export PYTHONPATH="${STAGE_DIR}"
 FULL_MIGRATION_TMP="/var/lib/chickenbro/full-migration-${RUN_ID}.json"
 rm -f "${FULL_MIGRATION_TMP}"
-sudo -n -u "${REMOTE_USER}" \
-  --preserve-env=CHICKENBRO_LEGACY_SOURCE_DATABASE_URL,WOW_DATABASE_URL,WOW_MIGRATION_WECHAT_APP_CONTEXT,PGPASSFILE,PYTHONPATH \
+# Use an explicit env command: sudo's env_reset may drop PYTHONPATH even when
+# --preserve-env is requested, which would make the staged migration package
+# invisible to the managed Python runtime.
+sudo -n -u "${REMOTE_USER}" env \
+  "CHICKENBRO_LEGACY_SOURCE_DATABASE_URL=${CHICKENBRO_LEGACY_SOURCE_DATABASE_URL}" \
+  "WOW_DATABASE_URL=${WOW_DATABASE_URL}" \
+  "WOW_MIGRATION_WECHAT_APP_CONTEXT=${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
+  "PGPASSFILE=${PGPASSFILE}" \
+  "PYTHONPATH=${STAGE_DIR}" \
   "${RUNTIME_ROOT}/bin/python" -m server.migrations.product.postgres_legacy \
   --mode full \
   --expected-source-database "${SOURCE_DATABASE}" \
@@ -1520,8 +1527,12 @@ advance_state write_fenced
 
 DELTA_MIGRATION_TMP="/var/lib/chickenbro/delta-migration-${RUN_ID}.json"
 rm -f "${DELTA_MIGRATION_TMP}"
-sudo -n -u "${REMOTE_USER}" \
-  --preserve-env=CHICKENBRO_LEGACY_SOURCE_DATABASE_URL,WOW_DATABASE_URL,WOW_MIGRATION_WECHAT_APP_CONTEXT,PGPASSFILE,PYTHONPATH \
+sudo -n -u "${REMOTE_USER}" env \
+  "CHICKENBRO_LEGACY_SOURCE_DATABASE_URL=${CHICKENBRO_LEGACY_SOURCE_DATABASE_URL}" \
+  "WOW_DATABASE_URL=${WOW_DATABASE_URL}" \
+  "WOW_MIGRATION_WECHAT_APP_CONTEXT=${WOW_MIGRATION_WECHAT_APP_CONTEXT}" \
+  "PGPASSFILE=${PGPASSFILE}" \
+  "PYTHONPATH=${STAGE_DIR}" \
   "${RUNTIME_ROOT}/bin/python" -m server.migrations.product.postgres_legacy \
   --mode delta \
   --from-watermark "${FULL_WATERMARK}" \
