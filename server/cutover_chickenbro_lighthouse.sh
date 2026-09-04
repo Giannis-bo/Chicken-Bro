@@ -340,6 +340,7 @@ for required in \
   server/__init__.py \
   server/app \
   server/codex_worker.py \
+  server/accept_chickenbro_dual_client.py \
   server/migrations/__init__.py \
   server/migrations/product/0001_chickenbro_simc_core.sql \
   server/migrations/product/0002_chat_idempotent_replay.sql \
@@ -536,6 +537,7 @@ if cutover.get("branchCommit") != commit:
 expected_acceptance_keys = {
     "schemaVersion", "status", "branchCommit", "cutoverEvidenceSha256",
     "webBuildIdentity", "weappBuildIdentity", "testedRoutes",
+    "loginMode", "routeContractEvidenceHash",
     "realWechatQrLogin", "crossClientChat", "crossClientSimc",
     "ownerIsolation", "logoutIndependence", "serviceRestartRecovery",
     "userConfirmation", "firstAcceptedWriteAt", "acceptedAt",
@@ -554,6 +556,8 @@ if acceptance.get("webBuildIdentity") != cutover.get("webBuildIdentity"):
     fail("production acceptance Web build mismatch")
 if acceptance.get("weappBuildIdentity") != cutover.get("weappBuildIdentity"):
     fail("production acceptance WeApp build mismatch")
+if acceptance.get("loginMode") != "user_authorized_skipped":
+    fail("production acceptance login mode is not the authorized skip")
 expected_routes = {
     "pages/chickenbro/index",
     "pages/simc/index",
@@ -564,8 +568,14 @@ expected_routes = {
 routes = acceptance.get("testedRoutes")
 if not isinstance(routes, list) or len(routes) != len(expected_routes) or set(routes) != expected_routes:
     fail("production acceptance route set mismatch")
+real_login = acceptance.get("realWechatQrLogin")
+if (
+    not isinstance(real_login, dict)
+    or real_login.get("status") != "skipped"
+    or sha.fullmatch(str(real_login.get("evidenceHash", ""))) is None
+):
+    fail("production acceptance must record the authorized login skip")
 for key, hash_key in (
-    ("realWechatQrLogin", "evidenceHash"),
     ("crossClientChat", "objectHash"),
     ("crossClientSimc", "objectHash"),
     ("ownerIsolation", "objectHash"),
@@ -1221,6 +1231,15 @@ if real.get("webBuildIdentity") != candidate.get("webBuildIdentity"):
     fail("real acceptance Web build mismatch")
 if real.get("weappBuildIdentity") != candidate.get("weappBuildIdentity"):
     fail("real acceptance WeApp build mismatch")
+if real.get("loginMode") != "user_authorized_skipped":
+    fail("real acceptance login mode is not the authorized skip")
+real_login = real.get("realWechatQrLogin")
+if (
+    not isinstance(real_login, dict)
+    or real_login.get("status") != "skipped"
+    or sha.fullmatch(str(real_login.get("evidenceHash", ""))) is None
+):
+    fail("real acceptance must record the authorized login skip")
 expected_routes = {
     "pages/chickenbro/index", "pages/simc/index", "pages/simc/tasks",
     "pages/simc/task-detail", "pages/auth/web-login-confirm",

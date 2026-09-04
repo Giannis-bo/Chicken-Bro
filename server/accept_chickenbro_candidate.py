@@ -367,6 +367,7 @@ def run_candidate_acceptance(
     web_build_identity: str,
     weapp_build_identity: str,
     source_url: str | None = None,
+    prefix: str = CANDIDATE_PREFIX,
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any]:
@@ -375,7 +376,6 @@ def run_candidate_acceptance(
     if SHA256.fullmatch(web_build_identity) is None or SHA256.fullmatch(weapp_build_identity) is None:
         raise AcceptanceError("CLIENT_BUILD_IDENTITY_INVALID")
 
-    prefix = CANDIDATE_PREFIX
     exchange = _require(
         api.exchange_web(seed.web_login_session_id, seed.browser_verifier),
         200,
@@ -748,8 +748,15 @@ class PostgresAcceptanceSeeder:
     def __init__(self, connection_factory: Callable[[], Any]):
         self._connection_factory = connection_factory
 
-    def seed(self, *, expected_database: str, app_context: str, now: datetime) -> AcceptanceSeed:
-        if expected_database != "chickenbro_candidate":
+    def seed(
+        self,
+        *,
+        expected_database: str,
+        app_context: str,
+        now: datetime,
+        use_latest_ready_snapshot: bool = False,
+    ) -> AcceptanceSeed:
+        if expected_database not in {"chickenbro_candidate", "chickenbro_prod"}:
             raise AcceptanceError("CANDIDATE_DATABASE_INVALID")
         if not app_context or len(app_context) > 128 or any(character.isspace() for character in app_context):
             raise AcceptanceError("WECHAT_APP_CONTEXT_INVALID")
@@ -785,6 +792,25 @@ class PostgresAcceptanceSeeder:
                 if owner is None:
                     raise AcceptanceError("MIGRATED_WECHAT_OWNER_REQUIRED")
                 primary_user_id = UUID(str(owner[0]))
+                ready_snapshot_id = None
+                if use_latest_ready_snapshot:
+                    cursor.execute(
+                        """
+                        SELECT id
+                        FROM simc.source_snapshots
+                        WHERE user_id = %s AND readiness = 'READY_FOR_SIMC'
+                        ORDER BY fetched_at DESC, id DESC
+                        LIMIT 1
+                        """,
+                        (primary_user_id,),
+                    )
+                    snapshot = cursor.fetchone()
+                    if snapshot is None:
+                        raise AcceptanceError("READY_SIMC_SNAPSHOT_REQUIRED")
+                    try:
+                        ready_snapshot_id = UUID(str(snapshot[0]))
+                    except (TypeError, ValueError):
+                        raise AcceptanceError("READY_SIMC_SNAPSHOT_INVALID") from None
                 cursor.execute(
                     """
                     INSERT INTO identity.users (id, display_name, status, created_at, updated_at)
@@ -850,7 +876,7 @@ class PostgresAcceptanceSeeder:
             other_mini_token=other_token,
             web_login_session_id=web_login_id,
             browser_verifier=browser_verifier,
-            ready_snapshot_id=None,
+            ready_snapshot_id=ready_snapshot_id,
         )
 
 
@@ -862,14 +888,24 @@ class CandidateHttpGateway:
         www_origin: str = WWW_ORIGIN,
         api_origin: str = API_ORIGIN,
         prefix: str = CANDIDATE_PREFIX,
+        csrf_cookie_name: str = CSRF_COOKIE_NAME,
         timeout_seconds: int = 210,
     ):
-        if www_origin != WWW_ORIGIN or api_origin != API_ORIGIN or prefix != CANDIDATE_PREFIX:
+        if (www_origin, api_origin, prefix, csrf_cookie_name) not in {
+            (WWW_ORIGIN, API_ORIGIN, CANDIDATE_PREFIX, CSRF_COOKIE_NAME),
+            (
+                "https://www.chickenbro.cloud",
+                "https://api.chickenbro.cloud",
+                "/api/v2",
+                "__Host-chickenbro-csrf",
+            ),
+        }:
             raise AcceptanceError("CANDIDATE_ORIGIN_INVALID")
         self._seed = seed
         self._www_origin = www_origin
         self._api_origin = api_origin
         self._prefix = prefix
+        self._csrf_cookie_name = csrf_cookie_name
         self._timeout_seconds = max(1, min(int(timeout_seconds), 300))
         self._cookie_jar = http.cookiejar.CookieJar()
         self._web = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self._cookie_jar))
@@ -888,7 +924,7 @@ class CandidateHttpGateway:
         return self.exchange_web(session_id, browser_verifier)
 
     def web_csrf_token(self) -> str:
-        values = [cookie.value for cookie in self._cookie_jar if cookie.name == CSRF_COOKIE_NAME]
+        values = [cookie.value for cookie in self._cookie_jar if cookie.name == self._csrf_cookie_name]
         if len(values) != 1:
             raise AcceptanceError("WEB_CSRF_COOKIE_INVALID")
         return values[0]

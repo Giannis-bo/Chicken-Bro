@@ -278,7 +278,7 @@ H5 和 WeApp 必须从同一 clean commit 重新构建，使用统一候选前�
 - Chat 幂等重放、ticket replay 拒绝、Web logout 不撤销 Mini session；
 - 第二个隔离 owner 的列表和直接对象读取都不可越权。
 
-自动化验收只证明正式 API、两种 credential transport 和 owner-scoped 数据链路，明确保留 `realWechatQrAcceptance=pending` 与 `realDeviceAcceptance=pending`。它不调用 `wx.login`，也没有在真实小程序中扫描或确认 QR，因此不得写成真实双端验收通过。
+自动化验收只证明正式 API、两种 credential transport 和 owner-scoped 数据链路，明确保留 `realWechatQrAcceptance=pending` 与 `realDeviceAcceptance=pending`。它不调用 `wx.login`，也没有在真实小程序中扫描或确认 QR，因此不得写成真实扫码成功。经本轮用户明确授权，双端验收可使用 `server/accept_chickenbro_dual_client.py` 记录 `loginMode=user_authorized_skipped`：它继续真实执行 Web Cookie 与 Mini Bearer 的跨端 Chat/SimC、owner 隔离、退出和重启恢复，并在报告中把 `realWechatQrLogin.status` 固定为 `skipped`，绝不伪造 QR 通过。
 
 Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`，首尾必须是 `started`/`completed` 且不得夹带 `failed`；缺 sequence 的“成功文本”不能形成验收证据。SimC 仅凭 job id、`succeeded`、正指标和 return code 0 同样不合格，缺失上述 provenance 绑定时自动化验收必须失败关闭。
 
@@ -288,7 +288,7 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 
 ### 真实用户验收
 
-必须使用 apply 证据中相同的 commit、H5 identity 和 WeApp identity，并确认测试版确实包含 `pages/auth/web-login-confirm`。真实流程固定为：
+必须使用 apply 证据中相同的 commit、H5 identity 和 WeApp identity，并确认测试版确实包含 `pages/auth/web-login-confirm`。本轮已由用户授权跳过测试版二维码登录；因此使用 `loginMode=user_authorized_skipped` 的双端 transport 验收，不把它描述成扫码成功。若未来恢复真实扫码，流程固定为：
 
 1. 小程序通过 `wx.login` 获得正式 Mini session；
 2. Web 创建 QR，用户在小程序确认，Web 成功建立独立 HttpOnly Cookie；
@@ -297,7 +297,7 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 5. Web 退出后 Mini 仍登录；不同微信 owner 不能看到上述对象；
 6. 记录用户明确确认、UTC 时间、route 名、commit、双端 build identity 和对象脱敏 hash，不记录 OpenID、内部 user id、Cookie、Bearer、ticket 或 verifier。
 
-真实扫码、双设备交叉验证或用户明确确认缺一项时，状态只能是 `user_acceptance_pending`。当前容量/独立恢复门禁尚未关闭，因此候选尚未 apply，自动化公网验收和真实用户验收也尚未发生。
+扫码模式必须有真实扫码和双设备交叉验证；本轮授权跳过模式由机器跨 transport evidence 替代这两个不可执行步骤，但仍必须有用户明确确认。任一模式缺少对应证据时，状态只能是 `user_acceptance_pending`。授权跳过只改变登录证据字段，不降低 Chat/SimC 跨端、owner、退出、重启和首写门禁。
 
 ### SimC runtime 更新
 
@@ -360,7 +360,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 
 这条边界避免双主、覆盖和跨端历史分叉。
 
-实际操作分成两个不可混淆的状态：`--apply` 最多产出 `switched` 和 `production_acceptance_pending`；随后使用精确的 `production-cutover.json`、`production-user-acceptance.json` 及二者 SHA 执行 `--seal-accepted-write`。seal 会再次确认 legacy 只读、新库可写、正式 API/Worker active、readiness、真实微信扫码、跨端 Chat/SimC、owner 隔离、独立退出、服务重启恢复和用户明确确认。任一证据字段、时间顺序、route、build identity 或 secret-redaction 不满足时失败关闭。
+实际操作分成两个不可混淆的状态：`--apply` 最多产出 `switched` 和 `production_acceptance_pending`；随后使用精确的 `production-cutover.json`、`production-user-acceptance.json` 及二者 SHA 执行 `--seal-accepted-write`。seal 会再次确认 legacy 只读、新库可写、正式 API/Worker active、readiness、真实微信扫码或本轮授权跳过、跨端 Chat/SimC、owner 隔离、独立退出、服务重启恢复和用户明确确认。任一证据字段、时间顺序、route、build identity 或 secret-redaction 不满足时失败关闭。
 
 ## 10. Legacy 退役
 

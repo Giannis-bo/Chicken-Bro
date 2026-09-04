@@ -319,6 +319,28 @@ class CandidateAcceptanceTest(unittest.TestCase):
                 sleep=lambda _seconds: None,
             )
 
+    def test_acceptance_core_can_target_the_formal_production_prefix(self):
+        api = FakeCandidateApi()
+        gateway = CandidateHttpGateway(
+            self.seed(),
+            www_origin="https://www.chickenbro.cloud",
+            api_origin="https://api.chickenbro.cloud",
+            prefix="/api/v2",
+            csrf_cookie_name="__Host-chickenbro-csrf",
+        )
+        evidence = run_candidate_acceptance(
+            self.seed(),
+            api,
+            expected_commit="a" * 40,
+            web_build_identity="b" * 64,
+            weapp_build_identity="c" * 64,
+            prefix="/api/v2",
+            sleep=lambda _seconds: None,
+        )
+
+        self.assertEqual(evidence["status"], "automated_candidate_acceptance_passed")
+        self.assertEqual(gateway._prefix, "/api/v2")
+
     def test_owner_visibility_leak_fails_closed(self):
         with self.assertRaisesRegex(AcceptanceError, "OWNER_ISOLATION_FAILED"):
             run_candidate_acceptance(
@@ -419,6 +441,51 @@ class CandidateAcceptanceTest(unittest.TestCase):
         self.assertIn("provider = 'wechat_mini'", owner_query[0])
         self.assertEqual(owner_query[1], ("wx-reviewed",))
         self.assertFalse(any("FROM simc.source_snapshots" in query for query, _ in calls))
+
+    def test_postgres_seed_can_bind_the_latest_ready_snapshot_for_production(self):
+        calls = []
+
+        class Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def execute(self, query, params=()):
+                calls.append((" ".join(query.split()), params))
+
+            def fetchone(self):
+                query = calls[-1][0]
+                if "current_database()" in query:
+                    return ("chickenbro_prod",)
+                if "FROM identity.users" in query and "user_identities" in query:
+                    return (str(PRIMARY_USER),)
+                if "FROM simc.source_snapshots" in query:
+                    return (str(SNAPSHOT),)
+                raise AssertionError(query)
+
+        class Connection:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            @staticmethod
+            def cursor():
+                return Cursor()
+
+        seed = PostgresAcceptanceSeeder(Connection).seed(
+            expected_database="chickenbro_prod",
+            app_context="wx-reviewed",
+            now=datetime(2026, 9, 3, tzinfo=timezone.utc),
+            use_latest_ready_snapshot=True,
+        )
+
+        self.assertEqual(seed.ready_snapshot_id, SNAPSHOT)
+        snapshot_query = next(call for call in calls if "FROM simc.source_snapshots" in call[0])
+        self.assertIn("readiness = 'READY_FOR_SIMC'", snapshot_query[0])
 
 
 if __name__ == "__main__":

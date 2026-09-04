@@ -347,6 +347,7 @@ test('candidate deploy records identities without serializing credentials', () =
   assert.match(script, /rollbackManifestSha256/)
   assert.match(script, /candidate-acceptance\.json/)
   assert.match(script, /automated-acceptance\.json/)
+  assert.match(script, /accept_chickenbro_dual_client\.py/)
   assert.match(script, /"\$\{RUNTIME_ROOT\}\/bin\/python" -m server\.accept_chickenbro_candidate/)
   assert.match(script, /--expected-database "\$\{CANDIDATE_DATABASE\}"/)
   assert.match(script, /automated_candidate_acceptance_passed/)

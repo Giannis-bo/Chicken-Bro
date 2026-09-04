@@ -278,7 +278,7 @@ Web 复用相同 domain guard、typed client 与 Chat/SimC feature model，但�
 
 ## 信任与完成边界
 
-- 自动测试不能代替真实微信登录、扫码确认和跨端用户验收。
+- 自动测试不能代替真实微信登录、扫码确认和跨端用户验收；本轮用户已明确授权测试版登录跳过，验收报告必须写 `loginMode=user_authorized_skipped` 和 `realWechatQrLogin.status=skipped`，不得把跳过写成扫码成功。
 - Candidate、生产切流、legacy 删除是三个独立门禁。
 - 默认没有独立恢复副本和恢复验证时，不得用删除旧数据解决容量问题；本轮用户已明确授权无备份永久清理，但只允许通过带有不可逆确认词的精确脚本，并且仍受迁移核对、生产验收、首条新写入、稳定健康和零引用门禁约束。
 - 删除必须绑定精确 manifest SHA、零活动引用、零连接/open handle 和书面回滚窗口状态。

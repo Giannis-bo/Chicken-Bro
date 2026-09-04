@@ -104,9 +104,12 @@ function runEvidenceValidator(
         'pages/simc/task-detail',
         'pages/auth/web-login-confirm',
       ],
-      crossClientChat: { status: 'passed', objectHash: '1'.repeat(64) },
-      crossClientSimc: { status: 'passed', objectHash: '2'.repeat(64) },
-      ownerIsolation: { status: 'passed', objectHash: '3'.repeat(64) },
+      loginMode: 'user_authorized_skipped',
+      routeContractEvidenceHash: '8'.repeat(64),
+      realWechatQrLogin: { status: 'skipped', evidenceHash: '1'.repeat(64) },
+      crossClientChat: { status: 'passed', objectHash: '2'.repeat(64) },
+      crossClientSimc: { status: 'passed', objectHash: '3'.repeat(64) },
+      ownerIsolation: { status: 'passed', objectHash: '4'.repeat(64) },
       acceptedAt: '2026-09-03T00:10:00Z',
     }
     let backup = {
@@ -215,7 +218,9 @@ function runSealValidator(mutate = ({ cutover, acceptance }) => ({ cutover, acce
         'pages/simc/task-detail',
         'pages/auth/web-login-confirm',
       ],
-      realWechatQrLogin: { status: 'passed', evidenceHash: '1'.repeat(64) },
+      loginMode: 'user_authorized_skipped',
+      routeContractEvidenceHash: '8'.repeat(64),
+      realWechatQrLogin: { status: 'skipped', evidenceHash: '1'.repeat(64) },
       crossClientChat: { status: 'passed', objectHash: '2'.repeat(64) },
       crossClientSimc: { status: 'passed', objectHash: '3'.repeat(64) },
       ownerIsolation: { status: 'passed', objectHash: '4'.repeat(64) },
@@ -417,6 +422,8 @@ test('candidate and real dual-client acceptance are separately validated', () =>
   assert.match(script, /chickenbro-real-dual-client-acceptance-v1/)
   assert.match(script, /real_dual_client_acceptance_passed/)
   assert.match(script, /pages\/auth\/web-login-confirm/)
+  assert.match(script, /user_authorized_skipped/)
+  assert.match(script, /accept_chickenbro_dual_client\.py/)
   assert.match(script, /crossClientChat/)
   assert.match(script, /crossClientSimc/)
   assert.match(script, /ownerIsolation/)
