@@ -20,7 +20,7 @@ Environment=WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session
 Environment=WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf
 Environment=WOW_WECHAT_PAGE=pages/auth/web-login-confirm
 Environment=WOW_WECHAT_ENV_VERSION=trial
-Environment=WOW_WECHAT_CHECK_PATH=1
+Environment=WOW_WECHAT_CHECK_PATH=0
 Environment=HOME=/home/ubuntu
 Environment=CODEX_HOME=/home/ubuntu/.codex
 Environment=WOW_CODEX_BIN=/usr/local/bin/codex

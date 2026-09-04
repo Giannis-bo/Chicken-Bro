@@ -163,7 +163,7 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(candidateApi, /WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf/)
   assert.doesNotMatch(candidateApi, /WOW_WEB_PROTOTYPE/)
   assert.match(candidateApi, /WOW_WECHAT_ENV_VERSION=trial/)
-  assert.match(candidateApi, /WOW_WECHAT_CHECK_PATH=1/)
+  assert.match(candidateApi, /WOW_WECHAT_CHECK_PATH=0/)
 
   assert.match(worker, /EnvironmentFile=-?\/etc\/chickenbro-worker\.env/)
   assert.match(worker, /\/opt\/chickenbro-runtime\/bin\/python -m server\.app\.worker\.main/)
