@@ -358,6 +358,19 @@ test('candidate deploy records identities without serializing credentials', () =
   assert.doesNotMatch(script, /echo .*WOW_(?:DATABASE_URL|WECHAT_SECRET|LIGHTHOUSE_PASSWORD)/)
 })
 
+test('candidate rollback restores the root-owned database dump through a privileged file descriptor', () => {
+  const script = read('server/deploy_chickenbro_candidate_lighthouse.sh')
+
+  assert.match(
+    script,
+    /sudo -n -u postgres pg_restore --exit-on-error --dbname="\$\{CANDIDATE_DATABASE\}" < "\$\{BACKUP_DIR\}\/candidate-database\.dump"/,
+  )
+  assert.doesNotMatch(
+    script,
+    /sudo -n -u postgres pg_restore --exit-on-error --dbname="\$\{CANDIDATE_DATABASE\}" "\$\{BACKUP_DIR\}\/candidate-database\.dump"/,
+  )
+})
+
 test('candidate gate accepts only the hash-bound migrated whitelist recovery proof', () => {
   const valid = runRecoveryManifestValidator()
   assert.equal(valid.status, 0, valid.stderr)

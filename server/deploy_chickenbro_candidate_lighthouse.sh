@@ -798,7 +798,10 @@ rollback_candidate() {
     sudo -n -u postgres dropdb --if-exists "${CANDIDATE_DATABASE}" >/dev/null 2>&1 || true
     if [[ "${PREVIOUS_DATABASE}" == "present" && -s "${BACKUP_DIR}/candidate-database.dump" ]]; then
       sudo -n -u postgres createdb --owner=wow_migrator --template=template0 --encoding=UTF8 "${CANDIDATE_DATABASE}"
-      sudo -n -u postgres pg_restore --exit-on-error --dbname="${CANDIDATE_DATABASE}" "${BACKUP_DIR}/candidate-database.dump"
+      # The run directory and dump are root-only (0600).  Let the root shell
+      # open the dump, then hand its descriptor to pg_restore as postgres;
+      # passing the pathname directly would fail with Permission denied.
+      sudo -n -u postgres pg_restore --exit-on-error --dbname="${CANDIDATE_DATABASE}" < "${BACKUP_DIR}/candidate-database.dump"
     fi
     systemctl daemon-reload
     if [[ "$(<"${BACKUP_DIR}/candidate-api.enabled")" == "enabled" ]]; then
