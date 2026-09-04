@@ -334,6 +334,7 @@
       "reason": "The isolated Chickenbro services, Nginx owner, candidate acceptance, deploy, provision, and cutover tooling are the current runtime authority.",
       "paths": [
         "server/accept_chickenbro_candidate.py",
+        "server/accept_chickenbro_dual_client.py",
         "server/chickenbro-api-candidate.service",
         "server/chickenbro-api.service",
         "server/chickenbro-web.nginx",
@@ -570,6 +571,7 @@
         "tests/backend-owner-map.test.js",
         "tests/build-weapp-safely.test.js",
         "tests/candidate_acceptance_test.py",
+        "tests/dual_client_acceptance_test.py",
         "tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
         "tests/chickenbro_simc_cloud_inventory_test.py",
         "tests/chickenbro_simc_recovery_inventory_test.py",
