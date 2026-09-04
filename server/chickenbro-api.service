@@ -43,8 +43,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/var/lib/chickenbro
-ReadOnlyPaths=/opt/chickenbro /opt/chickenbro-runtime /opt/wow-simc /home/ubuntu/.codex
+ReadWritePaths=/var/lib/chickenbro /home/ubuntu/.codex
+ReadOnlyPaths=/opt/chickenbro /opt/chickenbro-runtime /opt/wow-simc
 
 [Install]
 WantedBy=multi-user.target

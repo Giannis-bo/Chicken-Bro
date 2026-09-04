@@ -141,6 +141,8 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(productionApi, /WOW_API_V2_HOST=127\.0\.0\.1/)
   assert.match(productionApi, /WOW_API_V2_PORT=8790/)
   assert.match(productionApi, /WOW_CODEX_PROFILE=chickenbro-production/)
+  assert.match(productionApi, /ReadWritePaths=\/var\/lib\/chickenbro \/home\/ubuntu\/\.codex/)
+  assert.doesNotMatch(productionApi, /ReadOnlyPaths=.*\/home\/ubuntu\/.codex/)
   assert.doesNotMatch(productionApi, /WOW_WEB_PROTOTYPE/)
   assert.match(productionApi, /pages\/auth\/web-login-confirm/)
 
@@ -155,6 +157,8 @@ test('formal production and candidate services have separate roots, ports and se
   assert.match(candidateApi, /WOW_API_V2_HOST=127\.0\.0\.1/)
   assert.match(candidateApi, /WOW_API_V2_PORT=8791/)
   assert.match(candidateApi, /WOW_CODEX_PROFILE=chickenbro-candidate/)
+  assert.match(candidateApi, /ReadWritePaths=\/var\/lib\/chickenbro \/home\/ubuntu\/\.codex/)
+  assert.doesNotMatch(candidateApi, /ReadOnlyPaths=.*\/home\/ubuntu\/.codex/)
   assert.match(candidateApi, /WOW_WEB_COOKIE_NAME=__Host-chickenbro-candidate-session/)
   assert.match(candidateApi, /WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-candidate-csrf/)
   assert.doesNotMatch(candidateApi, /WOW_WEB_PROTOTYPE/)
