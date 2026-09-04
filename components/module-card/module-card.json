@@ -1,6 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "status-visual": "../status-visual/status-visual"
-  }
-}

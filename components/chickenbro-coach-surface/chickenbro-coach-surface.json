@@ -1,9 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "chat-shell": "/components/chat-shell/chat-shell",
-    "status-visual": "/components/status-visual/status-visual",
-    "action-button": "/components/action-button/action-button",
-    "material-image": "/components/material-image/material-image"
-  }
-}

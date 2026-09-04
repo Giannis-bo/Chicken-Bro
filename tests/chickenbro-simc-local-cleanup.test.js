@@ -352,7 +352,7 @@ test('Phase 5 acceptance reads the current project-state gate contract', (t) => 
   assert.equal(readPhase5Accepted(root), false)
 })
 
-test('CLI may prove a clean manifest but cannot cross the Phase 5 acceptance gate', () => {
+test('CLI reports retired targets as missing and cannot replay cleanup without review inputs', () => {
   const result = spawnSync(process.execPath, [
     cleanupPath,
     '--inventory',
@@ -367,8 +367,9 @@ test('CLI may prove a clean manifest but cannot cross the Phase 5 acceptance gat
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.counts.review, 0)
-  assert.equal(payload.counts.blocked, 0)
-  assert.ok(payload.counts.deletable > 0)
+  assert.equal(payload.counts.deletable, 0)
+  assert.equal(payload.counts.blocked, 2588)
+  assert.ok(payload.blocked.every((item) => item.reason === 'TARGET_MISSING'))
 
   const apply = spawnSync(process.execPath, [
     cleanupPath,

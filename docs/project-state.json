@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-09-04",
   "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
-  "status": "cloud_cleanup_complete_local_cleanup_pending",
+  "status": "cleanup_complete_final_parity_pending",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -31,7 +31,7 @@
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "production_accepted_write_verified",
-    "phase6": "cloud_cleanup_complete_local_cleanup_pending"
+    "phase6": "local_and_cloud_cleanup_complete_final_parity_pending"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -60,7 +60,9 @@
       "no_independent_backup_direct_delete_authorized",
       "cloud_cleanup_result_applied",
       "fresh_post_cleanup_inventory_reachable",
-      "local_cleanup_apply_pending"
+      "local_cleanup_result_applied",
+      "post_cleanup_runtime_smoke_passed",
+      "final_main_origin_production_parity_pending"
     ],
     "capacityPreCleanup": {
       "authorized": false,
@@ -101,9 +103,9 @@
       "restoreReconciliation": "matched"
     },
     "localCleanupDryRun": {
-      "deletable": 2588,
+      "deletable": 0,
       "retained": 273,
-      "blocked": 0,
+      "blocked": 2588,
       "review": 0,
       "phase5Accepted": true
     },
@@ -132,7 +134,31 @@
     "loginAcceptance": {
       "mode": "user_authorized_skipped",
       "realWechatQrLogin": "not_run",
-      "reason": "\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u672c\u8f6e\u5fae\u4fe1\u626b\u7801\u767b\u5f55\uff1b\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
+      "reason": "\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u672c\u8f6e\u5fae\u4fe1\u626b\u7801\u767b\u5f55\uff1b\u6b64\u524d\u5fae\u4fe1\u767b\u5f55\u5df2\u9a8c\u8bc1\uff0c\u672c\u8f6e\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
+    },
+    "localCleanupResult": {
+      "status": "applied",
+      "inventoryFileSha256": "3e98a6afef753aba93fe26456e1141e07224a3d1f8d667be68381a4aa12f2a9b",
+      "inventorySha256": "71c339f59eeab03fd52f94830043585b856f74a754da6386f9dd0b207d4ac2b0",
+      "generatedFromCommit": "e61802cf9fa6414c6139919aa8e7d8c8ce4b5585",
+      "applyResultSha256": "2fcbdd056860102289e6f1cea726cc3ef6e76e0d02516a2a6807b75b17438106",
+      "deletedFiles": 2588,
+      "retainedFiles": 273,
+      "blocked": 0,
+      "review": 0,
+      "postApplyDryRun": {
+        "deletable": 0,
+        "retained": 273,
+        "targetMissing": 2588,
+        "review": 0
+      }
+    },
+    "finalParity": {
+      "status": "pending",
+      "main": "pending",
+      "originMain": "pending",
+      "productionRuntimeCommit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
+      "weappRefresh": "pending"
     }
   },
   "executionAuthority": {

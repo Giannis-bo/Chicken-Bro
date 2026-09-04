@@ -36,7 +36,7 @@ test('project state names only the approved dual-client Chat and SimC product', 
     assert.equal(serialized.includes(removedDomain), false, removedDomain)
   }
 })
-test('project state records the accepted production boundary and pending local cleanup', () => {
+test('project state records the accepted production boundary and completed local/cloud cleanup', () => {
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.delivery.phase1, 'local_verified')
@@ -44,11 +44,11 @@ test('project state records the accepted production boundary and pending local c
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
   assert.equal(state.delivery.phase5, 'production_accepted_write_verified')
-  assert.equal(state.delivery.phase6, 'cloud_cleanup_complete_local_cleanup_pending')
+  assert.equal(state.delivery.phase6, 'local_and_cloud_cleanup_complete_final_parity_pending')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
-    deletable: 2588,
+    deletable: 0,
     retained: 273,
-    blocked: 0,
+    blocked: 2588,
     review: 0,
     phase5Accepted: true,
   })
@@ -70,7 +70,9 @@ test('project state records the accepted production boundary and pending local c
     'no_independent_backup_direct_delete_authorized',
     'cloud_cleanup_result_applied',
     'fresh_post_cleanup_inventory_reachable',
-    'local_cleanup_apply_pending',
+    'local_cleanup_result_applied',
+    'post_cleanup_runtime_smoke_passed',
+    'final_main_origin_production_parity_pending',
   ])
   assert.deepEqual(state.gates.capacityPreCleanup, {
     authorized: false,

@@ -1,8 +1,0 @@
-{
-  "enablePullDownRefresh": false,
-  "usingComponents": {
-    "navigation-bar": "/components/navigation-bar/navigation-bar",
-    "channel-dock": "/components/channel-dock/channel-dock",
-    "ranked-feed": "/components/ranked-feed/ranked-feed"
-  }
-}

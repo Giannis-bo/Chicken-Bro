@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "天赋构筑",
-  "usingComponents": {
-    "navigation-bar": "/components/navigation-bar/navigation-bar"
-  }
-}

@@ -193,6 +193,18 @@
       "observedAt": "2026-09-04T07:46:14Z",
       "legacyDatabases": 0,
       "legacyUnits": 0
+    },
+    {
+      "type": "local_cleanup",
+      "status": "pass",
+      "inventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
+      "inventoryFileSha256": "3e98a6afef753aba93fe26456e1141e07224a3d1f8d667be68381a4aa12f2a9b",
+      "inventorySha256": "71c339f59eeab03fd52f94830043585b856f74a754da6386f9dd0b207d4ac2b0",
+      "applyResultSha256": "2fcbdd056860102289e6f1cea726cc3ef6e76e0d02516a2a6807b75b17438106",
+      "deletedFiles": 2588,
+      "blocked": 0,
+      "review": 0,
+      "independentBackupCreated": false
     }
   ],
   "risks": [
@@ -213,8 +225,8 @@
     },
     {
       "id": "local-legacy-retirement",
-      "status": "in_progress",
-      "detail": "\u4e91\u7aef\u9000\u5f79\u5df2\u5b8c\u6210\uff0c\u672c\u5730\u7cbe\u786e\u6587\u4ef6\u6e05\u7406\u5c06\u5728\u5f53\u524d\u5206\u652f\u63d0\u4ea4\u540e\u6267\u884c\u3002"
+      "status": "passed",
+      "detail": "\u672c\u5730\u6e05\u5355\u7ed1\u5b9a e61802cf9fa6414c6139919aa8e7d8c8ce4b5585\uff0c2588 \u4e2a\u65e7\u6587\u4ef6\u5df2\u6309 SHA \u7cbe\u786e\u5220\u9664\uff0c273 \u4e2a\u5f53\u524d\u6587\u4ef6\u4fdd\u7559\u3002"
     }
   ],
   "rollback": [
@@ -225,8 +237,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "cloud_complete_local_apply_pending",
-    "reason": "\u4e91\u7aef\u7cbe\u786e\u65e7\u670d\u52a1\u3001\u65e7\u6570\u636e\u5e93\u3001\u65e7\u914d\u7f6e\u548c\u65e7\u76ee\u5f55\u5df2\u6309\u65e0\u72ec\u7acb\u5907\u4efd\u6388\u6743\u6e05\u7406\uff1b\u672c\u5730\u6e05\u5355\u7ed1\u5b9a\u63d0\u4ea4\u540e\u518d\u6267\u884c\u672c\u5730\u65e7\u6587\u4ef6\u5220\u9664\u3002"
+    "status": "complete",
+    "reason": "\u4e91\u7aef\u4e0e\u672c\u5730\u7cbe\u786e\u65e7\u8d44\u6e90\u6e05\u7406\u5747\u5df2\u5b8c\u6210\uff1b\u6700\u7ec8 parity\u3001main \u5408\u5e76\u548c WeApp \u5237\u65b0\u4ecd\u5728\u6536\u5c3e\u3002"
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -249,9 +261,9 @@
     "acceptedProductionWrite": "RECONCILED",
     "realWechatLogin": "USER_AUTHORIZED_SKIPPED_THIS_RUN",
     "crossClientUserAcceptance": "PASSED_WITH_LOGIN_WAIVER",
-    "legacyCleanup": "CLOUD_COMPLETE_LOCAL_PENDING",
+    "legacyCleanup": "LOCAL_AND_CLOUD_COMPLETE",
     "phase5Completion": "ACCEPTED_WRITE",
-    "overallGoal": "IN_PROGRESS_LOCAL_CLEANUP"
+    "overallGoal": "FINAL_PARITY_PENDING"
   },
-  "summary": "\u751f\u4ea7 accepted_write\u3001\u53cc\u7aef Chat/SimC/owner \u9694\u79bb/\u9000\u51fa/\u91cd\u542f\u6062\u590d\u9a8c\u6536\u4e0e\u4e91\u7aef\u65e7\u8d44\u6e90\u9000\u5f79\u5df2\u5b8c\u6210\uff1b\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u4e14\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002\u672c\u5730\u65e7\u6587\u6863/\u4ee3\u7801\u7cbe\u786e\u6e05\u7406\u3001\u6700\u7ec8\u63d0\u4ea4\u5408\u5e76\u3001main/origin parity \u4e0e WeApp \u5237\u65b0\u4ecd\u5728\u8fdb\u884c\u3002"
+  "summary": "\u751f\u4ea7 accepted_write\u3001\u53cc\u7aef Chat/SimC/owner \u9694\u79bb/\u9000\u51fa/\u91cd\u542f\u6062\u590d\u9a8c\u6536\u3001\u4e91\u7aef\u65e7\u8d44\u6e90\u9000\u5f79\u548c\u672c\u5730 2588 \u4e2a\u65e7\u6587\u4ef6\u7cbe\u786e\u6e05\u7406\u5747\u5df2\u5b8c\u6210\uff1b\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u4e14\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002\u5f53\u524d\u53ea\u5269\u6700\u7ec8\u63d0\u4ea4\u5408\u5e76\u3001main/origin parity \u4e0e WeApp \u6784\u5efa\u5237\u65b0\u3002"
 }
