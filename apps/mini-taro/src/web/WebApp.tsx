@@ -308,10 +308,12 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     <View className={styles['page'] ?? ''} data-auth-phase={state.phase} data-auth-transport="credentials-include">
       <View className={styles['loginShell'] ?? ''}>
         <View className={styles['brand'] ?? ''}>
-          <View className={styles['brandMark'] ?? ''}>CB</View>
-          <View>
-            <Text className={styles['brandName'] ?? ''}>CHICKENBRO</Text>
-            <Text className={styles['brandMeta'] ?? ''}>队长会话 · SimC 任务</Text>
+          <View className={styles['brandMascotFrame'] ?? ''}>
+            <View className={styles['brandMascot'] ?? ''} />
+          </View>
+          <View className={styles['brandCopy'] ?? ''}>
+            <Text className={styles['brandName'] ?? ''}>炸鸡队长来啦</Text>
+            <Text className={styles['brandMeta'] ?? ''}>WOW COMPANION · WEB</Text>
           </View>
         </View>
 
