@@ -57,7 +57,6 @@ def set_web_auth_cookies(
 def clear_web_cookie(response: CookieResponse, settings: AppSettings) -> None:
     response.delete_cookie(
         key=settings.web_cookie_name,
-        max_age=0,
         httponly=True,
         secure=True,
         samesite="Lax",
@@ -69,7 +68,6 @@ def clear_web_auth_cookies(response: CookieResponse, settings: AppSettings) -> N
     clear_web_cookie(response, settings)
     response.delete_cookie(
         key=settings.web_csrf_cookie_name,
-        max_age=0,
         httponly=False,
         secure=True,
         samesite="Lax",

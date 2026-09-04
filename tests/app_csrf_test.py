@@ -17,8 +17,15 @@ class FakeResponse:
     def set_cookie(self, **kwargs):
         self.set_calls.append(kwargs)
 
-    def delete_cookie(self, **kwargs):
-        self.delete_calls.append(kwargs)
+    def delete_cookie(self, *, key, httponly=False, secure=False, samesite="lax", path="/"):
+        """Mirror the Starlette runtime signature used by the candidate service."""
+        self.delete_calls.append({
+            "key": key,
+            "httponly": httponly,
+            "secure": secure,
+            "samesite": samesite,
+            "path": path,
+        })
 
 
 def request(*, origin="https://www.chickenbro.cloud", host="www.chickenbro.cloud", csrf_cookie="csrf", csrf_header="csrf"):
