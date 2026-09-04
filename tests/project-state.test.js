@@ -44,12 +44,12 @@ test('project state records the accepted production boundary and completed local
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
   assert.equal(state.delivery.phase5, 'production_accepted_write_verified')
-  assert.equal(state.delivery.phase6, 'local_and_cloud_cleanup_complete_final_parity_pending')
+  assert.equal(state.delivery.phase6, 'local_and_cloud_cleanup_complete')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
     deletable: 0,
     retained: 273,
     blocked: 2588,
-    review: 0,
+    review: 1,
     phase5Accepted: true,
   })
   assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
@@ -72,7 +72,7 @@ test('project state records the accepted production boundary and completed local
     'fresh_post_cleanup_inventory_reachable',
     'local_cleanup_result_applied',
     'post_cleanup_runtime_smoke_passed',
-    'final_main_origin_production_parity_pending',
+    'final_main_origin_production_parity_verified',
   ])
   assert.deepEqual(state.gates.capacityPreCleanup, {
     authorized: false,

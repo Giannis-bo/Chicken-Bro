@@ -1,6 +1,6 @@
 # Chickenbro Roadmap
 
-状态：`正在推进`
+状态：`已完成`
 更新时间：`2026-09-04`
 
 机器事实以 [项目状态](project-state.json) 为准，执行顺序以 [计划白名单](plans/README.md) 为准，最终范围以 [已确认规格](superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md) 为准。
@@ -28,10 +28,10 @@
 | --- | --- | --- |
 | 1. 控制面 | `已完成` | 无 |
 | 2. 干净数据面与 Identity | `已完成 / 候选数据面就绪` | `chickenbro_prod` 白名单迁移、第一次核对、归档、独立恢复与第二次核对已通过；四组拒绝 evidence 容量项已全部清理并对账，容量门已打开 |
-| 3. 正式 Chat | `本地已验证` | 真实双端 candidate 验收 |
-| 4. 正式 SimC | `本地已验证` | 云端语义任务与真实双端 candidate 验收 |
+| 3. 正式 Chat | `已完成` | 生产双端 Chat、owner 隔离、续聊和重启恢复验收已通过 |
+| 4. 正式 SimC | `已完成` | 生产双端 SimC 任务、语义结果和重启恢复验收已通过 |
 | 5. 双端、迁移与切流 | `已完成 / accepted_write` | 生产 API/Worker 已稳定，Chat/SimC 跨端、owner 隔离、独立退出和重启恢复验收通过；扫码登录按用户授权跳过本轮，不宣称新的扫码成功 |
-| 6. Legacy 退役 | `本地与云端已完成 / parity 待收尾` | 云端旧 unit、数据库、候选运行面、旧配置和目录，以及本地 2588 个旧文档/代码/测试文件均已按精确清单直接永久删除；之后完成 parity 与 WeApp 刷新 |
+| 6. Legacy 退役 | `已完成` | 云端旧 unit、数据库、候选运行面、旧配置和目录，以及本地 2588 个旧文档/代码/测试文件均已按精确清单直接永久删除；main/origin/生产 identity parity 与 WeApp 刷新已验证 |
 
 ## 整体完成门槛
 

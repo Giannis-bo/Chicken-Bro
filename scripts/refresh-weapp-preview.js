@@ -59,11 +59,19 @@ function verifyWeappOutput(root) {
   }
 
   const outputRoot = path.join(projectRoot, 'dist', 'weapp')
-  for (const relativePath of ['app.json', 'app.js', 'common.wxss']) {
+  for (const relativePath of ['app.json', 'app.js']) {
     const outputPath = path.join(outputRoot, relativePath)
     if (!isFile(outputPath)) {
       throw new Error(`Missing WeChat build output: ${outputPath}`)
     }
+  }
+
+  const stylesheet = ['common.wxss', 'app.wxss']
+    .find((relativePath) => isFile(path.join(outputRoot, relativePath)))
+  if (!stylesheet) {
+    throw new Error(
+      `Missing WeChat build output stylesheet: ${path.join(outputRoot, 'common.wxss')} or app.wxss`,
+    )
   }
 
   JSON.parse(fs.readFileSync(path.join(outputRoot, 'app.json'), 'utf8'))
@@ -73,6 +81,7 @@ function verifyWeappOutput(root) {
     projectRoot,
     outputRoot,
     fileCount: countFiles(outputRoot),
+    stylesheet,
     gitHead: identity.gitHead,
     sourceHash: identity.sourceHash,
     builtAt: identity.builtAt,

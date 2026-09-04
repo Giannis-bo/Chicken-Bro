@@ -89,6 +89,17 @@ test('WeChat output verification requires the configured output and final app.js
   assert.ok(result.fileCount >= 3)
 })
 
+test('WeChat output verification accepts the current Taro app stylesheet name', () => {
+  const fixture = createFixture()
+  fs.rmSync(path.join(fixture.outputRoot, 'common.wxss'))
+  fs.writeFileSync(path.join(fixture.outputRoot, 'app.wxss'), '.app{display:block}\n')
+
+  const result = verifyWeappOutput(fixture.root)
+
+  assert.equal(result.status, 'pass')
+  assert.equal(result.stylesheet, 'app.wxss')
+})
+
 test('DevTools runtime project opens the exact built package without relying on miniprogramRoot', () => {
   const fixture = createFixture()
   const verified = verifyWeappOutput(fixture.root)

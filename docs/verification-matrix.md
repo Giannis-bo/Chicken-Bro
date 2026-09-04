@@ -57,7 +57,7 @@ bash server/cutover_chickenbro_lighthouse.sh --dry-run
 
 ## 精确清理
 
-本地清单必须绑定当前 commit 和每个文件的 SHA，且 `review=0`、`blocked=0`。实际 apply 在 Phase 5 acceptance 前必须拒绝。
+本地清单在 apply 前必须绑定审核 commit 和每个文件的 SHA，且 `review=0`、`blocked=0`；实际 apply 在 Phase 5 acceptance 前必须拒绝。清理提交合并后，原始清单中的目标文件已不存在，最终只读复核会报告 `TARGET_MISSING` 以及清单基线已过期的 `INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD`，这证明不会重放删除，不是新的待处理目标。
 
 ```bash
 node scripts/build-chickenbro-simc-refactor-inventory.js \

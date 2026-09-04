@@ -366,9 +366,15 @@ test('CLI reports retired targets as missing and cannot replay cleanup without r
   const payload = JSON.parse(result.stdout)
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
-  assert.equal(payload.counts.review, 0)
+  assert.equal(payload.counts.review, 1)
   assert.equal(payload.counts.deletable, 0)
   assert.equal(payload.counts.blocked, 2588)
+  assert.deepEqual(payload.review, [{
+    path: 'docs/refactor/chickenbro-simc-refactor-inventory.json',
+    reason: 'INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD',
+    expectedCommit: 'e61802cf9fa6414c6139919aa8e7d8c8ce4b5585',
+    actualCommit: payload.headCommit,
+  }])
   assert.ok(payload.blocked.every((item) => item.reason === 'TARGET_MISSING'))
 
   const apply = spawnSync(process.execPath, [

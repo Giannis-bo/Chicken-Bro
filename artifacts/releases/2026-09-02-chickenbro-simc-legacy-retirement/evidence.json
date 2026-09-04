@@ -4,7 +4,7 @@
   "requirementSlug": "chickenbro-simc-legacy-retirement",
   "status": "live_verified",
   "highestEvidenceLevel": "live_verified",
-  "branch": "codex/chickenbro-simc-total-rebuild-design",
+  "branch": "main",
   "commit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
   "identities": {
     "runtime": {
@@ -18,8 +18,8 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "pending",
-      "reason": "\u6700\u7ec8\u5408\u5e76\u540e main/origin parity \u4e0e WeApp \u5237\u65b0\u5c1a\u672a\u5b8c\u6210\u3002"
+      "status": "passed",
+      "reason": "main/origin/main \u4e0e\u751f\u4ea7 runtime identity \u5df2\u6838\u5bf9\uff0cWeApp \u6784\u5efa\u5e76\u901a\u8fc7 DevTools CLI \u5237\u65b0\u3002"
     }
   },
   "manualAcceptance": {
@@ -114,6 +114,16 @@
       "command": "git diff --check; bash -n server/retire_chickenbro_legacy_lighthouse.sh; python3 -m py_compile server/app/simulation/readiness.py server/codex_worker.py",
       "status": "pass",
       "summary": "\u6e05\u7406\u63a7\u5236\u811a\u672c\u3001\u8fd0\u884c\u65f6 fallback \u548c worker \u9ed8\u8ba4\u8def\u5f84\u901a\u8fc7\u8bed\u6cd5\u68c0\u67e5\u3002"
+    },
+    {
+      "command": "npm run refresh:weapp",
+      "status": "pass",
+      "summary": "WeApp \u6784\u5efa\u4ea7\u7269\u901a\u8fc7 source identity \u6821\u9a8c\u5e76\u7531 WeChat DevTools CLI \u6253\u5f00\uff1b\u8fd4\u56de preview_refreshed\u3002"
+    },
+    {
+      "command": "git rev-parse main; git rev-parse origin/main; git rev-list --left-right --count main...origin/main; production runtime identity",
+      "status": "pass",
+      "summary": "main\u3001origin/main\u3001\u90e8\u7f72\u6587\u4ef6\u4e0e\u751f\u4ea7 runtime identity \u5df2\u5728\u6700\u7ec8\u6536\u5c3e\u6838\u5bf9\u3002"
     }
   ],
   "candidateDeployment": {
@@ -176,6 +186,19 @@
       "observedAt": "2026-09-04T07:46:14Z",
       "legacyDatabases": 0,
       "legacyUnits": 0
+    },
+    {
+      "type": "weapp_refresh",
+      "status": "pass",
+      "result": "preview_refreshed",
+      "stylesheet": "app.wxss"
+    },
+    {
+      "type": "main_origin_parity",
+      "status": "pass",
+      "main": "HEAD",
+      "originMain": "origin/main",
+      "productionRuntimeCommit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2"
     }
   ],
   "risks": [
@@ -196,8 +219,8 @@
     },
     {
       "id": "final-parity",
-      "status": "in_progress",
-      "detail": "\u6700\u7ec8\u63d0\u4ea4\u5408\u5e76\u3001main/origin parity \u4e0e WeApp \u5237\u65b0\u4ecd\u5728\u6536\u5c3e\u3002"
+      "status": "passed",
+      "detail": "\u6700\u7ec8\u63d0\u4ea4\u5df2\u5408\u5e76\u5e76\u63a8\u9001\uff0cmain/origin/main \u4e0e\u751f\u4ea7 runtime identity \u4e00\u81f4\u6838\u5bf9\uff1bWeApp \u5df2\u5237\u65b0\u3002"
     }
   ],
   "rollback": [
@@ -219,7 +242,7 @@
     "docs/refactor/chickenbro-simc-cloud-inventory.json",
     "docs/refactor/chickenbro-simc-recovery-inventory.json"
   ],
-  "summary": "Chickenbro \u53cc\u7aef Chat/SimC \u91cd\u6784\u7684 accepted_write\u3001\u751f\u4ea7\u4e1a\u52a1\u9a8c\u6536\u3001\u4e91\u7aef\u65e7\u670d\u52a1/\u6570\u636e\u5e93/\u914d\u7f6e/\u76ee\u5f55\u6e05\u7406\u548c\u672c\u5730 2588 \u4e2a\u65e7\u6587\u6863/\u4ee3\u7801/\u6d4b\u8bd5\u7cbe\u786e\u5220\u9664\u5747\u5df2\u5b8c\u6210\uff1b\u672c\u8f6e\u6ca1\u6709\u521b\u5efa\u72ec\u7acb\u5907\u4efd\uff0c\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u6388\u6743\u8df3\u8fc7\u4e14\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002\u6700\u7ec8\u63d0\u4ea4\u5408\u5e76\u3001main/origin SHA parity \u548c WeApp \u5237\u65b0\u662f\u5269\u4f59\u6536\u5c3e\u6b65\u9aa4\u3002",
+  "summary": "Chickenbro \u53cc\u7aef Chat/SimC \u91cd\u6784\u7684 accepted_write\u3001\u751f\u4ea7\u4e1a\u52a1\u9a8c\u6536\u3001\u4e91\u7aef\u65e7\u670d\u52a1/\u6570\u636e\u5e93/\u914d\u7f6e/\u76ee\u5f55\u6e05\u7406\u548c\u672c\u5730 2588 \u4e2a\u65e7\u6587\u6863/\u4ee3\u7801/\u6d4b\u8bd5\u7cbe\u786e\u5220\u9664\u3001main/origin SHA parity \u548c WeApp \u5237\u65b0\u5747\u5df2\u5b8c\u6210\uff1b\u672c\u8f6e\u6ca1\u6709\u521b\u5efa\u72ec\u7acb\u5907\u4efd\uff0c\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u6388\u6743\u8df3\u8fc7\u4e14\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002",
   "nonClaims": {
     "candidateDatabase": "RETIRED_AFTER_CUTOVER",
     "candidateDeployment": "RETIRED_AFTER_ACCEPTANCE",
@@ -230,6 +253,6 @@
     "crossClientUserAcceptance": "PASSED_WITH_LOGIN_WAIVER",
     "legacyCleanup": "LOCAL_AND_CLOUD_COMPLETE",
     "phase5Completion": "ACCEPTED_WRITE",
-    "overallGoal": "FINAL_PARITY_PENDING"
+    "overallGoal": "COMPLETE_WITH_LOGIN_WAIVER"
   }
 }
