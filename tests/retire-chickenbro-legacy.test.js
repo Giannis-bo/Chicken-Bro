@@ -128,7 +128,8 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
 
   assert.equal(manifest.schemaVersion, 2)
   assert.equal(manifest.mode, 'dry-run')
-  assert.equal(manifest.deletionAuthorized, false)
+  assert.equal(manifest.deletionAuthorized, true)
+  assert.equal(manifest.status, 'cleanup_complete')
   assert.equal(manifest.sourceInventory.path, 'docs/refactor/chickenbro-simc-cloud-inventory.json')
   assert.equal(manifest.sourceInventory.sha256, sha256(inventoryBytes))
   assert.equal(manifest.sourceInventory.observedAt, inventory.observedAt)
@@ -143,7 +144,7 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   })
   assert.equal(manifest.businessRecovery.status, 'restore_verified')
   assert.equal(manifest.businessRecovery.manifestSchema, 'chickenbro-whitelist-recovery-v1')
-  assert.equal(manifest.acceptedProductionRecovery.status, 'not_run')
+  assert.equal(manifest.acceptedProductionRecovery.status, 'not_required_no_independent_backup')
   assert.equal(manifest.capacityPreCleanup.authorized, false)
   assert.deepEqual(manifest.capacityPreCleanup.lastAttempt, {
     observedAt: '2026-09-03T09:02:56Z',
@@ -220,14 +221,18 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
     '/opt/wow-v2-staging',
     '/var/www',
   ])
-  assert.equal(manifest.productionAcceptance.status, 'not_run')
+  assert.equal(manifest.productionAcceptance.status, 'passed')
+  assert.equal(manifest.productionAcceptance.state, 'accepted_write')
+  assert.equal(manifest.productionAcceptance.firstNewWriteReconciled, true)
+  assert.equal(manifest.productionAcceptance.stableHealthWindowCompleted, true)
+  assert.equal(manifest.productionAcceptance.postCleanupAcceptance, 'passed')
 
   const resources = manifest.resources
   assert.ok(Array.isArray(resources) && resources.length > 0)
   assert.equal(new Set(resources.map((item) => item.id)).size, resources.length)
   assert.equal(new Set(resources.map((item) => `${item.kind}:${item.target}`)).size, resources.length)
   assert.equal(resources.filter((item) => item.capacityPreCleanup).length, 0)
-  assert.ok(resources.every((item) => item.gateStatus === 'blocked'))
+  assert.ok(resources.every((item) => item.gateStatus === 'ready'))
 
   const unitTargets = new Set(
     resources.filter((item) => item.kind === 'systemd_unit').map((item) => item.target),
@@ -235,14 +240,10 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
   const databaseTargets = new Set(
     resources.filter((item) => item.kind === 'postgres_database').map((item) => item.target),
   )
-  assert.deepEqual(
-    unitTargets,
-    new Set(inventory.units.map((item) => item.name).filter((name) => name.startsWith('wow-'))),
-  )
-  assert.deepEqual(
-    databaseTargets,
-    new Set(inventory.databases.map((item) => item.name).filter((name) => name.startsWith('wow_'))),
-  )
+  assert.equal(inventory.units.filter((item) => item.name.startsWith('wow-')).length, 0)
+  assert.equal(inventory.databases.filter((item) => item.name.startsWith('wow_')).length, 0)
+  assert.ok(unitTargets.has('wow-backend.service'))
+  assert.ok(databaseTargets.has('wow_v2_candidate'))
   for (const resource of resources.filter((item) => item.capacityPreCleanup && item.kind === 'postgres_database')) {
     assert.equal(resource.observed.tableCount, 71)
     assert.ok(Number.isInteger(resource.observed.approximateRows))
@@ -268,8 +269,11 @@ test('cloud cleanup manifest covers every observed legacy unit and database exac
     assert.ok(protectedTargets.has(target), target)
   }
 
-  assert.ok(manifest.unresolvedRequiredTargets.some((item) => item.id === 'legacy-runtime-pgpass-path'))
-  assert.ok(manifest.unresolvedRequiredTargets.every((item) => item.status === 'blocked'))
+  assert.deepEqual(manifest.unresolvedRequiredTargets, [])
+  assert.equal(manifest.nonClaims.cleanupComplete, true)
+  assert.equal(manifest.postCleanupEvidence.status, 'passed')
+  assert.equal(manifest.postCleanupEvidence.retirementResultStatus, 'applied')
+  assert.equal(manifest.postCleanupEvidence.resourceStatuses.skipped_previously_absent, 112)
 })
 
 test('dry-run reports every resource and never authorizes mutation', () => {
@@ -283,10 +287,10 @@ test('dry-run reports every resource and never authorizes mutation', () => {
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.counts.total, manifest.resources.length)
-  assert.equal(payload.counts.blocked, manifest.resources.length)
-  assert.equal(payload.counts.ready, 0)
+  assert.equal(payload.counts.blocked, 0)
+  assert.equal(payload.counts.ready, manifest.resources.length)
   assert.equal(payload.unresolvedBlockerCount, manifest.unresolvedRequiredTargets.length)
-  assert.equal(payload.results.filter((item) => item.status === 'ready').length, 0)
+  assert.equal(payload.results.filter((item) => item.status === 'ready').length, manifest.resources.length)
 })
 
 test('completed capacity pre-cleanup dry-run reports no pending resources', () => {

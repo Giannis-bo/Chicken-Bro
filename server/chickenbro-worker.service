@@ -22,7 +22,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/chickenbro
-ReadOnlyPaths=/opt/chickenbro /opt/chickenbro-candidate /opt/chickenbro-runtime /opt/wow-simc
+ReadOnlyPaths=/opt/chickenbro /opt/chickenbro-runtime /opt/wow-simc
 
 [Install]
 WantedBy=multi-user.target

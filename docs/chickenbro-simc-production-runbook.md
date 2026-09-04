@@ -375,7 +375,7 @@ unit 只接受固定 `simulationcraft/simc` 的精确 commit，不查询或跟�
 - manifest SHA 与 apply 参数一致；
 - 回滚包保留窗口有书面状态。
 
-当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。它覆盖 fresh 只读清单里的全部 `wow-*` unit 和仍存在的全部 `wow_*` 数据库，并显式列出已知旧 env、pgpass、Nginx、部署、备份、状态与候选目录。容量 scope 继续以 `exactDatabaseAllowlist` 保留原四组授权边界，`completedPairs` 固定四组日志、运行根和隔离哈希，`pendingDatabaseAllowlist=[]` 且 `authorized=false`，因此不会重复执行。未能从脱敏清单确定的 legacy runtime PGPASSFILE 以及尚未创建的 Chickenbro candidate 资源仍列入 `unresolvedRequiredTargets`，不能因未知而省略。
+当前云端精确控制文件是 [chickenbro-simc-cloud-cleanup-manifest.json](refactor/chickenbro-simc-cloud-cleanup-manifest.json)。最终清单绑定清理前 reviewed SHA `d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc`、执行结果 SHA `58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242` 和清理后 reachable inventory；113 个目标中 1 个在最终运行实际删除、112 个此前已不存在，旧 runtime mask 另行清除 33 个。清理结果不制作独立备份，生产 `chickenbro_prod`、API/Worker、当前 Web、TLS 和 SimC runtime 未触碰。
 
 本地评审入口默认只解析清单，不连接云端、不停服务、不删数据：
 
@@ -386,11 +386,11 @@ bash server/retire_chickenbro_legacy_lighthouse.sh \
   --dry-run
 ```
 
-当前清单固定 `deletionAuthorized=false`，剩余 76 个资源全部为 `blocked`。容量 scope 已关闭，dry-run 返回 0 个 pending 目标，任何新的 `--capacity-pre-cleanup --apply` 都会在 SSH 前因 `authorized=false` 被拒绝。完整 Phase 6 仍要求真实生产验收、首条新写入、稳定窗口、所有未知目标已解析、每个资源 gate 为 ready 且删除时间已到。任一项不满足时停止。
+当前清单记录 `deletionAuthorized=true`、`status=cleanup_complete`、`unresolvedRequiredTargets=[]`，清理后 fresh inventory 为 `reachable`，旧数据库与旧 unit 均为 0。容量 scope 已关闭，dry-run 返回 0 个 pending 目标；未来不得对已完成 run root 重放 destructive apply。
 
 apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到同主机 `/var/lib/chickenbro-retirement-quarantine/<manifest-sha>` 并确认原路径不存在，再逐库检查 `pg_stat_activity`、实时大小和当前配置/进程引用，以引用安全的精确 identifier 执行删除；四组均已写入 `completedPairs`，不会进入新的执行计划。完整 Phase 6 默认会把 unit、旧文件和目录移动到精确 quarantine；本轮用户已选择无备份永久删除时，必须同时传入 `--no-independent-backup` 与确认词 `I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE`，脚本会在同样的依赖、引用、SHA/realpath 和生产健康检查之后删除精确目标，不保留旧目标副本。无论哪种模式，都不会删除 Chickenbro 新生产、SimC runtime、PostgreSQL 数据根、TLS 或当前 Nginx owner。
 
-退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；隔离旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
+退役顺序：停止并禁用 legacy unit/timer；移除 candidate/prototype；精确删除无引用数据库；删除旧部署/静态/数据目录；执行绑定 SHA 的本地旧代码/文档/测试清理；刷新本地/云端清单和 parity。不得对 `/opt`、`/var/lib`、数据库前缀或仓库根做宽泛递归删除。
 
 ## 11. 最终验证与完成
 

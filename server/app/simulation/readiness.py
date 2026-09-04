@@ -194,7 +194,7 @@ class SimcRuntimeCapabilities:
             if not managed_runtime_expected:
                 state_path = source_env.get(
                     "WOW_SIMC_VERSION_FILE",
-                    "/var/lib/wow-backend/simc-version.json",
+                    "/var/lib/chickenbro/simc-version.json",
                 ).strip()
                 try:
                     state = json.loads(Path(state_path).read_text(encoding="utf-8"))

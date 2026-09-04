@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 
 
-DEFAULT_JOBS_DIR = Path(os.environ.get("WOW_CODEX_JOBS_DIR", "/var/lib/wow-backend/codex-jobs"))
+DEFAULT_JOBS_DIR = Path(os.environ.get("WOW_CODEX_JOBS_DIR", "/var/lib/chickenbro/codex-jobs"))
 DEFAULT_CODEX_BIN = os.environ.get("WOW_CODEX_BIN", "codex")
 DEFAULT_SANDBOX = os.environ.get("WOW_CODEX_SANDBOX", "workspace-write")
 DEFAULT_TIMEOUT_SECONDS = int(os.environ.get("WOW_CODEX_TIMEOUT_SECONDS", "900"))

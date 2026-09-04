@@ -343,6 +343,10 @@ test('Phase 5 acceptance reads the current project-state gate contract', (t) => 
   assert.equal(readPhase5Accepted(root), true)
 
   const evidence = JSON.parse(fs.readFileSync(path.join(root, evidenceRelative), 'utf8'))
+  evidence.manualAcceptance.status = 'complete_with_user_waiver'
+  fs.writeFileSync(path.join(root, evidenceRelative), `${JSON.stringify(evidence)}\n`)
+  assert.equal(readPhase5Accepted(root), true)
+
   evidence.manualAcceptance.status = 'pending'
   fs.writeFileSync(path.join(root, evidenceRelative), `${JSON.stringify(evidence)}\n`)
   assert.equal(readPhase5Accepted(root), false)

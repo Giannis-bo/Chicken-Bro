@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "chickenbro-simc-dual-client-cutover",
   "requirementSlug": "chickenbro-simc-dual-client-cutover",
-  "status": "local_verified",
-  "highestEvidenceLevel": "local_verified",
+  "status": "live_verified",
+  "highestEvidenceLevel": "live_verified",
   "branch": "codex/chickenbro-simc-total-rebuild-design",
-  "commit": "b9d299d2852d83dce11416a40e84e5a0f38a7769",
+  "commit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "No isolated Chickenbro candidate or production runtime exists. Capacity, independent restore, exact candidate deployment and real user acceptance remain unresolved gates."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "f1c745f5e418c9ed83dba1622ab0e673714c76a2"
     },
     "verification": {
       "status": "bound_at_check",
@@ -18,60 +19,62 @@
     },
     "closure": {
       "status": "pending",
-      "reason": "Phase 5 runtime acceptance, Phase 6 legacy retirement, merge and final production parity are not complete."
+      "reason": "Final local cleanup commit, merge parity and WeChat refresh remain."
     }
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
-    "reason": "The official Mini candidate has not been published, no real WeChat QR confirmation has occurred, production has not cut over, and the user has not accepted the cross-client flows.",
+    "status": "complete_with_user_waiver",
+    "reason": "\u751f\u4ea7\u5207\u6d41\u540e\u7684 Chat/SimC\u3001owner \u9694\u79bb\u3001\u72ec\u7acb\u9000\u51fa\u548c\u91cd\u542f\u6062\u590d\u5df2\u901a\u8fc7\uff1b\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u3002",
     "items": [
       {
         "id": "candidate_real_wechat_qr_login",
-        "status": "pending",
-        "evidence": "Requires wx.login in the exact candidate WeApp, scan and explicit Mini confirmation, Web HttpOnly session and /api/v2-candidate/me."
+        "status": "not_run_user_waived",
+        "evidence": "Requires wx.login in the exact candidate WeApp, scan and explicit Mini confirmation, Web HttpOnly session and /api/v2-candidate/me.",
+        "authorization": "\u7528\u6237\u5df2\u660e\u786e\u6388\u6743\u672c\u8f6e\u8df3\u8fc7\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u9a8c\u6536\uff1b\u6b64\u524d\u5fae\u4fe1\u767b\u5f55\u5df2\u9a8c\u8bc1\uff0c\u672c\u8f6e\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
       },
       {
         "id": "candidate_cross_client_chat_history",
-        "status": "pending",
-        "evidence": "Requires Mini-created/Web-visible and Web-created/Mini-visible persisted conversations and messages on the exact candidate build."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       },
       {
         "id": "candidate_cross_client_simc_history",
-        "status": "pending",
-        "evidence": "Requires both directions of job creation, history visibility, attempts and semantic result provenance on the exact candidate build."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       },
       {
         "id": "candidate_owner_isolation",
-        "status": "pending",
-        "evidence": "Requires a second real owner to receive no list or direct-object access."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       },
       {
         "id": "production_real_wechat_qr_login",
-        "status": "pending",
-        "evidence": "Requires the production Mini and Web routes after the switched evidence is sealed."
+        "status": "not_run_user_waived",
+        "evidence": "Requires the production Mini and Web routes after the switched evidence is sealed.",
+        "authorization": "\u7528\u6237\u5df2\u660e\u786e\u6388\u6743\u672c\u8f6e\u8df3\u8fc7\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u9a8c\u6536\uff1b\u6b64\u524d\u5fae\u4fe1\u767b\u5f55\u5df2\u9a8c\u8bc1\uff0c\u672c\u8f6e\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
       },
       {
         "id": "production_cross_client_chat_history",
-        "status": "pending",
-        "evidence": "Requires a real accepted production Chat write and both-direction reload/continuation."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       },
       {
         "id": "production_cross_client_simc_history",
-        "status": "pending",
-        "evidence": "Requires a real accepted production SimC write and matching status, attempt, result and provenance on both clients."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       },
       {
         "id": "production_restart_and_recovery",
-        "status": "pending",
-        "evidence": "Requires API/Worker restart recovery, queue continuity, Nginx/TLS, database sessions, legacy read-only state and explicit user confirmation."
+        "status": "accepted",
+        "evidence": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json"
       }
     ],
     "rollup": {
       "total": 8,
-      "accepted": 0,
-      "notRunUserWaived": 0,
-      "pending": 8
+      "accepted": 6,
+      "notRunUserWaived": 2,
+      "pending": 0
     }
   },
   "scope": [
@@ -142,62 +145,76 @@
     }
   ],
   "candidateDeployment": {
-    "status": "blocked",
-    "reason": "The last reviewed cloud inventory has about 8.58 GB free on one root device. No independent encrypted backup plus successful isolated restore identity exists, so chickenbro_candidate was not provisioned and no candidate service, database, Nginx route or public artifact was changed."
+    "status": "live_verified",
+    "commit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
+    "smoke": {
+      "status": "pass",
+      "endpoint": "https://api.chickenbro.cloud/api/v2/health/readiness",
+      "readiness": "ready",
+      "api": "active",
+      "worker": "active"
+    },
+    "timerBackflow": {
+      "status": "pass",
+      "legacyWriters": "read_only",
+      "candidatePort8791": "absent"
+    },
+    "rollback": {
+      "status": "pass",
+      "boundary": "accepted_write",
+      "legacyWriteReopen": "forbidden"
+    }
   },
   "runtimeEvidence": [
     {
-      "type": "cloud_read_only_capacity_snapshot",
-      "status": "blocked",
-      "observedAt": "2026-09-02T13:43:05Z",
-      "snapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-      "snapshotFileSha256": "1466a227e882125ddd342c9518025b583b7bbead80dabb193f29997ff41e80c6",
-      "detail": "wow_test is about 16.38 GB, PostgreSQL is about 39.63 GB and root free space is about 8.58 GB. This cannot prove safe candidate, restore and rollback coexistence."
-    },
-    {
-      "type": "cloud_independent_recovery_inventory",
-      "status": "blocked",
-      "observedAt": "2026-09-02T17:01:22Z",
-      "snapshot": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-      "detail": "Only the root block device is mounted; the visible system snapshot is stale and untested, and no reviewed server-side independent backup channel or restore identity exists."
-    },
-    {
-      "type": "cloud_read_only_service_inventory",
-      "status": "observed",
-      "observedAt": "2026-09-03",
-      "detail": "Read-only inspection confirmed the legacy API/Worker and scheduled writer set remain active as last-known-good, while the old wow-v2-api-candidate occupies port 8791. The candidate deploy control now retires and restores that exact old candidate service around the new isolated candidate; no service was changed."
-    },
-    {
-      "type": "cutover_control_dry_run",
+      "type": "production_cutover",
       "status": "pass",
-      "detail": "The cutover remains preflight-only. Apply requires exact clean commit, inventory, restore-verified backup, candidate evidence and real candidate acceptance hashes. accepted_write additionally requires exact post-cutover production acceptance bound to switched evidence and explicit user confirmation."
+      "state": "accepted_write",
+      "postCutoverRealUserAcceptance": "passed",
+      "cutoverEvidencePath": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-cutover.json",
+      "cutoverEvidenceSha256": "362583d436cfc22b37e1c683d6f658021c737669ec2f64c181e46e22d81d650d",
+      "userAcceptancePath": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json",
+      "userAcceptanceSha256": "b68662434232c8f9f0eab6737b31a243f65d3bffb0b0ea67b453d70548ae6717",
+      "loginMode": "user_authorized_skipped"
+    },
+    {
+      "type": "cloud_cleanup",
+      "status": "pass",
+      "manifestSha256": "d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc",
+      "resultSha256": "58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242",
+      "legacyTargetsRemaining": 0,
+      "independentBackupCreated": false
+    },
+    {
+      "type": "cloud_inventory",
+      "status": "pass",
+      "snapshot": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+      "snapshotFileSha256": "95937c5c4f3b2be9553ec673bfde7864ba83f132d0285cf7be0c7ca65cd4cdb2",
+      "observedAt": "2026-09-04T07:46:14Z",
+      "legacyDatabases": 0,
+      "legacyUnits": 0
     }
   ],
   "risks": [
     {
-      "id": "candidate-capacity-and-recovery",
-      "status": "blocked",
-      "detail": "A clean candidate and rollback copy cannot safely be created until storage expands or independently recoverable legacy cleanup frees enough space, followed by a fresh inventory and successful restore proof."
-    },
-    {
-      "id": "real-wechat-and-cross-client-acceptance",
-      "status": "blocked",
-      "detail": "No official candidate Mini publication, real wx.login, QR confirmation, cross-client Chat/SimC or second-owner isolation evidence exists."
+      "id": "real-wechat-login",
+      "status": "waived_by_user",
+      "detail": "\u7528\u6237\u5df2\u660e\u786e\u6388\u6743\u672c\u8f6e\u8df3\u8fc7\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u9a8c\u6536\uff1b\u6b64\u524d\u5fae\u4fe1\u767b\u5f55\u5df2\u9a8c\u8bc1\uff0c\u672c\u8f6e\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
     },
     {
       "id": "production-first-write-boundary",
-      "status": "not_run",
-      "detail": "Production remains on legacy. The apply script can stop only at switched; accepted_write is sealed only after an actual post-cutover write and real-user acceptance evidence."
-    },
-    {
-      "id": "production-weapp-publication",
-      "status": "open",
-      "detail": "The production WeApp build is content-addressed locally but still needs official upload/release evidence for the same commit and build identity before final acceptance."
+      "status": "passed",
+      "detail": "accepted_write \u5df2\u5c01\u5b58\uff1b\u9996\u6761\u65b0\u5199\u5165\u540e\u4e0d\u518d\u6062\u590d legacy \u53ef\u5199\u3002"
     },
     {
       "id": "cloud-inventory-drift",
-      "status": "open",
-      "detail": "Any later apply must use a fresh probe-error-free inventory within the script freshness window and the exact reviewed SHA."
+      "status": "passed",
+      "detail": "\u6e05\u7406\u540e fresh inventory \u4e3a reachable\uff0c\u65e7\u5e93/\u65e7 unit/\u5019\u9009\u76d1\u542c\u5747\u4e3a 0\u3002"
+    },
+    {
+      "id": "local-legacy-retirement",
+      "status": "in_progress",
+      "detail": "\u4e91\u7aef\u9000\u5f79\u5df2\u5b8c\u6210\uff0c\u672c\u5730\u7cbe\u786e\u6587\u4ef6\u6e05\u7406\u5c06\u5728\u5f53\u524d\u5206\u652f\u63d0\u4ea4\u540e\u6267\u884c\u3002"
     }
   ],
   "rollback": [
@@ -208,8 +225,8 @@
   ],
   "cleanup": {
     "required": true,
-    "status": "deferred_to_phase_6",
-    "reason": "All legacy runtime, data and rollback assets remain intact. Phase 6 deletion is prohibited until production accepted_write, user acceptance, a stability window and new-data-plane recovery proof are complete."
+    "status": "cloud_complete_local_apply_pending",
+    "reason": "\u4e91\u7aef\u7cbe\u786e\u65e7\u670d\u52a1\u3001\u65e7\u6570\u636e\u5e93\u3001\u65e7\u914d\u7f6e\u548c\u65e7\u76ee\u5f55\u5df2\u6309\u65e0\u72ec\u7acb\u5907\u4efd\u6388\u6743\u6e05\u7406\uff1b\u672c\u5730\u6e05\u5355\u7ed1\u5b9a\u63d0\u4ea4\u540e\u518d\u6267\u884c\u672c\u5730\u65e7\u6587\u4ef6\u5220\u9664\u3002"
   },
   "archivedReferences": [
     "docs/project-state.json",
@@ -225,16 +242,16 @@
     "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/requirement.json"
   ],
   "nonClaims": {
-    "candidateDatabase": "NOT_CREATED",
-    "candidateDeployment": "BLOCKED",
-    "productionDeployment": "NOT_RUN",
-    "productionCutover": "NOT_AUTHORIZED",
-    "acceptedProductionWrite": "NOT_OBSERVED",
-    "realWechatLogin": "NOT_ACCEPTED",
-    "crossClientUserAcceptance": "PENDING",
-    "legacyCleanup": "NOT_AUTHORIZED",
-    "phase5Completion": "BLOCKED_PENDING_RUNTIME_AND_USER_ACCEPTANCE",
-    "overallGoal": "IN_PROGRESS"
+    "candidateDatabase": "RETIRED_AFTER_CUTOVER",
+    "candidateDeployment": "RETIRED_AFTER_ACCEPTANCE",
+    "productionDeployment": "LIVE_VERIFIED",
+    "productionCutover": "ACCEPTED_WRITE",
+    "acceptedProductionWrite": "RECONCILED",
+    "realWechatLogin": "USER_AUTHORIZED_SKIPPED_THIS_RUN",
+    "crossClientUserAcceptance": "PASSED_WITH_LOGIN_WAIVER",
+    "legacyCleanup": "CLOUD_COMPLETE_LOCAL_PENDING",
+    "phase5Completion": "ACCEPTED_WRITE",
+    "overallGoal": "IN_PROGRESS_LOCAL_CLEANUP"
   },
-  "summary": "Phase 5 is locally verified for separated credential transports, the exact two-tab/five-route clients, formal shared-history Chat/SimC flows, idempotent whitelist migration, isolated candidate controls and a monotonic fenced cutover with separate switched and accepted_write evidence. Fresh migration and deployment-control tests pass, while the exact production H5/WeApp builds and broader client/application checks remain local evidence only. Candidate apply, real WeChat acceptance, production cutover, first accepted write and all Phase 6 deletion remain blocked by capacity, independent recovery and user-acceptance gates. No cloud service, database, route or data was changed."
+  "summary": "\u751f\u4ea7 accepted_write\u3001\u53cc\u7aef Chat/SimC/owner \u9694\u79bb/\u9000\u51fa/\u91cd\u542f\u6062\u590d\u9a8c\u6536\u4e0e\u4e91\u7aef\u65e7\u8d44\u6e90\u9000\u5f79\u5df2\u5b8c\u6210\uff1b\u5fae\u4fe1\u626b\u7801\u767b\u5f55\u6309\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u4e14\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002\u672c\u5730\u65e7\u6587\u6863/\u4ee3\u7801\u7cbe\u786e\u6e05\u7406\u3001\u6700\u7ec8\u63d0\u4ea4\u5408\u5e76\u3001main/origin parity \u4e0e WeApp \u5237\u65b0\u4ecd\u5728\u8fdb\u884c\u3002"
 }

@@ -22,7 +22,7 @@ test('project state names only the approved dual-client Chat and SimC product', 
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.schemaVersion, 2)
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_5')
+  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_6')
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
@@ -36,38 +36,41 @@ test('project state names only the approved dual-client Chat and SimC product', 
     assert.equal(serialized.includes(removedDomain), false, removedDomain)
   }
 })
-test('project state preserves the live safety boundary instead of claiming completion', () => {
+test('project state records the accepted production boundary and pending local cleanup', () => {
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.delivery.phase1, 'local_verified')
   assert.equal(state.delivery.phase2, 'whitelist_recovery_verified_capacity_gate_open')
   assert.equal(state.delivery.phase3, 'local_verified')
   assert.equal(state.delivery.phase4, 'local_verified')
-  assert.equal(state.delivery.phase5, 'local_verified_live_acceptance_blocked')
-  assert.equal(state.delivery.phase6, 'capacity_precleanup_complete_full_retirement_blocked')
+  assert.equal(state.delivery.phase5, 'production_accepted_write_verified')
+  assert.equal(state.delivery.phase6, 'cloud_cleanup_complete_local_cleanup_pending')
   assert.deepEqual(state.refactorEvidence.localCleanupDryRun, {
     deletable: 2588,
-    retained: 270,
+    retained: 273,
     blocked: 0,
     review: 0,
-    phase5Accepted: false,
+    phase5Accepted: true,
   })
   assert.deepEqual(state.refactorEvidence.cloudCleanupDryRun, {
-    total: 76,
-    ready: 0,
-    blocked: 76,
-    unresolvedRequiredTargets: 2,
+    total: 113,
+    ready: 113,
+    blocked: 0,
+    unresolvedRequiredTargets: 0,
   })
-  assert.equal(state.gates.productionCutoverReady, false)
-  assert.equal(state.gates.destructiveCleanupReady, false)
-  assert.equal(state.gates.finalUserAcceptance, 'not_run')
+  assert.equal(state.gates.productionCutoverReady, true)
+  assert.equal(state.gates.destructiveCleanupReady, true)
+  assert.equal(state.gates.finalUserAcceptance, 'passed')
   assert.deepEqual(state.gates.cleanupPrerequisites, [
     'whitelist_migration_restore_verified',
     'candidate_capacity_gate_passed',
-    'real_mini_web_acceptance_passed',
+    'production_dual_client_acceptance_passed',
     'first_new_write_reconciled',
     'stable_production_health',
-    'accepted_production_restore_verified',
+    'no_independent_backup_direct_delete_authorized',
+    'cloud_cleanup_result_applied',
+    'fresh_post_cleanup_inventory_reachable',
+    'local_cleanup_apply_pending',
   ])
   assert.deepEqual(state.gates.capacityPreCleanup, {
     authorized: false,
@@ -90,7 +93,7 @@ test('all execution authorities and refactor evidence are explicit existing file
   }
   assert.equal(
     state.refactorEvidence.capacityGate,
-    'capacity_preflight_required',
+    'post_cleanup_complete',
   )
   assert.deepEqual(state.refactorEvidence.targetIdentity, {
     provider: 'tencent_cvm',
@@ -101,9 +104,9 @@ test('all execution authorities and refactor evidence are explicit existing file
     sshTarget: 'wow-lighthouse',
     refreshRequiredBeforeApply: true,
   })
-  assert.equal(state.refactorEvidence.localCleanupApplyAllowed, false)
+  assert.equal(state.refactorEvidence.localCleanupApplyAllowed, true)
   assert.equal(state.refactorEvidence.capacityPreCleanupApplyAllowed, false)
-  assert.equal(state.refactorEvidence.cloudCleanupApplyAllowed, false)
+  assert.equal(state.refactorEvidence.cloudCleanupApplyAllowed, true)
 })
 
 test('every local link in retained Markdown resolves to another retained path', () => {

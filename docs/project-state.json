@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-03",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_5",
-  "status": "whitelist_recovery_verified_capacity_gate_open_candidate_deployment_next",
+  "updatedAt": "2026-09-04",
+  "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+  "status": "cloud_cleanup_complete_local_cleanup_pending",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -30,8 +30,8 @@
     "phase2": "whitelist_recovery_verified_capacity_gate_open",
     "phase3": "local_verified",
     "phase4": "local_verified",
-    "phase5": "local_verified_live_acceptance_blocked",
-    "phase6": "capacity_precleanup_complete_full_retirement_blocked"
+    "phase5": "production_accepted_write_verified",
+    "phase6": "cloud_cleanup_complete_local_cleanup_pending"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -40,21 +40,27 @@
     "cleanupBackupMode": {
       "status": "none_user_authorized",
       "confirmation": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE",
-      "scope": ["production_cutover", "legacy_retirement"],
+      "scope": [
+        "production_cutover",
+        "legacy_retirement"
+      ],
       "recordedAt": "2026-09-04"
     },
     "phase5Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json",
-    "productionCutoverAuthorized": false,
-    "productionCutoverReady": false,
-    "destructiveCleanupReady": false,
-    "finalUserAcceptance": "not_run",
+    "productionCutoverAuthorized": true,
+    "productionCutoverReady": true,
+    "destructiveCleanupReady": true,
+    "finalUserAcceptance": "passed",
     "cleanupPrerequisites": [
       "whitelist_migration_restore_verified",
       "candidate_capacity_gate_passed",
-      "real_mini_web_acceptance_passed",
+      "production_dual_client_acceptance_passed",
       "first_new_write_reconciled",
       "stable_production_health",
-      "accepted_production_restore_verified"
+      "no_independent_backup_direct_delete_authorized",
+      "cloud_cleanup_result_applied",
+      "fresh_post_cleanup_inventory_reachable",
+      "local_cleanup_apply_pending"
     ],
     "capacityPreCleanup": {
       "authorized": false,
@@ -73,7 +79,7 @@
     "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
     "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
     "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
-    "capacityGate": "capacity_preflight_required",
+    "capacityGate": "post_cleanup_complete",
     "targetIdentity": {
       "provider": "tencent_cvm",
       "instanceId": "ins-93tgv1rb",
@@ -83,8 +89,8 @@
       "sshTarget": "wow-lighthouse",
       "refreshRequiredBeforeApply": true
     },
-    "observedRootFreeBytes": 30703849472,
-    "observedLegacyDatabaseBytes": 16391437335,
+    "observedRootFreeBytes": 60018577408,
+    "observedLegacyDatabaseBytes": 0,
     "whitelistRecovery": {
       "status": "restore_verified",
       "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
@@ -96,20 +102,38 @@
     },
     "localCleanupDryRun": {
       "deletable": 2588,
-      "retained": 270,
+      "retained": 273,
       "blocked": 0,
       "review": 0,
-      "phase5Accepted": false
+      "phase5Accepted": true
     },
     "cloudCleanupDryRun": {
-      "total": 76,
-      "ready": 0,
-      "blocked": 76,
-      "unresolvedRequiredTargets": 2
+      "total": 113,
+      "ready": 113,
+      "blocked": 0,
+      "unresolvedRequiredTargets": 0
     },
-    "localCleanupApplyAllowed": false,
+    "localCleanupApplyAllowed": true,
     "capacityPreCleanupApplyAllowed": false,
-    "cloudCleanupApplyAllowed": false
+    "cloudCleanupApplyAllowed": true,
+    "cloudCleanupResult": {
+      "status": "applied",
+      "appliedManifestSha256": "d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc",
+      "resultPath": "/var/lib/chickenbro-retirement-quarantine/d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc/result.json",
+      "resultSha256": "58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242",
+      "resourceCount": 113,
+      "deleted": 1,
+      "previouslyAbsent": 112,
+      "runtimeMasksRemoved": 33,
+      "runtimeMaskEvidenceSha256": "fe88a3878edc06c76689e6ec5b2381e4f4e0446b2ebdd8db4116e32f16144572",
+      "postCleanupInventorySha256": "95937c5c4f3b2be9553ec673bfde7864ba83f132d0285cf7be0c7ca65cd4cdb2",
+      "postCleanupObservedAt": "2026-09-04T07:46:14Z"
+    },
+    "loginAcceptance": {
+      "mode": "user_authorized_skipped",
+      "realWechatQrLogin": "not_run",
+      "reason": "\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u672c\u8f6e\u5fae\u4fe1\u626b\u7801\u767b\u5f55\uff1b\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
+    }
   },
   "executionAuthority": {
     "architecture": "docs/chickenbro-simc-architecture.md",

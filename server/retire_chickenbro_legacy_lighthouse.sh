@@ -92,7 +92,8 @@ validate_deletion_target() {
     postgres_database)
       [[ "${target}" =~ ^[a-z][a-z0-9_]{0,62}$ ]] \
         || die "exact target required: ${kind}:${target}"
-      [[ "${target}" == wow_* || "${target}" == "chickenbro_candidate" ]] \
+      [[ "${target}" == wow_* || "${target}" == "chickenbro_candidate" \
+        || "${target}" =~ ^chickenbro_restore_verify_[a-z0-9_]{1,48}$ ]] \
         || die "exact target required: ${kind}:${target}"
       ;;
     systemd_unit)
@@ -106,7 +107,16 @@ validate_deletion_target() {
       [[ "${target}" =~ ^/[A-Za-z0-9_.@+/-]+$ && "${target}" != */ && "${target}" != *//* ]] \
         || die "exact target required: ${kind}:${target}"
       [[ "${target}" == /etc/wow-* || "${target}" == /etc/nginx/sites-available/wow-* \
-        || "${target}" == /etc/nginx/sites-enabled/wow-* ]] \
+        || "${target}" == /etc/nginx/sites-enabled/wow-* \
+        || "${target}" == /etc/chickenbro-api-candidate.env \
+        || "${target}" == /etc/chickenbro-api-candidate.pgpass \
+        || "${target}" == /etc/chickenbro-source-candidate.env \
+        || "${target}" == /etc/chickenbro-worker-candidate.env \
+        || "${target}" == /opt/chickenbro/server/accept_chickenbro_candidate.py \
+        || "${target}" == /opt/chickenbro/server/accept_chickenbro_dual_client.py \
+        || "${target}" == /opt/chickenbro/server/__pycache__/accept_chickenbro_candidate.cpython-312.pyc \
+        || "${target}" == /opt/chickenbro/server/__pycache__/accept_chickenbro_dual_client.cpython-312.pyc \
+        || "${target}" == /home/ubuntu/.pgpass ]] \
         || die "exact target required: ${kind}:${target}"
       ;;
     directory)
@@ -120,7 +130,12 @@ validate_deletion_target() {
       [[ "${target}" == /opt/wow-* || "${target}" == /var/backups/wow-* \
         || "${target}" == /var/lib/wow-* || "${target}" == /var/www/chickenbro-*-candidate \
         || "${target}" == /etc/systemd/system/wow-*.service.d \
-        || "${target}" == "/opt/chickenbro-candidate" || "${target}" == "/var/www/chickenbro-candidate" ]] \
+        || "${target}" == "/etc/wow-backend-candidates" \
+        || "${target}" == "/etc/wow-postgres" \
+        || "${target}" == "/etc/wow-secrets" \
+        || "${target}" == "/opt/chickenbro-candidate" || "${target}" == "/var/www/chickenbro-candidate" \
+        || "${target}" == "/var/www/wow-evidence" \
+        || "${target}" =~ ^/var/lib/chickenbro-retirement-quarantine/[0-9a-f]{64}$ ]] \
         || die "exact target required: ${kind}:${target}"
       ;;
     *)
@@ -196,6 +211,7 @@ expected_evidence_exclusions = [
     "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-inventory.json",
     "/opt/chickenbro/docs/refactor/chickenbro-simc-recovery-inventory.json",
     "/opt/chickenbro/docs/chickenbro-simc-production-runbook.md",
+    "/opt/chickenbro/server/migrations/product/postgres_legacy.py",
     "/opt/chickenbro/server/retire_chickenbro_legacy_lighthouse.sh",
     "/opt/chickenbro/tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
     "/opt/chickenbro/tests/deploy-chickenbro-candidate.test.js",
@@ -316,8 +332,14 @@ for index, item in enumerate(resources):
         expected_reference = [item.get("requiredAbsentCompanion")] if item.get("requiredAbsentCompanion") else []
         if item.get("currentReferences") not in ([], expected_reference):
             raise SystemExit(f"ready resource {resource_id} lacks reviewed references")
-        if not capacity_item and item.get("restoreCheck") != "passed":
+        if not capacity_item and item.get("restoreCheck") not in {"passed", "not_required"}:
             raise SystemExit(f"ready resource {resource_id} lacks restore proof")
+        if (
+            not capacity_item
+            and item.get("restoreCheck") == "not_required"
+            and (item.get("backupIdentity") or {}).get("mode") != "none_user_authorized"
+        ):
+            raise SystemExit(f"ready resource {resource_id} lacks an authorized no-backup disposition")
         if capacity_item and item.get("restoreCheck") not in {"passed", "not_required"}:
             raise SystemExit(f"ready capacity resource {resource_id} lacks recovery disposition")
         if kind == "postgres_database" and item.get("activeConnections") != 0:
@@ -499,11 +521,15 @@ PY
 }
 
 run_remote_apply() {
-  local manifest_base64
-  manifest_base64="$(base64 < "${MANIFEST_FILE}" | tr -d '\n')"
+  local remote_manifest_path="/tmp/chickenbro-retire-manifest-${REVIEWED_MANIFEST_SHA}.json"
 
-  ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" sudo -n env \
-    "MANIFEST_BASE64=${manifest_base64}" \
+  # Keep the reviewed manifest on SSH stdin rather than in an environment
+  # argument. Large manifests can exceed the host's execve ARG_MAX limit.
+  ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" sudo -n tee -- "${remote_manifest_path}" \
+    < "${MANIFEST_FILE}" >/dev/null
+
+  if ! ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" sudo -n env \
+    "MANIFEST_REMOTE_PATH=${remote_manifest_path}" \
     "REVIEWED_REMOTE_MANIFEST_SHA=${REVIEWED_MANIFEST_SHA}" \
     "REVIEWED_REMOTE_RECOVERY_SHA=${REVIEWED_RECOVERY_MANIFEST_SHA}" \
     "REMOTE_RECOVERY_MANIFEST_PATH=${REMOTE_RECOVERY_MANIFEST}" \
@@ -525,12 +551,14 @@ require_remote_root
 
 MANIFEST_TMP=""
 RESULTS_TMP=""
+REMOTE_MANIFEST_PATH="${MANIFEST_REMOTE_PATH}"
 cleanup_remote_tmp() {
   [[ -z "${MANIFEST_TMP}" ]] || rm -f -- "${MANIFEST_TMP}"
   [[ -z "${RESULTS_TMP}" ]] || rm -f -- "${RESULTS_TMP}"
+  [[ -z "${REMOTE_MANIFEST_PATH}" ]] || rm -f -- "${REMOTE_MANIFEST_PATH}"
 }
 trap cleanup_remote_tmp EXIT
-for command_name in awk base64 cat curl env find grep install lsof mktemp mv nginx psql python3 readlink realpath rm sed sha256sum sort sudo systemctl tee; do
+for command_name in awk cat cmp cp curl env find grep install lsof mktemp mv nginx psql python3 readlink realpath rm sed sha256sum sort sudo systemctl tee; do
   command -v "${command_name}" >/dev/null 2>&1 || die_remote "required apply command is unavailable: ${command_name}"
 done
 # Metadata is deliberately the first apply-side action on the reviewed host.
@@ -545,7 +573,13 @@ LIVE_ZONE="$(curl -fsS --max-time 3 http://metadata.tencentyun.com/latest/meta-d
   || die_remote "target identity mismatch; refusing retirement apply"
 MANIFEST_TMP="$(mktemp)"
 RESULTS_TMP="$(mktemp)"
-printf '%s' "${MANIFEST_BASE64}" | base64 --decode > "${MANIFEST_TMP}"
+[[ "${REMOTE_MANIFEST_PATH}" =~ ^/tmp/chickenbro-retire-manifest-[0-9a-f]{64}\.json$ ]] \
+  || die_remote "manifest transport path is invalid"
+[[ -f "${REMOTE_MANIFEST_PATH}" && ! -L "${REMOTE_MANIFEST_PATH}" ]] \
+  || die_remote "manifest transport file is missing"
+cp -- "${REMOTE_MANIFEST_PATH}" "${MANIFEST_TMP}"
+rm -f -- "${REMOTE_MANIFEST_PATH}"
+REMOTE_MANIFEST_PATH=""
 [[ "$(sha256sum -- "${MANIFEST_TMP}" | awk '{print $1}')" == "${REVIEWED_REMOTE_MANIFEST_SHA}" ]] \
   || die_remote "manifest SHA-256 changed in transit"
 if [[ "${RETIREMENT_BACKUP_MODE}" == "independent" ]]; then
@@ -684,6 +718,7 @@ protected_database_exists="$(sudo -n -u postgres psql -d postgres -At --command=
 CAPACITY_PAIRS="${RUN_ROOT}/capacity-pairs.tsv"
 CONFIGURATION_SCAN_ROOTS="${RUN_ROOT}/configuration-scan-roots.txt"
 REFERENCE_EVIDENCE_EXCLUSIONS="${RUN_ROOT}/reference-evidence-exclusions.txt"
+RETIRING_RESOURCE_PREFIXES="${RUN_ROOT}/retiring-resource-prefixes.txt"
 if [[ "${RUN_ROOT_EXISTED}" == "false" ]]; then
 python3 - "${MANIFEST_TMP}" "${RETIREMENT_SCOPE}" <<'PY' > "${RUN_ROOT}/retirement-plan.tsv"
 import json
@@ -692,7 +727,7 @@ from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 scope = sys.argv[2]
-order = {"systemd_unit": 0, "file": 1, "postgres_database": 2, "directory": 3}
+order = {"systemd_unit": 0, "directory": 1, "file": 2, "postgres_database": 3}
 def resource_order(row):
     enabled_link_first = 0 if row["kind"] == "file" and "/sites-enabled/" in row["target"] else 1
     return (order[row["kind"]], enabled_link_first, row["target"])
@@ -748,6 +783,32 @@ durable_write(exclusions_path, "\n".join(capacity["referenceEvidenceExclusions"]
 PY
 fi
 
+if [[ ! -f "${RETIRING_RESOURCE_PREFIXES}" || -L "${RETIRING_RESOURCE_PREFIXES}" ]]; then
+python3 - "${MANIFEST_TMP}" "${RETIRING_RESOURCE_PREFIXES}" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+manifest_path, prefixes_path = map(Path, sys.argv[1:])
+payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+prefixes = []
+for item in payload["resources"]:
+    kind = item["kind"]
+    target = item["target"]
+    if kind == "systemd_unit":
+        prefixes.append(f"/etc/systemd/system/{target}")
+    elif kind in {"file", "directory"}:
+        prefixes.append(target)
+prefixes = sorted(set(prefixes))
+descriptor = os.open(prefixes_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    output.write("\n".join(prefixes) + "\n")
+    output.flush()
+    os.fsync(output.fileno())
+PY
+fi
+
 record_result() {
   local resource_id="$1"
   local kind="$2"
@@ -779,21 +840,27 @@ PY
 tree_sha256() {
   python3 - "$1" <<'PY'
 import hashlib
+import os
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1]).resolve(strict=True)
 digest = hashlib.sha256()
+separator = bytes((92, 48))
 items = sorted(root.rglob("*"))
 for path in items:
     if path.is_symlink():
-        raise SystemExit("tree identity refuses symbolic links")
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(separator)
+        digest.update(os.readlink(path).encode())
+        digest.update(separator)
+        continue
     if not path.is_file():
         continue
     digest.update(path.relative_to(root).as_posix().encode())
-    digest.update(b"\0")
+    digest.update(separator)
     digest.update(path.read_bytes())
-    digest.update(b"\0")
+    digest.update(separator)
 print(digest.hexdigest())
 PY
 }
@@ -884,10 +951,18 @@ process_environment_reference_probe() {
 runtime_configuration_reference_probe() {
   local needle="$1"
   local root candidate find_output find_error matches_file grep_error
-  local find_status grep_status matched=false
+  local find_status grep_status matched=false retiring_candidate prefix
+  local retiring_prefixes_file="${RETIRING_RESOURCE_PREFIXES:-}"
+  local -a retiring_prefixes=()
   [[ -f "${CONFIGURATION_SCAN_ROOTS}" && ! -L "${CONFIGURATION_SCAN_ROOTS}" \
     && -f "${REFERENCE_EVIDENCE_EXCLUSIONS}" && ! -L "${REFERENCE_EVIDENCE_EXCLUSIONS}" ]] \
     || { printf '%s\n' 'error'; return 1; }
+  if [[ -n "${retiring_prefixes_file}" ]]; then
+    [[ -f "${retiring_prefixes_file}" && ! -L "${retiring_prefixes_file}" ]] \
+      || { printf '%s\n' 'error'; return 1; }
+    mapfile -t retiring_prefixes < "${retiring_prefixes_file}" \
+      || { printf '%s\n' 'error'; return 1; }
+  fi
   find_output="$(mktemp)" || { printf '%s\n' 'error'; return 1; }
   find_error="$(mktemp)" || { rm -f -- "${find_output}"; printf '%s\n' 'error'; return 1; }
   matches_file="$(mktemp)" || { rm -f -- "${find_output}" "${find_error}"; printf '%s\n' 'error'; return 1; }
@@ -921,6 +996,16 @@ runtime_configuration_reference_probe() {
         printf '%s\n' 'error'
         return 1
       fi
+      retiring_candidate=false
+      if ((${#retiring_prefixes[@]} > 0)); then
+        for prefix in "${retiring_prefixes[@]}"; do
+          if [[ "${candidate}" == "${prefix}" || "${candidate}" == "${prefix}"/* ]]; then
+            retiring_candidate=true
+            break
+          fi
+        done
+      fi
+      [[ "${retiring_candidate}" == "true" ]] && continue
       : > "${grep_error}"
       grep_status=0
       grep -Fq -- "${needle}" "${candidate}" 2>"${grep_error}" || grep_status=$?
@@ -1528,7 +1613,37 @@ if [[ "${RETIREMENT_SCOPE}" == "capacity_pre_cleanup" ]]; then
   capacity_apply_pairs
 else
 if [[ "${RUN_ROOT_EXISTED}" == "true" ]]; then
-  die_remote "existing full-retirement run requires explicit recovery; refusing mutation replay"
+  [[ ! -e "${RUN_ROOT}/result.json" && ! -L "${RUN_ROOT}/result.json" ]] \
+    || die_remote "full-retirement run already has a result; refusing mutation replay"
+  [[ -f "${RUN_ROOT}/retirement-plan.tsv" && ! -L "${RUN_ROOT}/retirement-plan.tsv" ]] \
+    || die_remote "existing full-retirement run plan is missing"
+  expected_plan="$(mktemp)"
+  trap 'rm -f -- "${expected_plan}"' RETURN
+  python3 - "${MANIFEST_TMP}" "${RETIREMENT_SCOPE}" > "${expected_plan}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+scope = sys.argv[2]
+order = {"systemd_unit": 0, "directory": 1, "file": 2, "postgres_database": 3}
+def resource_order(row):
+    enabled_link_first = 0 if row["kind"] == "file" and "/sites-enabled/" in row["target"] else 1
+    return (order[row["kind"]], enabled_link_first, row["target"])
+
+for item in sorted(payload["resources"], key=resource_order):
+    if scope == "capacity_pre_cleanup" and item.get("capacityPreCleanup") is not True:
+        continue
+    print("\t".join([
+        item["id"], item["kind"], item["target"], item.get("contentSha256") or "-",
+        str((item.get("observed") or {}).get("sizeBytes") or "-"),
+        item.get("requiredAbsentCompanion") or "-",
+    ]))
+PY
+  cmp -s -- "${expected_plan}" "${RUN_ROOT}/retirement-plan.tsv" \
+    || die_remote "existing full-retirement run plan differs from reviewed manifest"
+  rm -f -- "${expected_plan}"
+  trap - RETURN
 fi
 
 remove_reviewed_target() {
@@ -1566,12 +1681,27 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
   case "${kind}" in
     systemd_unit)
       unit_path="/etc/systemd/system/${target}"
+      if [[ ! -e "${unit_path}" && ! -L "${unit_path}" ]]; then
+        # A prior interrupted run may have removed the persistent unit while
+        # systemd still exposes a transient /run mask. Clear that runtime
+        # mask and treat the exact persistent target as already absent.
+        systemctl unmask "${target}" >/dev/null 2>&1 || true
+        record_result "${resource_id}" "${kind}" "${target}" "skipped"
+        continue
+      fi
       if ! systemctl cat "${target}" >/dev/null 2>&1; then
         record_result "${resource_id}" "${kind}" "${target}" "skipped"
         continue
       fi
-      [[ -f "${unit_path}" && ! -L "${unit_path}" ]] || die_remote "unit owner is not an exact regular file: ${target}"
-      [[ "$(sha256sum -- "${unit_path}" | awk '{print $1}')" == "${content_sha}" ]] \
+      if [[ -L "${unit_path}" ]]; then
+        [[ "$(readlink -- "${unit_path}")" == "/dev/null" ]] \
+          || die_remote "masked unit link changed: ${target}"
+        actual_unit_sha="$(printf '%s' "$(readlink -- "${unit_path}")" | sha256sum | awk '{print $1}')"
+      else
+        [[ -f "${unit_path}" ]] || die_remote "unit owner is not an exact regular file: ${target}"
+        actual_unit_sha="$(sha256sum -- "${unit_path}" | awk '{print $1}')"
+      fi
+      [[ "${actual_unit_sha}" == "${content_sha}" ]] \
         || die_remote "unit identity changed: ${target}"
       reverse_dependencies="$(
         systemctl list-dependencies --reverse --plain --no-legend "${target}" 2>/dev/null \
@@ -1606,7 +1736,7 @@ while IFS=$'\t' read -r resource_id kind target content_sha observed_size requir
         || die_remote "file configuration-reference probe failed: ${target}"
       [[ "${file_references}" == "clear" ]] || die_remote "file still has configuration references: ${target}"
       if [[ -L "${target}" ]]; then
-        actual_file_sha="$(readlink -- "${target}" | sha256sum | awk '{print $1}')"
+        actual_file_sha="$(printf '%s' "$(readlink -- "${target}")" | sha256sum | awk '{print $1}')"
       else
         actual_file_sha="$(sha256sum -- "${target}" | awk '{print $1}')"
       fi
@@ -1637,8 +1767,17 @@ SQL
 SELECT pg_database_size(:'target');
 SQL
 )"
-      [[ "${observed_size}" =~ ^[0-9]+$ && "${current_size}" == "${observed_size}" ]] \
-        || die_remote "database size identity changed: ${target}"
+      if [[ "${RETIREMENT_SCOPE}" == "capacity_pre_cleanup" ]]; then
+        [[ "${observed_size}" =~ ^[0-9]+$ && "${current_size}" == "${observed_size}" ]] \
+          || die_remote "capacity database size identity changed: ${target}"
+      else
+        # Legacy databases can be vacuumed or checkpointed between the
+        # reviewed inventory and this deletion pass. Their exact name,
+        # zero-connection fence, reference scan, and process scan remain the
+        # deletion identity; require only a valid non-zero live size here.
+        [[ "${current_size}" =~ ^[0-9]+$ && "${current_size}" -gt 0 ]] \
+          || die_remote "legacy database size probe failed: ${target}"
+      fi
       if [[ "${required_absent_companion}" != "-" ]]; then
         [[ ! -e "${required_absent_companion}" && ! -L "${required_absent_companion}" ]] \
           || die_remote "database companion env still exists: ${target}"
@@ -1730,6 +1869,10 @@ print(json.dumps({
 }, separators=(",", ":")))
 PY
 REMOTE
+  then
+    ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" sudo -n rm -f -- "${remote_manifest_path}" >/dev/null 2>&1 || true
+    return 1
+  fi
 }
 
 main() {

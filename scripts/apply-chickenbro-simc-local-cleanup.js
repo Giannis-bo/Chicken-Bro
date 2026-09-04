@@ -347,7 +347,7 @@ function readPhase5Accepted(repositoryRoot) {
   return gates.productionCutoverAuthorized === true
     && gates.productionCutoverReady === true
     && evidence.highestEvidenceLevel === 'live_verified'
-    && evidence.manualAcceptance?.status === 'complete'
+    && ['complete', 'complete_with_user_waiver'].includes(evidence.manualAcceptance?.status)
     && acceptedRuntime
 }
 

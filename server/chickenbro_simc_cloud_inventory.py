@@ -376,7 +376,10 @@ def _collect_units(errors: list[dict[str, str]]) -> list[dict[str, str]]:
     returncode, stdout = _run(
         ("systemctl", "list-unit-files", "wow-*", "--no-legend", "--no-pager")
     )
-    if returncode != 0:
+    # systemctl returns 1 when a glob has no matches.  After the legacy unit
+    # cleanup that is the expected, fully verified empty result; only a
+    # non-empty failure should downgrade the inventory to partial.
+    if returncode != 0 and stdout.strip():
         _error(errors, "units", "probe_failed")
         return []
     units: list[dict[str, str]] = []

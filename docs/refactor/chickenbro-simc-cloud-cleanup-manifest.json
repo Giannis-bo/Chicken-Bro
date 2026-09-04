@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "mode": "dry-run",
-  "generatedAt": "2026-09-03T09:44:15Z",
-  "deletionAuthorized": false,
-  "status": "capacity_precleanup_complete_candidate_deployment_ready_full_retirement_blocked",
+  "generatedAt": "2026-09-04T07:46:14Z",
+  "deletionAuthorized": true,
+  "status": "cleanup_complete",
   "sourceInventory": {
     "path": "docs/refactor/chickenbro-simc-cloud-inventory.json",
-    "sha256": "44828cd8d4f64a3cb3b033e565e7b8f521b48ef56977a7220b5c613d9450906b",
-    "observedAt": "2026-09-04T02:23:06Z",
+    "sha256": "95937c5c4f3b2be9553ec673bfde7864ba83f132d0285cf7be0c7ca65cd4cdb2",
+    "observedAt": "2026-09-04T07:46:14Z",
     "freshness": "fresh"
   },
   "targetIdentity": {
@@ -20,11 +20,17 @@
     "refreshRequiredBeforeApply": true
   },
   "productionAcceptance": {
-    "status": "not_run",
-    "evidencePath": null,
-    "evidenceSha256": null,
-    "firstNewWriteReconciled": false,
-    "stableHealthWindowCompleted": false
+    "status": "passed",
+    "evidencePath": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-user-acceptance.json",
+    "evidenceSha256": "b68662434232c8f9f0eab6737b31a243f65d3bffb0b0ea67b453d70548ae6717",
+    "cutoverEvidencePath": "/var/lib/chickenbro-recovery/cutover-runs/20260904T041135Z-f1c745f5e418/production-cutover.json",
+    "cutoverEvidenceSha256": "362583d436cfc22b37e1c683d6f658021c737669ec2f64c181e46e22d81d650d",
+    "state": "accepted_write",
+    "firstNewWriteReconciled": true,
+    "stableHealthWindowCompleted": true,
+    "loginMode": "user_authorized_skipped",
+    "postCleanupAcceptance": "passed",
+    "postCleanupAcceptedAt": "2026-09-04T07:48:20Z"
   },
   "businessRecovery": {
     "status": "restore_verified",
@@ -36,7 +42,7 @@
     "isolatedRestoreIdentity": "chickenbro_restore_verify_20260903_054604__c74b7e3af237"
   },
   "acceptedProductionRecovery": {
-    "status": "not_run",
+    "status": "not_required_no_independent_backup",
     "manifestSchema": "chickenbro-accepted-production-recovery-v1",
     "manifestPath": null,
     "manifestSha256": null,
@@ -130,6 +136,7 @@
       "/opt/chickenbro/docs/refactor/chickenbro-simc-cloud-inventory.json",
       "/opt/chickenbro/docs/refactor/chickenbro-simc-recovery-inventory.json",
       "/opt/chickenbro/docs/chickenbro-simc-production-runbook.md",
+      "/opt/chickenbro/server/migrations/product/postgres_legacy.py",
       "/opt/chickenbro/server/retire_chickenbro_legacy_lighthouse.sh",
       "/opt/chickenbro/tests/chickenbro_simc_capacity_cleanup_manifest_test.py",
       "/opt/chickenbro/tests/deploy-chickenbro-candidate.test.js",
@@ -139,7 +146,13 @@
   "quarantine": {
     "root": "/var/lib/chickenbro-retirement-quarantine",
     "independentDeviceRequired": false,
-    "permanentDeletionAuthorized": false
+    "permanentDeletionAuthorized": true,
+    "mode": "none_user_authorized",
+    "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE",
+    "cleanupResultPath": "/var/lib/chickenbro-retirement-quarantine/d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc/result.json",
+    "cleanupResultSha256": "58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242",
+    "runtimeMaskCleanupEvidencePath": "/var/lib/chickenbro-retirement-quarantine/d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc/runtime-mask-cleanup.json",
+    "runtimeMaskCleanupEvidenceSha256": "fe88a3878edc06c76689e6ec5b2381e4f4e0446b2ebdd8db4116e32f16144572"
   },
   "protectedResources": [
     {
@@ -210,7 +223,9 @@
     {
       "kind": "file",
       "target": "/etc/chickenbro-api.pgpass",
-      "reason": "new production database password file"
+      "reason": "new production database password file",
+      "observedAt": "2026-09-04T04:54:54Z",
+      "contentSha256": "dd4e90fc95752fc1ff35d48adad3fbfdc9a31bb8cbc85df260b2309254071968"
     },
     {
       "kind": "file",
@@ -233,1994 +248,2941 @@
       "reason": "independent recovery and quarantine root"
     },
     {
-      "kind": "postgres_database",
-      "target": "chickenbro_candidate",
-      "reason": "bounded candidate database before rollback expiry"
+      "kind": "file",
+      "target": "/etc/nginx/sites-enabled/wow-v2-web",
+      "reason": "current www.chickenbro.cloud Nginx enablement link"
     },
     {
+      "kind": "file",
+      "target": "/etc/nginx/sites-available/api.chickenbro.cloud",
+      "reason": "current api.chickenbro.cloud Nginx owner"
+    }
+  ],
+  "unresolvedRequiredTargets": [],
+  "resources": [
+    {
+      "id": "systemd-unit-chickenbro-api-candidate-service",
       "kind": "systemd_unit",
       "target": "chickenbro-api-candidate.service",
-      "reason": "bounded candidate API before rollback expiry"
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/chickenbro-api-candidate.service",
+        "status": "present"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "8642d34b7920da8478f5537289fb4202d81585a0f40d10fdf06870972ff1ce41",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
+      "id": "systemd-unit-chickenbro-worker-candidate-service",
       "kind": "systemd_unit",
       "target": "chickenbro-worker-candidate.service",
-      "reason": "bounded candidate worker before rollback expiry"
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "loadState": "loaded",
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/chickenbro-worker-candidate.service",
+        "status": "present"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "40c9176ad431a226b36980398b10fe54e49e625bda78db1124e6c23721de60f3",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
-    {
-      "kind": "directory",
-      "target": "/opt/chickenbro-candidate",
-      "reason": "bounded candidate code before rollback expiry"
-    },
-    {
-      "kind": "directory",
-      "target": "/var/www/chickenbro-candidate",
-      "reason": "bounded candidate Web root before rollback expiry"
-    }
-  ],
-  "unresolvedRequiredTargets": [
-    {
-      "id": "legacy-runtime-pgpass-path",
-      "sourceFiles": [
-        "/etc/wow-backend.env",
-        "/etc/wow-v2-api.env"
-      ],
-      "requiredFact": "exact legacy PGPASSFILE path without exposing its value",
-      "status": "blocked"
-    },
-    {
-      "id": "post-cutover-candidate-retirement-refresh",
-      "sourceFiles": [
-        "/etc/systemd/system",
-        "/opt/chickenbro-candidate",
-        "/var/www/chickenbro-candidate"
-      ],
-      "requiredFact": "exact post-cutover candidate resources and content identities",
-      "status": "blocked"
-    }
-  ],
-  "resources": [
     {
       "id": "unit-wow-attribute-rule-audit-service",
       "kind": "systemd_unit",
       "target": "wow-attribute-rule-audit.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-attribute-rule-audit.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "8fd0f27965a022ba166449b477cb842f035c4ce7608ea5a5e6d34505fdcc1e8b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-backend-service",
       "kind": "systemd_unit",
       "target": "wow-backend.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-backend.service",
+        "status": "present"
       },
       "replacement": "chickenbro-api.service",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "05fd88f1aec005042b503e05458c66ea9195e58a518f935e667e44d757516e64",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-chickenbro-source-refresh-service",
       "kind": "systemd_unit",
       "target": "wow-chickenbro-source-refresh.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-chickenbro-source-refresh.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "19fb19ae727e06cc663e2094bb1ccd31fdf66216b357c6d78c1cf52066da7efb",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-chickenbro-source-refresh-timer",
       "kind": "systemd_unit",
       "target": "wow-chickenbro-source-refresh.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-chickenbro-source-refresh.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "a6b589c5b83625fb28b317df62ff6f28d3225d93ccd078e2b59b145999b98765",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-community-best-guard-sync-service",
       "kind": "systemd_unit",
       "target": "wow-community-best-guard-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-community-best-guard-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "b0ff18b3eb3c0193f27b39b4560c0be17ad3f1814a7be583d8a3e9be0797ac48",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-community-best-guard-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-community-best-guard-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-community-best-guard-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "29ba0ebce51e7f4f5bf848abb0b32c5324369de0c366ae76fc62f5f697cf9573",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-community-template-sync-service",
       "kind": "systemd_unit",
       "target": "wow-community-template-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "failed",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-community-template-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "6ccc1ec3840dc7f74dba4b17d11d67d159309364a2d358ac0e5a08041c5d33ca",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-community-template-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-community-template-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-community-template-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "178458aeafc3a8a7967176c67cda1ac6c091a999dabe4187f35b17c96a73bb86",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-data-health-followup-service",
       "kind": "systemd_unit",
       "target": "wow-data-health-followup.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-data-health-followup.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "20db19fbfe7d9dba92905cfd9c2dbaa283236974cc160051a9bd98d9e789471b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-data-health-followup-timer",
       "kind": "systemd_unit",
       "target": "wow-data-health-followup.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-data-health-followup.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "943b7d9b87e131ad4612d77c422c43e9c34f1d04d4ecd1db66a613d3bbbd1f8b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-gear-observed-backfill-service",
       "kind": "systemd_unit",
       "target": "wow-gear-observed-backfill.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-gear-observed-backfill.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "51a4f015cac348b858ae0cf12dc2b8f05a429f181330a7a09e70843dda0ff3c3",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-gear-observed-backfill-timer",
       "kind": "systemd_unit",
       "target": "wow-gear-observed-backfill.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "enabled"
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-gear-observed-backfill.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "53616f9028c1eca4b50320758649ea9f052b5898180db2a222617d7fba4e015e",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-gear-release-refresh-service",
       "kind": "systemd_unit",
       "target": "wow-gear-release-refresh.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "failed",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-gear-release-refresh.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "eaf6a9ef7fac8b1adb9563652cdf12a2ed668b96817feb7347d0729532c5d87b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-gear-release-refresh-timer",
       "kind": "systemd_unit",
       "target": "wow-gear-release-refresh.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-gear-release-refresh.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "1ab05f50d8e1b2033b31f148263d47fa16b323ea19ce6ab0f3c6253e700e374b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-gear-stat-snapshot-worker-service",
       "kind": "systemd_unit",
       "target": "wow-gear-stat-snapshot-worker.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-gear-stat-snapshot-worker.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "81bdcc08326b2aed0ccc348dd29b84cb888a4e565fe45c930f5a3474edeb5ea7",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-news-backend-service",
       "kind": "systemd_unit",
       "target": "wow-news-backend.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "masked",
         "activeState": "inactive",
-        "unitFileState": "masked"
+        "unitFileState": "masked",
+        "fragmentPath": "/etc/systemd/system/wow-news-backend.service",
+        "status": "masked"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "fd5d32feb2d3562582258990ecfca9b88376957e512d5caac72ad89fc78d2df4",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-recommended-bis-guard-sync-service",
       "kind": "systemd_unit",
       "target": "wow-recommended-bis-guard-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-recommended-bis-guard-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "37e9d7c6479c3e95172d62e10c3cc4fbc87499b653776ae47f91e56c00c47b42",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-recommended-bis-guard-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-recommended-bis-guard-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-recommended-bis-guard-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "73753193bf40e9f98a8ef9a2e5129c3b255c72ec214797d87ddad6f0b0fc0251",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-recommended-bis-prototype-sync-service",
       "kind": "systemd_unit",
       "target": "wow-recommended-bis-prototype-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-recommended-bis-prototype-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "e51c917e5f3289c113248fff2ec5c37814f68478f3adc4e639221b5b74eca0f7",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-season-recommended-gear-sync-service",
       "kind": "systemd_unit",
       "target": "wow-season-recommended-gear-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-season-recommended-gear-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "ff0e3b4de23a4363ba5d27ae43e96fafbc0eb3c4fee78012f494b571a4c59b07",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-season-recommended-gear-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-season-recommended-gear-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-season-recommended-gear-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "027086ceba6f90457076e09f41516fea49649054e49ec6cbd7f6bd1220098775",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-simc-runtime-update-service",
       "kind": "systemd_unit",
       "target": "wow-simc-runtime-update.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-simc-runtime-update.service",
+        "status": "present"
       },
       "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "6e2d98d9d69b761c58a2b742b6d0241ad6e94053921d600bacc3efdf535221ba",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-simc-version-check-service",
       "kind": "systemd_unit",
       "target": "wow-simc-version-check.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-simc-version-check.service",
+        "status": "present"
       },
       "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "be20eb0e74abce9beef63598031b481f9ccc032d406e13b58e552fac7f599e66",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-simc-version-check-timer",
       "kind": "systemd_unit",
       "target": "wow-simc-version-check.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-simc-version-check.timer",
+        "status": "present"
       },
       "replacement": "chickenbro-simc-runtime-update.service (manual, content-addressed)",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "89911d08964227f9194d2a5a7c8bd43f227f540f201c7c5a5dc28d1848e26e5c",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-stat-weights-sync-service",
       "kind": "systemd_unit",
       "target": "wow-stat-weights-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-stat-weights-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "657d6bac9da238fa0c5e6b626e2ae33824fb51190a08932ec1a5b43384f17e5a",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-stat-weights-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-stat-weights-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-stat-weights-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "a637a42cbc57af11567e9d858e48f27d8c6e839ac5aa9cc7146ec88a618885ad",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-talent-graph-recovery-service",
       "kind": "systemd_unit",
       "target": "wow-talent-graph-recovery.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-talent-graph-recovery.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "7618f498313aeab895a3aaf9474a5e1faea63c9a536ddb3cc7b96d5ed3904fb8",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-v2-api-candidate-service",
       "kind": "systemd_unit",
       "target": "wow-v2-api-candidate.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-v2-api-candidate.service",
+        "status": "present"
       },
       "replacement": "chickenbro-api-candidate.service",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "0daa32935549ac9b7964f6072c2c7975a57591de76a939ae74a86cb3fb7009e4",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-v2-api-service",
       "kind": "systemd_unit",
       "target": "wow-v2-api.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-v2-api.service",
+        "status": "present"
       },
       "replacement": "chickenbro-api.service",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "8e1e921faac9c5197244a22512eea6b251d9afd100b85f08bdef045ee0205d17",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-v2-worker-service",
       "kind": "systemd_unit",
       "target": "wow-v2-worker.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-v2-worker.service",
+        "status": "present"
       },
       "replacement": "chickenbro-worker.service",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "7840f6b882ea310572e667410faa97790bc9fe5141100278ff98a5b0f58a7362",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-websim-sync-service",
       "kind": "systemd_unit",
       "target": "wow-websim-sync.service",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
         "activeState": "inactive",
-        "unitFileState": "static"
+        "unitFileState": "static",
+        "fragmentPath": "/etc/systemd/system/wow-websim-sync.service",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "b78d31ae6ef1f6e9ee78935d7ed7cde1ee254b0adeb8f9d082166100eb2bd9f7",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "unit-wow-websim-sync-timer",
       "kind": "systemd_unit",
       "target": "wow-websim-sync.timer",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "loadState": "loaded",
-        "activeState": "active",
-        "unitFileState": "enabled"
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "unit_file_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-dev",
-      "kind": "postgres_database",
-      "target": "wow_dev",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 9501719,
-        "connections": 0
+        "activeState": "inactive",
+        "unitFileState": "disabled",
+        "fragmentPath": "/etc/systemd/system/wow-websim-sync.timer",
+        "status": "present"
       },
       "replacement": "removed with no target-product replacement",
       "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
+      "contentSha256": "c2bf7d08c99dbce9fe64719d01ce9e5c36c66b5894aebaa933d49c73ea47d112",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
-      "id": "database-wow-exact-first-fresh-test-t3a2608050955",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a2608050955",
+      "id": "directory-etc-wow-backend-candidates",
+      "kind": "directory",
+      "target": "/etc/wow-backend-candidates",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 8002583,
-        "connections": 0
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidates",
+        "sizeBytes": 0,
+        "symlinkCount": 0
       },
-      "replacement": "removed with no target-product replacement",
+      "replacement": "removed legacy code/data directory",
       "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
-      "id": "database-wow-exact-first-fresh-test-t3a260805111623",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805111623",
+      "id": "directory-etc-wow-postgres",
+      "kind": "directory",
+      "target": "/etc/wow-postgres",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 8002583,
-        "connections": 0
+        "at": "2026-09-04T05:44:05Z",
+        "status": "present",
+        "realpath": "/etc/wow-postgres",
+        "sizeBytes": 901,
+        "symlinkCount": 0
       },
-      "replacement": "removed with no target-product replacement",
+      "replacement": "removed legacy code/data directory",
       "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
+      "contentSha256": "9cad19efc298206cdaa79a43e3a01447b6688c2da2102aa88cab535d853b33ab",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
-      "id": "database-wow-exact-first-fresh-test-t3a260805113656",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805113656",
+      "id": "directory-etc-wow-secrets",
+      "kind": "directory",
+      "target": "/etc/wow-secrets",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 11959319,
-        "connections": 0
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-secrets",
+        "sizeBytes": 0,
+        "symlinkCount": 0
       },
-      "replacement": "removed with no target-product replacement",
+      "replacement": "removed legacy code/data directory",
       "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
-      "id": "database-wow-exact-first-fresh-test-t3a260805120026",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805120026",
+      "id": "directory-opt-chickenbro-candidate",
+      "kind": "directory",
+      "target": "/opt/chickenbro-candidate",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 11975703,
-        "connections": 0
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/opt/chickenbro-candidate",
+        "sizeBytes": 1825039,
+        "symlinkCount": 0
       },
-      "replacement": "removed with no target-product replacement",
+      "replacement": "bounded candidate runtime after accepted production cutover",
       "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3a260805125812",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805125812",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12008471,
-        "connections": 0
+      "contentSha256": "1db792861f2f94793bb89ef4ec04d5b1f849dec06fc33443b16bc6656d558a96",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
       },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3a260805142130",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805142130",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12008471,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3a260805160003",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3a260805160003",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12016663,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3b260806175347",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3b260806175347",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12385303,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3b260806191719",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3b260806191719",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12442647,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3b260806191950",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3b260806191950",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12442647,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-fresh-test-t3b260806194346",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_fresh_test_t3b260806194346",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7748631,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a2608050955",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a2608050955",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7691287,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805111623",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805111623",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7691287,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805113656",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805113656",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 11959319,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805120026",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805120026",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 11983895,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805125812",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805125812",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12008471,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805142130",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805142130",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12016663,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3a260805160003",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3a260805160003",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12008471,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3b260806175347",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3b260806175347",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7748631,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3b260806191719",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3b260806191719",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7748631,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3b260806191950",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3b260806191950",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 12393495,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-exact-first-upgrade-test-t3b260806194346",
-      "kind": "postgres_database",
-      "target": "wow_exact_first_upgrade_test_t3b260806194346",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 7748631,
-        "connections": 0
-      },
-      "replacement": "removed with no target-product replacement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-prod",
-      "kind": "postgres_database",
-      "target": "wow_prod",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 100326423,
-        "connections": 0
-      },
-      "replacement": "chickenbro_prod",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-test",
-      "kind": "postgres_database",
-      "target": "wow_test",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 16384261143,
-        "connections": 0
-      },
-      "replacement": "chickenbro_prod",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "database-wow-v2-candidate",
-      "kind": "postgres_database",
-      "target": "wow_v2_candidate",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "sizeBytes": 10222615,
-        "connections": 0
-      },
-      "replacement": "chickenbro_candidate until candidate retirement",
-      "activeConnections": 0,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_zero_connection_probe_required",
-        "fresh_configuration_reference_probe_required",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-backend-env",
-      "kind": "file",
-      "target": "/etc/wow-backend.env",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "environment previously owned by legacy wow-backend",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-exact-worker-env",
-      "kind": "file",
-      "target": "/etc/wow-exact-worker.env",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "environment previously owned by legacy exact worker",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-v2-api-env",
-      "kind": "file",
-      "target": "/etc/wow-v2-api.env",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "environment previously owned by legacy v2 API",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-v2-source-env",
-      "kind": "file",
-      "target": "/etc/wow-v2-source.env",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "environment previously owned by legacy v2 source gateway",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-v2-api-candidate-env",
-      "kind": "file",
-      "target": "/etc/wow-v2-api-candidate.env",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "environment previously owned by legacy v2 candidate",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-wow-v2-api-candidate-pgpass",
-      "kind": "file",
-      "target": "/etc/wow-v2-api-candidate.pgpass",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "database password file previously owned by legacy v2 candidate",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-nginx-sites-available-wow-backend",
-      "kind": "file",
-      "target": "/etc/nginx/sites-available/wow-backend",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "legacy backend Nginx owner",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
-    },
-    {
-      "id": "file-etc-nginx-sites-enabled-wow-backend",
-      "kind": "file",
-      "target": "/etc/nginx/sites-enabled/wow-backend",
-      "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_inventoried_exactly"
-      },
-      "replacement": "legacy backend Nginx enablement link",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "fresh_reference_probe_required",
-        "exact_content_identity_missing",
-        "accepted_production_recovery_missing"
-      ]
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-opt-wow-mini-program",
       "kind": "directory",
       "target": "/opt/wow-mini-program",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 2436709811
+        "realpath": "/opt/wow-mini-program",
+        "sizeBytes": 2436713729,
+        "symlinkCount": 4
       },
       "replacement": "/opt/chickenbro",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "fa8458222853dd14d6fef43116e98290e4b756628fd73fd680732bee70c56d39",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-opt-wow-mini-program-candidate",
       "kind": "directory",
       "target": "/opt/wow-mini-program-candidate",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_in_inventory"
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/opt/wow-mini-program-candidate",
+        "sizeBytes": 574999,
+        "symlinkCount": 0
       },
       "replacement": "/opt/chickenbro-candidate",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "7304460e55a768d2278c0433a300c32a1cc9548588674cd4737328e721d2f28a",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-opt-wow-mini-program-candidates",
       "kind": "directory",
       "target": "/opt/wow-mini-program-candidates",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_in_inventory"
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/opt/wow-mini-program-candidates",
+        "sizeBytes": 0,
+        "symlinkCount": 0
       },
       "replacement": "/opt/chickenbro",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-opt-wow-v2-staging",
       "kind": "directory",
       "target": "/opt/wow-v2-staging",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 158096190
+        "realpath": "/opt/wow-v2-staging",
+        "sizeBytes": 158096190,
+        "symlinkCount": 0
       },
       "replacement": "/opt/chickenbro-runtime",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "e72f436660a075052736a8a0842c577b015e6732e7426d07a166dfd70ddb1093",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-var-backups-wow-mini-program",
       "kind": "directory",
       "target": "/var/backups/wow-mini-program",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 1161916185
+        "realpath": "/var/backups/wow-mini-program",
+        "sizeBytes": 1161916185,
+        "symlinkCount": 0
       },
       "replacement": "/mnt/chickenbro-backups",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "12ce598d5f5f2d4f3bce5ee28cadee66342a8a978f294ceccec052bb3f80673e",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-var-backups-wow-v2",
       "kind": "directory",
       "target": "/var/backups/wow-v2",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 7627618945
+        "realpath": "/var/backups/wow-v2",
+        "sizeBytes": 7627618945,
+        "symlinkCount": 0
       },
       "replacement": "/mnt/chickenbro-backups",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "4a3987658494ae24415b0658ea0c0a89bf4380e05c80076a8eaa4f132d7fc430",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-var-backups-wow-v2-candidate",
       "kind": "directory",
       "target": "/var/backups/wow-v2-candidate",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_in_inventory"
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/backups/wow-v2-candidate",
+        "sizeBytes": 3457026,
+        "symlinkCount": 0
       },
       "replacement": "/mnt/chickenbro-backups",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "12d6663b5bcb67736a2f1cf15772e133cd108e82a285cd68f8667575a4e6bedf",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/22e1dc9f182bf09574b659eb55e3a6c2fed7344bcf112de36498b9cfb475f1bd",
+        "sizeBytes": 6061,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "b63a3bca41be585c0939b8716955da51e71bf47dc12b5d87647168e50ed0aa95",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/3992a95aee948c9691229fde90d727ba3a356c920960e49fc8bbc89f295de0ec",
+        "sizeBytes": 12651,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "c292ae2603b45561718eb0ba514840fe013c3cdbddb29081dba5eaa73c9934df",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/5dc762674e66942e61992449dc5f214add441eb688c6b7165b7dcbdd3e338a78",
+        "sizeBytes": 2893,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "34fc5f17ebfdfa1f41034f1a1b3e4e6abfe14040aac34122faef8051cd33740a",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/7e99a78009eb9a04e86a21230da93cae143a6ffb705b548fc696b8e54b3476d9",
+        "sizeBytes": 7578,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "0037c6be9eebb92b2813a0e1daa7bc713e599c0e7c0e93b8e13982b9cb95bdd8",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/b28e9b30e2cc03245e4264bd55ead9dfbea4269b93a52aa390de531e2803f92a",
+        "sizeBytes": 2893,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "34fc5f17ebfdfa1f41034f1a1b3e4e6abfe14040aac34122faef8051cd33740a",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-lib-chickenbro-retirement-quarantine-c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451",
+      "kind": "directory",
+      "target": "/var/lib/chickenbro-retirement-quarantine/c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/lib/chickenbro-retirement-quarantine/c0e6da78c7d83bcef3c991861a914648d7f6ed8b203365966cd35147a4942451",
+        "sizeBytes": 6061,
+        "symlinkCount": 0
+      },
+      "replacement": "completed capacity-cleanup quarantine evidence; permanently removed under no-backup authorization",
+      "activeConnections": 0,
+      "contentSha256": "7549782dd99567d29e417b7f3212744dba80291e903a92a4a6bcda0b588f08ce",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-var-lib-wow-backend",
       "kind": "directory",
       "target": "/var/lib/wow-backend",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 1127088626
+        "realpath": "/var/lib/wow-backend",
+        "sizeBytes": 1127088626,
+        "symlinkCount": 0
       },
       "replacement": "server-owned Chickenbro PostgreSQL and isolated runtime state",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "55c1d53bbfcd6f5deea6bcf716ecf6ff174d9bca6d0b22703f97270e009f8cb9",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "directory-var-www-chickenbro-candidate",
+      "kind": "directory",
+      "target": "/var/www/chickenbro-candidate",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/var/www/chickenbro-candidate",
+        "sizeBytes": 4474415,
+        "symlinkCount": 1
+      },
+      "replacement": "bounded candidate runtime after accepted production cutover",
+      "activeConnections": 0,
+      "contentSha256": "9f73a406e508f5d9bfe2cd3a559a73b39e06f8aa7ff23297da86b9012ecf4101",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
       "id": "directory-var-www-chickenbro-web-candidate",
       "kind": "directory",
       "target": "/var/www/chickenbro-web-candidate",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
+        "at": "2026-09-04T04:54:54Z",
         "status": "present",
-        "sizeBytes": 11922719
+        "realpath": "/var/www/chickenbro-web-candidate",
+        "sizeBytes": 11922719,
+        "symlinkCount": 1
       },
       "replacement": "/var/www/chickenbro-web",
-      "activeConnections": null,
-      "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "activeConnections": 0,
+      "contentSha256": "3aaa0181e199c216a1d1c990e8ca18987bd59b588cb0720b3528be0433a8e3cd",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
     },
     {
-      "id": "directory-etc-systemd-system-wow-news-backend-service-d",
+      "id": "directory-var-www-wow-evidence",
       "kind": "directory",
-      "target": "/etc/systemd/system/wow-news-backend.service.d",
+      "target": "/var/www/wow-evidence",
       "observed": {
-        "at": "2026-09-02T13:43:05Z",
-        "status": "not_in_inventory"
+        "at": "2026-09-04T06:23:04Z",
+        "status": "present",
+        "realpath": "/var/www/wow-evidence",
+        "sizeBytes": 47483032,
+        "symlinkCount": 0
+      },
+      "replacement": "removed legacy evidence data",
+      "activeConnections": 0,
+      "contentSha256": "0ec978f5f2e122a958fbf5ad3002b782e230f80bfd66a6ef988b9f74fb7d21ab",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T06:23:04Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-opt-chickenbro-server-pycache-accept-chickenbro-candidate-cpython-312-pyc",
+      "kind": "file",
+      "target": "/opt/chickenbro/server/__pycache__/accept_chickenbro_candidate.cpython-312.pyc",
+      "observed": {
+        "at": "2026-09-04T07:15:31Z",
+        "status": "present",
+        "realpath": "/opt/chickenbro/server/__pycache__/accept_chickenbro_candidate.cpython-312.pyc",
+        "sizeBytes": 53458,
+        "type": "file"
+      },
+      "replacement": "retired candidate acceptance bytecode",
+      "activeConnections": 0,
+      "contentSha256": "3c90be4a098ff4d892a15554c8b749d285d50039dafbe273f4d71c1ce992f23c",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T07:15:31Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-opt-chickenbro-server-pycache-accept-chickenbro-dual-client-cpython-312-pyc",
+      "kind": "file",
+      "target": "/opt/chickenbro/server/__pycache__/accept_chickenbro_dual_client.cpython-312.pyc",
+      "observed": {
+        "at": "2026-09-04T07:15:31Z",
+        "status": "present",
+        "realpath": "/opt/chickenbro/server/__pycache__/accept_chickenbro_dual_client.cpython-312.pyc",
+        "sizeBytes": 27720,
+        "type": "file"
+      },
+      "replacement": "retired candidate acceptance bytecode",
+      "activeConnections": 0,
+      "contentSha256": "0f208bc8598935e3473d156a2d20fdc15c9b6304e7acddce1ac4aa3b19985149",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T07:15:31Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-opt-chickenbro-server-accept-chickenbro-candidate-py",
+      "kind": "file",
+      "target": "/opt/chickenbro/server/accept_chickenbro_candidate.py",
+      "observed": {
+        "at": "2026-09-04T06:23:04Z",
+        "status": "present",
+        "realpath": "/opt/chickenbro/server/accept_chickenbro_candidate.py",
+        "sizeBytes": 43415,
+        "type": "file"
+      },
+      "replacement": "retired candidate acceptance tooling",
+      "activeConnections": 0,
+      "contentSha256": "383c68d0cafb26aed2c5746f9258631d9c29d82ba0cd9ce0d1be2820d662ee60",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T06:23:04Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-opt-chickenbro-server-accept-chickenbro-dual-client-py",
+      "kind": "file",
+      "target": "/opt/chickenbro/server/accept_chickenbro_dual_client.py",
+      "observed": {
+        "at": "2026-09-04T06:23:04Z",
+        "status": "present",
+        "realpath": "/opt/chickenbro/server/accept_chickenbro_dual_client.py",
+        "sizeBytes": 21798,
+        "type": "file"
+      },
+      "replacement": "retired candidate acceptance tooling",
+      "activeConnections": 0,
+      "contentSha256": "9d8c3bbb07987127a413f59c2aa182f8eaf52f51fced033359c1af4219a18c1d",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T06:23:04Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-chickenbro-api-candidate-env",
+      "kind": "file",
+      "target": "/etc/chickenbro-api-candidate.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/chickenbro-api-candidate.env",
+        "type": "file",
+        "sizeBytes": 314,
+        "contentSha256": "2ca973364b8f354b5c4cc699d45199126df7ac220323ffce0021893ae48543ad"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "2ca973364b8f354b5c4cc699d45199126df7ac220323ffce0021893ae48543ad",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-chickenbro-api-candidate-pgpass",
+      "kind": "file",
+      "target": "/etc/chickenbro-api-candidate.pgpass",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/chickenbro-api-candidate.pgpass",
+        "type": "file",
+        "sizeBytes": 206,
+        "contentSha256": "2efc3950907801beaac8d30155ea5dc1f787165fbc8984adddbfeab33c3732ca"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "2efc3950907801beaac8d30155ea5dc1f787165fbc8984adddbfeab33c3732ca",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-chickenbro-source-candidate-env",
+      "kind": "file",
+      "target": "/etc/chickenbro-source-candidate.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/chickenbro-source-candidate.env",
+        "type": "file",
+        "sizeBytes": 331,
+        "contentSha256": "46e15d80ec5104420df9b0577a64a00e2dce989918011e0479c5176f3ecb3580"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "46e15d80ec5104420df9b0577a64a00e2dce989918011e0479c5176f3ecb3580",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-chickenbro-worker-candidate-env",
+      "kind": "file",
+      "target": "/etc/chickenbro-worker-candidate.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/chickenbro-worker-candidate.env",
+        "type": "file",
+        "sizeBytes": 181,
+        "contentSha256": "0d6489341257dec867c8b6d9a3fc9eee07f3b9b195dcdac981ab35f2d40e13d3"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "0d6489341257dec867c8b6d9a3fc9eee07f3b9b195dcdac981ab35f2d40e13d3",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-nginx-sites-available-wow-backend",
+      "kind": "file",
+      "target": "/etc/nginx/sites-available/wow-backend",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/nginx/sites-available/wow-backend",
+        "type": "file",
+        "sizeBytes": 1449,
+        "contentSha256": "c871e027ea13778a5a10f9d2d4960b43af24056382447738766b15423894bd63"
+      },
+      "replacement": "legacy backend Nginx owner",
+      "activeConnections": 0,
+      "contentSha256": "c871e027ea13778a5a10f9d2d4960b43af24056382447738766b15423894bd63",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-nginx-sites-available-wow-backend-before-wow-media-20260720",
+      "kind": "file",
+      "target": "/etc/nginx/sites-available/wow-backend.before-wow-media-20260720",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/nginx/sites-available/wow-backend.before-wow-media-20260720",
+        "type": "file",
+        "sizeBytes": 854,
+        "contentSha256": "447c312d4f23787d5f79d4ac124f477411ce002beeb480a8129cb7a1caf6a0da"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "447c312d4f23787d5f79d4ac124f477411ce002beeb480a8129cb7a1caf6a0da",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-nginx-sites-enabled-wow-backend",
+      "kind": "file",
+      "target": "/etc/nginx/sites-enabled/wow-backend",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/nginx/sites-available/wow-backend",
+        "type": "symlink",
+        "sizeBytes": 38,
+        "contentSha256": "4f9e519ae331bcb521bc8b55a63dc11c105f76bc32c082e837e2638a922700ce"
+      },
+      "replacement": "legacy backend Nginx enablement link",
+      "activeConnections": 0,
+      "contentSha256": "4f9e519ae331bcb521bc8b55a63dc11c105f76bc32c082e837e2638a922700ce",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-9d6a0772-r2-env",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r2.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r2.env",
+        "type": "file",
+        "sizeBytes": 118,
+        "contentSha256": "76bea27b5e9e32045f7105f7210236c21fd5e42fcf5422e4da5c4259ee84c92e"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "76bea27b5e9e32045f7105f7210236c21fd5e42fcf5422e4da5c4259ee84c92e",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-9d6a0772-r3-env",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r3.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r3.env",
+        "type": "file",
+        "sizeBytes": 318,
+        "contentSha256": "ed8b118b1bfe3f2f224f31b7fd8c2d965e09a3dfbd8410ebfab1afa8d3174993"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "ed8b118b1bfe3f2f224f31b7fd8c2d965e09a3dfbd8410ebfab1afa8d3174993",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-9d6a0772-r3-pgpass",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r3.pgpass",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-9d6a0772-r3.pgpass",
+        "type": "file",
+        "sizeBytes": 215,
+        "contentSha256": "1ebc1e4b180f792734516a1163b9be866c8c2f8b11764beab92a6bfcc6eaba12"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "1ebc1e4b180f792734516a1163b9be866c8c2f8b11764beab92a6bfcc6eaba12",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-9d6a0772-env",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-9d6a0772.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-9d6a0772.env",
+        "type": "file",
+        "sizeBytes": 115,
+        "contentSha256": "be7754477968efe14b2b3f9669c914daecb329387f2e209ac4784aa896e06842"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "be7754477968efe14b2b3f9669c914daecb329387f2e209ac4784aa896e06842",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-dd0489b9-r5-env",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-dd0489b9-r5.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-dd0489b9-r5.env",
+        "type": "file",
+        "sizeBytes": 1123,
+        "contentSha256": "02881658ef0107cfeb683b88d006757befdaf138013d6000fb5b55d6645ee88e"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "02881658ef0107cfeb683b88d006757befdaf138013d6000fb5b55d6645ee88e",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-candidate-gear-evidence-dd0489b9-r5-pgpass",
+      "kind": "file",
+      "target": "/etc/wow-backend-candidate-gear-evidence-dd0489b9-r5.pgpass",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend-candidate-gear-evidence-dd0489b9-r5.pgpass",
+        "type": "file",
+        "sizeBytes": 215,
+        "contentSha256": "a945f603acbc9a6a3120541338cfa116f3a0f9087a3542bc07ed96c661123eb9"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "a945f603acbc9a6a3120541338cfa116f3a0f9087a3542bc07ed96c661123eb9",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env",
+      "kind": "file",
+      "target": "/etc/wow-backend.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env",
+        "type": "file",
+        "sizeBytes": 1289,
+        "contentSha256": "755261ed009a77bdcc1653d4001c1bb395fe7105b19e9db47a828a6287c98603"
+      },
+      "replacement": "environment previously owned by legacy wow-backend",
+      "activeConnections": 0,
+      "contentSha256": "755261ed009a77bdcc1653d4001c1bb395fe7105b19e9db47a828a6287c98603",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-20260622t073127z-bak",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.20260622T073127Z.bak",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.20260622T073127Z.bak",
+        "type": "file",
+        "sizeBytes": 631,
+        "contentSha256": "04d6a51a87cabe8e93aee05ccf65eb61fbd5c415007d2031cae3f73217520935"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "04d6a51a87cabe8e93aee05ccf65eb61fbd5c415007d2031cae3f73217520935",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-20260622t073926z-pre-timeout-bak",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.20260622T073926Z.pre-timeout.bak",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.20260622T073926Z.pre-timeout.bak",
+        "type": "file",
+        "sizeBytes": 662,
+        "contentSha256": "776e87e81273c41183f6a8292166cc73158ea7a3c9fd8fd7d2f73506f04acb9a"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "776e87e81273c41183f6a8292166cc73158ea7a3c9fd8fd7d2f73506f04acb9a",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-bak-20260612150135",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.bak-20260612150135",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.bak-20260612150135",
+        "type": "file",
+        "sizeBytes": 545,
+        "contentSha256": "571d9faae2082bcfc434aac1d3583232fd9368e29923d932265fd576ebbd5765"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "571d9faae2082bcfc434aac1d3583232fd9368e29923d932265fd576ebbd5765",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-before-pg-runtime-20260627t200625z",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.before-pg-runtime-20260627T200625Z",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.before-pg-runtime-20260627T200625Z",
+        "type": "file",
+        "sizeBytes": 692,
+        "contentSha256": "f0811b894a983700f11018e53b6eeed1fb584f5bde28d7558415570cad1fae4f"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "f0811b894a983700f11018e53b6eeed1fb584f5bde28d7558415570cad1fae4f",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-before-wcl-v2-20260703t071145z",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.before-wcl-v2-20260703T071145Z",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.before-wcl-v2-20260703T071145Z",
+        "type": "file",
+        "sizeBytes": 896,
+        "contentSha256": "a1e501331d2d846ba3b0d9c896457fcf498ddcc182e7206eeb8f242f091fd92b"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "a1e501331d2d846ba3b0d9c896457fcf498ddcc182e7206eeb8f242f091fd92b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-backend-env-before-wow-test-runtime-20260628t020838z",
+      "kind": "file",
+      "target": "/etc/wow-backend.env.before-wow-test-runtime-20260628T020838Z",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-backend.env.before-wow-test-runtime-20260628T020838Z",
+        "type": "file",
+        "sizeBytes": 825,
+        "contentSha256": "5a89ad8b2323ad04a515214fb51b756952c31b3e249f0f1a4a714665068b2b2d"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "5a89ad8b2323ad04a515214fb51b756952c31b3e249f0f1a4a714665068b2b2d",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-postgres-env",
+      "kind": "file",
+      "target": "/etc/wow-postgres.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-postgres.env",
+        "type": "file",
+        "sizeBytes": 540,
+        "contentSha256": "47a71a41bcceca38d1a56dac59295a51ebde19e23e3c518d3862cec0453f597b"
+      },
+      "replacement": "removed after accepted Chickenbro production cutover",
+      "activeConnections": 0,
+      "contentSha256": "47a71a41bcceca38d1a56dac59295a51ebde19e23e3c518d3862cec0453f597b",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-v2-api-candidate-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-api-candidate.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-v2-api-candidate.env",
+        "type": "file",
+        "sizeBytes": 387,
+        "contentSha256": "1d13edd2862d75de837e5903e9bccc710321e1dc4022c6c64c8524c3ddec8a29"
+      },
+      "replacement": "environment previously owned by legacy v2 candidate",
+      "activeConnections": 0,
+      "contentSha256": "1d13edd2862d75de837e5903e9bccc710321e1dc4022c6c64c8524c3ddec8a29",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-v2-api-candidate-pgpass",
+      "kind": "file",
+      "target": "/etc/wow-v2-api-candidate.pgpass",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-v2-api-candidate.pgpass",
+        "type": "file",
+        "sizeBytes": 105,
+        "contentSha256": "76ec309f605a6390ca7a85bcf83d3873980a6002aa4c65d7035b2ff88f814f47"
+      },
+      "replacement": "database password file previously owned by legacy v2 candidate",
+      "activeConnections": 0,
+      "contentSha256": "76ec309f605a6390ca7a85bcf83d3873980a6002aa4c65d7035b2ff88f814f47",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-v2-api-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-api.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-v2-api.env",
+        "type": "file",
+        "sizeBytes": 225,
+        "contentSha256": "f789fa6ff94f041c998a79cd0f1ab2e4c0c6c81adb5b08c668946d9d0b4cc5ba"
+      },
+      "replacement": "environment previously owned by legacy v2 API",
+      "activeConnections": 0,
+      "contentSha256": "f789fa6ff94f041c998a79cd0f1ab2e4c0c6c81adb5b08c668946d9d0b4cc5ba",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-etc-wow-v2-source-env",
+      "kind": "file",
+      "target": "/etc/wow-v2-source.env",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/etc/wow-v2-source.env",
+        "type": "file",
+        "sizeBytes": 183,
+        "contentSha256": "dd0de2a994fcc51c322bdbd130eb2476eb80859f32be2dafc1c0ddba20dfa507"
+      },
+      "replacement": "environment previously owned by legacy v2 source gateway",
+      "activeConnections": 0,
+      "contentSha256": "dd0de2a994fcc51c322bdbd130eb2476eb80859f32be2dafc1c0ddba20dfa507",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "file-home-ubuntu-pgpass",
+      "kind": "file",
+      "target": "/home/ubuntu/.pgpass",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "realpath": "/home/ubuntu/.pgpass",
+        "type": "file",
+        "sizeBytes": 194,
+        "contentSha256": "8c684595db2ef5422790c1e6432c9ab504005561f8ff12a0534fba00beda699c"
+      },
+      "replacement": "legacy wow-backend/v2 shared password file; production uses /etc/chickenbro-api.pgpass",
+      "activeConnections": 0,
+      "contentSha256": "8c684595db2ef5422790c1e6432c9ab504005561f8ff12a0534fba00beda699c",
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "postgres-database-chickenbro-candidate",
+      "kind": "postgres_database",
+      "target": "chickenbro_candidate",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11140119,
+        "connections": 0
+      },
+      "replacement": "bounded candidate database after accepted production cutover",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [
+        "/etc/chickenbro-api-candidate.env"
+      ],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": [],
+      "requiredAbsentCompanion": "/etc/chickenbro-api-candidate.env"
+    },
+    {
+      "id": "postgres-database-chickenbro-restore-verify-20260903-054604-c74b7e3af237",
+      "kind": "postgres_database",
+      "target": "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11148311,
+        "connections": 0
+      },
+      "replacement": "isolated recovery drill database; evidence retained under /var/lib/chickenbro-recovery",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-dev",
+      "kind": "postgres_database",
+      "target": "wow_dev",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 9501719,
+        "connections": 0
       },
       "replacement": "removed with no target-product replacement",
-      "activeConnections": null,
+      "activeConnections": 0,
       "contentSha256": null,
-      "currentReferences": null,
-      "backupIdentity": null,
-      "restoreCheck": "not_run",
-      "deleteAfter": null,
-      "gateStatus": "blocked",
-      "blockedReasons": [
-        "phase5_not_accepted",
-        "stable_production_health_not_proven",
-        "fresh_reference_probe_required",
-        "exact_tree_identity_missing",
-        "accepted_production_recovery_missing",
-        "quarantine_expiry_not_set"
-      ]
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a2608050955",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a2608050955",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 8002583,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805111623",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805111623",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 8002583,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805113656",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805113656",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11959319,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805120026",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805120026",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11975703,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805125812",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805125812",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805142130",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805142130",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3a260805160003",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3a260805160003",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12016663,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806175347",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806175347",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12385303,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806191719",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806191719",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12442647,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806191950",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806191950",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12442647,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-fresh-test-t3b260806194346",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_fresh_test_t3b260806194346",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a2608050955",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a2608050955",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7691287,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805111623",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805111623",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7691287,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805113656",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805113656",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11959319,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805120026",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805120026",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 11983895,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805125812",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805125812",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805142130",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805142130",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12016663,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3a260805160003",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3a260805160003",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12008471,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806175347",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806175347",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806191719",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806191719",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806191950",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806191950",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 12393495,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-exact-first-upgrade-test-t3b260806194346",
+      "kind": "postgres_database",
+      "target": "wow_exact_first_upgrade_test_t3b260806194346",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 7748631,
+        "connections": 0
+      },
+      "replacement": "removed with no target-product replacement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-prod",
+      "kind": "postgres_database",
+      "target": "wow_prod",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 100326423,
+        "connections": 0
+      },
+      "replacement": "chickenbro_prod",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": []
+    },
+    {
+      "id": "database-wow-test",
+      "kind": "postgres_database",
+      "target": "wow_test",
+      "observed": {
+        "at": "2026-09-04T04:54:54Z",
+        "status": "present",
+        "sizeBytes": 16411884567,
+        "connections": 0
+      },
+      "replacement": "chickenbro_prod",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [
+        "/etc/wow-backend.env"
+      ],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": [],
+      "requiredAbsentCompanion": "/etc/wow-backend.env"
+    },
+    {
+      "id": "database-wow-v2-candidate",
+      "kind": "postgres_database",
+      "target": "wow_v2_candidate",
+      "observed": {
+        "at": "2026-09-04T07:37:31Z",
+        "status": "present",
+        "sizeBytes": 10060303,
+        "connections": 0
+      },
+      "replacement": "chickenbro_candidate until candidate retirement",
+      "activeConnections": 0,
+      "contentSha256": null,
+      "currentReferences": [
+        "/etc/wow-v2-api-candidate.env"
+      ],
+      "backupIdentity": {
+        "mode": "none_user_authorized",
+        "independentBackup": false,
+        "authorization": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE"
+      },
+      "restoreCheck": "not_required",
+      "deleteAfter": "2026-09-04T04:54:54Z",
+      "gateStatus": "ready",
+      "blockedReasons": [],
+      "requiredAbsentCompanion": "/etc/wow-v2-api-candidate.env"
     }
   ],
   "requiredBeforeApply": [
     "refresh the cloud inventory on the target host",
-    "record real Mini and Web production acceptance plus first-new-write reconciliation",
+    "record accepted production dual-client evidence and first-new-write reconciliation",
     "complete a stable production-health window",
-    "bind the accepted-production recovery artifact and completed isolated restore identity",
-    "resolve every required exact target",
-    "record fresh zero-reference probes for every resource",
-    "record fresh zero-connection probes for every database",
-    "record exact unit, file and directory content identities",
-    "set and pass every delete-after boundary",
-    "review this exact manifest file SHA-256"
+    "review this exact manifest file SHA-256",
+    "apply only with the explicit no-independent-backup irreversible authorization"
   ],
+  "retirementAuthorization": {
+    "status": "user_authorized_direct_permanent_delete",
+    "mode": "none_user_authorized",
+    "confirmation": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE",
+    "authorizedAt": "2026-09-04",
+    "scope": [
+      "legacy_services",
+      "legacy_databases",
+      "legacy_code",
+      "legacy_configuration",
+      "legacy_backup_data",
+      "candidate_runtime",
+      "temporary_restore_drill"
+    ]
+  },
   "nonClaims": {
-    "phase5Accepted": false,
+    "phase5Accepted": true,
     "acceptedProductionRecoveryExists": false,
-    "restoreVerified": false,
+    "restoreVerified": true,
     "cloudInventoryFresh": true,
-    "safeToDelete": false,
-    "cleanupComplete": false
+    "safeToDelete": true,
+    "cleanupComplete": true
+  },
+  "postCleanupEvidence": {
+    "status": "passed",
+    "cleanupCompletedAt": "2026-09-04T07:40:20Z",
+    "runtimeMaskCleanupCompletedAt": "2026-09-04T07:48:20Z",
+    "appliedManifestSha256": "d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc",
+    "retirementResultPath": "/var/lib/chickenbro-retirement-quarantine/d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc/result.json",
+    "retirementResultSha256": "58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242",
+    "retirementResultStatus": "applied",
+    "resourceCount": 113,
+    "resourceStatuses": {
+      "deleted": 1,
+      "skipped_previously_absent": 112
+    },
+    "runtimeLegacyUnitsRemoved": 33,
+    "runtimeLegacyUnitsRemaining": 0,
+    "finalInventoryPath": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "finalInventorySha256": "95937c5c4f3b2be9553ec673bfde7864ba83f132d0285cf7be0c7ca65cd4cdb2",
+    "finalInventoryObservedAt": "2026-09-04T07:46:14Z",
+    "finalInventoryStatus": "reachable",
+    "legacyDatabaseCount": 0,
+    "legacyUnitCount": 0,
+    "candidateServiceCount": 0,
+    "candidateListenerCount": 0,
+    "legacyFilesystemTargetsAbsent": true,
+    "productionReadiness": "ready",
+    "publicWebHttpStatus": 200,
+    "independentBackupCreated": false
   }
 }
