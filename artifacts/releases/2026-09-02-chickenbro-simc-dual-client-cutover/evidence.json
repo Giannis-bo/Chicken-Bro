@@ -18,8 +18,8 @@
       "value": "HEAD"
     },
     "closure": {
-      "status": "passed",
-      "reason": "Final local cleanup commit, main/origin parity, production identity check and WeApp DevTools refresh passed."
+      "status": "pending",
+      "reason": "live_verified evidence does not bind merge_commit; main/origin parity, production identity check and WeApp DevTools refresh are recorded in project-state finalParity."
     }
   },
   "manualAcceptance": {
