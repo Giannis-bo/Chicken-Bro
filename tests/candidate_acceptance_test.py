@@ -29,7 +29,14 @@ RUNTIME_REVISION = "simc:test-runtime"
 
 
 class FakeCandidateApi:
-    def __init__(self, *, leak_owner=False, malformed_stream=False, malformed_simc=False):
+    def __init__(
+        self,
+        *,
+        leak_owner=False,
+        malformed_stream=False,
+        malformed_simc=False,
+        snapshot_unavailable_attempts=0,
+    ):
         self.leak_owner = leak_owner
         self.malformed_stream = malformed_stream
         self.malformed_simc = malformed_simc
@@ -41,6 +48,8 @@ class FakeCandidateApi:
         self.job_inputs = {}
         self.stream_calls = []
         self.created_snapshot = False
+        self.snapshot_calls = 0
+        self.snapshot_unavailable_attempts = snapshot_unavailable_attempts
 
     def exchange_web(self, session_id, browser_verifier):
         self.assert_secret_inputs(session_id, browser_verifier)
@@ -72,7 +81,20 @@ class FakeCandidateApi:
             self.web_logged_out = True
             return ApiResponse(200, {"loggedOut": True})
         if path.endswith("/simc/snapshots") and method == "POST":
+            self.snapshot_calls += 1
             self.created_snapshot = True
+            if self.snapshot_calls <= self.snapshot_unavailable_attempts:
+                return ApiResponse(201, {
+                    "id": str(SNAPSHOT),
+                    "provider": "raiderio",
+                    "readiness": "SNAPSHOT_UNAVAILABLE",
+                    "missingFields": [],
+                    "blockers": ["SNAPSHOT_UNAVAILABLE"],
+                    "provenance": {
+                        "sourceRevision": None,
+                        "sourceRawSha256": None,
+                    },
+                })
             return ApiResponse(201, {
                 "id": str(SNAPSHOT),
                 "provider": "raiderio",
@@ -269,6 +291,21 @@ class CandidateAcceptanceTest(unittest.TestCase):
 
         self.assertTrue(api.created_snapshot)
         self.assertFalse(evidence["transportScope"]["migratedReadySnapshot"])
+        self.assertTrue(evidence["transportScope"]["liveSourceSnapshot"])
+
+    def test_acceptance_retries_transient_source_unavailability_but_keeps_the_snapshot_live(self):
+        api = FakeCandidateApi(snapshot_unavailable_attempts=1)
+        evidence = run_candidate_acceptance(
+            self.seed_without_snapshot(),
+            api,
+            expected_commit="a" * 40,
+            web_build_identity="b" * 64,
+            weapp_build_identity="c" * 64,
+            source_url="https://raider.io/characters/eu/taerar/PublicSample",
+            sleep=lambda _seconds: None,
+        )
+
+        self.assertEqual(api.snapshot_calls, 2)
         self.assertTrue(evidence["transportScope"]["liveSourceSnapshot"])
 
     def test_acceptance_requires_a_source_url_when_the_seed_has_no_snapshot(self):

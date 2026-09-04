@@ -310,6 +310,8 @@ def _create_ready_snapshot(
     *,
     prefix: str,
     source_url: str,
+    sleep: Callable[[float], None] = time.sleep,
+    attempts: int = 3,
 ) -> UUID:
     normalized_source_url = str(source_url or "").strip()
     if not normalized_source_url:
@@ -318,32 +320,43 @@ def _create_ready_snapshot(
         parsed = parse_character_source_url(normalized_source_url)
     except InvalidSourceLink:
         raise AcceptanceError("SIMC_SOURCE_URL_INVALID") from None
-    response = _require(
-        api.request(
-            "mini",
-            "POST",
-            f"{prefix}/simc/snapshots",
-            body={"sourceUrl": parsed.url},
-            headers={"Idempotency-Key": f"acceptance-source-{_hash('source-url', parsed.url)[:24]}"},
-        ),
-        201,
-        "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED",
-    )
-    snapshot_id = _identifier(response, "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED")
-    if response.get("provider") not in {"raiderio", "warcraftlogs"}:
-        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
-    if response.get("readiness") != "READY_FOR_SIMC":
-        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
-    if response.get("missingFields") not in ([], None) or response.get("blockers") not in ([], None):
-        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
-    provenance = response.get("provenance")
-    if (
-        not isinstance(provenance, Mapping)
-        or not str(provenance.get("sourceRevision") or "").strip()
-        or SHA256.fullmatch(str(provenance.get("sourceRawSha256") or "")) is None
-    ):
-        raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
-    return UUID(snapshot_id)
+    bounded_attempts = max(1, min(int(attempts), 5))
+    for attempt in range(bounded_attempts):
+        response = _require(
+            api.request(
+                "mini",
+                "POST",
+                f"{prefix}/simc/snapshots",
+                body={"sourceUrl": parsed.url},
+                headers={
+                    "Idempotency-Key": (
+                        f"acceptance-source-{_hash('source-url', parsed.url)[:24]}-{attempt + 1}"
+                    ),
+                },
+            ),
+            201,
+            "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED",
+        )
+        snapshot_id = _identifier(response, "SIMC_SOURCE_SNAPSHOT_CREATE_FAILED")
+        if response.get("provider") not in {"raiderio", "warcraftlogs"}:
+            raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
+        readiness = response.get("readiness")
+        if readiness == "SNAPSHOT_UNAVAILABLE" and attempt + 1 < bounded_attempts:
+            sleep(min(2.0 * (attempt + 1), 5.0))
+            continue
+        if readiness != "READY_FOR_SIMC":
+            raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
+        if response.get("missingFields") not in ([], None) or response.get("blockers") not in ([], None):
+            raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
+        provenance = response.get("provenance")
+        if (
+            not isinstance(provenance, Mapping)
+            or not str(provenance.get("sourceRevision") or "").strip()
+            or SHA256.fullmatch(str(provenance.get("sourceRawSha256") or "")) is None
+        ):
+            raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_INVALID")
+        return UUID(snapshot_id)
+    raise AcceptanceError("SIMC_SOURCE_SNAPSHOT_NOT_READY")
 
 
 def run_candidate_acceptance(
@@ -396,6 +409,7 @@ def run_candidate_acceptance(
             api,
             prefix=prefix,
             source_url=source_url or "",
+            sleep=sleep,
         )
         source_snapshot_created = True
 
