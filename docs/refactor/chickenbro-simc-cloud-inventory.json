@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "reachable",
-  "observedAt": "2026-09-04T02:09:02Z",
+  "observedAt": "2026-09-04T02:23:06Z",
   "host": "VM-4-8-ubuntu",
   "targetIdentity": {
     "provider": "tencent_cvm",
@@ -15,12 +15,17 @@
   "rootFilesystem": {
     "path": "/",
     "sizeBytes": 73859022848,
-    "usedBytes": 40092389376,
-    "freeBytes": 30636400640
+    "usedBytes": 40164741120,
+    "freeBytes": 30564048896
   },
-  "rootFreeBytes": 30636400640,
-  "currentDatabaseBytes": 16793579163,
+  "rootFreeBytes": 30564048896,
+  "currentDatabaseBytes": 16804694706,
   "databases": [
+    {
+      "name": "chickenbro_candidate",
+      "sizeBytes": 11115543,
+      "connections": 0
+    },
     {
       "name": "chickenbro_prod",
       "sizeBytes": 10828823,
@@ -333,8 +338,8 @@
     {
       "name": "wow-v2-api-candidate.service",
       "loadState": "loaded",
-      "activeState": "active",
-      "unitFileState": "enabled"
+      "activeState": "inactive",
+      "unitFileState": "disabled"
     },
     {
       "name": "wow-v2-api.service",
@@ -461,7 +466,7 @@
     },
     {
       "path": "/var/lib/postgresql",
-      "sizeBytes": 16978986525
+      "sizeBytes": 16989856308
     },
     {
       "path": "/var/lib/wow-backend",
