@@ -851,6 +851,46 @@
   line-height: 1.75;
 }
 
+.replyWaiting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 28px;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.replyDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  color: var(--accent);
+
+  span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: reply-pulse 1400ms ease-in-out infinite;
+  }
+  span:nth-child(2) { animation-delay: 160ms; }
+  span:nth-child(3) { animation-delay: 320ms; }
+}
+
+.replyElapsed {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes reply-pulse {
+  0%, 70%, 100% { opacity: 0.4; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
 .inlineError {
   display: flex;
   margin: 0 32px 12px;
@@ -874,21 +914,21 @@
 
 .composerRow {
   display: grid;
-  min-height: 58px;
-  padding: 6px 7px 6px 8px;
+  min-height: 72px;
+  padding: 12px 13px 12px 14px;
   grid-template-columns: 34px minmax(0, 1fr) 42px;
   align-items: center;
-  gap: 5px;
-  border: 1px solid #e3e3e0;
+  gap: 8px;
+  border: 1px solid #cdbeb9;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 26px rgba(48, 45, 41, 0.075);
+  background: var(--paper);
+  box-shadow: 0 10px 28px rgba(65, 45, 38, 0.12), 0 2px 5px rgba(65, 45, 38, 0.04);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .composerRow:focus-within {
-  border-color: #d5c5bf;
-  box-shadow: 0 9px 30px rgba(95, 55, 45, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 30px rgba(65, 45, 38, 0.13);
 }
 
 .composerAdd {
@@ -910,14 +950,16 @@
   outline: 0;
   background: transparent;
   color: #353532;
+  font-family: inherit;
   font-size: 14px;
-  line-height: 1.55;
+  font-weight: 400;
+  line-height: 1.75;
   resize: none;
   box-sizing: border-box;
 }
 
 .webTextarea::placeholder {
-  color: #a5a5a1;
+  color: #7b7774;
 }
 
 .composerRow .primaryButton {
@@ -966,7 +1008,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composerSpinner { animation: none; }
+  .composerSpinner,
+  .replyDots span { animation: none; }
+  .composerRow { transition: none; }
 }
 
 .quickPrompts {

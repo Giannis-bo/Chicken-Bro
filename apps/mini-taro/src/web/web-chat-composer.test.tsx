@@ -39,6 +39,7 @@ describe('Web chat composer interactions', () => {
   afterEach(async () => {
     await act(async () => root.unmount())
     container.remove()
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
   function input() { return container.querySelector('textarea')! }
@@ -94,5 +95,52 @@ describe('Web chat composer interactions', () => {
     await act(async () => api.streamMessage.mock.calls[0]?.[2].onFailure('network failed'))
     expect(container.querySelector('button[aria-label="发送消息"]')?.textContent).toContain('↑')
     expect(container.querySelector('[role="status"]')).toBeNull()
+  })
+
+  it('shows waiting immediately, elapsed time after ten seconds, then yields to the reply', async () => {
+    vi.useFakeTimers()
+    await draft('你好')
+    await enter()
+    const waiting = () => container.querySelector('[role="status"][aria-label="等待回复"]')
+    expect(waiting()?.textContent).toContain('咕咕正在处理')
+    expect(waiting()?.textContent).not.toContain('已等待')
+    await act(async () => vi.advanceTimersByTime(10000))
+    expect(waiting()?.textContent).toContain('已等待 10 秒')
+    const onEvent = api.streamMessage.mock.calls[0]?.[2].onEvent
+    const envelope = { requestId: 'request', runId: 'run', conversationId: 'chat-one' }
+    await act(async () => onEvent({ ...envelope, sequence: 1, type: 'started' }))
+    expect(waiting()).not.toBeNull()
+    await act(async () => onEvent({ ...envelope, sequence: 2, type: 'delta', text: '你好，勇士' }))
+    expect(waiting()).toBeNull()
+    expect(container.textContent).toContain('你好，勇士')
+    expect(vi.getTimerCount()).toBe(0)
+    await act(async () => onEvent({ ...envelope, sequence: 3, type: 'completed', text: '你好，勇士' }))
+    expect(container.querySelector('[role="status"]')).toBeNull()
+  })
+
+  it.each(['failed', 'disconnected'])('clears waiting and its timer on %s and resets on the next send', async (failure) => {
+    vi.useFakeTimers()
+    await draft('你好')
+    await enter()
+    expect(container.querySelector('[aria-label="等待回复"]')).not.toBeNull()
+    await act(async () => vi.advanceTimersByTime(10000))
+    const stream = api.streamMessage.mock.calls[0]?.[2]
+    await act(async () => {
+      if (failure === 'disconnected') stream.onFailure('network failed')
+      else {
+        const envelope = { requestId: 'request', runId: 'run', conversationId: 'chat-one' }
+        stream.onEvent({ ...envelope, sequence: 1, type: 'started' })
+        stream.onEvent({ ...envelope, sequence: 2, type: 'failed', errorCode: 'TIMEOUT', retryable: true })
+      }
+    })
+    expect(container.querySelector('[aria-label="等待回复"]')).toBeNull()
+    expect(container.querySelector('[data-error-code]')).not.toBeNull()
+    expect(vi.getTimerCount()).toBe(0)
+    await draft('再试一次')
+    await enter()
+    expect(container.querySelector('[aria-label="等待回复"]')?.textContent).toContain('咕咕正在处理')
+    expect(container.textContent).not.toContain('已等待')
+    await act(async () => root.render(null))
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

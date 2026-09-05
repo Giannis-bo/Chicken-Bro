@@ -6,6 +6,7 @@ import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 import { ChatModel, type ChatModelState } from '../features/chat/chat-model'
 import styles from './WebApp.module.scss'
 import WebMessage from './WebMessage'
+import WebReplyStatus from './WebReplyStatus'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
@@ -119,6 +120,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 <WebMessage content={state.pendingUserContent} streaming />
               </View>
             ) : null}
+            {sending && !state.streamText ? <WebReplyStatus /> : null}
             {state.streamText ? (
               <View className={styles['webAssistantMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>咕咕 · 生成中</Text>
