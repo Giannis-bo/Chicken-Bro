@@ -52,3 +52,5 @@
 原在线灯为静态装饰，本次改为调用当前环境 `/health/readiness`：ready 绿、partial 黄、blocked/网络或响应异常红、检查中灰；提供悬停说明与读屏标签。每 60 秒检查一次，隐藏页面暂停检查，返回可见时刷新，卸载清理计时器。请求复用公开 transport 与配置前缀，不涉及认证数据。
 
 前端 144 项、类型检查、lint、测试 H5 构建通过；无新增依赖。只发布测试 Web，保留既有服务端、凭证及正式客户端。实际页面验收与发布 identity 另记测试任务 release evidence。
+
+已发布 `f144923c0a1ffb4c21aad4567f3e9e443b3b036d`，Edge 真实登录态确认旧栏消失、LOGO 旁绿灯显示“服务正常”、“新对话”位于历史列表旁，聊天和输入框布局正常。详见 [发布验证](../../artifacts/releases/2026-09-05-test-account-login/web-header-health.md)。
