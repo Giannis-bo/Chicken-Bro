@@ -668,6 +668,41 @@
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
+.historyDay { margin-bottom: 10px; }
+
+.historyDayToggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #635b56;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  &:hover { background: rgba(255, 255, 255, 0.65); }
+}
+
+.historyDayChevron {
+  width: 6px;
+  height: 6px;
+  margin-right: 10px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  flex: 0 0 auto;
+}
+
+.historyDayToggle[aria-expanded='true'] .historyDayChevron { transform: rotate(45deg); }
+.historyDayCount { white-space: pre; color: #887d76; font-weight: 400; }
+.historyGroups .sideListButton { font-family: inherit; box-sizing: border-box; }
+.historyDayItems .listMeta { display: block; font-size: 11px; }
+.conversationTitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .sideListButton:hover,
 .sideListButton[data-active='true'],
 .jobButton:hover,

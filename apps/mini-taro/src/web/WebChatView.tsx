@@ -7,6 +7,7 @@ import { ChatModel, type ChatModelState } from '../features/chat/chat-model'
 import styles from './WebApp.module.scss'
 import WebMessage from './WebMessage'
 import WebReplyStatus from './WebReplyStatus'
+import WebConversationHistory from './WebConversationHistory'
 import { useChatAutoScroll } from './use-chat-auto-scroll'
 
 
@@ -74,17 +75,9 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 + 新对话
               </button>
             </View>
-            {state.conversations.map((conversation) => (
-              <Button
-                key={conversation.id}
-                className={styles['sideListButton'] ?? ''}
-                data-active={state.activeConversation?.id === conversation.id ? 'true' : 'false'}
-                onClick={() => void model.open(conversation.id)}
-              >
-                <Text>{conversation.title || '炸鸡队长对话'}</Text>
-                <Text className={styles['listMeta'] ?? ''}>{conversation.updatedAt}</Text>
-              </Button>
-            ))}
+            <WebConversationHistory conversations={state.conversations}
+              activeId={state.activeConversation?.id ?? ''} hasMore={Boolean(state.nextCursor)}
+              onOpen={(id) => void model.open(id)} />
             {state.nextCursor ? (
               <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void model.loadMore()}>
                 加载更多
