@@ -5,6 +5,7 @@ import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
 import { ChatModel, type ChatModelState } from '../features/chat/chat-model'
 import styles from './WebApp.module.scss'
+import WebMessage from './WebMessage'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
@@ -109,19 +110,19 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 data-persisted="true"
               >
                 <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '你' : '咕咕'}</Text>
-                <Text className={styles['messageText'] ?? ''}>{message.content}</Text>
+                <WebMessage content={message.content} markdown={message.role !== 'user'} />
               </View>
             ))}
             {state.pendingUserContent ? (
               <View className={styles['webUserMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>发送中</Text>
-                <Text className={styles['messageText'] ?? ''}>{state.pendingUserContent}</Text>
+                <WebMessage content={state.pendingUserContent} streaming />
               </View>
             ) : null}
             {state.streamText ? (
               <View className={styles['webAssistantMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>咕咕 · 生成中</Text>
-                <Text className={styles['messageText'] ?? ''}>{state.streamText}</Text>
+                <WebMessage content={state.streamText} markdown streaming />
               </View>
             ) : null}
             {!state.activeConversation && state.phase === 'ready' ? (

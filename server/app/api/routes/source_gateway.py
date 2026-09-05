@@ -17,6 +17,7 @@ router = APIRouter()
 class SourceGatewayQueryBody(BaseModel):
     provider: str = Field(min_length=1, max_length=40)
     target: str = Field(min_length=1, max_length=2048)
+    options: dict[str, str | int | float] = Field(default_factory=dict, max_length=4)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -32,7 +33,7 @@ def query_chickenbro_source_gateway(
     gateway: ChickenbroSourceGateway = Depends(chickenbro_source_gateway),
 ) -> dict[str, object]:
     try:
-        result = gateway.query(capability or "", body.provider, body.target)
+        result = gateway.query(capability or "", body.provider, body.target, options=body.options)
     except SourceGatewayUnauthorized as error:
         raise ApiProblem(
             status_code=401,

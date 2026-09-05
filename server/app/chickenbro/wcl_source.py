@@ -10,7 +10,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from math import ceil
+from math import ceil, isfinite
 from time import monotonic
 from typing import Any
 from urllib.request import Request, urlopen
@@ -24,7 +24,8 @@ from server.app.integrations.warcraftlogs import (
 
 
 WCL_REPORT_EVIDENCE_QUERY = """
-query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int], $sourceId: Int) {
+query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int], $sourceId: Int,
+  $dataType: EventDataType, $startTime: Float, $endTime: Float, $limit: Int) {
   reportData {
     report(code: $code) {
       title
@@ -38,10 +39,12 @@ query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int], $sourceId: 
         startTime
         endTime
       }
-      masterData { actors { id name type subType } }
+      masterData { gameVersion logVersion actors { id name type subType } }
+      playerDetails(fightIDs: $fightIds, includeCombatantInfo: true)
       casts: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: Casts)
       damage: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: DamageDone)
-      events(fightIDs: $fightIds, sourceID: $sourceId, limit: 300) {
+      events(fightIDs: $fightIds, sourceID: $sourceId, dataType: $dataType,
+        startTime: $startTime, endTime: $endTime, limit: $limit, includeResources: true) {
         data
         nextPageTimestamp
       }
@@ -218,13 +221,74 @@ def _bounded_table(table: Any) -> dict[str, Any]:
     }
 
 
-def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[str, Any]) -> dict[str, Any]:
+WCL_EVENT_TYPES = {"All", "Buffs", "Casts", "CombatantInfo", "DamageDone", "DamageTaken",
+                   "Deaths", "Debuffs", "Dispels", "Healing", "Interrupts", "Resources", "Summons", "Threat"}
+
+
+def validate_wcl_options(options: Any) -> dict[str, Any]:
+    if options is None:
+        return {}
+    if not isinstance(options, Mapping) or set(options) - {"dataType", "startTime", "endTime", "limit"}:
+        raise InvalidSourceLink("invalid WCL event options")
+    result = dict(options)
+    if "dataType" in result and (not isinstance(result["dataType"], str) or result["dataType"] not in WCL_EVENT_TYPES):
+        raise InvalidSourceLink("invalid WCL event type")
+    for key in ("startTime", "endTime", "limit"):
+        if key not in result:
+            continue
+        value = result[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value) or value < 0 or value > 1e12:
+            raise InvalidSourceLink("invalid WCL event range")
+    if "limit" in result and (not isinstance(result["limit"], int) or not 1 <= result["limit"] <= 1000):
+        raise InvalidSourceLink("WCL event limit must be 1-1000")
+    if "endTime" in result and result["endTime"] <= result.get("startTime", 0):
+        raise InvalidSourceLink("WCL endTime must be after startTime")
+    return result
+
+
+def _bounded_json(value: Any, *, depth: int = 0, truncated: list[bool]) -> Any:
+    if depth > 10:
+        truncated[0] = True
+        return None
+    if isinstance(value, Mapping):
+        if len(value) > 200:
+            truncated[0] = True
+        return {str(k)[:120]: _bounded_json(v, depth=depth + 1, truncated=truncated)
+                for k, v in list(value.items())[:200]}
+    if isinstance(value, list):
+        if len(value) > 200:
+            truncated[0] = True
+        return [_bounded_json(v, depth=depth + 1, truncated=truncated) for v in value[:200]]
+    if isinstance(value, str):
+        if len(value) > 2000:
+            truncated[0] = True
+        return value[:2000]
+    return value if value is None or isinstance(value, (int, float, bool)) else None
+
+
+def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[str, Any], options: Mapping[str, Any]) -> dict[str, Any]:
     fight_id = _text(reference.get("fightId"))
     fight_ids = [int(fight_id)] if fight_id.isdigit() else []
+    options = dict(options)
+    # WCL may return an empty page when startTime is provided but endTime is
+    # null, even though nextPageTimestamp indicated remaining fight events.
+    # Resolve an explicit report-relative boundary for such continuation calls.
+    if "startTime" in options and "endTime" not in options:
+        bounds = _graphql("query($code:String!){reportData{report(code:$code){fights{id endTime}}}}",
+                          {"code": reference["reportCode"]})
+        report_bounds = (bounds.get("reportData") or {}).get("report") or {}
+        ends = [f.get("endTime", 0) for f in report_bounds.get("fights", [])
+                if isinstance(f, Mapping) and (not fight_id or str(f.get("id")) == fight_id)]
+        end = max(ends, default=0)
+        if not end or end <= options["startTime"]:
+            raise InvalidSourceLink("event startTime is outside the report/fight range")
+        options["endTime"] = end
     data = _graphql(
         WCL_REPORT_EVIDENCE_QUERY,
         {"code": reference["reportCode"], "fightIds": fight_ids or None,
-         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None},
+         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None,
+         "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
+         "endTime": options.get("endTime"), "limit": options.get("limit", 300)},
     )
     report_data = data.get("reportData") if isinstance(data, Mapping) else {}
     report = report_data.get("report") if isinstance(report_data, Mapping) else {}
@@ -239,6 +303,18 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
     master = report.get("masterData") or {}
     actors = master.get("actors", []) if isinstance(master, Mapping) else []
     next_page = events_payload.get("nextPageTimestamp") if isinstance(events_payload, Mapping) else None
+    details = report.get("playerDetails") or {}
+    detail_data = details.get("data") or {} if isinstance(details, Mapping) else {}
+    groups = detail_data.get("playerDetails", {}) if isinstance(detail_data, Mapping) else {}
+    players = [p for group in groups.values() if isinstance(group, list) for p in group
+               if isinstance(p, Mapping) and (not reference.get("sourceId") or str(p.get("id")) == reference["sourceId"])] if isinstance(groups, Mapping) else []
+    context_truncated = [len(players) > 40]
+    player_keys = {"id", "name", "type", "server", "region", "specs", "minItemLevel", "maxItemLevel", "combatantInfo"}
+    if not reference.get("sourceId"):
+        player_keys.remove("combatantInfo")
+    players = [_bounded_json({k: v for k, v in p.items() if k in player_keys}, truncated=context_truncated) for p in players[:40]]
+    event_truncated = [False]
+    event_rows = [_bounded_json(e, truncated=event_truncated) for e in events if isinstance(e, Mapping)] if isinstance(events, list) else []
     return {
         "schemaRevision": "wcl-log-evidence-v1",
         "status": "ready",
@@ -258,6 +334,12 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         "fightsTruncated": len(fights) > 100,
         "eventSummary": _summarize_events(events),
         "sourceId": reference.get("sourceId") or None,
+        "players": players,
+        "playersTruncated": context_truncated[0],
+        "gameVersion": master.get("gameVersion"),
+        "logVersion": master.get("logVersion"),
+        "versionScope": "WCL gameVersion/logVersion are format/product identifiers, not a verified patch number.",
+        "events": event_rows,
         "actors": [{key: (value[:160] if isinstance(value, str) else value)
                     for key, value in item.items() if key in {"id", "name", "type", "subType"}
                     and isinstance(value, (str, int))}
@@ -265,7 +347,10 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         "actorsTruncated": sum(isinstance(item, Mapping) and item.get("type") == "Player" for item in actors) > 100,
         "casts": _bounded_table(report.get("casts")),
         "damage": _bounded_table(report.get("damage")),
-        "eventPage": {"limit": 300, "count": len(events) if isinstance(events, list) else 0,
+        "eventPage": {"limit": options.get("limit", 300), "count": len(event_rows),
+                      "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
+                      "endTime": options.get("endTime", selected_fight.get("endTime") or max((f.get("endTime", 0) for f in fights), default=0)),
+                      "fieldsTruncated": event_truncated[0],
                       "nextPageTimestamp": next_page,
                       "complete": isinstance(events_payload, Mapping) and "nextPageTimestamp" in events_payload and next_page is None,
                       "scope": "event sample only; tables are aggregated independently over the selected filters"},
@@ -273,12 +358,13 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         "blockers": [],
         "evidenceRefs": ["wcl.report", "wcl.fight", "wcl.events"],
         "nextActions": [
-            "Choose relevant facts and any follow-up queries based on the question. Add source=<actor id> to query an actor's ability tables.",
+            "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
         ],
     }
 
 
 def build_wcl_log_evidence(request_data: Mapping[str, Any] | None) -> dict[str, Any]:
+    options = validate_wcl_options((request_data or {}).get("options"))
     reference = _extract_reference(request_data)
     credential_state = warcraftlogs_credentials_state()
     if not reference["reportCode"]:
@@ -330,7 +416,7 @@ def build_wcl_log_evidence(request_data: Mapping[str, Any] | None) -> dict[str, 
             "nextActions": ["Configure WCL v2 OAuth client credentials for report event queries."],
         }
     try:
-        return _fetch_v2_evidence(reference, credential_state)
+        return _fetch_v2_evidence(reference, credential_state, options)
     except Exception as error:
         return {
             "schemaRevision": "wcl-log-evidence-v1",

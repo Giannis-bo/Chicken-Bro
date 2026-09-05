@@ -11,6 +11,19 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_capability_gateway_keeps_event_options_and_context(self):
+        calls = []
+        service = ServerConfiguredSourceQuery(wcl_reader=lambda value: calls.append(value) or {
+            "sourceStatus": "verified", "players": [{"id": 4, "combatantInfo": {"gear": [{"id": 123}]}}],
+            "events": [{"type": "cast", "timestamp": 500}], "eventPage": {"nextPageTimestamp": 600}})
+        gateway = ChickenbroSourceGateway(query_service=service)
+        token = gateway.issue_capability()
+        options = {"dataType": "Casts", "startTime": 500, "endTime": 900}
+        result = gateway.query(token, "warcraftlogs", "https://cn.warcraftlogs.com/reports/abc123?fight=4&source=4", options)
+        self.assertEqual(calls[0]["options"], options)
+        self.assertEqual(result["facts"][0]["events"][0]["timestamp"], 500)
+        self.assertEqual(result["facts"][0]["players"][0]["combatantInfo"]["gear"][0]["id"], 123)
+
     def test_cn_report_is_canonicalized_before_reader(self):
         reader_calls = []
         query = ServerConfiguredSourceQuery(wcl_reader=lambda value: reader_calls.append(value) or {

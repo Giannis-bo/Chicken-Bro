@@ -1,12 +1,22 @@
 import importlib
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class FormalChickenbroNativeMcpTest(unittest.TestCase):
+    def test_event_options_are_forwarded_to_server_gateway(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        options = {"dataType": "Casts", "startTime": 500, "endTime": 900, "limit": 1000}
+        with patch.object(module, "query_source_gateway", return_value={"status": "verified"}) as query:
+            module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {
+                "name": "query_warcraftlogs_report", "arguments": {
+                    "target": "https://cn.warcraftlogs.com/reports/abc123?fight=4", "options": options}}})
+        self.assertEqual(query.call_args.kwargs["options"], options)
+
     def test_gateway_accepts_managed_test_port_but_rejects_other_targets(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
         for port in [8790, 8791, 8792]:

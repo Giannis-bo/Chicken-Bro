@@ -21,6 +21,43 @@ class FakeResponse:
 
 
 class ChickenbroWclSourceTest(unittest.TestCase):
+    def test_continuation_without_end_resolves_fight_boundary_before_query(self):
+        report = {"fights": [{"id": 4, "startTime": 100, "endTime": 900}], "events": {"data": [], "nextPageTimestamp": None}}
+        with patch("server.app.chickenbro.wcl_source.warcraftlogs_credentials_state", return_value={"configured": True, "mode": "v2_oauth", "api": "warcraftlogs-v2-graphql"}), patch(
+            "server.app.chickenbro.wcl_source._graphql", return_value={"reportData": {"report": report}},
+        ) as query:
+            result = build_wcl_log_evidence({"wclUrl": "https://cn.warcraftlogs.com/reports/abc123?fight=4&source=4",
+                                            "options": {"dataType": "Casts", "startTime": 500}})
+        self.assertEqual(query.call_args.args[1]["endTime"], 900)
+        self.assertEqual(result["eventPage"]["endTime"], 900)
+
+    def test_context_and_followup_events_are_available_without_losing_cursor(self):
+        report = {"fights": [{"id": 4}], "masterData": {"gameVersion": 1, "logVersion": 22},
+                  "playerDetails": {"data": {"playerDetails": {"dps": [
+                      {"id": 4, "name": "Giannis", "combatantInfo": {"gear": [{"id": 123}], "talentTree": [{"id": 456}]}},
+                      {"id": 5, "name": "Other"}]}}},
+                  "events": {"data": [{"type": "cast", "timestamp": 500, "sourceID": 4}], "nextPageTimestamp": 700}}
+        with patch("server.app.chickenbro.wcl_source.warcraftlogs_credentials_state", return_value={"configured": True, "mode": "v2_oauth", "api": "warcraftlogs-v2-graphql"}), patch(
+            "server.app.chickenbro.wcl_source._graphql", return_value={"reportData": {"report": report}},
+        ) as query:
+            result = build_wcl_log_evidence({"wclUrl": "https://cn.warcraftlogs.com/reports/abc123?fight=4&source=4",
+                                            "options": {"dataType": "Casts", "startTime": 500, "endTime": 900, "limit": 1000}})
+        self.assertEqual(result["players"][0]["combatantInfo"]["gear"][0]["id"], 123)
+        self.assertEqual(len(result["players"]), 1)
+        self.assertEqual(result["events"][0]["timestamp"], 500)
+        self.assertEqual(result["eventPage"]["nextPageTimestamp"], 700)
+        self.assertEqual(query.call_args.args[1]["startTime"], 500)
+        self.assertEqual(query.call_args.args[1]["dataType"], "Casts")
+        self.assertIn("playerDetails", query.call_args.args[0])
+
+    def test_invalid_event_options_do_not_call_upstream(self):
+        with patch("server.app.chickenbro.wcl_source._graphql") as query:
+            for options in ({"limit": 100001}, {"dataType": "arbitrary"}, {"startTime": -1}, {"startTime": 5, "endTime": 4}):
+                with self.assertRaises(ValueError):
+                    from server.app.chickenbro.wcl_source import validate_wcl_options
+                    validate_wcl_options(options)
+        query.assert_not_called()
+
     def test_unfiltered_report_tables_are_not_attributed_to_first_fight(self):
         with patch("server.app.chickenbro.wcl_source.warcraftlogs_credentials_state", return_value={"configured": True, "mode": "v2_oauth", "api": "warcraftlogs-v2-graphql"}), patch(
             "server.app.chickenbro.wcl_source._graphql", return_value={"reportData": {"report": {

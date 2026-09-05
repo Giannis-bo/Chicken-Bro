@@ -17,7 +17,7 @@ from server.app.simulation.sources import (
     InvalidSourceLink,
     parse_character_source_url,
 )
-from server.app.chickenbro.wcl_source import build_wcl_log_evidence
+from server.app.chickenbro.wcl_source import build_wcl_log_evidence, validate_wcl_options
 
 
 SOURCE_GATEWAY_PATH = "/api/v2/internal/chickenbro/source-query"
@@ -91,17 +91,17 @@ class ServerConfiguredSourceQuery:
         )
         self._wcl_reader = wcl_reader or build_wcl_log_evidence
 
-    def query(self, provider: str, target: str) -> dict[str, Any]:
+    def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
         parsed = parse_character_source_url(target)
         if normalized_provider == "warcraftlogs" and parsed.provider is SourceProvider.WARCRAFTLOGS:
-            return self._query_warcraftlogs(parsed.url)
+            return self._query_warcraftlogs(parsed.url, validate_wcl_options(options))
         if normalized_provider == "raiderio" and parsed.provider is SourceProvider.RAIDERIO:
             return self._query_raiderio(target)
         raise InvalidSourceLink()
 
-    def _query_warcraftlogs(self, target: str) -> dict[str, Any]:
-        evidence = self._wcl_reader({"wclUrl": target, "prompt": target})
+    def _query_warcraftlogs(self, target: str, options: Mapping[str, Any]) -> dict[str, Any]:
+        evidence = self._wcl_reader({"wclUrl": target, "prompt": target, "options": options})
         evidence = evidence if isinstance(evidence, Mapping) else {}
         source_status = _text(evidence.get("sourceStatus"), 80).lower() or "blocked"
         report_code = _text(evidence.get("reportCode"), 128)
@@ -175,6 +175,12 @@ class ServerConfiguredSourceQuery:
                 "damage": evidence.get("damage", {}),
                 "eventPage": evidence.get("eventPage", {}),
                 "sourceId": evidence.get("sourceId"),
+                "players": evidence.get("players", []),
+                "playersTruncated": bool(evidence.get("playersTruncated")),
+                "gameVersion": evidence.get("gameVersion"),
+                "logVersion": evidence.get("logVersion"),
+                "versionScope": evidence.get("versionScope", ""),
+                "events": evidence.get("events", []),
                 "summary": "Warcraft Logs report evidence was fetched through the server-configured API.",
             }]
         return result
@@ -255,12 +261,12 @@ class ChickenbroSourceGateway:
     def revoke(self, token: str) -> None:
         self._capabilities.pop(str(token or ""), None)
 
-    def query(self, token: str, provider: str, target: str) -> Mapping[str, Any]:
+    def query(self, token: str, provider: str, target: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         now = self._aware_now()
         if not self._valid(token, now):
             raise SourceGatewayUnauthorized("source gateway capability is invalid or expired")
         if hasattr(self._query_service, "query"):
-            result = self._query_service.query(provider, target)
+            result = self._query_service.query(provider, target, options=options) if options else self._query_service.query(provider, target)
         else:
             result = self._query_service(provider, target)
         return result if isinstance(result, Mapping) else {

@@ -52,10 +52,13 @@ WARCRAFTLOGS_TOOL_DEFINITION = {
     "description": (
         "Query one Warcraft Logs report or fight through the server-configured Warcraft Logs API. "
         "Use this for a WCL report URL; do not open the public report page instead. The result is a bounded "
-        "report metadata, actor IDs, casts and damage tables, and a bounded event sample. "
+        "report metadata, actor IDs, player gear/talent/stats, casts and damage tables, and paginated events. "
         "Credentials and OAuth refresh are handled automatically by the server; never ask the user for API keys. "
         "You can add source=<actor ID> to the report URL to query that actor's abilities. "
-        "Choose follow-up queries and analysis yourself; eventPage describes sample coverage."
+        "Choose follow-up queries and analysis yourself. options.dataType filters event kinds (Casts, Buffs, Resources etc.); "
+        "options.startTime/endTime select report-relative milliseconds. Continue with startTime=eventPage.nextPageTimestamp "
+        "and the same other filters. Tables/player details cover the fight independently of event pages. "
+        "An unfinished page is queryable data, not an API inability; fetch further relevant pages as needed."
     ),
     "inputSchema": {
         "type": "object",
@@ -66,6 +69,15 @@ WARCRAFTLOGS_TOOL_DEFINITION = {
                 "type": "string",
                 "description": "An HTTPS Warcraft Logs report URL, optionally including fight= and source=.",
                 "maxLength": 2048,
+            },
+            "options": {
+                "type": "object", "additionalProperties": False,
+                "properties": {
+                    "dataType": {"type": "string", "enum": ["All", "Buffs", "Casts", "CombatantInfo", "DamageDone", "DamageTaken", "Deaths", "Debuffs", "Dispels", "Healing", "Interrupts", "Resources", "Summons", "Threat"]},
+                    "startTime": {"type": "number", "minimum": 0},
+                    "endTime": {"type": "number", "minimum": 0},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 1000},
+                },
             }
         },
     },
@@ -162,7 +174,7 @@ def _source_gateway_target_is_local(url):
     )
 
 
-def query_source_gateway(provider, target):
+def query_source_gateway(provider, target, options=None):
     """Ask the API process to use its configured source credentials."""
     gateway_url = _source_gateway_url()
     capability = str(os.environ.get(SOURCE_GATEWAY_TOKEN_ENV) or "").strip()
@@ -178,7 +190,7 @@ def query_source_gateway(provider, target):
         )
     request = Request(
         gateway_url,
-        data=json.dumps({"provider": provider, "target": target}, ensure_ascii=False).encode("utf-8"),
+        data=json.dumps({"provider": provider, "target": target, **({"options": options} if options else {})}, ensure_ascii=False).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -256,6 +268,7 @@ def handle_rpc_request(request, *, observation_writer=None):
                 result = query_source_gateway(
                     "warcraftlogs" if tool_name == WARCRAFTLOGS_TOOL_NAME else "raiderio",
                     str(arguments.get("target") or "").strip(),
+                    **({"options": arguments["options"]} if tool_name == WARCRAFTLOGS_TOOL_NAME and arguments.get("options") else {}),
                 )
             except Exception:
                 result = _partial_tool_result(
