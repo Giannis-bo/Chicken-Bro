@@ -47,27 +47,6 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
 
   return (
     <View className={styles['businessView'] ?? ''} data-chat-phase={state.phase}>
-      <View className={styles['viewHeader'] ?? ''}>
-        <View className={styles['chatHeading'] ?? ''}>
-          <View className={styles['chatTitleGroup'] ?? ''}>
-            <Text className={styles['viewTitle'] ?? ''}>咕咕助手</Text>
-            <Text className={styles['chatStatus'] ?? ''}>
-              <Text className={styles['chatStatusDot'] ?? ''} />
-              在线
-            </Text>
-          </View>
-          <Text className={styles['chatSubtitle'] ?? ''}>先聊清楚，再一起行动</Text>
-        </View>
-        <Button
-          className={styles['secondaryButton'] ?? ''}
-          size="mini"
-          disabled={state.phase === 'loading' || state.phase === 'sending'}
-          onClick={() => void model.create()}
-        >
-          新对话
-        </Button>
-      </View>
-
       <View className={styles['splitView'] ?? ''}>
         <View className={styles['historyColumn'] ?? ''}>
           <ScrollView className={styles['sideList'] ?? ''} scrollY>
@@ -77,6 +56,14 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 <Text className={styles['sideListIntroTitle'] ?? ''}>历史对话</Text>
                 <Text className={styles['sideListIntroMeta'] ?? ''}>服务端同步</Text>
               </View>
+              <button
+                type="button"
+                className={styles['newConversationButton'] ?? ''}
+                disabled={state.phase === 'loading' || state.phase === 'sending'}
+                onClick={() => void model.create()}
+              >
+                + 新对话
+              </button>
             </View>
             {state.conversations.map((conversation) => (
               <Button

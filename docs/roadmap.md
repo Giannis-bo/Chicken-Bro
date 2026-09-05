@@ -43,3 +43,4 @@
 
 - `已完成`：云端原生 Codex 切换 Astra／高（2026-09-05）。CLI 升级为 0.153.4，默认及项目配置同步，CLI 与真实 Chat adapter 调用通过。见 [运行说明](chickenbro-simc-production-runbook.md)。
 - `正在推进`：炸鸡队长专用 AGENTS.md（2026-09-05 用户确认）。只讨论魔兽世界，回答精炼；正式/测试已通过开发者指令加载。后端 243 项、控制面 62 项及真实 Astra 拒答/简答检查通过；待用户体验验收，尚未合入 main。见 [任务计划](plans/2026-09-05-chickenbro-agent-rules.md)。
+- `正在推进`：Web 顶栏精简（2026-09-05 用户确认）。去掉聊天副标题栏，真实健康灯移至 LOGO 右侧，“新对话”移至历史列表旁；随测试 Web 发布。见 [任务计划](plans/2026-09-05-test-account-login.md)。

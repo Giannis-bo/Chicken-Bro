@@ -46,9 +46,6 @@
 .brandCopy,
 .accountBlock,
 .headerActions,
-.chatHeading,
-.chatTitleGroup,
-.chatStatus,
 .actionRow {
   display: flex;
   align-items: center;
@@ -98,7 +95,6 @@
 .viewEyebrow,
 .viewTitle,
 .viewSubtitle,
-.chatSubtitle,
 .chatStatus,
 .listMeta,
 .messageRole,
@@ -571,16 +567,6 @@
   box-sizing: border-box;
 }
 
-.chatHeading {
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.chatTitleGroup {
-  gap: 10px;
-}
-
 .viewTitle {
   color: var(--ink);
   font-size: 15px;
@@ -588,23 +574,23 @@
   line-height: 1.3;
 }
 
-.chatStatus {
-  gap: 5px;
-  color: #9b9b97;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.chatStatusDot {
+.serviceHealth {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
+  margin-left: 3px;
+  flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 3px rgba(108, 143, 105, 0.1);
+  color: #999;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+
+  &[data-health='ready'] { color: var(--green); }
+  &[data-health='partial'] { color: #b88429; }
+  &[data-health='blocked'],
+  &[data-health='unavailable'] { color: #bb5145; }
 }
 
-.chatSubtitle,
 .viewSubtitle {
   color: #aaa9a5;
   font-size: 11px;
@@ -612,7 +598,7 @@
 
 .splitView {
   display: grid;
-  height: calc(100vh - 148px);
+  height: calc(100vh - 76px);
   min-height: 560px;
   grid-template-columns: minmax(242px, 280px) minmax(0, 1fr);
   overflow: hidden;
@@ -947,6 +933,23 @@
   line-height: 1;
 }
 
+.newConversationButton {
+  margin-left: auto;
+  padding: 6px 8px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+
+  &:hover { border-color: var(--accent); }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
 .composerSpinner {
   display: block;
   width: 18px;
@@ -1218,13 +1221,9 @@
     padding: 0 16px;
   }
 
-  .chatSubtitle {
-    display: none;
-  }
-
   .splitView {
     height: auto;
-    min-height: calc(100vh - 128px);
+    min-height: calc(100vh - 68px);
     grid-template-columns: 1fr;
     grid-template-rows: 192px minmax(520px, 1fr);
   }

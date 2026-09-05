@@ -1,4 +1,5 @@
 export { clientAuthRequest } from './auth-context'
+export { apiV2Path } from './api-v2-prefix'
 export type { ClientAuthContext, ClientAuthRequest } from './auth-context'
 export { createChatClient, CHAT_STREAM_TIMEOUT_MS } from './chat'
 export type {

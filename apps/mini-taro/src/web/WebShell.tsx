@@ -5,6 +5,7 @@ import type { ClientAuthContext } from '@wow-mini/api-client'
 
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
+import WebServiceHealth from './WebServiceHealth'
 import styles from './WebApp.module.scss'
 
 
@@ -41,6 +42,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
             <Text className={styles['brandName'] ?? ''}>炸鸡队长来啦</Text>
             <Text className={styles['brandMeta'] ?? ''}>WOW COMPANION · WEB</Text>
           </View>
+          <WebServiceHealth />
         </View>
 
         <View className={styles['modeSwitch'] ?? ''}>
