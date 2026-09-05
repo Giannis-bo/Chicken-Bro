@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-05T01:41:40.447Z",
+  "generatedAt": "2026-09-05T01:59:21.935Z",
   "release": {
     "date": "2026-09-05",
     "slug": "test-account-login"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 4033
+          "sizeBytes": 4193
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-05-test-account-login/evidence.json",
-    "sizeBytes": 2495,
+    "sizeBytes": 7763,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "implementation_allowed",
     "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Implementation in progress; no manual or live acceptance claimed."
+    "summary": "Test-account feature implemented and isolated runtime deployed. Targeted tests and real login/chat smoke passed; complete operations/migration gates remain blocked, new semantic SimC and user acceptance pending. Main is unchanged; no merge, cleanup or production cutover."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "39 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -447,47 +447,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 39,
+      "changedFileCount": 4,
       "changedFiles": [
-        " M .gitignore",
-        " M apps/mini-taro/config/index.ts",
-        " M apps/mini-taro/src/features/auth/mini-session.test.ts",
-        " M apps/mini-taro/src/features/auth/mini-session.ts",
-        " M apps/mini-taro/src/pages/chickenbro/index.tsx",
-        " M apps/mini-taro/src/pages/simc/index.tsx",
-        " M apps/mini-taro/src/pages/simc/task-detail.tsx",
-        " M apps/mini-taro/src/pages/simc/tasks.tsx",
-        " M apps/mini-taro/src/web/WebApp.tsx",
-        " M docs/backend-owner-map.json",
-        " M docs/plans/README.md",
-        " M docs/project-owner-map.json",
-        " M docs/refactor/chickenbro-simc-disposition-rules.json",
+        " M artifacts/releases/2026-09-05-test-account-login/evidence.json",
+        " M docs/plans/2026-09-05-test-account-login.md",
         " M docs/roadmap.md",
-        " M package.json",
-        " M packages/api-client/src/web-auth.test.ts",
-        " M packages/api-client/src/web-auth.ts",
-        " M server/app/api/routes/auth.py",
-        " M server/app/identity/application.py",
-        " M server/app/identity/ports.py",
-        " M server/app/identity/repository.py",
-        " M server/app/main.py",
-        " M server/app/platform/config.py",
-        " M tests/chickenbro-simc-local-cleanup.test.js",
-        "?? apps/mini-taro/src/features/auth/TestLoginForm.tsx",
-        "?? apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx",
-        "?? apps/mini-taro/src/features/auth/test-login-mode.ts",
-        "?? apps/mini-taro/src/features/auth/test-login.module.scss",
-        "?? apps/mini-taro/src/features/auth/with-mini-test-login.tsx",
-        "?? artifacts/releases/2026-09-05-test-account-login/",
-        "?? docs/plans/2026-09-05-test-account-login.md",
-        "?? docs/test-account-login.md",
-        "?? scripts/configure-test-login.py",
-        "?? server/app/api/routes/test_auth.py",
-        "?? server/app/identity/test_accounts.py",
-        "?? server/deploy_test_login.py",
-        "?? server/test_login_runtime.py",
-        "?? tests/app_test_login_test.py",
-        "?? tests/test_login_runtime_test.py"
+        " M docs/test-account-login.md"
       ]
     }
   },

@@ -10,6 +10,8 @@
 
 本地启动脚本依赖机器既有的 `wow-lighthouse` SSH 配置。没有此权限的测试者只需要由项目所有者告知自己的测试账号凭证，不需要服务器权限。
 
+本次已生成的测试小程序目录为 `apps/mini-taro/dist/weapp`。如果微信开发者工具提示“需要重新登录”，先登录开发者工具本身，再打开此目录；业务页面随后使用 A/B 测试凭证。首次配置完成前，验收脚本生成的临时凭证不可用于个人登录。
+
 ## 构建
 
 测试构建设置：`WOW_APP_ENV=test`、`WOW_TEST_LOGIN_UI=1`、`WOW_API_V2_PREFIX=/test/api/v2`、`WOW_WEB_AUTH_API_PREFIX=/test/api/v2`、`WOW_WEB_CSRF_COOKIE_NAME=__Host-chickenbro-test-csrf`、`WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud`。H5 额外设置 `WOW_H5_PUBLIC_PATH=/test/`。

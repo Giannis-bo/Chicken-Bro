@@ -5,15 +5,17 @@
   "status": "implementation_allowed",
   "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/test-account-login",
-  "commit": "pending_pr_head",
+  "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Candidate has not been deployed."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "d28c68bf10ccb79aae968a5697dc924429649393"
     },
     "verification": {
-      "status": "pending",
-      "reason": "Implementation and verification are in progress."
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
     },
     "closure": {
       "status": "pending",
@@ -95,7 +97,7 @@
     },
     {
       "command": "npm run test:migration (Python modules)",
-      "status": "partial",
+      "status": "blocked",
       "summary": "64 tests ran, one existing opt-in PostgreSQL integration test skipped; no full migration acceptance claimed."
     },
     {
@@ -105,20 +107,97 @@
     },
     {
       "command": "Node operations suite",
-      "status": "partial",
+      "status": "blocked",
       "summary": "Windows lacks working Bash for 43 shell checks; copied-source Linux retry passed 83/92, remaining checks need Git/Taro or carry pre-existing stale inventory hashes/time limits. No ops/full pass claimed."
     },
     {
       "command": "npm run build:h5 (test configuration)",
       "status": "pass",
       "summary": "Test H5 built; existing asset-size warnings remain."
+    },
+    {
+      "command": "npm run build:weapp (test configuration)",
+      "status": "pass",
+      "summary": "42 files atomically promoted; exact build identity recorded below. Existing bundle-size warnings remain."
+    },
+    {
+      "command": "independent local source review",
+      "status": "pass",
+      "summary": "Reviewed real Mini delayed mounting, session invalidation, normal auth and deployment isolation; identified issues corrected and six rendered regression tests passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "No whitespace errors."
     }
   ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Requires isolated test database/API/Worker and explicit runtime identity."
+    "status": "partial",
+    "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
+    "database": "chickenbro_test",
+    "apiPort": 8792,
+    "url": "https://www.chickenbro.cloud/test/",
+    "archiveSha256": "519c97e1a63ea6a430e9f5443a0357d6eb493b1527511aa40d197ec54d4cf5d2",
+    "smoke": {
+      "status": "pass",
+      "sourceCommit": "151b0ebc0f61d20b5eec147108de72d70cc917ae",
+      "summary": "Real Codex chat, shared persisted history, A/B owner isolation, independent logout, restart persistence, disable/re-enable and revoked sessions. Final release changes only test-login CSS; backend tree identical."
+    },
+    "reason": "Login-specific runtime checks passed; real Mini/Web manual acceptance and new semantic SimC execution pending. No production cutover."
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "type": "smoke",
+      "status": "pass",
+      "sourceCommit": "151b0ebc0f61d20b5eec147108de72d70cc917ae",
+      "miniLogin": true,
+      "webLogin": true,
+      "realChat": true,
+      "sharedChat": true,
+      "simcAuthenticatedList": true,
+      "ownerIsolation": true,
+      "independentLogout": true,
+      "restartPersistence": true,
+      "disabledMode": true,
+      "oldSessionsRevoked": true,
+      "simcExecution": "not_run"
+    },
+    {
+      "type": "deployment_readiness",
+      "status": "pass",
+      "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
+      "production": "ready",
+      "test": "ready",
+      "testApi": "active",
+      "testWorker": "active",
+      "summary": "Both readiness responses checked at /api/v2/health/readiness. Earlier unprefixed probe was a wrong URL and was corrected."
+    },
+    {
+      "type": "web_ui",
+      "status": "pass",
+      "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
+      "summary": "Public test URL loaded in Codex browser; real screenshot confirmed A/B buttons and password form readable after CSS fix."
+    },
+    {
+      "type": "mini_build",
+      "status": "pass",
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "d28c68bf10ccb79aae968a5697dc924429649393",
+      "sourceHash": "sha256:160c2c5de437fe995c328b0d4274bd8905e3668a62f6758a01560e08df77b1c7",
+      "builtAt": "2026-09-05T01:56:06.824Z",
+      "output": "apps/mini-taro/dist/weapp"
+    },
+    {
+      "type": "mini_devtools",
+      "status": "blocked",
+      "reason": "CLI returned code 10 requiring WeChat Developer Tools user re-login. Build succeeded; device/IDE manual acceptance not claimed."
+    },
+    {
+      "type": "credentials",
+      "status": "pending",
+      "reason": "Smoke used generated in-memory credentials. Owner must run scripts/configure-test-login.py to set personally held A/B credentials; no raw credential retained in logs, repository or evidence."
+    }
+  ],
   "risks": [
     "Test environment is separate; fixture tests do not prove cloud SimC or real-device acceptance."
   ],
@@ -133,5 +212,5 @@
   "archivedReferences": [
     "docs/project-state.json"
   ],
-  "summary": "Feature implementation and targeted checks pass; candidate smoke and user acceptance remain pending. Full operations suite is not claimed."
+  "summary": "Test-account feature implemented and isolated runtime deployed. Targeted tests and real login/chat smoke passed; complete operations/migration gates remain blocked, new semantic SimC and user acceptance pending. Main is unchanged; no merge, cleanup or production cutover."
 }
