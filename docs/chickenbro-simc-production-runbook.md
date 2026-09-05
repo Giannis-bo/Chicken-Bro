@@ -429,3 +429,24 @@ apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到�
 - [云端只读清单](refactor/chickenbro-simc-cloud-inventory.json)
 - [云端退役清单](refactor/chickenbro-simc-cloud-cleanup-manifest.json)
 - [当前六阶段计划](plans/README.md)
+
+## 原生 Codex 模型配置（2026-09-05）
+
+用户要求云端切换 Astra／高。已通过现有 `codex update` 将官方独立安装从 `0.146.0` 升级到 `0.153.4`，未安装业务依赖；旧版本保留在 `/home/ubuntu/.codex/packages/standalone/releases/0.146.0-x86_64-unknown-linux-musl/bin/codex`。旧 CLI 对 Astra 返回明确的需要升级错误，已用升级后真实调用验证。
+
+当前 `/home/ubuntu/.codex/config.toml` 及 `chickenbro-native.config.toml`、`chickenbro-candidate.config.toml`、`chickenbro-production.config.toml` 均设置：
+
+```toml
+model = "gpt-6-astra"
+model_reasoning_effort = "high"
+```
+
+正式和测试 API 当前都选择 `WOW_CODEX_PROFILE=chickenbro-production`，每次消息创建新 `codex exec`，没有覆盖模型的 CLI 参数。配置逐文件原内容备份后缀为 `.before-astra-high-20260905T030752Z`。其余配置键和现有认证保持不变。
+
+已将 `/etc/chickenbro-api.env` 的 `WOW_CODEX_RUNTIME_REVISION` 同步为 `codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da`，确认无运行中的 Codex 调用后重启正式/测试 API。两端 readiness 为 ready；不传模型覆盖参数的 CLI 输出确认 `gpt-6-astra` / `high`，现有 `NativeCodexChatAdapter` 的实际 JSONL 调用返回正常 completed 文本。该检查不等同于完整 Chat/SimC 用户验收。
+
+手工云端诊断必须使用服务已有的代理环境（只在进程内传递，禁止打印代理或认证值）。普通 SSH shell 未继承这些配置，可能出现网络超时，不应误判模型不可用。
+
+当前 Codex home、聊天 job 路径及其祖先目录没有独立 `AGENTS.md`、`AGENTS.override.md` 或 `Agent.md`。实际固定业务指令在 `server/app/chickenbro/application.py` 的 `_prompt`，正式/测试版本相同：炸鸡队长身份、公开来源最多检索两次、WCL/Raider.IO 使用专用 API 工具、阻塞如实说明；随后拼接最近 20 条、每条最多 4000 字符历史。插件模板目录中的同名文件不属于聊天工作目录的生效指令。
+
+回退时将上述四份配置恢复到对应备份内容；若同时回退二进制，应恢复既有安装链接到保留的旧版本，并同步 runtime revision 后重启两个 API、再次检查 readiness。旧 CLI 不支持 Astra，因此不得只降级二进制而保留 Astra 模型配置。
