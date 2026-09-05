@@ -2,8 +2,10 @@ import Taro from '@tarojs/taro'
 
 import { clientAuthRequest, type ClientAuthContext } from './auth-context'
 import { taroStorage, type StorageAdapter } from './storage'
+import { apiV2Prefix } from './api-v2-prefix'
 
 declare const __WOW_BACKEND_API_BASE_URL__: string
+declare const __WOW_TEST_LOGIN__: boolean
 
 const API_BASE_STORAGE_KEY = 'wow_backend_api_base_url'
 
@@ -66,14 +68,15 @@ export interface TransportConfig {
 
 function publicAuthPath(path: string): boolean {
   const pathname = path.split(/[?#]/u, 1)[0] ?? ''
-  const prefix = String.raw`\/api\/v2(?:-candidate)?`
-  return new RegExp(String.raw`^${prefix}\/health\/readiness$`, 'u').test(pathname)
-    || new RegExp(String.raw`^${prefix}\/me$`, 'u').test(pathname)
-    || new RegExp(String.raw`^${prefix}\/auth\/wechat\/mini\/exchange$`, 'u').test(pathname)
-    || new RegExp(
-      String.raw`^${prefix}\/auth\/wechat\/web\/login-sessions(?:\/[^/]+(?:\/(?:exchange|cancel))?)?$`,
-      'u',
-    ).test(pathname)
+  const prefix = apiV2Prefix()
+  if (!pathname.startsWith(`${prefix}/`)) return false
+  const route = pathname.slice(prefix.length)
+  return route === '/health/readiness'
+    || route === '/me'
+    || route === '/auth/wechat/mini/exchange'
+    || /^\/auth\/wechat\/web\/login-sessions(?:\/[^/]+(?:\/(?:exchange|cancel))?)?$/u.test(route)
+    || (typeof __WOW_TEST_LOGIN__ === 'boolean' && __WOW_TEST_LOGIN__
+      && (route === '/auth/test/mini' || route === '/auth/test/web'))
 }
 
 function hasExplicitCredentialHeader(header: Readonly<Record<string, string>> | undefined): boolean {

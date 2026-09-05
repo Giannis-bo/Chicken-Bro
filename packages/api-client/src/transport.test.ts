@@ -8,6 +8,7 @@ import {
 } from './transport'
 import type { RequestOptions } from './transport'
 import type { StorageAdapter } from './storage'
+import { createWebAuthClient } from './web-auth'
 
 const taro = vi.hoisted(() => ({
   request: vi.fn(),
@@ -39,6 +40,53 @@ describe('formal Taro transport', () => {
     taro.getAccountInfoSync.mockReset()
     taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion: 'develop' } })
   })
+
+  it.each(['/api/v2', '/api/v2-candidate', '/test/api/v2'])(
+    'sends test login and session recovery through the real transport at %s', async (prefix) => {
+      vi.stubGlobal('__WOW_API_V2_PREFIX__', prefix)
+      vi.stubGlobal('__WOW_TEST_LOGIN__', true)
+      try {
+        const client = createWebAuthClient(createTaroTransport({
+          resolveBaseUrl: () => 'https://api.chickenbro.cloud',
+          resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
+        }))
+        taro.request.mockResolvedValueOnce({ statusCode: 200, data: {
+          accessToken: 'test-mini-session', expiresAt: '2026-09-06T00:00:00Z',
+        } })
+        taro.request.mockResolvedValueOnce({ statusCode: 200, data: { authenticated: true } })
+        taro.request.mockResolvedValueOnce({ statusCode: 200, data: { connected: true, displayName: '测试账号 A' } })
+        const mini = await client.loginTestMini('A', 'a'.repeat(32))
+        const web = await client.loginTestWeb('A', 'a'.repeat(32))
+        const me = await client.me()
+        expect([mini.error, web.error, me.error]).toEqual(['', '', ''])
+        expect(taro.request.mock.calls.map(([request]) => ({
+          url: request.url, credentials: request.credentials, header: request.header,
+        }))).toEqual([
+          { url: `https://api.chickenbro.cloud${prefix}/auth/test/mini`, credentials: 'omit', header: {} },
+          { url: `https://www.chickenbro.cloud${prefix}/auth/test/web`, credentials: 'include', header: {} },
+          { url: `https://www.chickenbro.cloud${prefix}/me`, credentials: 'include', header: {} },
+        ])
+      } finally { vi.unstubAllGlobals() }
+    },
+  )
+
+  it('keeps test login disabled in formal builds', async () => {
+    const client = createWebAuthClient(createTaroTransport({ resolveBaseUrl: () => 'https://api.chickenbro.cloud' }))
+    expect((await client.loginTestMini('A', 'a'.repeat(32))).fromFallback).toBe(true)
+    expect(taro.request).not.toHaveBeenCalled()
+  })
+
+  it.each(['/test/api/v2/chat/conversations', '/test/api/v2/simc/jobs', '/test/api/v2/auth/test/web/extra', '/other/api/v2/me', '/api/v2/me'])(
+    'rejects public business routes and mismatched configured prefixes: %s', async (path) => {
+      vi.stubGlobal('__WOW_API_V2_PREFIX__', '/test/api/v2')
+      vi.stubGlobal('__WOW_TEST_LOGIN__', true)
+      try {
+        const transport = createTaroTransport({ resolveBaseUrl: () => 'https://api.chickenbro.cloud' })
+        expect((await transport.request(path, { auth: { kind: 'public' }, fallback: () => ({}) })).fromFallback).toBe(true)
+        expect(taro.request).not.toHaveBeenCalled()
+      } finally { vi.unstubAllGlobals() }
+    },
+  )
 
   it('derives Mini Bearer credentials over HTTPS without legacy analytics identity', async () => {
     const transport = createTaroTransport({
