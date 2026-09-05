@@ -1,5 +1,5 @@
-import { Button, ScrollView, Text, Textarea, View } from '@tarojs/components'
-import { useEffect, useMemo, useState } from 'react'
+import { Button, ScrollView, Text, View } from '@tarojs/components'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
@@ -25,6 +25,10 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
   const [petRun, setPetRun] = useState(0)
+  const composing = useRef(false)
+  const sending = state.phase === 'sending'
+  const canSend = Boolean(draft.trim() && state.activeConversation)
+    && !sending && state.phase !== 'loading' && state.phase !== 'signed_out'
 
   useEffect(() => {
     const unsubscribe = model.subscribe(setState)
@@ -36,6 +40,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
   }, [model])
 
   const send = () => {
+    if (!canSend || model.get().phase === 'sending') return
     const task = model.send(draft)
     if (task) setDraft('')
   }
@@ -160,22 +165,35 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
           <View className={styles['webComposer'] ?? ''}>
             <View className={styles['composerRow'] ?? ''}>
               <Text className={styles['composerAdd'] ?? ''}>＋</Text>
-              <Textarea
+              <textarea
                 className={styles['webTextarea'] ?? ''}
-                maxlength={4000}
+                maxLength={4000}
+                rows={1}
+                aria-label="消息内容"
+                title="Enter 发送，Shift+Enter 换行"
                 placeholder="问问咕咕"
                 value={draft}
-                onInput={(event) => setDraft(event.detail.value)}
+                onChange={(event) => setDraft(event.target.value)}
+                onCompositionStart={() => { composing.current = true }}
+                onCompositionEnd={() => { composing.current = false }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || event.shiftKey || composing.current
+                    || event.nativeEvent.isComposing || event.keyCode === 229) return
+                  event.preventDefault()
+                  if (!event.repeat) send()
+                }}
               />
-              <Text className={styles['composerMode'] ?? ''}>对话⌄</Text>
-              <Button
+              <button
+                type="button"
                 className={styles['primaryButton'] ?? ''}
-                disabled={!draft.trim() || !state.activeConversation || state.phase === 'sending'}
-                loading={state.phase === 'sending'}
+                disabled={!canSend}
+                aria-label={sending ? '正在回复' : '发送消息'}
+                aria-busy={sending}
                 onClick={send}
               >
-                ↑
-              </Button>
+                {sending ? <span className={styles['composerSpinner'] ?? ''} role="status" aria-label="正在回复" />
+                  : <span aria-hidden="true">↑</span>}
+              </button>
             </View>
             {!state.activeConversation && state.phase === 'ready' ? (
               <View className={styles['quickPrompts'] ?? ''}>

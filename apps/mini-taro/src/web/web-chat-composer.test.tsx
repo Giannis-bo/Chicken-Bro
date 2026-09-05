@@ -1,0 +1,98 @@
+// @vitest-environment jsdom
+import { act, createElement } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), streamMessage: vi.fn() }))
+vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api } }))
+vi.mock('@tarojs/components', async () => {
+  const { createElement: element } = await import('react')
+  const host = (tag: string) => (props: Record<string, unknown>) => element(tag,
+    Object.fromEntries(Object.entries(props).filter(([key]) =>
+      ['children', 'onClick', 'disabled', 'className', 'id'].includes(key) || key.startsWith('data-'))))
+  return { View: host('div'), Text: host('span'), Button: host('button'), ScrollView: host('div'),
+    Textarea: (props: { value: string; onInput: (event: { detail: { value: string } }) => void }) =>
+      element('textarea', { value: props.value, onChange: (event: { target: { value: string } }) =>
+        props.onInput({ detail: { value: event.target.value } }) }) }
+})
+
+import WebChatView from './WebChatView'
+
+describe('Web chat composer interactions', () => {
+  let container: HTMLDivElement
+  let root: Root
+  beforeEach(async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    vi.clearAllMocks()
+    const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
+    const conversation = { id: 'chat-one', title: 'Test', updatedAt: '2026-09-05' }
+    api.list.mockResolvedValue(success({ items: [conversation], nextCursor: null }))
+    api.get.mockResolvedValue(success({ ...conversation, messages: [] }))
+    api.streamMessage.mockReturnValue({ abort: vi.fn() })
+    container = document.createElement('div')
+    document.body.append(container)
+    root = createRoot(container)
+    await act(async () => root.render(createElement(WebChatView, {
+      auth: { kind: 'web', csrfToken: 'test-csrf' }, showHordeSkin: false,
+    })))
+  })
+  afterEach(async () => {
+    await act(async () => root.unmount())
+    container.remove()
+    vi.unstubAllGlobals()
+  })
+  function input() { return container.querySelector('textarea')! }
+  async function draft(value: string) {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(input(), value)
+      input().dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+  async function enter(options: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...options })
+    await act(async () => input().dispatchEvent(event))
+    return event
+  }
+
+  it('sends once on Enter and keeps the next draft while a reply is pending', async () => {
+    await draft('你好')
+    expect((await enter()).defaultPrevented).toBe(true)
+    expect(api.streamMessage).toHaveBeenCalledTimes(1)
+    expect(api.streamMessage.mock.calls[0]?.[1].content).toBe('你好')
+    expect(input().value).toBe('')
+    await draft('下一条')
+    await enter()
+    expect(api.streamMessage).toHaveBeenCalledTimes(1)
+    expect(input().value).toBe('下一条')
+  })
+
+  it('keeps Shift+Enter as a newline without sending', async () => {
+    await draft('第一行')
+    expect((await enter({ shiftKey: true })).defaultPrevented).toBe(false)
+    expect(api.streamMessage).not.toHaveBeenCalled()
+  })
+
+  it.each([{ isComposing: true }, { keyCode: 229 }, { repeat: true }])(
+    'does not send while composing or repeating Enter: %j', async (options) => {
+      await draft('中文')
+      await enter(options)
+      expect(api.streamMessage).not.toHaveBeenCalled()
+      expect(input().value).toBe('中文')
+    },
+  )
+
+  it('replaces the arrow with one busy indicator, then restores it on failure', async () => {
+    expect(container.textContent).not.toContain('对话⌄')
+    await draft('你好')
+    const button = container.querySelector<HTMLButtonElement>('button[aria-label="发送消息"]')
+    expect(button).not.toBeNull()
+    await act(async () => button!.click())
+    const busy = container.querySelector<HTMLButtonElement>('button[aria-label="正在回复"]')!
+    expect(busy.disabled).toBe(true)
+    expect(busy.textContent).not.toContain('↑')
+    expect(busy.querySelectorAll('[role="status"]')).toHaveLength(1)
+    await act(async () => api.streamMessage.mock.calls[0]?.[2].onFailure('network failed'))
+    expect(container.querySelector('button[aria-label="发送消息"]')?.textContent).toContain('↑')
+    expect(container.querySelector('[role="status"]')).toBeNull()
+  })
+})

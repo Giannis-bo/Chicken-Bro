@@ -111,7 +111,6 @@
 .emptyTitle,
 .emptyDescription,
 .emptyHint,
-.composerMode,
 .composerFootnote,
 .petCaption,
 .sideListIntroTitle,
@@ -891,7 +890,7 @@
   display: grid;
   min-height: 58px;
   padding: 6px 7px 6px 8px;
-  grid-template-columns: 34px minmax(0, 1fr) auto 42px;
+  grid-template-columns: 34px minmax(0, 1fr) 42px;
   align-items: center;
   gap: 5px;
   border: 1px solid #e3e3e0;
@@ -935,13 +934,6 @@
   color: #a5a5a1;
 }
 
-.composerMode {
-  padding: 0 8px;
-  color: #8d8d88;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
 .composerRow .primaryButton {
   display: grid;
   width: 42px;
@@ -953,6 +945,25 @@
   font-family: Arial, sans-serif;
   font-size: 21px;
   line-height: 1;
+}
+
+.composerSpinner {
+  display: block;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: composer-spin 800ms linear infinite;
+}
+
+@keyframes composer-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composerSpinner { animation: none; }
 }
 
 .quickPrompts {
@@ -1308,10 +1319,6 @@
 
   .composerAdd {
     width: 28px;
-  }
-
-  .composerMode {
-    display: none;
   }
 
   .quickPrompts {
