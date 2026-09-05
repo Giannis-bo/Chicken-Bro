@@ -451,8 +451,14 @@ model_reasoning_effort = "high"
 
 规则只讨论魔兽世界、精炼作答，并保留专用来源 API、检索上限和如实说明未知的要求。它不替代服务端 owner、工具 capability 或 sandbox 权限，也不作为服务器全局工程指南。修改仓库规则并部署后，新请求读取新内容；已经运行中的请求保留启动时的版本。采用临时文件加原子替换更新，避免读取半写文件。
 
-本次接入 commit 为 `1209850cdb6b601669706602603156a00c15d493`。测试 current 指向同名 release，继承 `83b9684b605fa2496db14b81eceb18dc40424c9b` 的 Web 构建，仅覆盖三个 Python 接入文件和规则文件；正式 `/opt/chickenbro` 同样只应用四文件 overlay，不表示整个测试登录分支已部署或 main 已合入。两处 `AGENT_RULES_PATCH.json` 记录 commit、文件 SHA 与来源，原 BUILD_IDENTITY 的客户端身份保持原值。
+初始规则接入 commit 为 `1209850cdb6b601669706602603156a00c15d493`。当时测试 current 指向同名 release，继承 `83b9684b605fa2496db14b81eceb18dc40424c9b` 的 Web 构建，仅覆盖三个 Python 接入文件和规则文件；正式 `/opt/chickenbro` 同样只应用四文件 overlay，不表示整个测试登录分支已部署或 main 已合入。两处 `AGENT_RULES_PATCH.json` 记录该阶段 commit、文件 SHA 与来源。
 
 正式回滚副本及清单：`/var/lib/chickenbro/agent-rules-backups/1209850cdb6b601669706602603156a00c15d493/manifest.json`。回滚前核对当前四文件 SHA 与清单，确认无运行中 Chat；按清单恢复三个原 Python 文件，并移除本次新增的单个规则文件，再重启 `chickenbro-api.service`。测试回滚则将 current 原子切回上述旧 release 并重启 `chickenbro-test-api.service`。检查实际地址 `/api/v2/health/readiness`；初次测试部署因检查地址写错曾自动回滚，修正后重新切换成功。数据库、模型配置和客户端内容不参与本次回滚。
 
 回退时将上述四份配置恢复到对应备份内容；若同时回退二进制，应恢复既有安装链接到保留的旧版本，并同步 runtime revision 后重启两个 API、再次检查 readiness。旧 CLI 不支持 Astra，因此不得只降级二进制而保留 Astra 模型配置。
+
+## 自动来源 API 修复（2026-09-05）
+
+当前运行 overlay 为 `491d5379c5e7766f8e9260e3c6c9e7d8036c73f5`，五文件 manifest 位于正式/测试根 `SOURCE_API_PATCH.json`，其文件身份优先于早期 AGENT_RULES_PATCH 记录。测试 current 为同名 release，Web 仍是 `f144923c0a1ffb4c21aad4567f3e9e443b3b036d` 顶栏构建；正式仅更新五文件，没有带入测试登录代码。
+
+MCP 支持固定本机网关 8790/8791/8792；测试仍选用已有 production profile 的 MCP 脚本，但每次调用的 capability 和 8792 目标由测试 API 注入。WCL OAuth 凭据继续仅存在 API 进程。能力通过已接入工具提供，AGENTS 不负责读取密钥。来源 API 与角色技能统计、真实 Codex 主动两次查询均已验证，详情及回滚见 [自动来源验证](../artifacts/releases/2026-09-05-chickenbro-agent-rules/auto-sources.md)。

@@ -1,0 +1,28 @@
+{
+  "commit": "491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+  "files": {
+    "server/chickenbro_native_mcp.py": {
+      "sha256": "149bf9d62ebe081f8e3fe3227af899b121936c2fca8cbc207dfda1cb35424af9",
+      "previousNormalizedSha256": "ac8dde7cf0c0eddff0399ca605d6656a2ef6da06c9a0e12d41d128da52feb9b4"
+    },
+    "server/app/simulation/sources.py": {
+      "sha256": "0bd1bf646b2747ecb6fd90e31253de4d654cbf7518f8e587d79938f0f90d54ff",
+      "previousNormalizedSha256": "7821d7bea9486152f52b3f74696ec250955e9490790c3e2ee90548b5bc647293"
+    },
+    "server/app/chickenbro/source_gateway.py": {
+      "sha256": "490757da72d7222c0f4969ddd728d79f9a39edbee9ef59fb9d894d60a31d6c6d",
+      "previousNormalizedSha256": "30c6b6876d37efdfb1dbe1a3b2d7a564ffd48425ae6b98cae4f4afa22651796c"
+    },
+    "server/app/chickenbro/wcl_source.py": {
+      "sha256": "9c0d3b71419dcf9ca9228cf386ef1fdcf041fd06af322f6eb598a6ffa88fc850",
+      "previousNormalizedSha256": "f2d3381622a0e22a367d72eea3912ad7a1679b41709280ac55937d6bd3c7b9a9"
+    },
+    "server/app/chickenbro/agent/AGENTS.md": {
+      "sha256": "35c6479710eba21aeffe17bd546c216221b345d063a6f4924ff62a4b39056197",
+      "previousNormalizedSha256": "bb654af6776440c58ad5805f32e6ea19044b28ac0bb88ca70321261e2145a467"
+    }
+  },
+  "previousTestRelease": "/opt/chickenbro-test/releases/f144923c0a1ffb4c21aad4567f3e9e443b3b036d",
+  "productionBackup": "/var/lib/chickenbro/auto-source-backups/491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+  "appliedAt": "2026-09-05T05:49:05.066485+00:00"
+}

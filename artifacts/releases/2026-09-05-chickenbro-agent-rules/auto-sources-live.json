@@ -1,0 +1,143 @@
+{
+  "checkedAt": "2026-09-05T05:53:38.295028+00:00",
+  "runtimes": {
+    "production": {
+      "commit": "491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+      "resolvedRoot": "/opt/chickenbro",
+      "files": {
+        "server/chickenbro_native_mcp.py": "149bf9d62ebe081f8e3fe3227af899b121936c2fca8cbc207dfda1cb35424af9",
+        "server/app/simulation/sources.py": "0bd1bf646b2747ecb6fd90e31253de4d654cbf7518f8e587d79938f0f90d54ff",
+        "server/app/chickenbro/source_gateway.py": "490757da72d7222c0f4969ddd728d79f9a39edbee9ef59fb9d894d60a31d6c6d",
+        "server/app/chickenbro/wcl_source.py": "9c0d3b71419dcf9ca9228cf386ef1fdcf041fd06af322f6eb598a6ffa88fc850",
+        "server/app/chickenbro/agent/AGENTS.md": "35c6479710eba21aeffe17bd546c216221b345d063a6f4924ff62a4b39056197"
+      },
+      "health": {
+        "status": "ready",
+        "requestId": "cdabe8c2-62e5-490b-87cf-aa6c675249b0",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      }
+    },
+    "test": {
+      "commit": "491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+      "resolvedRoot": "/opt/chickenbro-test/releases/491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+      "files": {
+        "server/chickenbro_native_mcp.py": "149bf9d62ebe081f8e3fe3227af899b121936c2fca8cbc207dfda1cb35424af9",
+        "server/app/simulation/sources.py": "0bd1bf646b2747ecb6fd90e31253de4d654cbf7518f8e587d79938f0f90d54ff",
+        "server/app/chickenbro/source_gateway.py": "490757da72d7222c0f4969ddd728d79f9a39edbee9ef59fb9d894d60a31d6c6d",
+        "server/app/chickenbro/wcl_source.py": "9c0d3b71419dcf9ca9228cf386ef1fdcf041fd06af322f6eb598a6ffa88fc850",
+        "server/app/chickenbro/agent/AGENTS.md": "35c6479710eba21aeffe17bd546c216221b345d063a6f4924ff62a4b39056197"
+      },
+      "health": {
+        "status": "ready",
+        "requestId": "d275f72c-ca81-4bd7-b4f1-248fc0fa58bd",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      }
+    }
+  },
+  "webSmoke": {
+    "job": "0ce232bafecf4c778341406be66c0aa5",
+    "answer": "**目前不能认定 Giannis 有明显的循环错误；最值得复盘的是地震术的有效命中和爆发窗口内的施法。** API 返回了整场技能汇总，但没有完整施法、资源时间轴，无法据此算出提升百分比。\n\n这条 `fight=4` 是整趟**诸王之眠，持续 18 分 35 秒**，不是单个首领。Giannis 总伤害约 **2.038 亿**，按全程计算约 **18.27 万 DPS**，队内伤害第二。[日志来源](https://cn.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=4&source=4)\n\n| 技能 | 全程施放次数 | 伤害占比 |\n|---|---:|---:|\n| 地震术 | 64 | 23.3% |\n| 元素冲击 | 64 | 11.8% |\n| 熔岩爆裂 | 168 | 17.0% |\n| 闪电链／闪电箭 | 95／107 | — |\n| 升腾／风暴守护者 | 7／20 | — |\n| 先祖迅捷 | 27 | — |\n\n**按影响大小，建议重点复盘以下三项；这些是检查方向，并非已经证实的失误：**\n\n- **地震术的落点和时机。** 它是第一大伤害来源。重点看是否在怪物聚拢前、坦克即将拉走时或怪物临死前释放，导致后续伤害落空。64 次地震与 64 次元素冲击数量相同，不能证明每轮衔接都正确，也不能证明资源没有溢出。\n- **爆发期间是否持续有效输出。** 记录有 7 次升腾、20 次风暴守护者；先祖召唤贡献了 **18.4%** 总伤害。值得核对这些窗口是否覆盖存活时间充足的目标，以及期间是否因跑位、转场而少打技能。仅凭总次数，不能判定爆发是否拖延或少开。\n- **按每波目标数检查填充技能。** 全程闪电箭 107 次、闪电链 95 次，但整趟包含首领和小怪，这个比例本身不能说明选错技能。需要定位到具体怪群，检查多目标阶段的技能选择。\n\n功能技能方面，他用了 **9 次风剪、8 次净化术、15 次净化灵魂、7 次灵魂行者的恩赐、3 次星界转移**，说明有投入驱散、移动施法和自保；施放次数不能直接当作成功处理机制的次数。\n\n**限制：** API 没有返回补丁版本、天赋装备、完整资源及增益时间轴，事件样本仅覆盖开场约 58 秒。因此，暂时无法确认漩涡溢出、触发浪费、具体断档或爆发漏开；也不能把全程转场时间算成手法损失。",
+    "observations": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "sourceKey": "warcraftlogs",
+        "status": "verified",
+        "evidence": [
+          {
+            "id": "wcl:pqThd2cvwFyKXD6g:4",
+            "sourceName": "Warcraft Logs",
+            "sourceUrl": "https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g#fight=4",
+            "reportCode": "pqThd2cvwFyKXD6g",
+            "fightId": "4",
+            "api": "warcraftlogs-v2-graphql",
+            "sourceStatus": "verified",
+            "checkedAt": "2026-09-05T05:51:08.314398+00:00"
+          }
+        ],
+        "limitations": [
+          "Choose relevant facts and any follow-up queries based on the question. Add source=<actor id> to query an actor's ability tables.",
+          "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+        ]
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "sourceKey": "warcraftlogs",
+        "status": "verified",
+        "evidence": [
+          {
+            "id": "wcl:pqThd2cvwFyKXD6g:4",
+            "sourceName": "Warcraft Logs",
+            "sourceUrl": "https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g#fight=4&source=4",
+            "reportCode": "pqThd2cvwFyKXD6g",
+            "fightId": "4",
+            "api": "warcraftlogs-v2-graphql",
+            "sourceStatus": "verified",
+            "checkedAt": "2026-09-05T05:51:15.906749+00:00"
+          }
+        ],
+        "limitations": [
+          "Choose relevant facts and any follow-up queries based on the question. Add source=<actor id> to query an actor's ability tables.",
+          "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+        ]
+      }
+    ]
+  }
+}
