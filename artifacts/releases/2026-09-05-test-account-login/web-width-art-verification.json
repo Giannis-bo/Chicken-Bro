@@ -1,0 +1,38 @@
+{
+  "commit": "60371323cae73685df66ce50ff84d4d5174bcc8b",
+  "level": "test_web_browser_verified",
+  "url": "https://www.chickenbro.cloud/test/",
+  "verification": {"frontendTests":154,"controlTests":62,"diffCheck":"passed","testH5Build":"passed, two existing webpack size warnings"},
+  "desktop": {
+    "viewportWidth":2552,
+    "beforeReplyWidth":719.9896240234375,
+    "afterReplyWidth":1279.9896240234375,
+    "userReplyWidth":719.9896240234375,
+    "replyBackground":"rgba(255, 255, 255, 0.72)",
+    "sceneOpacity":"0.62",
+    "textColor":"rgb(61, 61, 57)",
+    "textOpacity":"1",
+    "documentWidth":2552,
+    "messageListHorizontalOverflow":false,
+    "visualCheck":"Illustration character and gate are clearer; long-answer text readable over translucent card."
+  },
+  "narrow": {
+    "viewportWidth":390,
+    "viewportHeight":844,
+    "replyWidth":315.2708435058594,
+    "documentWidth":390,
+    "messageListHorizontalOverflow":false,
+    "sceneOpacity":"0.46",
+    "composerBottom":783.2396240234375,
+    "visualCheck":"Text readable, illustration visible, composer inside viewport."
+  },
+  "viewportOverrideReset":true,
+  "draftLengthAfterCheck":0,
+  "newChatMessagesSent":0,
+  "publicFilesShaVerified":22,
+  "nonWebFilesPreserved":97,
+  "backendRestarted":false,
+  "productionWebChanged":false,
+  "userAcceptance":"pending",
+  "mainIntegration":"pending"
+}
