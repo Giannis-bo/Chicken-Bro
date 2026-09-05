@@ -742,14 +742,18 @@
 }
 
 .chatPane {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .messageList {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  overflow-anchor: none;
   padding: 24px 32px;
   box-sizing: border-box;
 }
@@ -849,6 +853,22 @@
   color: #4f4f4c;
   font-size: 14px;
   line-height: 1.75;
+}
+
+.jumpToLatest {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--accent);
+  box-shadow: 0 3px 12px rgba(65, 45, 38, 0.12);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .replyWaiting {
@@ -1266,10 +1286,11 @@
   }
 
   .splitView {
-    height: auto;
-    min-height: calc(100vh - 68px);
+    height: calc(100vh - 68px);
+    height: calc(100dvh - 68px);
+    min-height: 0;
     grid-template-columns: 1fr;
-    grid-template-rows: 192px minmax(520px, 1fr);
+    grid-template-rows: 192px minmax(0, 1fr);
   }
 
   .historyColumn {
@@ -1311,7 +1332,7 @@
   }
 
   .chatPane {
-    min-height: 520px;
+    min-height: 0;
   }
 
   .chatScene {

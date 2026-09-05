@@ -1,0 +1,59 @@
+{
+  "observedAt": "2026-09-05T12:08:25.949772+00:00",
+  "level": "isolated_cloud_staged_verification",
+  "sourceSha256": {
+    "server/app/chickenbro/codex_adapter.py": "0f2a1c50d6b649f24762fd59e053b85cf70b1d3887566d5022774f04f81d7394",
+    "server/app/chickenbro/codex_stdio.py": "01c2faff9727bd8c3a86a816fe25dc0a717202f6b978c120e2f30912ee963315",
+    "tests/app_chickenbro_codex_adapter_test.py": "f4719f9497086556a79782abab136e883b9bb2e0cab1ef8600fef8322b682712"
+  },
+  "runtime": {
+    "cliVersion": "0.153.4",
+    "binarySha256": "56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da",
+    "model": "gpt-6-astra",
+    "reasoningEffort": "high",
+    "approvalPolicy": "never",
+    "sandbox": "readOnly",
+    "transport": "app-server stdio"
+  },
+  "nativeProbe": {
+    "status": "completed",
+    "deltaCount": 316,
+    "deltaChars": 421,
+    "finalChars": 421,
+    "firstDeltaSeconds": 8.94,
+    "lastDeltaSeconds": 21.308,
+    "completedSeconds": 21.499,
+    "finalMatchesDeltas": true,
+    "scope": "WoW general game question without source queries",
+    "sourceRevisionNote": "Successful model probe preceded only retryable-error handling addition; final source hashes above verified by full backend suite."
+  },
+  "sourceTools": {
+    "verification": "per-thread mcpServerStatus/list after thread/start",
+    "serverCount": 2,
+    "available": [
+      "query_raiderio_character",
+      "query_warcraftlogs_report",
+      "research_public_web"
+    ],
+    "actualSourceQuery": "pending_test_deployment_gate"
+  },
+  "verification": {
+    "localAdapterTests": 18,
+    "localAdapterResult": "passed",
+    "stagedBackendTests": 256,
+    "stagedBackendResult": "passed",
+    "stagedBackendSeconds": 2.084,
+    "stageDirectory": "/tmp/chickenbro-stdio-verification-4261bfafbf7f4e4b87af645bd7b90641",
+    "runtimePython": "/opt/chickenbro-runtime/bin/python",
+    "dependenciesInstalled": false
+  },
+  "limitations": [
+    "Not production or user acceptance.",
+    "Actual source query remains a separate test deployment gate."
+  ],
+  "changes": [
+    "Profile overlay loaded in memory through thread/start.config because app-server rejects --profile.",
+    "No new listener, daemon, dependency, database or public API.",
+    "Strict final_answer phase and ID filtering; completed item must reconcile with emitted body; retryable provider errors remain private."
+  ]
+}

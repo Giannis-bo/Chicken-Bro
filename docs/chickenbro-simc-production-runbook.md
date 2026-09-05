@@ -432,6 +432,8 @@ apply 只接受精确名称。已完成的容量 scope 先将 env 逐个移到�
 
 ## 原生 Codex 模型配置（2026-09-05）
 
+同日长回复改进：Chat adapter 改为每请求 `codex app-server --listen stdio://`，通过现有 Chat SSE 传递真实正文增量；不新增常驻服务。0.153.4 的 app-server 不接受 CLI profile，因此服务端使用标准库读取当前 `CODEX_HOME/<profile>.config.toml`，在内存中传入 `thread/start.config`，保留模型与 MCP 配置，显式保持 read-only 和 never；行为规则通过 `developerInstructions` 注入。仅最终答复阶段的正文进入客户端，重试通知继续沿用同一截止时间，完整正文一致且 turn 成功后才完成。具体部署身份与回滚另记本次任务证据；以下 exec 描述为该日较早的历史验证。
+
 用户要求云端切换 Astra／高。已通过现有 `codex update` 将官方独立安装从 `0.146.0` 升级到 `0.153.4`，未安装业务依赖；旧版本保留在 `/home/ubuntu/.codex/packages/standalone/releases/0.146.0-x86_64-unknown-linux-musl/bin/codex`。旧 CLI 对 Astra 返回明确的需要升级错误，已用升级后真实调用验证。
 
 当前 `/home/ubuntu/.codex/config.toml` 及 `chickenbro-native.config.toml`、`chickenbro-candidate.config.toml`、`chickenbro-production.config.toml` 均设置：

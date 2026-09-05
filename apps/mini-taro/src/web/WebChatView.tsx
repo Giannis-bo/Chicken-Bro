@@ -7,6 +7,7 @@ import { ChatModel, type ChatModelState } from '../features/chat/chat-model'
 import styles from './WebApp.module.scss'
 import WebMessage from './WebMessage'
 import WebReplyStatus from './WebReplyStatus'
+import { useChatAutoScroll } from './use-chat-auto-scroll'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
@@ -14,7 +15,7 @@ type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 const quickPrompts = [
   '帮我看看元素萨满的装备',
   '从一个模拟开始',
-  '聊聊咕咕的新皮肤',
+  '聊聊鸡哥的新皮肤',
 ]
 
 export interface WebChatViewProps {
@@ -29,6 +30,12 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
   const [petRun, setPetRun] = useState(0)
   const composing = useRef(false)
   const sending = state.phase === 'sending'
+  const messageList = useRef<HTMLDivElement>(null)
+  const messageContent = useRef<HTMLDivElement>(null)
+  const scrollRevision = useMemo(() => ({ text: state.streamText, messages: state.activeConversation?.messages }),
+    [state.streamText, state.activeConversation?.messages])
+  const { paused, jumpToLatest } = useChatAutoScroll(messageList, messageContent,
+    state.activeConversation?.id ?? '', sending, scrollRevision)
   const canSend = Boolean(draft.trim() && state.activeConversation)
     && !sending && state.phase !== 'loading' && state.phase !== 'signed_out'
 
@@ -96,13 +103,14 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
               >
                 <View className={styles['petMascot'] ?? ''} />
               </Button>
-              <Text className={styles['petCaption'] ?? ''}>咕咕 · 远眺中</Text>
+              <Text className={styles['petCaption'] ?? ''}>鸡哥 · 远眺中</Text>
             </View>
           ) : null}
         </View>
 
         <View className={styles['chatPane'] ?? ''}>
-          <ScrollView className={styles['messageList'] ?? ''} scrollY scrollIntoView="web-chat-end">
+          <div ref={messageList} className={styles['messageList'] ?? ''} tabIndex={0} aria-label="聊天消息">
+            <div ref={messageContent}>
             {state.activeConversation?.messages.map((message) => (
               <View
                 key={message.id}
@@ -110,7 +118,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 data-message-id={message.id}
                 data-persisted="true"
               >
-                <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '你' : '咕咕'}</Text>
+                <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '你' : '鸡哥'}</Text>
                 <WebMessage content={message.content} markdown={message.role !== 'user'} />
               </View>
             ))}
@@ -123,7 +131,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
             {sending && !state.streamText ? <WebReplyStatus /> : null}
             {state.streamText ? (
               <View className={styles['webAssistantMessage'] ?? ''} data-persisted="false">
-                <Text className={styles['messageRole'] ?? ''}>咕咕 · 生成中</Text>
+                <Text className={styles['messageRole'] ?? ''}>鸡哥 · 生成中</Text>
                 <WebMessage content={state.streamText} markdown />
               </View>
             ) : null}
@@ -132,7 +140,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 <Text className={styles['emptyEyebrow'] ?? ''}>WOW COMPANION / 对话</Text>
                 <Text className={styles['emptyTitle'] ?? ''}>准备好了，随时开始</Text>
                 <Text className={styles['emptyDescription'] ?? ''}>
-                  把你的副本目标、装备疑问或输出困惑交给咕咕，先聊清楚再行动。
+                  把你的副本目标、装备疑问或输出困惑交给鸡哥，先聊清楚再行动。
                 </Text>
                 <View className={styles['emptyHint'] ?? ''}>
                   <View className={styles['emptyHintDot'] ?? ''} />
@@ -140,8 +148,8 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 </View>
               </View>
             ) : null}
-            <View id="web-chat-end" />
-          </ScrollView>
+            </div>
+          </div>
 
           {state.phase === 'blocked' || state.phase === 'signed_out' ? (
             <View className={styles['inlineError'] ?? ''} data-error-code={state.errorCode}>
@@ -153,6 +161,9 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
           ) : null}
 
           <View className={styles['webComposer'] ?? ''}>
+            {paused ? <button type="button" className={styles['jumpToLatest'] ?? ''} onClick={jumpToLatest}>
+              ↓ 回到最新
+            </button> : null}
             <View className={styles['composerRow'] ?? ''}>
               <Text className={styles['composerAdd'] ?? ''}>＋</Text>
               <textarea
@@ -161,7 +172,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 rows={1}
                 aria-label="消息内容"
                 title="Enter 发送，Shift+Enter 换行"
-                placeholder="问问咕咕"
+                placeholder="问问鸡哥"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onCompositionStart={() => { composing.current = true }}
@@ -199,7 +210,7 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
                 ))}
               </View>
             ) : null}
-            <Text className={styles['composerFootnote'] ?? ''}>咕咕可能会犯错，请核对重要信息。</Text>
+            <Text className={styles['composerFootnote'] ?? ''}>鸡哥可能会犯错，请核对重要信息。</Text>
           </View>
         </View>
       </View>

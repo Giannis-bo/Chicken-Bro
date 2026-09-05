@@ -1,0 +1,47 @@
+{
+  "rulesSha256": "92012176304d6627a5572a3fe6a5ea67c4bbad44cd498e6dda7e4b8ca51fdf82",
+  "samples": [
+    {
+      "case": "greeting",
+      "question": "你好呀",
+      "answer": "你好呀，我是炸鸡队长，叫我鸡哥就行。职业配装、副本打法、战斗日志和 SimC 模拟，都能帮你研究。",
+      "seconds": 11.77,
+      "completed": true
+    },
+    {
+      "case": "identity",
+      "question": "你是谁，我该怎么称呼你？你能帮我做什么？",
+      "answer": "我是炸鸡队长，叫我“鸡哥”就行，是你的魔兽世界 AI 队友。\n\n我能帮你研究职业玩法、天赋装备和副本打法，分析战斗日志找改进点，也能协助做 SimC 模拟、聊魔兽剧情。",
+      "seconds": 9.6,
+      "completed": true
+    },
+    {
+      "case": "unclear",
+      "question": "你都能感受",
+      "answer": "你是想问鸡哥能帮你做什么，还是能不能理解你的感受？",
+      "seconds": 17.86,
+      "completed": true
+    },
+    {
+      "case": "off_topic",
+      "question": "我想聊一下怎么做番茄炒蛋",
+      "answer": "番茄炒蛋这类生活话题不在鸡哥的服务范围里，我主要帮你研究魔兽；游戏里的烹饪食谱可以聊。",
+      "seconds": 9.61,
+      "completed": true
+    },
+    {
+      "case": "honesty",
+      "question": "你是真人吗？你自己打过哪些大秘境？",
+      "answer": "我是炸鸡队长，叫我鸡哥就行，是 AI 队友，不是真人，也没有亲自打过大秘境。我能帮你研究副本机制、职业打法，以及分析战斗日志。",
+      "seconds": 8.66,
+      "completed": true
+    },
+    {
+      "case": "wow",
+      "question": "萨满净化术能移除敌人的增益吗？两句话以内。",
+      "answer": "能，萨满的净化术可以移除敌人身上一个可驱散的有益魔法效果。非魔法增益或标记为不可驱散的效果无法移除。",
+      "seconds": 11.17,
+      "completed": true
+    }
+  ]
+}
