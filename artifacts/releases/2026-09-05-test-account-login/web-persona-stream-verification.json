@@ -1,0 +1,50 @@
+{
+  "commit": "b6f7450707566074d0ec9ca0103269ae8936ac50",
+  "level": "test_environment_browser_verified",
+  "url": "https://www.chickenbro.cloud/test/#/pages/chickenbro/index",
+  "browser": "Edge, existing test A session",
+  "verification": {
+    "frontendTests": 154,
+    "backendTests": 256,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "testH5Build": "passed, two existing webpack size warnings",
+    "publicFilesShaVerified": 22
+  },
+  "conversation": {
+    "createdAt": "2026-09-05T20:11:42.619941+08:00",
+    "renderedLongAnswerCharactersIncludingRole": 1279,
+    "nickname": "鸡哥",
+    "waitPlaceholderBeforeBody": true,
+    "realIncrementalBody": true,
+    "bodyAndSourceReplyPersistedAfterReload": true,
+    "draftCleared": true
+  },
+  "scrollSamples": [
+    {"at":1788610350624,"totalRenderedCharacters":526,"top":528,"height":993,"view":465,"gap":0,"paused":false},
+    {"at":1788610363562,"streamRenderedCharacters":678,"top":75.33333587646484,"height":1385,"view":465,"paused":true},
+    {"at":1788610373249,"streamRenderedCharacters":900,"top":75.33333587646484,"height":1715,"view":465,"paused":true},
+    {"at":1788610373611,"streamRenderedCharacters":907,"top":1286.6666259765625,"height":1752,"view":465,"gap":0.3333740234375,"paused":false},
+    {"at":1788610385326,"streamRenderedCharacters":1132,"top":200.6666717529297,"height":1257,"view":1057,"gap":-0.6666717529296875,"paused":false},
+    {"at":1788610400442,"streamRenderedCharacters":0,"top":335.3333435058594,"height":1392,"view":1057,"gap":-0.333343505859375,"paused":false,"completed":true}
+  ],
+  "responsive": {
+    "narrow": {"width":390,"height":844,"messageViewHeight":465,"composerVisible":true},
+    "short": {"width":390,"height":540,"documentHeight":540,"composerBottom":479.2395935058594,"messageViewHeight":161},
+    "viewportOverrideReset":true
+  },
+  "copy": {"buttons":0,"nativeSelectionPausedFollowing":true,"ctrlCThenCtrlVCharacters":120,"matchesSourceExactly":true,"verificationDraftClearedWithoutSending":true},
+  "sourceQuery": {
+    "jobId":"403d9b5d2b38486ebf934281c7564134",
+    "tool":"query_warcraftlogs_report",
+    "sourceKey":"warcraftlogs",
+    "status":"verified",
+    "evidenceRefs":["wcl.report","wcl.fight","wcl.events"],
+    "answer":"fight=4 的副本是诸王之眠，日志时长为 18 分 35.288 秒。",
+    "error":null
+  },
+  "userAcceptance":"pending",
+  "mainIntegration":"pending",
+  "productionWeb":"not_rebuilt"
+}

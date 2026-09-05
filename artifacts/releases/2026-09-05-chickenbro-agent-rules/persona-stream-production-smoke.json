@@ -1,0 +1,13 @@
+{
+  "level": "production_adapter_smoke",
+  "answer": "我是炸鸡队长，叫我鸡哥就行，是帮你研究魔兽世界职业配装、副本打法、战斗日志和 SimC 模拟的 AI 队友。",
+  "deltaCount": 39,
+  "firstDeltaSeconds": 4.742,
+  "completedSeconds": 6.176,
+  "matches": true,
+  "sourceSha256": {
+    "server/app/chickenbro/codex_adapter.py": "0f2a1c50d6b649f24762fd59e053b85cf70b1d3887566d5022774f04f81d7394",
+    "server/app/chickenbro/codex_stdio.py": "01c2faff9727bd8c3a86a816fe25dc0a717202f6b978c120e2f30912ee963315",
+    "server/app/chickenbro/agent/AGENTS.md": "92012176304d6627a5572a3fe6a5ea67c4bbad44cd498e6dda7e4b8ca51fdf82"
+  }
+}

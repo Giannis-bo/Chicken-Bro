@@ -1,0 +1,22 @@
+{
+  "commit": "b6f7450707566074d0ec9ca0103269ae8936ac50",
+  "files": {
+    "server/app/chickenbro/codex_adapter.py": {
+      "old": "b872450e993848da27f766e4874cb9c4a2d5467623eca0d4347b706840fe515e",
+      "sha256": "0f2a1c50d6b649f24762fd59e053b85cf70b1d3887566d5022774f04f81d7394"
+    },
+    "server/app/chickenbro/codex_stdio.py": {
+      "old": null,
+      "sha256": "01c2faff9727bd8c3a86a816fe25dc0a717202f6b978c120e2f30912ee963315"
+    },
+    "server/app/chickenbro/agent/AGENTS.md": {
+      "old": "ace54b68d70dd0f5b4c485a5edec734ea6e6c69760f7ecba2d7a1751aa1e5727",
+      "sha256": "92012176304d6627a5572a3fe6a5ea67c4bbad44cd498e6dda7e4b8ca51fdf82"
+    }
+  },
+  "backup": "/var/lib/chickenbro/chat-stream-backups/b6f7450707566074d0ec9ca0103269ae8936ac50",
+  "appliedAt": "2026-09-05T12:15:11.796678+00:00",
+  "health": "ready",
+  "databaseChanged": false,
+  "webChanged": false
+}

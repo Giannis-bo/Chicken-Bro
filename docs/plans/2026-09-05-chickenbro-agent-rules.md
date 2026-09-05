@@ -6,6 +6,8 @@
 
 正式名称炸鸡队长，昵称“鸡哥”（用户纠正，不使用咕咕）。定位为靠谱、直爽的魔兽 AI 队友，允许问候、感谢、身份/能力介绍和必要澄清；不把缺少魔兽关键词等同于越界。不编造真人经历或能力，保留工具事实与 owner 边界；题外话温和引回魔兽，不机械固定拒答。Web 对应称呼同步；历史正文不改写。用实际云端回答验证身份、问候、模糊表达、题外引导、AI 身份诚实及正常魔兽简答，测试先行再按精确 SHA 热更新规则，保留回滚。
 
+`b6f7450707566074d0ec9ca0103269ae8936ac50` 已完成隔离测试并同步正式后端三个文件（adapter、stdio helper、规则）；正式 Web 未重建。六组云端身份样例通过；实际 stdio 首段 8.94 秒、316 次增量与 421 字最终正文一致，模型 Astra/high。完整后端 256 项通过，独立审查的重试通知问题已修正；测试服务真实 WCL 查询通过。正式 adapter 再验 39 次增量与最终回答一致、自称鸡哥。正式回滚清单与原文件位于 `/var/lib/chickenbro/chat-stream-backups/b6f7450707566074d0ec9ca0103269ae8936ac50/`，根 `CHAT_STREAM_PATCH.json` 为本轮身份；核对新 SHA 后恢复两份原文件、移除本轮新增 stdio helper并重启正式 API，检查 readiness。数据库与其他源文件未改变。详见 [正式部署](../../artifacts/releases/2026-09-05-chickenbro-agent-rules/persona-stream-production-deployment.json) 和 [正式调用](../../artifacts/releases/2026-09-05-chickenbro-agent-rules/persona-stream-production-smoke.json)；用户验收和 main 合入待完成。
+
 ## 真正的正文增量传输（2026-09-05 长回复反馈）
 
 云端实测当前原生 CLI 0.153.4 的 `exec --json` 仅在完成时交付整段 agent_message，不能支持用户要求的逐段展示。沿用现有 Chat adapter owner，在每请求临时子进程中使用已安装的 `codex app-server` stdio 协议；不增加常驻服务、依赖或公开 API。保持现有 profile、模型、只读 sandbox、环境变量白名单和来源 capability。仅将当前 thread/turn 的最终答复正文增量映射到既有 Chat SSE，不向客户端传递分析、工具输出或其他阶段消息。
