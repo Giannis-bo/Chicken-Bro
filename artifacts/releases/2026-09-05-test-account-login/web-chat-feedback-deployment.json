@@ -1,8 +1,8 @@
 {
-  "commit": "4d3f3168394c52204db3a2e2ad6f65a39edd387a",
-  "previousRelease": "/opt/chickenbro-test/releases/c4b6d4b0f24c40ba4e67ffe3ffbf778a48f9ade5",
-  "currentRelease": "/opt/chickenbro-test/releases/4d3f3168394c52204db3a2e2ad6f65a39edd387a",
-  "packageSha256": "bc32e222d7e6c7f91ff5cd2cc0d38eb3ddff03807837408d8564c48c46884fe1",
+  "commit": "54e9562b647377201406b7f7c9beb6aa8f816596",
+  "previousRelease": "/opt/chickenbro-test/releases/4d3f3168394c52204db3a2e2ad6f65a39edd387a",
+  "currentRelease": "/opt/chickenbro-test/releases/54e9562b647377201406b7f7c9beb6aa8f816596",
+  "packageSha256": "c2be6b8e3847b162b83d8d9d3f45f34be34c3950d6674922b40b4917fc068bdc",
   "webFilesSha256": {
     "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
     "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
@@ -20,7 +20,7 @@
     "index.html": "16efded228a2bde78571ea3f21510abfe103f833b3fcc1f8246b885b005c308c",
     "js/962.js": "b332bf33e9986e693e42d43bf1a17e2085ff7de3409afb1837b3bcfb3d3e7e58",
     "js/962.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
-    "js/app.js": "b050b3bc9d7bfa6542da3184f01f2520c4d9235a544941a7752d0ba7e4900aa1",
+    "js/app.js": "d385909036f5226d6e7d76469253d942c706dc0b8ad51b2d6657ab2c888c867b",
     "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
     "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
     "static/images/web/assets/gu-gu-pet-v1.png": "4e6263f015d0f271409c86349f71c3f3a651b4c82b68f8394e84d1fd26c80c61",
@@ -126,7 +126,7 @@
     "server/test_login_runtime.py": "a884663ee1943a25456d9846089164dbb47a25e3f6aa37fc8b570f51106b5275"
   },
   "health": "ready",
-  "deployedAt": "2026-09-05T10:57:57.740534+00:00",
+  "deployedAt": "2026-09-05T11:02:39.749310+00:00",
   "backendRestarted": false,
   "databaseChanged": false,
   "publicFilesSha256": {
@@ -146,7 +146,7 @@
     "index.html": "16efded228a2bde78571ea3f21510abfe103f833b3fcc1f8246b885b005c308c",
     "js/962.js": "b332bf33e9986e693e42d43bf1a17e2085ff7de3409afb1837b3bcfb3d3e7e58",
     "js/962.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
-    "js/app.js": "b050b3bc9d7bfa6542da3184f01f2520c4d9235a544941a7752d0ba7e4900aa1",
+    "js/app.js": "d385909036f5226d6e7d76469253d942c706dc0b8ad51b2d6657ab2c888c867b",
     "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
     "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
     "static/images/web/assets/gu-gu-pet-v1.png": "4e6263f015d0f271409c86349f71c3f3a651b4c82b68f8394e84d1fd26c80c61",
