@@ -24,6 +24,7 @@ describe('Web chat composer interactions', () => {
   beforeEach(async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     vi.clearAllMocks()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() })
     const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
     const conversation = { id: 'chat-one', title: 'Test', updatedAt: '2026-09-05' }
     api.list.mockResolvedValue(success({ items: [conversation], nextCursor: null }))
@@ -39,6 +40,7 @@ describe('Web chat composer interactions', () => {
   afterEach(async () => {
     await act(async () => root.unmount())
     container.remove()
+    Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
     vi.useRealTimers()
     vi.unstubAllGlobals()
   })
@@ -104,8 +106,10 @@ describe('Web chat composer interactions', () => {
     const waiting = () => container.querySelector('[role="status"][aria-label="等待回复"]')
     expect(waiting()?.textContent).toContain('咕咕正在处理')
     expect(waiting()?.textContent).not.toContain('已等待')
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' })
     await act(async () => vi.advanceTimersByTime(10000))
     expect(waiting()?.textContent).toContain('已等待 10 秒')
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
     const onEvent = api.streamMessage.mock.calls[0]?.[2].onEvent
     const envelope = { requestId: 'request', runId: 'run', conversationId: 'chat-one' }
     await act(async () => onEvent({ ...envelope, sequence: 1, type: 'started' }))
