@@ -244,7 +244,7 @@ class ChickenbroSourceGateway:
         *,
         query_service: ServerConfiguredSourceQuery | Callable[[str, str], Mapping[str, Any]] | None = None,
         now: Callable[[], datetime] | None = None,
-        capability_ttl_seconds: int = 300,
+        capability_ttl_seconds: int = 600,
     ):
         self._query_service = query_service or ServerConfiguredSourceQuery()
         self._now = now or _utc_now

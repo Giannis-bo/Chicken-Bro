@@ -20,7 +20,7 @@ class ChatApplicationError(ValueError):
         super().__init__(f"{code}: {message}")
 
 
-CHAT_TIMEOUT_SECONDS = 180
+CHAT_TIMEOUT_SECONDS = 480
 CHAT_STALE_RUN_GRACE_SECONDS = 60
 CHAT_CONVERSATION_NAMESPACE = UUID("83b4eebf-fcf3-51ea-b9ff-d676d1957f48")
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")

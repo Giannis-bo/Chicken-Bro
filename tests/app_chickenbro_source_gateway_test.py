@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,6 +11,16 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_source_capability_lasts_through_analysis_but_can_still_be_revoked(self):
+        now = datetime(2026, 9, 5, tzinfo=timezone.utc)
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: {"status": "verified"}, now=lambda: now)
+        token = gateway.issue_capability()
+        now += timedelta(seconds=480)
+        self.assertEqual(gateway.query(token, "warcraftlogs", "target")["status"], "verified")
+        gateway.revoke(token)
+        with self.assertRaises(SourceGatewayUnauthorized):
+            gateway.query(token, "warcraftlogs", "target")
+
     def test_capability_gateway_keeps_event_options_and_context(self):
         calls = []
         service = ServerConfiguredSourceQuery(wcl_reader=lambda value: calls.append(value) or {

@@ -1712,7 +1712,7 @@ location ^~ /api/v2/ {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host $host;
     proxy_buffering off;
-    proxy_read_timeout 210s;
+    proxy_read_timeout 540s;
 }
 # END CHICKENBRO PRODUCTION API"""
 position = api.rfind("\n}")

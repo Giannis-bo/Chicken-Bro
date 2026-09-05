@@ -143,7 +143,7 @@ describe('formal Chat client', () => {
       header: {
         'Idempotency-Key': 'request-one',
       },
-      timeoutMs: 180000,
+      timeoutMs: 510000,
     })
     expect(failures).toEqual([])
   })

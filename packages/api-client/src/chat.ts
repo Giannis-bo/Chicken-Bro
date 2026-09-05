@@ -15,7 +15,8 @@ import type { ApiResult, ApiStreamTask, ApiTransport, RequestData } from './tran
 import { apiV2Path } from './api-v2-prefix'
 
 
-export const CHAT_STREAM_TIMEOUT_MS = 180000
+// Allow the server's 480-second analysis deadline to emit its terminal event.
+export const CHAT_STREAM_TIMEOUT_MS = 510000
 
 export interface ChatRequestOptions {
   auth: ClientAuthContext

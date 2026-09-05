@@ -69,7 +69,7 @@ def publish():
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_buffering off;
-    proxy_read_timeout 300s;
+    proxy_read_timeout 540s;
 }
 '''
     web_location = '''location = /test { return 302 /test/; }
