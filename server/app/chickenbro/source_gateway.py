@@ -95,7 +95,7 @@ class ServerConfiguredSourceQuery:
         normalized_provider = _text(provider, 40).lower()
         parsed = parse_character_source_url(target)
         if normalized_provider == "warcraftlogs" and parsed.provider is SourceProvider.WARCRAFTLOGS:
-            return self._query_warcraftlogs(target)
+            return self._query_warcraftlogs(parsed.url)
         if normalized_provider == "raiderio" and parsed.provider is SourceProvider.RAIDERIO:
             return self._query_raiderio(target)
         raise InvalidSourceLink()
@@ -134,7 +134,7 @@ class ServerConfiguredSourceQuery:
                 limitations.append(clean)
         if verified:
             limitations.append(
-                "This is report/fight evidence from the configured WCL API. It is not a percentile or ranking claim, and the selected URL must identify the player when player-specific attribution is required."
+                "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
             )
         elif not limitations:
             limitations.append("The configured Warcraft Logs API did not return verifiable report evidence.")
@@ -167,6 +167,14 @@ class ServerConfiguredSourceQuery:
                     evidence.get("eventSummary"),
                     ("total", "casts", "buffEvents", "deaths", "damageEvents", "healingEvents", "mechanicEvents"),
                 ),
+                "actors": evidence.get("actors", []),
+                "actorsTruncated": bool(evidence.get("actorsTruncated")),
+                "fights": evidence.get("fights", []),
+                "fightsTruncated": bool(evidence.get("fightsTruncated")),
+                "casts": evidence.get("casts", {}),
+                "damage": evidence.get("damage", {}),
+                "eventPage": evidence.get("eventPage", {}),
+                "sourceId": evidence.get("sourceId"),
                 "summary": "Warcraft Logs report evidence was fetched through the server-configured API.",
             }]
         return result

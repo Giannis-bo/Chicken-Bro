@@ -141,7 +141,7 @@ def parse_character_source_url(source_url: str) -> ParsedSourceUrl:
             realm=realm.lower(),
             character_name=character_name,
         )
-    if host in {"warcraftlogs.com", "www.warcraftlogs.com"}:
+    if host in {"warcraftlogs.com", "www.warcraftlogs.com", "cn.warcraftlogs.com"}:
         if len(path) < 2 or path[0].lower() != "reports" or len(path) > 3:
             raise InvalidSourceLink()
         report_code = path[1].strip()

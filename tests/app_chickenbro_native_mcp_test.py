@@ -7,6 +7,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FormalChickenbroNativeMcpTest(unittest.TestCase):
+    def test_gateway_accepts_managed_test_port_but_rejects_other_targets(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        for port in [8790, 8791, 8792]:
+            self.assertTrue(module._source_gateway_target_is_local(
+                f"http://127.0.0.1:{port}/api/v2/internal/chickenbro/source-query"))
+        for target in [
+            "http://127.0.0.1:6379/api/v2/internal/chickenbro/source-query",
+            "https://example.com/api/v2/internal/chickenbro/source-query",
+            "http://127.0.0.1:8792/unrelated", "http://user@127.0.0.1:8792/api/v2/internal/chickenbro/source-query",
+        ]:
+            self.assertFalse(module._source_gateway_target_is_local(target))
+
     def test_toolbox_exposes_only_chat_owned_read_only_sources(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
         listed = module.handle_rpc_request(

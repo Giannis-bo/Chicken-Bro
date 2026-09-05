@@ -11,6 +11,17 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_cn_report_is_canonicalized_before_reader(self):
+        reader_calls = []
+        query = ServerConfiguredSourceQuery(wcl_reader=lambda value: reader_calls.append(value) or {
+            "sourceStatus": "verified", "actors": [{"id": 5, "name": "Giannis"}],
+            "casts": {"entries": [{"name": "Lava Burst", "total": 42}]},
+        })
+        result = query.query("warcraftlogs", "https://cn.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=4&source=5")
+        self.assertEqual(reader_calls[0]["wclUrl"], "https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g#fight=4&source=5")
+        self.assertEqual(result["facts"][0]["actors"][0]["name"], "Giannis")
+        self.assertEqual(result["facts"][0]["casts"]["entries"][0]["total"], 42)
+
     def test_formal_router_registers_the_internal_source_gateway(self):
         root = Path(__file__).resolve().parents[1]
         route_path = root / "server/app/api/routes/source_gateway.py"

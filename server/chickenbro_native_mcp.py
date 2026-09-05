@@ -52,7 +52,10 @@ WARCRAFTLOGS_TOOL_DEFINITION = {
     "description": (
         "Query one Warcraft Logs report or fight through the server-configured Warcraft Logs API. "
         "Use this for a WCL report URL; do not open the public report page instead. The result is a bounded "
-        "report/fight evidence summary and may be incomplete for player-specific attribution."
+        "report metadata, actor IDs, casts and damage tables, and a bounded event sample. "
+        "Credentials and OAuth refresh are handled automatically by the server; never ask the user for API keys. "
+        "You can add source=<actor ID> to the report URL to query that actor's abilities. "
+        "Choose follow-up queries and analysis yourself; eventPage describes sample coverage."
     ),
     "inputSchema": {
         "type": "object",
@@ -144,6 +147,7 @@ def _source_gateway_url():
 def _source_gateway_target_is_local(url):
     try:
         parsed = urlparse(url)
+        port = parsed.port
     except ValueError:
         return False
     return (
@@ -151,7 +155,10 @@ def _source_gateway_target_is_local(url):
         and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
         and not parsed.username
         and not parsed.password
-        and parsed.port in {None, 80, 443, 8790}
+        and port in {8790, 8791, 8792}
+        and parsed.path == "/api/v2/internal/chickenbro/source-query"
+        and not parsed.query
+        and not parsed.fragment
     )
 
 

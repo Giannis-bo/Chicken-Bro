@@ -14,6 +14,7 @@ from math import ceil
 from time import monotonic
 from typing import Any
 from urllib.request import Request, urlopen
+from server.app.simulation.sources import parse_character_source_url, InvalidSourceLink
 
 from server.app.integrations.warcraftlogs import (
     warcraftlogs_credentials_state as configured_warcraftlogs_credentials_state,
@@ -23,7 +24,7 @@ from server.app.integrations.warcraftlogs import (
 
 
 WCL_REPORT_EVIDENCE_QUERY = """
-query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int]) {
+query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int], $sourceId: Int) {
   reportData {
     report(code: $code) {
       title
@@ -37,8 +38,12 @@ query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int]) {
         startTime
         endTime
       }
-      events(fightIDs: $fightIds, limit: 300) {
+      masterData { actors { id name type subType } }
+      casts: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: Casts)
+      damage: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: DamageDone)
+      events(fightIDs: $fightIds, sourceID: $sourceId, limit: 300) {
         data
+        nextPageTimestamp
       }
     }
   }
@@ -171,11 +176,18 @@ def _extract_reference(request_data: Any) -> dict[str, str]:
         if _text(source.get(key))
     )
     url_match = re.search(
-        r"https?://(?:www\.)?warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>\"]*",
+        r"https://(?:(?:www|cn)\.)?warcraftlogs\.com/reports/([A-Za-z0-9]+)[^\s<>\"]*",
         text,
     )
     code = url_match.group(1) if url_match else ""
     source_url = url_match.group(0).rstrip(".,)") if url_match else ""
+    if source_url:
+        try:
+            parsed = parse_character_source_url(source_url)
+            return {"reportCode": parsed.report_code, "sourceUrl": parsed.url,
+                    "fightId": str(parsed.fight_id or ""), "sourceId": str(parsed.actor_id or "")}
+        except InvalidSourceLink:
+            return {"reportCode": "", "sourceUrl": "", "fightId": "", "sourceId": ""}
     if not code:
         code_match = re.search(
             r"\b(?:wcl|report)\s*[:#= ]\s*([A-Za-z0-9]{6,})\b",
@@ -190,12 +202,29 @@ def _extract_reference(request_data: Any) -> dict[str, str]:
     return {"reportCode": code, "sourceUrl": source_url, "fightId": fight_id}
 
 
+def _bounded_table(table: Any) -> dict[str, Any]:
+    data = table.get("data", {}) if isinstance(table, Mapping) else {}
+    if not isinstance(data, Mapping):
+        return {}
+    keys = ("id", "guid", "name", "type", "total", "totalUses", "hitCount", "tickCount",
+            "totalTime", "activeTime", "count", "uses", "uptime", "uptimePercentage")
+    rows = data.get("entries", [])
+    return {
+        "entries": [{key: (value[:240] if isinstance(value, str) else value)
+                     for key, value in row.items() if key in keys and isinstance(value, (str, int, float, bool))}
+                    for row in rows[:100] if isinstance(row, Mapping)] if isinstance(rows, list) else [],
+        "rowsTruncated": isinstance(rows, list) and len(rows) > 100,
+        "totalTime": data.get("totalTime") if isinstance(data.get("totalTime"), (int, float)) else None,
+    }
+
+
 def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[str, Any]) -> dict[str, Any]:
     fight_id = _text(reference.get("fightId"))
     fight_ids = [int(fight_id)] if fight_id.isdigit() else []
     data = _graphql(
         WCL_REPORT_EVIDENCE_QUERY,
-        {"code": reference["reportCode"], "fightIds": fight_ids or None},
+        {"code": reference["reportCode"], "fightIds": fight_ids or None,
+         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None},
     )
     report_data = data.get("reportData") if isinstance(data, Mapping) else {}
     report = report_data.get("report") if isinstance(report_data, Mapping) else {}
@@ -203,10 +232,13 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         raise RuntimeError("Warcraft Logs GraphQL response did not include report data")
     fights = [_normalize_fight(item) for item in report.get("fights") or []]
     selected_fight = next((item for item in fights if item.get("id") == fight_id), {}) if fight_id else {}
-    if not selected_fight and fights:
-        selected_fight = fights[0]
+    if fight_id and not selected_fight:
+        raise RuntimeError("The requested fight was not found in this report")
     events_payload = report.get("events")
     events = events_payload.get("data") if isinstance(events_payload, Mapping) else []
+    master = report.get("masterData") or {}
+    actors = master.get("actors", []) if isinstance(master, Mapping) else []
+    next_page = events_payload.get("nextPageTimestamp") if isinstance(events_payload, Mapping) else None
     return {
         "schemaRevision": "wcl-log-evidence-v1",
         "status": "ready",
@@ -222,13 +254,26 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
             "endTime": report.get("endTime") or 0,
         },
         "fight": selected_fight,
+        "fights": fights[:100],
+        "fightsTruncated": len(fights) > 100,
         "eventSummary": _summarize_events(events),
+        "sourceId": reference.get("sourceId") or None,
+        "actors": [{key: (value[:160] if isinstance(value, str) else value)
+                    for key, value in item.items() if key in {"id", "name", "type", "subType"}
+                    and isinstance(value, (str, int))}
+                   for item in actors if isinstance(item, Mapping) and item.get("type") == "Player"][:100],
+        "actorsTruncated": sum(isinstance(item, Mapping) and item.get("type") == "Player" for item in actors) > 100,
+        "casts": _bounded_table(report.get("casts")),
+        "damage": _bounded_table(report.get("damage")),
+        "eventPage": {"limit": 300, "count": len(events) if isinstance(events, list) else 0,
+                      "nextPageTimestamp": next_page,
+                      "complete": isinstance(events_payload, Mapping) and "nextPageTimestamp" in events_payload and next_page is None,
+                      "scope": "event sample only; tables are aggregated independently over the selected filters"},
         "missingInputs": [],
         "blockers": [],
         "evidenceRefs": ["wcl.report", "wcl.fight", "wcl.events"],
         "nextActions": [
-            "Use this parsed WCL evidence together with the SimC result before making rotation or performance conclusions.",
-            "Compare casts, buff uptime, deaths, damage and healing events against a matched sample window before ranking the player.",
+            "Choose relevant facts and any follow-up queries based on the question. Add source=<actor id> to query an actor's ability tables.",
         ],
     }
 
