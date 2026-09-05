@@ -1,0 +1,12 @@
+[
+  {
+    "environment": "production",
+    "case": "off_topic",
+    "answer": "我只讨论魔兽世界相关问题。"
+  },
+  {
+    "environment": "production",
+    "case": "wow",
+    "answer": "打断技能能中止敌人正在施放的可打断法术，通常还会短暂封锁该系法术，防止伤害、治疗或控制生效。带盾牌标记的施法通常无法打断。"
+  }
+]

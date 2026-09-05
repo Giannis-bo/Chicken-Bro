@@ -447,6 +447,12 @@ model_reasoning_effort = "high"
 
 手工云端诊断必须使用服务已有的代理环境（只在进程内传递，禁止打印代理或认证值）。普通 SSH shell 未继承这些配置，可能出现网络超时，不应误判模型不可用。
 
-当前 Codex home、聊天 job 路径及其祖先目录没有独立 `AGENTS.md`、`AGENTS.override.md` 或 `Agent.md`。实际固定业务指令在 `server/app/chickenbro/application.py` 的 `_prompt`，正式/测试版本相同：炸鸡队长身份、公开来源最多检索两次、WCL/Raider.IO 使用专用 API 工具、阻塞如实说明；随后拼接最近 20 条、每条最多 4000 字符历史。插件模板目录中的同名文件不属于聊天工作目录的生效指令。
+模型切换时尚无独立业务 AGENTS.md；同日后续任务已将 `_prompt` 固定规则迁入 [炸鸡队长行为规则](../server/app/chickenbro/agent/AGENTS.md)。Chat adapter 每次启动前读取固定文件（UTF-8，最多 32 KiB），通过 CLI `-c developer_instructions=...` 注入。文件缺失、空白、不可读或超限则返回 `CODEX_UNAVAILABLE`，不启动无规则会话。接入使用官方 [developer_instructions 配置](https://learn.chatgpt.com/docs/config-file/config-reference)；它是会话级开发者指令。用户历史以独立 JSON 输入，保留最近 20 条、每条 4000 字符边界。
+
+规则只讨论魔兽世界、精炼作答，并保留专用来源 API、检索上限和如实说明未知的要求。它不替代服务端 owner、工具 capability 或 sandbox 权限，也不作为服务器全局工程指南。修改仓库规则并部署后，新请求读取新内容；已经运行中的请求保留启动时的版本。采用临时文件加原子替换更新，避免读取半写文件。
+
+本次接入 commit 为 `1209850cdb6b601669706602603156a00c15d493`。测试 current 指向同名 release，继承 `83b9684b605fa2496db14b81eceb18dc40424c9b` 的 Web 构建，仅覆盖三个 Python 接入文件和规则文件；正式 `/opt/chickenbro` 同样只应用四文件 overlay，不表示整个测试登录分支已部署或 main 已合入。两处 `AGENT_RULES_PATCH.json` 记录 commit、文件 SHA 与来源，原 BUILD_IDENTITY 的客户端身份保持原值。
+
+正式回滚副本及清单：`/var/lib/chickenbro/agent-rules-backups/1209850cdb6b601669706602603156a00c15d493/manifest.json`。回滚前核对当前四文件 SHA 与清单，确认无运行中 Chat；按清单恢复三个原 Python 文件，并移除本次新增的单个规则文件，再重启 `chickenbro-api.service`。测试回滚则将 current 原子切回上述旧 release 并重启 `chickenbro-test-api.service`。检查实际地址 `/api/v2/health/readiness`；初次测试部署因检查地址写错曾自动回滚，修正后重新切换成功。数据库、模型配置和客户端内容不参与本次回滚。
 
 回退时将上述四份配置恢复到对应备份内容；若同时回退二进制，应恢复既有安装链接到保留的旧版本，并同步 runtime revision 后重启两个 API、再次检查 readiness。旧 CLI 不支持 Astra，因此不得只降级二进制而保留 Astra 模型配置。

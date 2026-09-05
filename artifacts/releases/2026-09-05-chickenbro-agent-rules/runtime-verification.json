@@ -1,0 +1,99 @@
+{
+  "verifiedAt": "2026-09-05T03:41:59.235515+00:00",
+  "runtimes": {
+    "production": {
+      "sourceCommit": "1209850cdb6b601669706602603156a00c15d493",
+      "resolvedRoot": "/opt/chickenbro",
+      "files": {
+        "server/codex_worker.py": "b259840a323b605c03b19c84ae5b7faad5cbe67c89706efd20179d8e373aa9f3",
+        "server/app/chickenbro/application.py": "fae4042e27633f3eda64e0e9184c6ed57ecd492ed8a436b3ad7bbfd23747fa2c",
+        "server/app/chickenbro/codex_adapter.py": "b872450e993848da27f766e4874cb9c4a2d5467623eca0d4347b706840fe515e",
+        "server/app/chickenbro/agent/AGENTS.md": "bb654af6776440c58ad5805f32e6ea19044b28ac0bb88ca70321261e2145a467"
+      },
+      "health": {
+        "status": "ready",
+        "requestId": "7fa0e543-0f1b-486b-838f-13db42e6f99b",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      }
+    },
+    "test": {
+      "sourceCommit": "1209850cdb6b601669706602603156a00c15d493",
+      "resolvedRoot": "/opt/chickenbro-test/releases/1209850cdb6b601669706602603156a00c15d493",
+      "files": {
+        "server/codex_worker.py": "b259840a323b605c03b19c84ae5b7faad5cbe67c89706efd20179d8e373aa9f3",
+        "server/app/chickenbro/application.py": "fae4042e27633f3eda64e0e9184c6ed57ecd492ed8a436b3ad7bbfd23747fa2c",
+        "server/app/chickenbro/codex_adapter.py": "b872450e993848da27f766e4874cb9c4a2d5467623eca0d4347b706840fe515e",
+        "server/app/chickenbro/agent/AGENTS.md": "bb654af6776440c58ad5805f32e6ea19044b28ac0bb88ca70321261e2145a467"
+      },
+      "health": {
+        "status": "ready",
+        "requestId": "431799e8-8882-487c-aeea-fe0dc888b5a7",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      }
+    }
+  },
+  "codex": {
+    "version": "codex-cli 0.153.4",
+    "model": "gpt-6-astra",
+    "reasoningEffort": "high",
+    "binarySha256": "56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+  }
+}

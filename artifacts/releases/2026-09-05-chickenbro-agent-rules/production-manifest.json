@@ -1,0 +1,45 @@
+{
+  "commit": "1209850cdb6b601669706602603156a00c15d493",
+  "scope": "four-file Chat rules overlay; other production files unchanged",
+  "files": {
+    "server/codex_worker.py": {
+      "sha256": "b259840a323b605c03b19c84ae5b7faad5cbe67c89706efd20179d8e373aa9f3",
+      "previousNormalizedSha256": "43fb95e5eaf6555a75d7e6b5cd19d59ff19de9a44221d668dea8c3660272bc3b"
+    },
+    "server/app/chickenbro/application.py": {
+      "sha256": "fae4042e27633f3eda64e0e9184c6ed57ecd492ed8a436b3ad7bbfd23747fa2c",
+      "previousNormalizedSha256": "0d55aaa0e18955355a9cdf2dc249b1d2eb14cf180251c70e8e87d0628141dbac"
+    },
+    "server/app/chickenbro/codex_adapter.py": {
+      "sha256": "b872450e993848da27f766e4874cb9c4a2d5467623eca0d4347b706840fe515e",
+      "previousNormalizedSha256": "a8c70f986d5f5fd85e30640b2fceeb6151513cff0e1e6602912d2055995bf8e8"
+    },
+    "server/app/chickenbro/agent/AGENTS.md": {
+      "sha256": "bb654af6776440c58ad5805f32e6ea19044b28ac0bb88ca70321261e2145a467",
+      "previousNormalizedSha256": null
+    }
+  },
+  "previousFiles": {
+    "server/codex_worker.py": {
+      "sha256": "43fb95e5eaf6555a75d7e6b5cd19d59ff19de9a44221d668dea8c3660272bc3b",
+      "uid": 0,
+      "gid": 0,
+      "mode": 420
+    },
+    "server/app/chickenbro/application.py": {
+      "sha256": "0d55aaa0e18955355a9cdf2dc249b1d2eb14cf180251c70e8e87d0628141dbac",
+      "uid": 0,
+      "gid": 0,
+      "mode": 420
+    },
+    "server/app/chickenbro/codex_adapter.py": {
+      "sha256": "a8c70f986d5f5fd85e30640b2fceeb6151513cff0e1e6602912d2055995bf8e8",
+      "uid": 0,
+      "gid": 0,
+      "mode": 420
+    },
+    "server/app/chickenbro/agent/AGENTS.md": null
+  },
+  "backup": "/var/lib/chickenbro/agent-rules-backups/1209850cdb6b601669706602603156a00c15d493",
+  "appliedAt": "2026-09-05T03:39:14.980252+00:00"
+}
