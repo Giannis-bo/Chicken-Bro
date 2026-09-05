@@ -17,6 +17,22 @@ from server.codex_worker import (
 )
 
 
+_AGENT_RULES_PATH = Path(__file__).resolve().parent / "agent" / "AGENTS.md"
+_MAX_AGENT_RULES_BYTES = 32768
+
+
+def _load_agent_rules() -> str:
+    try:
+        with _AGENT_RULES_PATH.open("rb") as source:
+            raw = source.read(_MAX_AGENT_RULES_BYTES + 1)
+        rules = raw.decode("utf-8")
+        if len(raw) > _MAX_AGENT_RULES_BYTES or not rules.strip():
+            raise ValueError("invalid agent rules")
+        return rules
+    except (OSError, ValueError):
+        raise CodexUnavailable("native Codex agent rules are unavailable") from None
+
+
 _CODEX_ENV_ALLOWLIST = frozenset({
     "CI",
     "CODEX_HOME",
@@ -119,6 +135,7 @@ class NativeCodexChatAdapter:
         if not isinstance(prompt, str) or not prompt.strip():
             raise CodexStreamError("CODEX_OUTPUT_INVALID")
 
+        developer_instructions = _load_agent_rules()
         try:
             job_dir = self._new_job_dir()
             prompt_path = job_dir / "prompt.txt"
@@ -134,6 +151,7 @@ class NativeCodexChatAdapter:
                 sandbox=self._sandbox,
                 codex_bin=self._codex_bin,
                 profile=self._profile,
+                developer_instructions=developer_instructions,
             )
         except (TypeError, ValueError, OSError):
             raise CodexUnavailable() from None

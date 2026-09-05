@@ -554,21 +554,12 @@ class ChatApplication:
     def _prompt(history: Sequence[Any], message: str) -> str:
         rows = []
         for item in list(history)[-20:]:
-            role = str(_value(item, "role", "user"))
+            role_value = _value(item, "role", "user")
+            role = str(getattr(role_value, "value", role_value))
             content = str(_value(item, "content", ""))[:4000]
             if content:
-                rows.append(f"{role}: {content}")
-        return (
-            "你是炸鸡队长，只使用原生 Codex 回答。\n"
-            "公开来源检索必须有界：最多进行 2 次公开来源检索；如果来源被拒绝、不可读或无法验证，"
-            "立即停止检索并给出明确阻塞结论，不要重复搜索、轮询或等待；本轮必须输出最终回答。\n"
-            "来源 API 路由必须优先：如果玩家消息或上下文包含 Warcraft Logs/WCL 报告链接，必须调用 "
-            "query_warcraftlogs_report；如果包含 Raider.IO 角色链接，必须调用 query_raiderio_character。"
-            "这两个工具会在云端 API 服务内使用已配置的 WCL/Raider.IO 凭据查询，再根据工具返回的数据分析；"
-            "不要用 web_search 或 research_public_web 打开这些链接，也不要让玩家自行查询。若来源 API 返回 blocked、"
-            "partial 或不可用，明确说明 API 阻塞原因，不猜测战斗数据；拿到结果后再输出最终回答。\n"
-            + "\n".join(rows)
-        )
+                rows.append({"role": role, "content": content})
+        return json.dumps({"messages": rows}, ensure_ascii=False)
 
 
 __all__ = (

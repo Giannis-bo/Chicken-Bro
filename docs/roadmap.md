@@ -41,4 +41,5 @@
 
 - `正在推进`：测试账号快捷登录（2026-09-05 用户确认）。Mini/Web 使用 A/B 测试身份进入真实 Chat/SimC，保留正常会话与 owner 隔离；测试入口默认关闭且禁止生产启用。代码与隔离测试环境已就绪，真实登录/Chat/隔离/关闭 smoke 通过；用户已设置凭证，客户端请求白名单遗漏已修正并部署；用户已确认 Web 登录成功；继续优化 Web 输入框（去除模式文字、Enter 发送、回复状态图标），其余 Mini/SimC 验收待完成，尚未合入 main。实现和验收见 [任务计划](plans/2026-09-05-test-account-login.md)。
 
-- `已完成`：云端原生 Codex 切换 Astra／高（2026-09-05）。CLI 升级为 0.153.4，默认及项目配置同步，CLI 与真实 Chat adapter 调用通过；当前无独立 AGENTS.md，业务指令来自后端 `_prompt`。见 [运行说明](chickenbro-simc-production-runbook.md)。
+- `已完成`：云端原生 Codex 切换 Astra／高（2026-09-05）。CLI 升级为 0.153.4，默认及项目配置同步，CLI 与真实 Chat adapter 调用通过。见 [运行说明](chickenbro-simc-production-runbook.md)。
+- `正在推进`：炸鸡队长专用 AGENTS.md（2026-09-05 用户确认）。只讨论魔兽世界，回答精炼；通过服务端开发者指令加载，业务规则集中维护。见 [任务计划](plans/2026-09-05-chickenbro-agent-rules.md)。

@@ -29,6 +29,7 @@ def build_codex_command(
     sandbox=None,
     codex_bin=None,
     profile=None,
+    developer_instructions=None,
 ):
     command = [
         codex_bin or DEFAULT_CODEX_BIN,
@@ -37,6 +38,8 @@ def build_codex_command(
     ]
     if profile:
         command.extend(["--profile", str(profile)])
+    if developer_instructions is not None:
+        command.extend(["-c", "developer_instructions=" + json.dumps(developer_instructions, ensure_ascii=False)])
     command.extend([
         "exec",
         "--ephemeral",
