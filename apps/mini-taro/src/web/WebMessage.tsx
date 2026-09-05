@@ -1,4 +1,4 @@
-import { createElement, useState, type ReactNode } from 'react'
+import { createElement, type ReactNode } from 'react'
 import styles from './WebMessage.module.scss'
 
 // Render the chat Markdown subset as React nodes. Raw HTML is always text;
@@ -98,19 +98,10 @@ function blocks(content: string): ReactNode[] {
   return nodes
 }
 
-export default function WebMessage({ content, markdown = false, streaming = false }: {
-  content: string; markdown?: boolean; streaming?: boolean
+export default function WebMessage({ content, markdown = false }: {
+  content: string; markdown?: boolean
 }) {
-  const [copyState, setCopyState] = useState('复制')
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopyState('已复制')
-    } catch { setCopyState('请选择文字复制') }
-  }
   return <div className={styles['message']}>
     <div className={markdown ? styles['markdown'] : styles['plain']}>{markdown ? blocks(content) : content}</div>
-    {!streaming && <button type="button" className={styles['copy']} onClick={() => void copy()} aria-label="复制消息原文">{copyState}</button>}
-    <span className={styles['announcement']} role="status">{copyState === '复制' ? '' : copyState}</span>
   </div>
 }

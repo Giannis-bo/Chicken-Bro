@@ -117,14 +117,14 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
             {state.pendingUserContent ? (
               <View className={styles['webUserMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>发送中</Text>
-                <WebMessage content={state.pendingUserContent} streaming />
+                <WebMessage content={state.pendingUserContent} />
               </View>
             ) : null}
             {sending && !state.streamText ? <WebReplyStatus /> : null}
             {state.streamText ? (
               <View className={styles['webAssistantMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>咕咕 · 生成中</Text>
-                <WebMessage content={state.streamText} markdown streaming />
+                <WebMessage content={state.streamText} markdown />
               </View>
             ) : null}
             {!state.activeConversation && state.phase === 'ready' ? (

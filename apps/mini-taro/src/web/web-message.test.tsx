@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react'
-import { createRoot } from 'react-dom/client'
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { expect, it, vi } from 'vitest'
+import { expect, it } from 'vitest'
 import WebMessage from './WebMessage'
 
 it('renders tables, emphasis, lists, code and safe links as semantic content', () => {
@@ -30,24 +29,4 @@ it('preserves parentheses in wiki reference URLs', () => {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   expect(doc.querySelector('a')?.getAttribute('href')).toBe('https://warcraft.wiki.gg/wiki/Haste_(rating)')
   expect(doc.querySelector('a')?.nextSibling?.textContent ?? '').toBe('')
-})
-
-it('copies original message and reports clipboard failures honestly', async () => {
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-  const writeText = vi.fn().mockResolvedValue(undefined)
-  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
-  const host = document.createElement('div')
-  const root = createRoot(host)
-  try {
-    await act(async () => root.render(createElement(WebMessage, { content: '**原文**', markdown: true })))
-    await act(async () => host.querySelector('button')!.click())
-    expect(writeText).toHaveBeenCalledWith('**原文**')
-    expect(host.textContent).toContain('已复制')
-    writeText.mockRejectedValue(new Error('denied'))
-    await act(async () => host.querySelector('button')!.click())
-    expect(host.textContent).toContain('请选择文字复制')
-  } finally {
-    await act(async () => root.unmount())
-    vi.unstubAllGlobals()
-  }
 })
