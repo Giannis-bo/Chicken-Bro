@@ -459,6 +459,16 @@ model_reasoning_effort = "high"
 
 ## 自动来源 API 修复（2026-09-05）
 
-当前运行 overlay 为 `491d5379c5e7766f8e9260e3c6c9e7d8036c73f5`，五文件 manifest 位于正式/测试根 `SOURCE_API_PATCH.json`，其文件身份优先于早期 AGENT_RULES_PATCH 记录。测试 current 为同名 release，Web 仍是 `f144923c0a1ffb4c21aad4567f3e9e443b3b036d` 顶栏构建；正式仅更新五文件，没有带入测试登录代码。
+首轮来源 overlay 为 `491d5379c5e7766f8e9260e3c6c9e7d8036c73f5`，五文件 manifest 位于正式/测试根 `SOURCE_API_PATCH.json`，覆盖早期 AGENT_RULES_PATCH 对应文件记录。当时测试 current 为同名 release，Web 继承 `f144923c0a1ffb4c21aad4567f3e9e443b3b036d` 顶栏构建；正式仅更新五文件，没有带入测试登录代码。
 
 MCP 支持固定本机网关 8790/8791/8792；测试仍选用已有 production profile 的 MCP 脚本，但每次调用的 capability 和 8792 目标由测试 API 注入。WCL OAuth 凭据继续仅存在 API 进程。能力通过已接入工具提供，AGENTS 不负责读取密钥。来源 API 与角色技能统计、真实 Codex 主动两次查询均已验证，详情及回滚见 [自动来源验证](../artifacts/releases/2026-09-05-chickenbro-agent-rules/auto-sources.md)。
+
+### 消息渲染与数据补查
+
+消息与 WCL 数据层 release 为 `ce7b924ff7344a1ed9d4b6bad500513ce8b96e39`。当前测试 release/Web 为 `c4b6d4b0f24c40ba4e67ffe3ffbf778a48f9ade5`，追加配套超时修正；正式 Web 保持原构建。正式/测试五文件数据层增量见 `CHAT_RENDER_PATCH.json`，后续两个后端文件以 `CHAT_DEADLINE_PATCH.json` 为准，对应文件身份优先于历史 overlay。
+
+WCL 工具支持 `options.dataType/startTime/endTime/limit`；时间为报告相对毫秒，每页最多 1000。按 `nextPageTimestamp` 继续时保留事件类型和终点；省略终点时服务端自动查询战斗边界，避免 WCL 返回误导性的空页。表格与角色资料按整场 fight/source 查询，事件过滤时间独立。指定 source 才返回该角色的装备、天赋、属性详情；不指定 source 返回角色摘要供自主选择。gameVersion/logVersion 不能代替补丁号。
+
+回滚副本：`/var/lib/chickenbro/chat-render-backups/ce7b924ff7344a1ed9d4b6bad500513ce8b96e39/manifest.json`。先核对当前五文件 SHA 并确认没有运行中 Chat，再按清单恢复正式文件；测试 current 原子切回 `491d5379c5e7766f8e9260e3c6c9e7d8036c73f5`，重启两个 API 并验证 readiness。保留数据库、会话、模型与凭据。详见 [验证记录](../artifacts/releases/2026-09-05-chickenbro-agent-rules/chat-render.md)。
+
+多轮分析采用后端 480 秒、客户端 510 秒、Nginx 540 秒、capability 600 秒的配套预算；运行结束立即撤销 capability。超时层回滚清单为 `/var/lib/chickenbro/chat-deadline-backups/c4b6d4b0f24c40ba4e67ffe3ffbf778a48f9ade5/manifest.json`，含两个后端文件和四个 Nginx 文件原值/SHA。若撤回整轮，先恢复超时层（测试切回 ce7b924f，恢复 Nginx 并 nginx -t/reload、重启 API），再恢复上一层。旧客户端仍保留原等待上限，后续正式 Web/Mini 发布时须使用配套版本。

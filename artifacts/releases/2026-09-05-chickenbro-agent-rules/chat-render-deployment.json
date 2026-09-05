@@ -1,0 +1,124 @@
+{
+  "manifest": {
+    "commit": "ce7b924ff7344a1ed9d4b6bad500513ce8b96e39",
+    "previousTestRelease": "/opt/chickenbro-test/releases/491d5379c5e7766f8e9260e3c6c9e7d8036c73f5",
+    "files": {
+      "server/chickenbro_native_mcp.py": {
+        "sha256": "ceb0df6ebceaf5a5a1635d68d299412f8066d3ae0fbbb1d9a20530e6c097134d",
+        "previousNormalizedSha256": "149bf9d62ebe081f8e3fe3227af899b121936c2fca8cbc207dfda1cb35424af9"
+      },
+      "server/app/chickenbro/wcl_source.py": {
+        "sha256": "b7eeb63ca3cdf971a8050ac5b733032cf5edbe1fedad4d8e554c182b0c2aa2b7",
+        "previousNormalizedSha256": "9c0d3b71419dcf9ca9228cf386ef1fdcf041fd06af322f6eb598a6ffa88fc850"
+      },
+      "server/app/chickenbro/source_gateway.py": {
+        "sha256": "c3be94c6a848edcee98c289ae1bf9b4eba1edc40c2ac2efbcb50e7915fb383b5",
+        "previousNormalizedSha256": "490757da72d7222c0f4969ddd728d79f9a39edbee9ef59fb9d894d60a31d6c6d"
+      },
+      "server/app/api/routes/source_gateway.py": {
+        "sha256": "4eee7da2a6f6d44944671b0d0fcd5b7b0bb1be6ab4d38966c0aef7c264c1629d",
+        "previousNormalizedSha256": "7d8ffd40e5a18c713d2c801b55af8e0e2ef17e141b2cf0f5e48495796a10f438"
+      },
+      "server/app/chickenbro/agent/AGENTS.md": {
+        "sha256": "7d50e8dd6cf172077eabd241c59d606b1c6155bb63e25af828c1300bf2f37d19",
+        "previousNormalizedSha256": "35c6479710eba21aeffe17bd546c216221b345d063a6f4924ff62a4b39056197"
+      }
+    },
+    "webFilesSha256": {
+      "index.html": "16efded228a2bde78571ea3f21510abfe103f833b3fcc1f8246b885b005c308c",
+      "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+      "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+      "chunk/491.js": "21a003a175d2bad8ff801282c3962f4ce3cba4b753409b9dc75d09fff7da47ed",
+      "chunk/716.js": "bdd4723d884e4294382b7a2f5a65bd31535a29e7e94de9028db2bb4a15c4f28a",
+      "chunk/74.js": "c13dc3bbda35718cc56c1fd70613058352d2b0f2fc6ea05ff1a77fd6414bcd6a",
+      "chunk/856.js": "5748e9b25493a991f26b7cea4261a9b708e06d9184a705b988b79287fb549ce1",
+      "chunk/882.js": "437670af83bf53fe49f68cefc0dfeb2d220860fc86b4698c47a78ebbca1db305",
+      "css/491.css": "64a32a0683350f10f4aa1691c4730b0850d06aae1729f4d03f041e4115b9291c",
+      "css/716.css": "9a5a29da08991827fa169e7a5e4c919855ad1c93db3969db0c6240d152f4dbc9",
+      "css/74.css": "6f3d0cf8b317261964e07229de64a01e3fcd2d2cbd29bb59bb8fcf7e0ce09bd0",
+      "css/856.css": "3bf9951ec4daa47812dc5775ea973a1a09a3133a827212769ef96119a9ea9993",
+      "css/882.css": "7b3b2d5d9348c926f87fa71ecb97b81d09470030ef30287951777f9ed2e41573",
+      "css/app.css": "857354e4317c027de55c61ddbcd59b4617b423d9959f46c45243258e395103a8",
+      "js/962.js": "b332bf33e9986e693e42d43bf1a17e2085ff7de3409afb1837b3bcfb3d3e7e58",
+      "js/962.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+      "js/app.js": "e4c42bbea3df4bc817f33a1911857052107b28a7cc3589eed741c0f18df12f95",
+      "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+      "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+      "static/images/web/assets/gu-gu-pet-v1.png": "4e6263f015d0f271409c86349f71c3f3a651b4c82b68f8394e84d1fd26c80c61",
+      "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+      "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368"
+    },
+    "productionBackup": "/var/lib/chickenbro/chat-render-backups/ce7b924ff7344a1ed9d4b6bad500513ce8b96e39",
+    "appliedAt": "2026-09-05T06:21:00.304315+00:00"
+  },
+  "health": {
+    "8790": {
+      "status": "ready",
+      "requestId": "9c3d4f31-c2dc-4eea-bb56-e56acaf5bc7d",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    "8792": {
+      "status": "ready",
+      "requestId": "9fd38aba-ea7b-4965-af17-2c9bc9054ff1",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    }
+  }
+}
