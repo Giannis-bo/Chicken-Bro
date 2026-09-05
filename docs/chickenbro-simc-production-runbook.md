@@ -472,3 +472,9 @@ WCL 工具支持 `options.dataType/startTime/endTime/limit`；时间为报告相
 回滚副本：`/var/lib/chickenbro/chat-render-backups/ce7b924ff7344a1ed9d4b6bad500513ce8b96e39/manifest.json`。先核对当前五文件 SHA 并确认没有运行中 Chat，再按清单恢复正式文件；测试 current 原子切回 `491d5379c5e7766f8e9260e3c6c9e7d8036c73f5`，重启两个 API 并验证 readiness。保留数据库、会话、模型与凭据。详见 [验证记录](../artifacts/releases/2026-09-05-chickenbro-agent-rules/chat-render.md)。
 
 多轮分析采用后端 480 秒、客户端 510 秒、Nginx 540 秒、capability 600 秒的配套预算；运行结束立即撤销 capability。超时层回滚清单为 `/var/lib/chickenbro/chat-deadline-backups/c4b6d4b0f24c40ba4e67ffe3ffbf778a48f9ade5/manifest.json`，含两个后端文件和四个 Nginx 文件原值/SHA。若撤回整轮，先恢复超时层（测试切回 ce7b924f，恢复 Nginx 并 nginx -t/reload、重启 API），再恢复上一层。旧客户端仍保留原等待上限，后续正式 Web/Mini 发布时须使用配套版本。
+
+### 精简防御性表达
+
+规则增量 `91fb8ed167c2065c048ff9fb1f59d3e9821686ae` 已原子同步至正式/测试 AGENTS.md；规则身份以两处 `RESPONSE_STYLE_PATCH.json` 优先。无需重启，新 Chat 请求读取新规则。仅在影响当前建议时解释不确定性，去掉例行版本/免责声明、工具过程汇报、自我表态和装饰性引用。
+
+两组真实 Astra/high 样例验证：直接操作建议无无关尾注，无法量化收益时仍说明必要缺失；[样例](../artifacts/releases/2026-09-05-chickenbro-agent-rules/concise-samples.json) 是给定事实的规则测试，不是新的完整 WCL 复盘。正式/测试文件 SHA 一致、健康 ready。回滚按 [清单](../artifacts/releases/2026-09-05-chickenbro-agent-rules/concise-deployment.json) 核对当前规则 SHA 后，分别原子恢复 `/var/lib/chickenbro/response-style-backups/91fb8ed167c2065c048ff9fb1f59d3e9821686ae/` 内 production/test-AGENTS.md；历史对话不改写。

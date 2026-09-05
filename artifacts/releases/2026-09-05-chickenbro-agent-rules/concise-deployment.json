@@ -1,0 +1,13 @@
+{
+  "commit": "91fb8ed167c2065c048ff9fb1f59d3e9821686ae",
+  "file": "server/app/chickenbro/agent/AGENTS.md",
+  "sha256": "ace54b68d70dd0f5b4c485a5edec734ea6e6c69760f7ecba2d7a1751aa1e5727",
+  "previousNormalizedSha256": "7d50e8dd6cf172077eabd241c59d606b1c6155bb63e25af828c1300bf2f37d19",
+  "appliedAt": "2026-09-05T07:17:55.522024+00:00",
+  "roots": {
+    "production": "/opt/chickenbro",
+    "test": "/opt/chickenbro-test/releases/c4b6d4b0f24c40ba4e67ffe3ffbf778a48f9ade5"
+  },
+  "backup": "/var/lib/chickenbro/response-style-backups/91fb8ed167c2065c048ff9fb1f59d3e9821686ae",
+  "activation": "Each subsequent Chat request reloads rules; no service restart."
+}
