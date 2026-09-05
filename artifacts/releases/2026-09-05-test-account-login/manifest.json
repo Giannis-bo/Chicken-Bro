@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-05T02:22:29.409Z",
+  "generatedAt": "2026-09-05T02:56:31.340Z",
   "release": {
     "date": "2026-09-05",
     "slug": "test-account-login"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 4247
+          "sizeBytes": 4373
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-05-test-account-login/evidence.json",
-    "sizeBytes": 8713,
+    "sizeBytes": 9682,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "implementation_allowed",
     "highestEvidenceLevel": "implementation_allowed",
-    "summary": "User-reported browser login blocker fixed: shared transport whitelist now uses configured API prefix and includes exact test endpoints only in test builds. 133 frontend tests, types, lint, both test builds pass; deployed and browser reached real credential validation. User credentials preserved. Existing full-ops/migration limitations and user acceptance remain pending; main unchanged."
+    "summary": "User accepted Web test login. Requested Web composer changes implemented and deployed: removed mode label, Enter sends with Shift+Enter newline and IME guards, single busy indicator. 139 frontend tests, types, lint, 62 controls and both builds passed; real browser chat verified. Full prior ops/migration limitations and remaining cross-client user acceptance stay pending; main unchanged."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "2 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -447,11 +447,10 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 2,
       "changedFiles": [
         " M artifacts/releases/2026-09-05-test-account-login/evidence.json",
-        " M docs/plans/2026-09-05-test-account-login.md",
-        " M docs/roadmap.md"
+        " M docs/plans/2026-09-05-test-account-login.md"
       ]
     }
   },

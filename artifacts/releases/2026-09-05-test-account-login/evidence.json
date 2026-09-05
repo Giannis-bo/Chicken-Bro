@@ -5,12 +5,12 @@
   "status": "implementation_allowed",
   "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/test-account-login",
-  "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
+  "commit": "83b9684b605fa2496db14b81eceb18dc40424c9b",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "1cb69626758a161170fbcab7ed9aa146ac171d34"
+      "value": "83b9684b605fa2496db14b81eceb18dc40424c9b"
     },
     "verification": {
       "status": "bound_at_check",
@@ -25,7 +25,7 @@
   "manualAcceptance": {
     "required": true,
     "status": "pending",
-    "reason": "User must exercise the real Mini and Web clients.",
+    "reason": "User confirmed Web login; remaining cross-client acceptance items are still pending.",
     "items": [
       {
         "id": "mini_login",
@@ -34,8 +34,8 @@
       },
       {
         "id": "web_login",
-        "status": "pending",
-        "reason": "Not yet tested by the user."
+        "status": "accepted",
+        "evidence": "2026-09-05 user explicitly reported OK, 已经成功了 and supplied the authenticated Web chat screenshot."
       },
       {
         "id": "shared_chat",
@@ -65,9 +65,9 @@
     ],
     "rollup": {
       "total": 7,
-      "accepted": 0,
+      "accepted": 1,
       "notRunUserWaived": 0,
-      "pending": 7
+      "pending": 6
     }
   },
   "scope": [
@@ -83,7 +83,7 @@
     {
       "command": "npm run test:taro",
       "status": "pass",
-      "summary": "133 tests passed, including 9 new real API-client/transport regressions; 4 failed against the previous implementation before the fix."
+      "summary": "139 tests passed; six new real React DOM composer regressions cover Enter, Shift+Enter, IME, key repeats, draft preservation and sending/failure indicator transitions. Two failed on the previous composer before the fix."
     },
     {
       "command": "npm run typecheck && npm run lint",
@@ -133,11 +133,11 @@
   ],
   "candidateDeployment": {
     "status": "partial",
-    "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
+    "commit": "83b9684b605fa2496db14b81eceb18dc40424c9b",
     "database": "chickenbro_test",
     "apiPort": 8792,
     "url": "https://www.chickenbro.cloud/test/",
-    "archiveSha256": "b56c8d345859af70c9e7fb4a29478ee5bc02ff2377ea5369d7baf66ea26bc7bc",
+    "archiveSha256": "06ea59c229304f925d063841c31758c8f4720f8199ce4cb4e5be46ce9d738e7a",
     "smoke": {
       "status": "pass",
       "sourceCommit": "151b0ebc0f61d20b5eec147108de72d70cc917ae",
@@ -182,9 +182,9 @@
       "type": "mini_build",
       "status": "pass",
       "schemaRevision": "wow-weapp-build-v1",
-      "gitHead": "1cb69626758a161170fbcab7ed9aa146ac171d34",
-      "sourceHash": "sha256:2f988e88a34da2fae7c7c018771198f1a80060eba2fdac1bfc4a401e230bb433",
-      "builtAt": "2026-09-05T02:20:25.049Z",
+      "gitHead": "83b9684b605fa2496db14b81eceb18dc40424c9b",
+      "sourceHash": "sha256:33e4060529c7c3798e35d3ab2934757c1de35da080ecebf664228495f5f876aa",
+      "builtAt": "2026-09-05T02:53:38.368Z",
       "output": "apps/mini-taro/dist/weapp"
     },
     {
@@ -210,6 +210,20 @@
       "test": "ready",
       "production": "ready",
       "existingCredentialsPreserved": true
+    },
+    {
+      "type": "web_composer",
+      "status": "pass",
+      "commit": "83b9684b605fa2496db14b81eceb18dc40424c9b",
+      "summary": "Logged-in Edge test session: created dedicated conversation; Shift+Enter inserted a newline without sending, Enter sent once and received actual Codex reply 回车发送正常. Busy screenshot shows single centered spinner without arrow; completed state restores send control. No composer mode label. IME and draft preservation covered by DOM tests; no OS IME manual claim."
+    },
+    {
+      "type": "deployment_readiness",
+      "status": "pass",
+      "commit": "83b9684b605fa2496db14b81eceb18dc40424c9b",
+      "test": "ready",
+      "production": "ready",
+      "existingCredentialsPreserved": true
     }
   ],
   "risks": [
@@ -226,5 +240,5 @@
   "archivedReferences": [
     "docs/project-state.json"
   ],
-  "summary": "User-reported browser login blocker fixed: shared transport whitelist now uses configured API prefix and includes exact test endpoints only in test builds. 133 frontend tests, types, lint, both test builds pass; deployed and browser reached real credential validation. User credentials preserved. Existing full-ops/migration limitations and user acceptance remain pending; main unchanged."
+  "summary": "User accepted Web test login. Requested Web composer changes implemented and deployed: removed mode label, Enter sends with Shift+Enter newline and IME guards, single busy indicator. 139 frontend tests, types, lint, 62 controls and both builds passed; real browser chat verified. Full prior ops/migration limitations and remaining cross-client user acceptance stay pending; main unchanged."
 }
