@@ -5,12 +5,12 @@
   "status": "implementation_allowed",
   "highestEvidenceLevel": "implementation_allowed",
   "branch": "codex/test-account-login",
-  "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
+  "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "d28c68bf10ccb79aae968a5697dc924429649393"
+      "value": "1cb69626758a161170fbcab7ed9aa146ac171d34"
     },
     "verification": {
       "status": "bound_at_check",
@@ -83,7 +83,7 @@
     {
       "command": "npm run test:taro",
       "status": "pass",
-      "summary": "124 tests passed including six real-render delayed-login/session-recovery regressions."
+      "summary": "133 tests passed, including 9 new real API-client/transport regressions; 4 failed against the previous implementation before the fix."
     },
     {
       "command": "npm run typecheck && npm run lint",
@@ -133,15 +133,15 @@
   ],
   "candidateDeployment": {
     "status": "partial",
-    "commit": "d28c68bf10ccb79aae968a5697dc924429649393",
+    "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
     "database": "chickenbro_test",
     "apiPort": 8792,
     "url": "https://www.chickenbro.cloud/test/",
-    "archiveSha256": "519c97e1a63ea6a430e9f5443a0357d6eb493b1527511aa40d197ec54d4cf5d2",
+    "archiveSha256": "b56c8d345859af70c9e7fb4a29478ee5bc02ff2377ea5369d7baf66ea26bc7bc",
     "smoke": {
       "status": "pass",
       "sourceCommit": "151b0ebc0f61d20b5eec147108de72d70cc917ae",
-      "summary": "Real Codex chat, shared persisted history, A/B owner isolation, independent logout, restart persistence, disable/re-enable and revoked sessions. Final release changes only test-login CSS; backend tree identical."
+      "summary": "Historical backend HTTP smoke passed real Chat, shared history, owner isolation, independent logout, restart, disable and revoke. It did not exercise the client transport. Current server tree is unchanged. Client transport omission discovered by user and fixed in 1cb69626; browser verification now reaches server credential validation."
     },
     "reason": "Login-specific runtime checks passed; real Mini/Web manual acceptance and new semantic SimC execution pending. No production cutover."
   },
@@ -182,9 +182,9 @@
       "type": "mini_build",
       "status": "pass",
       "schemaRevision": "wow-weapp-build-v1",
-      "gitHead": "d28c68bf10ccb79aae968a5697dc924429649393",
-      "sourceHash": "sha256:160c2c5de437fe995c328b0d4274bd8905e3668a62f6758a01560e08df77b1c7",
-      "builtAt": "2026-09-05T01:56:06.824Z",
+      "gitHead": "1cb69626758a161170fbcab7ed9aa146ac171d34",
+      "sourceHash": "sha256:2f988e88a34da2fae7c7c018771198f1a80060eba2fdac1bfc4a401e230bb433",
+      "builtAt": "2026-09-05T02:20:25.049Z",
       "output": "apps/mini-taro/dist/weapp"
     },
     {
@@ -194,8 +194,22 @@
     },
     {
       "type": "credentials",
-      "status": "pending",
-      "reason": "Smoke used generated in-memory credentials. Owner must run scripts/configure-test-login.py to set personally held A/B credentials; no raw credential retained in logs, repository or evidence."
+      "status": "configured",
+      "reason": "User screenshot confirms successful configuration. Deployment verified existing configuration bytes unchanged; credentials not retrieved or reset."
+    },
+    {
+      "type": "client_transport_fix",
+      "status": "pass",
+      "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
+      "summary": "Old deployed browser form reproduced generic failure with intentionally invalid non-secret input. After deployment the same UI flow returned the server AUTH_REQUIRED copy. Session check also reaches the test prefix. Positive login with owner credentials remains for user; no owner credentials requested."
+    },
+    {
+      "type": "deployment_readiness",
+      "status": "pass",
+      "commit": "1cb69626758a161170fbcab7ed9aa146ac171d34",
+      "test": "ready",
+      "production": "ready",
+      "existingCredentialsPreserved": true
     }
   ],
   "risks": [
@@ -212,5 +226,5 @@
   "archivedReferences": [
     "docs/project-state.json"
   ],
-  "summary": "Test-account feature implemented and isolated runtime deployed. Targeted tests and real login/chat smoke passed; complete operations/migration gates remain blocked, new semantic SimC and user acceptance pending. Main is unchanged; no merge, cleanup or production cutover."
+  "summary": "User-reported browser login blocker fixed: shared transport whitelist now uses configured API prefix and includes exact test endpoints only in test builds. 133 frontend tests, types, lint, both test builds pass; deployed and browser reached real credential validation. User credentials preserved. Existing full-ops/migration limitations and user acceptance remain pending; main unchanged."
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-05T01:59:21.935Z",
+  "generatedAt": "2026-09-05T02:22:29.409Z",
   "release": {
     "date": "2026-09-05",
     "slug": "test-account-login"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 4193
+          "sizeBytes": 4247
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-05-test-account-login/evidence.json",
-    "sizeBytes": 7763,
+    "sizeBytes": 8713,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "implementation_allowed",
     "highestEvidenceLevel": "implementation_allowed",
-    "summary": "Test-account feature implemented and isolated runtime deployed. Targeted tests and real login/chat smoke passed; complete operations/migration gates remain blocked, new semantic SimC and user acceptance pending. Main is unchanged; no merge, cleanup or production cutover."
+    "summary": "User-reported browser login blocker fixed: shared transport whitelist now uses configured API prefix and includes exact test endpoints only in test builds. 133 frontend tests, types, lint, both test builds pass; deployed and browser reached real credential validation. User credentials preserved. Existing full-ops/migration limitations and user acceptance remain pending; main unchanged."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "4 changed files currently visible to git status."
+      "detail": "3 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -447,12 +447,11 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 4,
+      "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-09-05-test-account-login/evidence.json",
         " M docs/plans/2026-09-05-test-account-login.md",
-        " M docs/roadmap.md",
-        " M docs/test-account-login.md"
+        " M docs/roadmap.md"
       ]
     }
   },
