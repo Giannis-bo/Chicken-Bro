@@ -1337,7 +1337,8 @@
 
   .sideList {
     padding: 12px 12px 8px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .sideListIntro {
