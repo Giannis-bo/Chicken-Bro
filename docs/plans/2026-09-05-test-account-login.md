@@ -66,3 +66,5 @@
 ## 移除消息复制按钮（2026-09-05 用户明确要求）
 
 用户消息和助手回复均去掉“复制”按钮，同时移除专用 clipboard 写入、复制提示状态及仅用于隐藏按钮的 streaming 属性。保留正文及 Markdown 子节点的 `user-select: text`，使用浏览器原生选择、Ctrl+C/Ctrl+V。删除已退役按钮行为的测试，保留 Markdown 渲染及聊天交互回归；构建测试 H5 并在登录态浏览器选择正文、复制粘贴到空白输入框核对后清空，不发送验证草稿。
+
+已发布测试 Web `63cad718f69d874a60ae198f34f6f8ecb042d2e6`。150 项前端、62 项控制面、类型检查、lint、diff 检查和测试 H5 构建通过，构建保留既有体积警告。登录态 Edge 确认消息卡片无复制按钮；原生三击选择 38 字回复，Ctrl+C 后在空白输入框 Ctrl+V，粘贴与所选内容逐字一致，随后清空草稿且未发送消息。22 个 Web 文件远端/公网 SHA 与构建一致，96 个非 Web 文件保留，服务未重启，readiness ready；正式客户端未发布。回滚原子将测试 current 切回保留的 `54e9562b647377201406b7f7c9beb6aa8f816596` release。详见 [部署记录](../../artifacts/releases/2026-09-05-test-account-login/web-message-selection-deployment.json)。用户体验验收与 main 合入仍待确认。
