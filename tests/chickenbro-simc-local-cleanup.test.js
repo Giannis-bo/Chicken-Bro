@@ -366,15 +366,19 @@ test('CLI reports retired targets as missing and cannot replay cleanup without r
   const payload = JSON.parse(result.stdout)
   assert.equal(payload.mode, 'dry-run')
   assert.equal(payload.mutationAuthorized, false)
-  assert.equal(payload.counts.review, 1)
+  // New feature files must remain under review when replaying the historical inventory.
+  assert.equal(payload.counts.review, payload.review.length)
   assert.equal(payload.counts.deletable, 0)
   assert.equal(payload.counts.blocked, 2588)
-  assert.deepEqual(payload.review, [{
+  assert.deepEqual(payload.review.filter((item) => item.reason === 'INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD'), [{
     path: 'docs/refactor/chickenbro-simc-refactor-inventory.json',
     reason: 'INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD',
     expectedCommit: 'e61802cf9fa6414c6139919aa8e7d8c8ce4b5585',
     actualCommit: payload.headCommit,
   }])
+  assert.ok(payload.review.every((item) => [
+    'INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD', 'UNCLASSIFIED_TRACKED_FILE',
+  ].includes(item.reason)))
   assert.ok(payload.blocked.every((item) => item.reason === 'TARGET_MISSING'))
 
   const apply = spawnSync(process.execPath, [

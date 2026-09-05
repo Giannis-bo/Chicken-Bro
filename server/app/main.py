@@ -117,6 +117,9 @@ def create_app(
     app.add_exception_handler(ApiProblem, api_problem_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
     app.include_router(health_router)
+    if settings.test_login_enabled:
+        from server.app.api.routes.test_auth import router as test_auth_router
+        app.include_router(test_auth_router)
     return app
 
 

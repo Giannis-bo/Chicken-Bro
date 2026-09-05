@@ -1,3 +1,5 @@
+import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
+import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Button, Input, Text, View } from '@tarojs/components'
 import { useEffect, useMemo, useState } from 'react'
@@ -9,7 +11,7 @@ import { SimcModel, type SimcModelState } from '../../features/simc/simc-model'
 import styles from './index.module.scss'
 
 
-export default function SimcPage() {
+function SimcPage() {
   const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
   const model = useMemo(
     () => new SimcModel(wowApi.simc, () => sessions.createAuthContext()),
@@ -21,16 +23,23 @@ export default function SimcPage() {
   const [iterations, setIterations] = useState('300')
 
   useEffect(() => {
-    const unsubscribe = model.subscribe(setState)
+    const unsubscribe = model.subscribe((next) => {
+      setState(next)
+      if (isTestLoginEnabled() && next.phase === 'signed_out') sessions.invalidate()
+    })
     return () => {
       unsubscribe()
       model.dispose()
     }
-  }, [model])
+  }, [model, sessions])
 
   const ensureSession = async () => {
     if (!sessions.getValid()) await sessions.login()
   }
+
+  useEffect(() => {
+    if (isTestLoginEnabled()) void ensureSession().catch(() => model.loadJobs())
+  }, [model, sessions])
 
   useDidShow(() => {
     void ensureSession().catch(() => model.loadJobs())
@@ -141,3 +150,5 @@ export default function SimcPage() {
     </View>
   )
 }
+
+export default withMiniTestLogin(SimcPage)

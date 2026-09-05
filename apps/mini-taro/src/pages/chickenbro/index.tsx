@@ -1,3 +1,5 @@
+import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
+import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import { Button, ScrollView, Text, Textarea, View } from '@tarojs/components'
 import { useDidShow } from '@tarojs/taro'
 import { useEffect, useMemo, useState } from 'react'
@@ -9,7 +11,7 @@ import { ChatModel, type ChatModelState } from '../../features/chat/chat-model'
 import styles from './index.module.scss'
 
 
-export default function ChickenbroPage() {
+function ChickenbroPage() {
   const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
   const model = useMemo(
     () => new ChatModel(wowApi.chat, () => sessions.createAuthContext()),
@@ -19,12 +21,15 @@ export default function ChickenbroPage() {
   const [draft, setDraft] = useState('')
 
   useEffect(() => {
-    const unsubscribe = model.subscribe(setState)
+    const unsubscribe = model.subscribe((next) => {
+      setState(next)
+      if (isTestLoginEnabled() && next.phase === 'signed_out') sessions.invalidate()
+    })
     return () => {
       unsubscribe()
       model.dispose()
     }
-  }, [model])
+  }, [model, sessions])
 
   const loginAndLoad = async () => {
     try {
@@ -34,6 +39,10 @@ export default function ChickenbroPage() {
       await model.recover()
     }
   }
+
+  useEffect(() => {
+    if (isTestLoginEnabled()) void loginAndLoad()
+  }, [model, sessions])
 
   useDidShow(() => {
     void loginAndLoad()
@@ -151,3 +160,5 @@ export default function ChickenbroPage() {
     </View>
   )
 }
+
+export default withMiniTestLogin(ChickenbroPage)

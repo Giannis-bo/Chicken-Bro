@@ -1,3 +1,5 @@
+import TestLoginForm from '../features/auth/TestLoginForm'
+import { isTestLoginEnabled } from '../features/auth/test-login-mode'
 import { Button, Image, Text, View } from '@tarojs/components'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -300,6 +302,16 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
         onLogout={() => void logout()}
       />
     )
+  }
+
+  if (isTestLoginEnabled() && state.phase !== 'checking') {
+    return <TestLoginForm onLogin={async (testAccount, credential) => {
+      const intent = authIntentRef.current.begin()
+      const result = await webAuth.loginTestWeb(testAccount, credential)
+      if (!authIntentRef.current.isCurrent(intent)) return
+      if (result.fromFallback) throw new Error(result.problemCode || 'TEST_LOGIN_FAILED')
+      if (!await loadAccount(intent)) throw new Error('TEST_LOGIN_FAILED')
+    }} />
   }
 
   const activeQr = state.phase === 'qr_pending' || state.phase === 'qr_confirmed'

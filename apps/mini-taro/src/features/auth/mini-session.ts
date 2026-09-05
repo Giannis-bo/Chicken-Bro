@@ -7,9 +7,15 @@ import {
   type WebAuthClient,
 } from '@wow-mini/api-client'
 import { isMiniExchangeResponse } from '@wow-mini/domain'
+import { isTestLoginEnabled } from './test-login-mode'
 
 
 export const MINI_SESSION_KEY = 'chickenbro.mini.session.v1'
+const sessionListeners = new Set<() => void>()
+
+function notifySessionChanged(): void {
+  for (const listener of sessionListeners) listener()
+}
 
 export interface StoredMiniSession {
   accessToken: string
@@ -50,7 +56,7 @@ export class MiniSessionStore {
   private readonly loginProvider: () => Promise<{ code?: string }>
 
   constructor(
-    private readonly auth: Pick<WebAuthClient, 'exchangeMiniCode' | 'logout'>,
+    private readonly auth: Pick<WebAuthClient, 'exchangeMiniCode' | 'logout'> & Partial<Pick<WebAuthClient, 'loginTestMini'>>,
     private readonly storage: StorageAdapter = taroStorage,
     dependencies: MiniSessionDependencies = {},
   ) {
@@ -58,14 +64,32 @@ export class MiniSessionStore {
     this.loginProvider = dependencies.login ?? (() => Taro.login())
   }
 
+  private get storageKey(): string {
+    return isTestLoginEnabled() ? 'chickenbro.mini.test-session.v1' : MINI_SESSION_KEY
+  }
+
+  subscribe(listener: () => void): () => void {
+    sessionListeners.add(listener)
+    return () => { sessionListeners.delete(listener) }
+  }
+
+  invalidate(): void {
+    this.storage.remove(this.storageKey)
+    notifySessionChanged()
+  }
+
   getValid(): StoredMiniSession | null {
-    const stored = this.storage.get<unknown>(MINI_SESSION_KEY)
+    const stored = this.storage.get<unknown>(this.storageKey)
     if (validSession(stored, this.now())) return stored
-    if (stored !== undefined) this.storage.remove(MINI_SESSION_KEY)
+    if (stored !== undefined) this.invalidate()
     return null
   }
 
   async login(): Promise<StoredMiniSession> {
+    if (isTestLoginEnabled()) {
+      notifySessionChanged()
+      throw new Error('TEST_LOGIN_REQUIRED')
+    }
     const login = await this.loginProvider()
     const code = typeof login.code === 'string' ? login.code.trim() : ''
     if (!code || code.length > 512) throw new Error('MINI_LOGIN_CODE_MISSING')
@@ -78,7 +102,21 @@ export class MiniSessionStore {
       expiresAt: result.payload.expiresAt,
     }
     if (!validSession(session, this.now())) throw new Error('MINI_LOGIN_SESSION_INVALID')
-    this.storage.set(MINI_SESSION_KEY, session)
+    this.storage.set(this.storageKey, session)
+    notifySessionChanged()
+    return session
+  }
+
+  async loginTestAccount(account: 'A' | 'B', credential: string): Promise<StoredMiniSession> {
+    if (!isTestLoginEnabled() || !this.auth.loginTestMini) throw new Error('TEST_LOGIN_DISABLED')
+    const result = await this.auth.loginTestMini(account, credential)
+    if (result.fromFallback || !isMiniExchangeResponse(result.payload)) {
+      throw new Error(result.problemCode || 'TEST_LOGIN_FAILED')
+    }
+    const session = { accessToken: result.payload.accessToken, expiresAt: result.payload.expiresAt }
+    if (!validSession(session, this.now())) throw new Error('MINI_LOGIN_SESSION_INVALID')
+    this.storage.set(this.storageKey, session)
+    notifySessionChanged()
     return session
   }
 
@@ -101,7 +139,7 @@ export class MiniSessionStore {
         }
       }
     } finally {
-      this.storage.remove(MINI_SESSION_KEY)
+      this.invalidate()
     }
   }
 }

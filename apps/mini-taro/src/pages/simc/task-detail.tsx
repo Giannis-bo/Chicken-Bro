@@ -1,3 +1,5 @@
+import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
+import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useLoad } from '@tarojs/taro'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -9,25 +11,28 @@ import { SimcModel, type SimcModelState } from '../../features/simc/simc-model'
 import styles from './task-detail.module.scss'
 
 
-export default function SimcTaskDetailPage() {
+function SimcTaskDetailPage() {
   const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
   const model = useMemo(
     () => new SimcModel(wowApi.simc, () => sessions.createAuthContext()),
     [sessions],
   )
   const [state, setState] = useState<SimcModelState>(() => model.get())
-  const jobId = useRef('')
+  const jobId = useRef(Taro.getCurrentInstance().router?.params['id'] ?? '')
   const cancelled = useRef(false)
 
   useEffect(() => {
     cancelled.current = false
-    const unsubscribe = model.subscribe(setState)
+    const unsubscribe = model.subscribe((next) => {
+      setState(next)
+      if (isTestLoginEnabled() && next.phase === 'signed_out') sessions.invalidate()
+    })
     return () => {
       cancelled.current = true
       unsubscribe()
       model.dispose()
     }
-  }, [model])
+  }, [model, sessions])
 
   const loginAndPoll = async () => {
     try {
@@ -37,6 +42,10 @@ export default function SimcTaskDetailPage() {
       await model.loadJob(jobId.current)
     }
   }
+
+  useEffect(() => {
+    if (isTestLoginEnabled() && jobId.current) void loginAndPoll()
+  }, [model, sessions])
 
   useLoad<{ id?: string }>((params) => {
     jobId.current = typeof params.id === 'string' ? params.id.trim() : ''
@@ -106,3 +115,5 @@ export default function SimcTaskDetailPage() {
     </View>
   )
 }
+
+export default withMiniTestLogin(SimcTaskDetailPage)

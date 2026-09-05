@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "slug": "test-account-login",
+  "classification": "Strict",
+  "status": "implementation_allowed",
+  "goal": "Enable controlled test-account login for real Mini/Web Chat and SimC.",
+  "userValue": "Test business behavior without repeated WeChat confirmation.",
+  "nonGoals": [
+    "Production bypass",
+    "Changing Chat or SimC semantics",
+    "Real-user identity migration"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/harness.md",
+      "docs/plans/README.md",
+      "docs/plans/2026-09-05-test-account-login.md"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+    "featureIteration": "user_authorized_followup"
+  },
+  "impactMap": {
+    "mustChange": [
+      "identity",
+      "dual_client",
+      "test environment configuration"
+    ],
+    "mustNotChange": [
+      "production owner scope",
+      "SimC runtime",
+      "production database"
+    ],
+    "evidenceRequired": [
+      "unit and API tests",
+      "client builds",
+      "isolated candidate smoke",
+      "manual dual-client acceptance"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server.app.identity",
+    "consumers": [
+      "Mini Bearer",
+      "Web Cookie",
+      "Chat",
+      "SimC"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "Bounded identity creation uses existing sessions; business owners and schema stay unchanged."
+  },
+  "acceptanceEvidence": [
+    "python -m unittest tests.app_test_login_test",
+    "npm run test:taro",
+    "npm run typecheck",
+    "npm run lint",
+    "npm run build:weapp",
+    "npm run build:h5",
+    "isolated test database and API smoke"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "mini_login",
+      "web_login",
+      "shared_chat",
+      "shared_simc",
+      "owner_isolation",
+      "independent_logout",
+      "disabled_mode"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "config_disable",
+    "feature_hide",
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-05",
+      "decision": "User approved test-account shortcut using real sessions, A/B owners and a protected nonproduction environment."
+    }
+  ]
+}

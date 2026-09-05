@@ -32,3 +32,6 @@ apps/mini-taro/dist/
 apps/mini-taro/.swc/
 packages/*/dist/
 .taro/
+
+# Isolated test-login build outputs
+/artifacts/test-login-builds/

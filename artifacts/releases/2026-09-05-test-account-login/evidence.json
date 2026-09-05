@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 2,
+  "slug": "test-account-login",
+  "requirementSlug": "test-account-login",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/test-account-login",
+  "commit": "pending_pr_head",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Candidate has not been deployed."
+    },
+    "verification": {
+      "status": "pending",
+      "reason": "Implementation and verification are in progress."
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "User must exercise the real Mini and Web clients.",
+    "items": [
+      {
+        "id": "mini_login",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "web_login",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "shared_chat",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "shared_simc",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "owner_isolation",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "independent_logout",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      },
+      {
+        "id": "disabled_mode",
+        "status": "pending",
+        "reason": "Not yet tested by the user."
+      }
+    ],
+    "rollup": {
+      "total": 7,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 7
+    }
+  },
+  "scope": [
+    "identity",
+    "dual_client"
+  ],
+  "verification": [
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "summary": "62 tests passed; current task owners and retained references verified."
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "summary": "124 tests passed including six real-render delayed-login/session-recovery regressions."
+    },
+    {
+      "command": "npm run typecheck && npm run lint",
+      "status": "pass",
+      "summary": "TypeScript and ESLint passed with the installed Node 23 runtime."
+    },
+    {
+      "command": "python -m unittest backend modules including app_test_login_test and test_login_runtime_test",
+      "status": "pass",
+      "summary": "240 tests passed on copied source with existing cloud Python dependencies; no production database access."
+    },
+    {
+      "command": "npm run test:migration (Python modules)",
+      "status": "partial",
+      "summary": "64 tests ran, one existing opt-in PostgreSQL integration test skipped; no full migration acceptance claimed."
+    },
+    {
+      "command": "python -m unittest tests.candidate_acceptance_test tests.dual_client_acceptance_test",
+      "status": "pass",
+      "summary": "14 tests passed."
+    },
+    {
+      "command": "Node operations suite",
+      "status": "partial",
+      "summary": "Windows lacks working Bash for 43 shell checks; copied-source Linux retry passed 83/92, remaining checks need Git/Taro or carry pre-existing stale inventory hashes/time limits. No ops/full pass claimed."
+    },
+    {
+      "command": "npm run build:h5 (test configuration)",
+      "status": "pass",
+      "summary": "Test H5 built; existing asset-size warnings remain."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "Requires isolated test database/API/Worker and explicit runtime identity."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    "Test environment is separate; fixture tests do not prove cloud SimC or real-device acceptance."
+  ],
+  "rollback": [
+    "config_disable",
+    "feature_hide",
+    "code_rollback"
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/project-state.json"
+  ],
+  "summary": "Feature implementation and targeted checks pass; candidate smoke and user acceptance remain pending. Full operations suite is not claimed."
+}

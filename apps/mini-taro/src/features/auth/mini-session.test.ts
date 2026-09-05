@@ -30,6 +30,25 @@ function authClient(
 }
 
 describe('MiniSessionStore', () => {
+  it('stores only a real test session and does not call WeChat in a test build', async () => {
+    vi.stubGlobal('__WOW_TEST_LOGIN__', true)
+    try {
+      const storage = new MemoryStorage()
+      const payload = { accessToken: 'test-session-token-123456', expiresAt: '2099-09-05T12:00:00Z' }
+      const sessions = new MiniSessionStore({
+        ...authClient(vi.fn()), loginTestMini: async () => success(payload),
+      }, storage)
+      await expect(sessions.login()).rejects.toThrow('TEST_LOGIN_REQUIRED')
+      await sessions.loginTestAccount('A', 'credential-must-not-be-stored')
+      expect(sessions.getValid()).toEqual(payload)
+      expect(JSON.stringify([...storage.values])).not.toContain('credential-must-not-be-stored')
+      vi.stubGlobal('__WOW_TEST_LOGIN__', false)
+      expect(sessions.getValid()).toBeNull()
+      await expect(sessions.loginTestAccount('A', 'credential')).rejects.toThrow('TEST_LOGIN_DISABLED')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   beforeEach(() => {
     taro.login.mockReset()
     taro.login.mockResolvedValue({ code: 'wx-login-code' })

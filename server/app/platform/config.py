@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Mapping
+import re
 from urllib.parse import urlparse
 
 
@@ -26,9 +27,30 @@ class AppSettings:
     wechat_page: str = "pages/auth/web-login-confirm"
     wechat_env_version: str = "release"
     wechat_check_path: bool = True
+    test_login_enabled: bool = False
+    test_login_a_sha256: str = field(default="", repr=False)
+    test_login_b_sha256: str = field(default="", repr=False)
+
+    def __post_init__(self) -> None:
+        if not self.test_login_enabled:
+            return
+        parsed = urlparse(self.database_url)
+        if self.environment not in {"local", "test", "candidate"}:
+            raise ValueError("test login is forbidden in production")
+        if (parsed.path not in {"/chickenbro_test", "/chickenbro_candidate", "/chickenbro_dev"}
+                or parsed.query or parsed.fragment or parsed.params):
+            raise ValueError("test login requires a dedicated test database without URL overrides")
+        if any(re.fullmatch(r"[0-9a-f]{64}", value) is None for value in
+               (self.test_login_a_sha256, self.test_login_b_sha256)):
+            raise ValueError("test login requires two SHA256 credential hashes")
+        if self.test_login_a_sha256 == self.test_login_b_sha256:
+            raise ValueError("test accounts must use distinct credentials")
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "AppSettings":
+        test_login = env.get("WOW_TEST_LOGIN_ENABLED", "0").strip()
+        if test_login not in {"0", "1"}:
+            raise ValueError("WOW_TEST_LOGIN_ENABLED must be 0 or 1")
         environment = env.get("WOW_APP_ENV", "").strip()
         if environment not in {"local", "test", "candidate", "production"}:
             raise ValueError("WOW_APP_ENV must name a supported environment")
@@ -117,6 +139,9 @@ class AppSettings:
             raise ValueError("WOW_WECHAT_CHECK_PATH must be 0 or 1")
 
         return cls(
+            test_login_enabled=test_login == "1",
+            test_login_a_sha256=env.get("WOW_TEST_LOGIN_A_SHA256", "").strip(),
+            test_login_b_sha256=env.get("WOW_TEST_LOGIN_B_SHA256", "").strip(),
             environment=environment,
             database_url=database_url,
             host=host,

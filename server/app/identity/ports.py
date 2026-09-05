@@ -31,6 +31,8 @@ class WechatProviderError(WechatAdapterError):
 
 
 class IdentityRepository(Protocol):
+    def ensure_test_user(self, *, user_id: UUID, display_name: str, now: datetime) -> None: ...
+
     def upsert_wechat_mini_identity(
         self,
         *,

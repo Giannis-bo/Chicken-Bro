@@ -28,6 +28,7 @@ from server.app.identity.ports import (
     WechatNotConfiguredError,
 )
 from server.app.platform.config import AppSettings
+from server.app.identity.test_accounts import TEST_ACCOUNT_IDS
 
 
 class AuthApplicationError(ValueError):
@@ -344,14 +345,35 @@ class WebAuthApplication:
             principal=Principal(user_id=user_id, session_kind="mini_bearer"),
         )
 
+    def exchange_test_account(self, account: str, credential: str, kind: SessionKind) -> IssuedSession:
+        if not self._settings.test_login_enabled:
+            raise AuthApplicationError("TEST_LOGIN_DISABLED", "test login is unavailable")
+        expected = {"A": self._settings.test_login_a_sha256, "B": self._settings.test_login_b_sha256}
+        if (account not in expected or kind not in {"mini_bearer", "web_cookie"}
+                or not isinstance(credential, str) or not 32 <= len(credential) <= 256
+                or not hmac.compare_digest(digest(credential), expected[account])):
+            raise AuthApplicationError("AUTH_REQUIRED", "test credential is invalid")
+        user_id = TEST_ACCOUNT_IDS[account]
+        try:
+            self._repository.ensure_test_user(user_id=user_id, display_name=f"测试账号 {account}", now=self._now())
+        except IdentityConflictError:
+            raise AuthApplicationError("IDENTITY_CONFLICT", "test account is unavailable") from None
+        token = new_opaque_token()
+        expires_at = self._now() + timedelta(seconds=min(self._settings.web_session_ttl_seconds, 86400))
+        self._repository.issue_auth_session(token_hash=digest(token), user_id=user_id, kind=kind, expires_at=expires_at)
+        return IssuedSession(token=token, expires_at=expires_at, principal=Principal(user_id=user_id, session_kind=kind))
+
     def resolve_principal(self, credential: str | None, kind: SessionKind) -> Principal | None:
         if not credential:
             return None
-        return self._repository.resolve_auth_session(
+        principal = self._repository.resolve_auth_session(
             token_hash=digest(credential),
             kind=kind,
             now=self._now(),
         )
+        if principal and principal.user_id in TEST_ACCOUNT_IDS.values() and not self._settings.test_login_enabled:
+            return None
+        return principal
 
     def me(self, principal: Principal) -> MeView:
         user = self._repository.get_public_user(principal.user_id)

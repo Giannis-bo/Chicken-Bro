@@ -16,7 +16,8 @@
       "path": "server/app/identity/application.py",
       "characterization": [
         "tests/app_identity_application_test.py",
-        "tests/app_identity_api_test.py"
+        "tests/app_identity_api_test.py",
+        "tests/app_test_login_test.py"
       ]
     },
     "chat": {
@@ -54,13 +55,16 @@
         "server/cutover_chickenbro_lighthouse.sh",
         "server/retire_chickenbro_legacy_lighthouse.sh",
         "server/chickenbro_simc_runtime_update.sh",
-        "server/chickenbro-simc-runtime-update.service"
+        "server/chickenbro-simc-runtime-update.service",
+        "server/deploy_test_login.py",
+        "server/test_login_runtime.py"
       ],
       "characterization": [
         "tests/deploy-chickenbro-candidate.test.js",
         "tests/cutover-chickenbro.test.js",
         "tests/chickenbro-simc-runtime-update.test.js",
-        "tests/retire-chickenbro-legacy.test.js"
+        "tests/retire-chickenbro-legacy.test.js",
+        "tests/test_login_runtime_test.py"
       ]
     }
   },

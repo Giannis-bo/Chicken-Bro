@@ -13,6 +13,7 @@ from server.app.identity.domain import (
 )
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.ports import PublicUser
+from server.app.identity.test_accounts import TEST_ACCOUNT_IDS
 
 
 def _row_value(row: Any, key: str, index: int) -> Any:
@@ -139,6 +140,26 @@ class PostgresIdentityRepository:
                 if resolved_union_id is not None and union_id is not None and resolved_union_id != union_id:
                     raise IdentityConflictError("identity conflict")
                 return resolved_user_id
+
+    def ensure_test_user(self, *, user_id: UUID, display_name: str, now: datetime) -> None:
+        if user_id not in TEST_ACCOUNT_IDS.values():
+            raise IdentityConflictError("test owner is not reserved")
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO identity.users (id, display_name, status, created_at, updated_at)
+                       VALUES (%s, %s, 'active', %s, %s) ON CONFLICT (id) DO NOTHING""",
+                    (user_id, display_name, now, now),
+                )
+                cursor.execute(
+                    """SELECT id FROM identity.users u
+                       WHERE id = %s AND display_name = %s AND status = 'active'
+                       AND NOT EXISTS (SELECT 1 FROM identity.user_identities i WHERE i.user_id = u.id)
+                       FOR UPDATE OF u""",
+                    (user_id, display_name),
+                )
+                if cursor.fetchone() is None:
+                    raise IdentityConflictError("test owner conflicts with an existing user")
 
     def issue_auth_session(
         self,

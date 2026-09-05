@@ -23,6 +23,8 @@ import { apiV2Path } from './api-v2-prefix'
 declare const __WOW_WEB_CSRF_COOKIE_NAME__: string
 
 export interface WebAuthClient {
+  loginTestMini(account: 'A' | 'B', credential: string): Promise<ApiResult<MiniExchangeResponse>>
+  loginTestWeb(account: 'A' | 'B', credential: string): Promise<ApiResult<WebLoginExchangeResponse>>
   createWebLoginSession(browserVerifier: string, idempotencyKey: string): Promise<ApiResult<WebLoginCreated>>
   statusWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginStatusResponse>>
   exchangeWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginExchangeResponse>>
@@ -86,6 +88,20 @@ function webRequest<T>(transport: ApiTransport, path: string, options: {
 
 export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
   return {
+    loginTestMini(account, credential) {
+      return webRequest(transport, apiV2Path('/auth/test/mini'), {
+        method: 'POST', data: { account, credential }, credentials: 'omit',
+        auth: { kind: 'public' }, baseUrl: 'default',
+        fallback: () => ({ accessToken: '', expiresAt: '' }), validate: isMiniExchangeResponse,
+      })
+    },
+    loginTestWeb(account, credential) {
+      return webRequest(transport, apiV2Path('/auth/test/web'), {
+        method: 'POST', data: { account, credential }, credentials: 'include',
+        auth: { kind: 'public' },
+        fallback: () => ({ authenticated: true }), validate: isWebLoginExchangeResponse,
+      })
+    },
     createWebLoginSession(browserVerifier, idempotencyKey) {
       return webRequest(transport, apiV2Path('/auth/wechat/web/login-sessions'), {
         method: 'POST',

@@ -9,6 +9,10 @@ const configuredOutputRoot = process.env['WOW_TARO_OUTPUT_ROOT']?.trim()
 const outputRoot = configuredOutputRoot || `dist/${target}`
 const isolatedBuild = process.env['WOW_TARO_ISOLATED_BUILD'] === '1'
 const productionBuild = process.env['NODE_ENV'] === 'production'
+const configuredTestLogin = process.env['WOW_TEST_LOGIN_UI'] === '1'
+if (configuredTestLogin && !['local', 'test', 'candidate'].includes(process.env['WOW_APP_ENV'] ?? '')) {
+  throw new Error('Test login UI requires an explicit local, test or candidate build')
+}
 const configuredBackendApiBaseUrl = (process.env['WOW_BACKEND_API_BASE_URL'] ?? '').trim()
 const configuredApiV2Prefix = (
   process.env['WOW_API_V2_PREFIX']?.trim()
@@ -60,6 +64,7 @@ export default defineConfig<'webpack5'>({
     enable: !productionBuild && !isolatedBuild,
   },
   defineConstants: {
+    __WOW_TEST_LOGIN__: JSON.stringify(configuredTestLogin),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
     __WOW_API_V2_PREFIX__: JSON.stringify(configuredApiV2Prefix),
     __WOW_WEB_AUTH_API_PREFIX__: JSON.stringify(configuredWebAuthApiPrefix),

@@ -55,6 +55,7 @@ class MiniConfirmBody(BaseModel):
 def _status_for_code(code: str) -> int:
     return {
         "AUTH_REQUIRED": 401,
+        "TEST_LOGIN_DISABLED": 404,
         "ORIGIN_REJECTED": 403,
         "VALIDATION_ERROR": 422,
         "WEB_LOGIN_NOT_FOUND": 404,

@@ -19,6 +19,22 @@ class RecordingTransport implements ApiTransport {
 }
 
 describe('WebAuthClient', () => {
+  it('issues test sessions with separated credential transports and no client owner', async () => {
+    const transport = new RecordingTransport()
+    const client = createWebAuthClient(transport)
+    await client.loginTestMini('A', 'test-credential')
+    await client.loginTestWeb('B', 'other-test-credential')
+    expect(transport.calls[0]?.path).toBe('/api/v2/auth/test/mini')
+    expect(transport.calls[0]?.options).toMatchObject({
+      credentials: 'omit', baseUrl: 'default', auth: { kind: 'public' },
+      data: { account: 'A', credential: 'test-credential' },
+    })
+    expect(transport.calls[1]?.path).toBe('/api/v2/auth/test/web')
+    expect(transport.calls[1]?.options).toMatchObject({
+      credentials: 'include', baseUrl: 'web-auth', auth: { kind: 'public' },
+      data: { account: 'B', credential: 'other-test-credential' },
+    })
+  })
   it('uses same-origin Cookie credentials without legacy Bearer auth', async () => {
     const transport = new RecordingTransport()
     const client = createWebAuthClient(transport)

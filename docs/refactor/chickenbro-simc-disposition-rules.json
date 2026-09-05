@@ -2,6 +2,35 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "test-account-login-followup",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "Identity and dual_client",
+      "reason": "User-approved test login followup, operational controls and verification.",
+      "paths": [
+        "docs/plans/2026-09-05-test-account-login.md",
+        "docs/test-account-login.md",
+        "scripts/configure-test-login.py",
+        "server/deploy_test_login.py",
+        "server/test_login_runtime.py",
+        "tests/app_test_login_test.py",
+        "tests/test_login_runtime_test.py"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-05-test-account-login/"
+      ]
+    },
+    {
+      "id": "accepted-web-design-reference",
+      "disposition": "keep",
+      "category": "design-reference-only",
+      "owner": "dual_client",
+      "reason": "Existing main Web design reference is retained as reference only, without product runtime or execution authority.",
+      "prefixes": [
+        "research/ui-style-web-demo-workspace/"
+      ]
+    },
+    {
       "id": "rebuild-control-plane",
       "disposition": "keep",
       "category": "current-control-plane",

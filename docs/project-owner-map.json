@@ -37,7 +37,8 @@
         "tests/app_identity_repository_test.py",
         "tests/app_identity_api_test.py",
         "tests/app_csrf_test.py",
-        "tests/app_wechat_mini_test.py"
+        "tests/app_wechat_mini_test.py",
+        "tests/app_test_login_test.py"
       ],
       "changedPathPatterns": [
         "server/app/identity/**",
@@ -112,7 +113,8 @@
       "characterization": [
         "tests/retained-client-boundary.test.js",
         "apps/mini-taro/src/web/web-app-contract.test.ts",
-        "packages/api-client/src/transport.test.ts"
+        "packages/api-client/src/transport.test.ts",
+        "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx"
       ],
       "changedPathPatterns": [
         "apps/mini-taro/**",
@@ -128,13 +130,16 @@
       "runtimeSurfaces": [
         "server/deploy_chickenbro_candidate_lighthouse.sh",
         "server/cutover_chickenbro_lighthouse.sh",
-        "server/provision_chickenbro_database_lighthouse.sh"
+        "server/provision_chickenbro_database_lighthouse.sh",
+        "server/deploy_test_login.py",
+        "server/test_login_runtime.py"
       ],
       "characterization": [
         "tests/product_schema_test.py",
         "tests/legacy_product_migration_test.py",
         "tests/postgres_legacy_migration_test.py",
-        "tests/cutover-chickenbro.test.js"
+        "tests/cutover-chickenbro.test.js",
+        "tests/test_login_runtime_test.py"
       ],
       "changedPathPatterns": [
         "server/migrations/product/**",
