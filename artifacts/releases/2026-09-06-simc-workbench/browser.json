@@ -1,0 +1,37 @@
+{
+  "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+  "browser": "Existing Edge test account A session",
+  "url": "https://www.chickenbro.cloud/test/",
+  "desktop": {
+    "status": "pass",
+    "checks": [
+      "Dedicated new/tasks navigation",
+      "Styled native controls after Taro compilation",
+      "Actual structured report, metric/error, engine identity, abilities/buffs/resources/attributes/gear/talents",
+      "Old report DPS546968.14 with actual error833.09",
+      "Cloud status auto updates"
+    ]
+  },
+  "responsive": {
+    "status": "pass",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "documentWidth": 375,
+    "abilityTableWidth": 519.229,
+    "abilityTableContainerWidth": 314,
+    "tableOverflowX": "auto",
+    "checks": [
+      "New form controls contained",
+      "Report metrics form two columns",
+      "No document horizontal overflow",
+      "Viewport restored after check"
+    ]
+  },
+  "sourceRecovery": {
+    "status": "pass",
+    "note": "One source read timed out; retry through normal UI succeeded."
+  },
+  "userAcceptance": "pending"
+}

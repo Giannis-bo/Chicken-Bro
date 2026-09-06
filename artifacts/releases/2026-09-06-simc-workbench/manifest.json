@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-06T04:46:18.881Z",
+  "generatedAt": "2026-09-06T05:11:12.132Z",
   "release": {
     "date": "2026-09-06",
     "slug": "simc-workbench"
@@ -43,7 +43,7 @@
         {
           "path": "docs/project-owner-map.json",
           "exists": true,
-          "sizeBytes": 6403
+          "sizeBytes": 6717
         },
         {
           "path": "docs/verification-matrix.md",
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 9591
+          "sizeBytes": 9599
         },
         {
           "path": "docs/README.md",
@@ -111,7 +111,7 @@
         {
           "path": "server/app/simulation/application.py",
           "exists": true,
-          "lineCount": 407,
+          "lineCount": 426,
           "hotspot": false
         }
       ],
@@ -392,7 +392,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "29 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -422,37 +422,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 29,
+      "changedFileCount": 6,
       "changedFiles": [
-        " M apps/mini-taro/src/features/simc/simc-model.test.ts",
-        " M apps/mini-taro/src/features/simc/simc-model.ts",
-        " M apps/mini-taro/src/web/WebSimcView.tsx",
-        " M package.json",
-        " M packages/api-client/src/simc.test.ts",
-        " M packages/api-client/src/simc.ts",
-        " M packages/domain/src/index.ts",
-        " M packages/domain/src/simc.ts",
-        " M server/app/api/routes/simc.py",
-        " M server/app/simulation/application.py",
-        " M server/app/simulation/compiler.py",
-        " M server/app/simulation/readiness.py",
-        " M server/app/simulation/worker.py",
-        " M server/test_login_runtime.py",
-        " M tests/app_simulation_worker_test.py",
-        " M vitest.config.ts",
-        "?? apps/mini-taro/src/web/WebSimc.module.scss",
-        "?? apps/mini-taro/src/web/WebSimcReport.tsx",
-        "?? apps/mini-taro/src/web/simc-presentation.ts",
-        "?? apps/mini-taro/src/web/web-simc-workbench.test.tsx",
-        "?? artifacts/releases/2026-09-06-simc-workbench/",
-        "?? packages/domain/src/simc-workbench.test.ts",
-        "?? packages/domain/src/simc-workbench.ts",
-        "?? server/app/simulation/report.py",
-        "?? server/app/simulation/runtime.py",
-        "?? tests/app_simc_workbench_api_test.py",
-        "?? tests/app_simc_workbench_test.py",
-        "?? tests/app_simulation_report_test.py",
-        "?? tests/app_simulation_runtime_info_test.py"
+        " M artifacts/releases/2026-09-06-simc-workbench/evidence.json",
+        " M docs/plans/2026-09-06-simc-workbench.md",
+        " M docs/roadmap.md",
+        "?? artifacts/releases/2026-09-06-simc-workbench/browser.json",
+        "?? artifacts/releases/2026-09-06-simc-workbench/deployment.json",
+        "?? artifacts/releases/2026-09-06-simc-workbench/runtime.json"
       ]
     }
   },

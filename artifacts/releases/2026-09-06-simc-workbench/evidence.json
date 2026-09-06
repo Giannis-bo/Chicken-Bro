@@ -2,14 +2,15 @@
   "schemaVersion": 2,
   "slug": "simc-workbench",
   "requirementSlug": "simc-workbench",
-  "status": "implementation_allowed",
-  "highestEvidenceLevel": "implementation_allowed",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "pending",
+  "commit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
   "identities": {
     "runtime": {
-      "status": "pending",
-      "reason": "Test deployment pending."
+      "status": "bound",
+      "kind": "git_commit",
+      "value": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
     },
     "verification": {
       "status": "bound_at_check",
@@ -66,23 +67,101 @@
     "simc",
     "dual_client"
   ],
-  "verification": [],
+  "verification": [
+    {
+      "command": "npm run test:backend",
+      "status": "pass",
+      "result": "365 tests; existing cloud Python environment; no dependency installation",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "result": "182 tests across 28 files",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "result": "62 tests",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No warnings or errors",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Built test Web; existing bundle size warnings",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "result": "Built test Mini; atomic promotion of 42 files; existing bundle size warning",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "No whitespace errors",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "local source review",
+      "status": "pass",
+      "result": "Independent review of ownership, reports, percentages, old payloads and historical errors passed",
+      "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    }
+  ],
   "candidateDeployment": {
-    "status": "pending",
-    "reason": "Test deployment pending."
+    "status": "preview_verified",
+    "commit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+    "buildIdentity": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+    "database": "chickenbro_test",
+    "url": "https://www.chickenbro.cloud/test/",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\deployment.json",
+    "productionUnchanged": true,
+    "rollbackRelease": "5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da"
   },
-  "runtimeEvidence": [],
+  "runtimeEvidence": [
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\runtime.json",
+      "result": "Two real cloud simulations; positive DPS and provenance; Patchwerk and LightMovement; current and historical version separation; final raw JSON schema valid."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\browser.json",
+      "result": "Real Web session: create, tasks, results, historical fallback; desktop and 390px responsive checks."
+    }
+  ],
   "risks": [
-    "Historical jobs only have summary reports."
+    "Real Mini/Web user acceptance and second-user manual checks remain pending.",
+    "Historical jobs retain only actually recorded fields; detailed skills and runtime version cannot be reconstructed."
   ],
   "rollback": [
-    "Atomically restore previous test release and restart test API/Worker; no schema changes."
+    "Atomically restore /opt/chickenbro-test/current to retained release 5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da and restart test API/Worker. No schema or data migration.",
+    "Previous releases retained; deployment rollback handler prepared. A forced rollback drill was not performed."
   ],
   "cleanup": {
     "required": false
   },
   "archivedReferences": [
-    "docs/plans/2026-09-06-simc-workbench.md"
+    "docs/plans/2026-09-06-simc-workbench.md",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\runtime.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\browser.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\backend-tests.log"
   ],
-  "summary": "Approved implementation; verification in progress."
+  "summary": "Implemented and verified on the isolated test site. Production, main integration and user acceptance remain separate and pending."
 }

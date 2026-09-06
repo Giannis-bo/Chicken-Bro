@@ -1,0 +1,84 @@
+{
+  "status": "pass",
+  "jobId": "b5ec0ee3-8ed1-4569-bcba-e1eadf399778",
+  "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+  "metric": {
+    "name": "dps",
+    "error": 1506.2981813463373,
+    "value": 179648.2931503579
+  },
+  "engine": {
+    "build": "69299",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69299"
+  },
+  "statistics": {
+    "iterations": 299,
+    "elapsedSeconds": 0.190668089,
+    "fightLengthSeconds": 60.33206688963211
+  },
+  "reportValid": true,
+  "abilities": 25,
+  "buffs": 40,
+  "gear": 16,
+  "abilityPortionTotal": 100.0,
+  "maxCritPercent": 100.0,
+  "provenance": {
+    "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+    "snapshotId": "99c1d100-1d0e-4937-bc30-04ad5ce599cd",
+    "scenarioHash": "bd144d6c6d1696ccc1cf76bc97ee986d27896dfce04d255491f464ed9afd17ed",
+    "profileSha256": "6327c79f051147262cd9db0ad751fff2b28271543d8afcf9f00074ab3dd86409",
+    "sourceRevision": "2026-09-05T04:43:26.000Z",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "sourceRawSha256": "7ecc1790125aca7a4a060b875839ee74610a3f613d5f8c7267358a1ac47df252",
+    "compilerRevision": "chickenbro-simc-compiler-v3"
+  },
+  "scenario": {
+    "fightStyle": "Patchwerk",
+    "desiredTargets": 1,
+    "iterations": 300,
+    "maxTime": 60,
+    "varyCombatLength": 0.1,
+    "targetError": 0.5,
+    "raidBuffs": true,
+    "bloodlust": false
+  },
+  "persistedReportRepairedOnReadOnly": true,
+  "finalBuildJob": {
+    "id": "602a14d1-fed5-48f2-9b7d-3e71bf63e112",
+    "metric": {
+      "name": "dps",
+      "error": 3379.5683076010796,
+      "value": 300303.4527149968
+    },
+    "engine": {
+      "build": "69299",
+      "version": "1210-01",
+      "gameVersion": "12.1.0.69299"
+    },
+    "reportValidWithoutRepair": true,
+    "movementUptime": 5.494248644213354,
+    "bloodlustBuffPresent": false,
+    "standardRaidBuffsPresent": false,
+    "scenario": {
+      "fightStyle": "LightMovement",
+      "desiredTargets": 3,
+      "maxTime": 60,
+      "varyCombatLength": 0.2,
+      "iterations": 300,
+      "targetError": 0,
+      "raidBuffs": false,
+      "bloodlust": false
+    },
+    "provenance": {
+      "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+      "snapshotId": "8fd32847-f1ef-4018-8a95-4accf86ffe2d",
+      "scenarioHash": "b60ae6f00276a44b3f651c6121b72361bdbaabad43aa984f10c6dc965a91fdee",
+      "profileSha256": "9bb2f871ffa6716ac08fdbee8a1d13fd1cbef34639f4b03abdb74a6a4e5dee6c",
+      "sourceRevision": "2026-09-05T04:43:26.000Z",
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "sourceRawSha256": "7ecc1790125aca7a4a060b875839ee74610a3f613d5f8c7267358a1ac47df252",
+      "compilerRevision": "chickenbro-simc-compiler-v3"
+    }
+  }
+}

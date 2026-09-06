@@ -1,0 +1,41 @@
+{
+  "status": "deployed",
+  "commit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+  "previousCommit": "8bf8c02cf3ebc42195f8131e54609cecc7904e95",
+  "database": "chickenbro_test",
+  "productionUnchanged": true,
+  "preservedFiles": 102,
+  "overlaidRuntimeFiles": [
+    "server/app/api/routes/simc.py",
+    "server/app/simulation/application.py",
+    "server/app/simulation/report.py"
+  ],
+  "simcSourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "readiness": "ready",
+  "webFiles": {
+    "index.html": "d8cf253fb76c8ebb1ad41c7c25abc7e62ad6add42651b153a5d9d40ca20ecbf9",
+    "js/app.js": "ceb50a3d6b807b5d4eddf08832a86b87638a821b5199deaf4cf6f7cd48bddd0d",
+    "js/296.js": "5d3decb56020818ad12b4a26e281378fe670254838e743e79778d98df5603604",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "js/296.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "css/628.css": "9a5a29da08991827fa169e7a5e4c919855ad1c93db3969db0c6240d152f4dbc9",
+    "css/164.css": "3bf9951ec4daa47812dc5775ea973a1a09a3133a827212769ef96119a9ea9993",
+    "css/app.css": "2e1f7ed18b21dffd443c5d6c75c22d8c2c84d9bfd2074379a5dc9667166e9465",
+    "css/419.css": "64a32a0683350f10f4aa1691c4730b0850d06aae1729f4d03f041e4115b9291c",
+    "css/275.css": "7b3b2d5d9348c926f87fa71ecb97b81d09470030ef30287951777f9ed2e41573",
+    "css/142.css": "6f3d0cf8b317261964e07229de64a01e3fcd2d2cbd29bb59bb8fcf7e0ce09bd0",
+    "chunk/164.js": "d3276f1cba3940f40719450fc9c5297e134a4bbe74405790388b7c493ef8aa20",
+    "chunk/200.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/200.js": "7da2a91eca7677252178947790e1e5addb63b77fae31150bf2237bcd96be53f5",
+    "chunk/142.js": "1e6f54c81f5e95e9b65232768dcf856bb0d303c95e7cb6d6318fa6a789dd9720",
+    "chunk/275.js": "0de12e252177e301ac45ee53c15cda894a4a3365793bc93f077c03065536043e",
+    "chunk/628.js": "e96212d1e847034ed73b18ecae765ef2f8f38c69dfc47bb4726be651a6b50d42",
+    "chunk/419.js": "c1043dd2eb60000cfb535194d8afec17a42f19592e1521095045f559fcbdf620",
+    "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368",
+    "static/images/web/assets/gu-gu-pet-v1.png": "4e6263f015d0f271409c86349f71c3f3a651b4c82b68f8394e84d1fd26c80c61",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+    "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f"
+  },
+  "sourceArchiveSha256": "906128c2ba0d2a42ec04b2e23d71bfca5a5bc306e703e6dd6b4b2b930305495b",
+  "webArchiveSha256": "73797a7569cd9cc64ceaa3121f169a60819de4de5c9417f7227ddbe248e41f54"
+}
