@@ -1,0 +1,13 @@
+
+> wow-mini-program-workspace@0.1.0 test:taro
+> vitest run
+
+
+ RUN  v4.1.10 G:/Codex/wow/.worktrees/simc-workbench
+
+
+ Test Files  28 passed (28)
+      Tests  182 passed (182)
+   Start at  13:04:20
+   Duration  1.46s (transform 2.53s, setup 0ms, import 4.63s, tests 769ms, environment 4.25s)
+

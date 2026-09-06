@@ -1,0 +1,160 @@
+
+> wow-mini-program-workspace@0.1.0 build:weapp
+> npm --workspace @wow-mini/mini-taro run build:weapp
+
+
+> @wow-mini/mini-taro@0.1.0 build:weapp
+> node ../../scripts/build-weapp-safely.js
+
+👽 Taro v4.2.0
+
+Tips:
+1. 建议开启持久化缓存功能，能有效提升二次编译速度，详情请参考: https://docs.taro.zone/docs/config-detail#cache。
+
+
+
+● Webpack █████████████████████████  (0%)  
+ 
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ setup (9%) compilation 
+ FileUriPlugin
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/16 entries 16/16 dependen
+cies 0/16 modules 1 active 
+ babel-loader › src\app.config.ts
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/16 entries 16/16 dependen
+cies 1/16 modules 15 active 
+ ...loader › ..\..\..\..\node_modules\@tarojs\webpack5-runner\dist\template\co
+mp.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 61/115 depende
+ncies 7/36 modules 28 active 
+ ...loader › ..\..\..\..\node_modules\@tarojs\plugin-platform-weapp\dist\runti
+me.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 87/129 depende
+ncies 9/42 modules 28 active 
+ ....\..\apps\mini-taro\node_modules\@tarojs\plugin-framework-react\dist\runti
+me.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 105/132 depend
+encies 9/49 modules 34 active 
+ babel-loader › ..\..\packages\api-client\src\index.ts
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%)  
+ ..\..\node_modules\resolve-url-loader\index.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 134/177 depend
+encies 10/61 modules 45 active 
+ ...ss
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 166/179 depend
+encies 10/71 modules 61 active 
+ ...r › resolve-url-loader › sass-loader › src\features\auth\test-login.module
+.scss
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 186/235 depend
+encies 10/72 modules 62 active 
+ babel-loader › ..\..\packages\domain\src\index.ts
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 275/313 depend
+encies 18/130 modules 110 active 
+ babel-loader › ..\..\..\..\node_modules\@tarojs\react\dist\react.esm.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 434/520 depend
+encies 34/147 modules 96 active 
+ ..\..\..\..\node_modules\react\cjs\react-jsx-runtime.production.min.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 570/608 depend
+encies 55/168 modules 110 active 
+ ...ript\esm|G:\Codex\wow\node_modules\@babel\runtime\helpers\esm\setPrototype
+Of.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 642/653 depend
+encies 80/182 modules 102 active 
+ ...m|G:\Codex\wow\node_modules\@babel\runtime\helpers\esm\assertThisInitializ
+ed.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (34%) 7/16 entries 662/676 depend
+encies 96/195 modules 99 active 
+ ..\..\..\..\node_modules\react-reconciler\index.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (40%) 9/16 entries 692/696 depend
+encies 140/200 modules 58 active 
+ ....\..\..\..\node_modules\react-reconciler\cjs\react-reconciler.production.m
+in.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (40%) 9/16 entries 710/710 depend
+encies 157/207 modules 49 active 
+ ..\..\..\..\node_modules\css-loader\dist\runtime\noSourceMaps.js
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (44%) 10/16 entries 722/723 depen
+dencies 168/213 modules 42 active 
+ ...lMH43eml4II\BK03\X4xVwIbZqeD4Xxjt9X+eWyDVsuBl6a\x\Mx7vMiG9PtgAAAABJRU5ErkJ
+ggg==
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (44%) 10/16 entries 727/727 depen
+dencies 174/215 modules 40 active 
+ ...tcss-loader › resolve-url-loader › sass-loader › src\web\WebMessage.module
+.scss
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (44%) 10/16 entries 728/728 depen
+dencies 180/216 modules 36 active 
+ ...tcss-loader › resolve-url-loader › sass-loader › src\web\WebMessage.module
+.scss
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (73%)  
+ after chunk graph
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (88%)  
+ runtime requirements
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (92%) asset processing 
+ CssMinimizerPlugin
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (92%) asset processing 
+ RealContentHashPlugin
+
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+√ Webpack
+  Compiled successfully in 4.42s
+
+⚠️ Warnings: 
+
+AssetsOverSizeLimitWarning: asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  app-origin.wxss (3.65 MiB)
+    at Generator.next (<anonymous>)
+
+NoAsyncChunksWarning: webpack performance recommendations: 
+You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your application.
+For more info visit https://webpack.js.org/guides/code-splitting/
+    at Generator.next (<anonymous>)
+
+{"status":"pass","strategy":"staged-atomic-promotion","destinationRoot":"G:\\Codex\\wow\\.worktrees\\simc-workbench\\apps\\mini-taro\\dist\\weapp","totalFileCount":42,"installedFileCount":4,"unchangedFileCount":38,"removedFileCount":0}
