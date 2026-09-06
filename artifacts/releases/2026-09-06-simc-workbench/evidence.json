@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
+  "commit": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+      "value": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
     },
     "verification": {
       "status": "bound_at_check",
@@ -281,17 +281,41 @@
       "status": "pass",
       "result": "62 tests pass after source disposition and acceptance updates",
       "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "Web workbench and SimC model tests",
+      "status": "pass",
+      "result": "39 tests pass",
+      "sourceCommit": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing bundle warnings",
+      "sourceCommit": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
-    "buildIdentity": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
+    "commit": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
+    "buildIdentity": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-final-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "1e8be32135c9be83a61cacb429c1df39f14be117",
+    "rollbackRelease": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -324,6 +348,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json",
       "result": "Both user-provided Giannis links entered in real Web UI. Raider.IO job b1807708-ad52-48f7-adcd-4d501f5d2f20 and WCL job 7e2c4903-6de4-4049-a0f6-ea7f36118af3 succeeded with positive validated reports and identical compiled profile hashes. Both completed tasks visible in task list."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json",
+      "result": "Unapproved host and malformed Raider.IO URL both display explicit illegal-link message and refer to two visible examples. Existing legal-source classifications preserved."
     }
   ],
   "risks": [
@@ -356,7 +385,9 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-import-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-import-source-proof.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-final-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json"
   ],
-  "summary": "Both provided Giannis mainland links imported and completed actual cloud simulations through test Web. Current specific inputs have no import blocker. Manual acceptance, main integration and production cutover remain pending."
+  "summary": "Test Web now explicitly identifies invalid links and directs users to source examples; prior real Giannis simulation evidence remains valid."
 }

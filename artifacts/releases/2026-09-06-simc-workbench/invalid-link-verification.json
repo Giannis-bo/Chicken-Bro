@@ -1,0 +1,18 @@
+{
+  "commit": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
+  "message": "非法链接：链接格式不正确或来源不受支持。请参考输入框下方的角色评分、战斗日志链接示例，修改后重新读取。",
+  "browser": [
+    {
+      "input": "https://example.com/characters/Giannis",
+      "code": "INVALID_LINK",
+      "explicitMessage": true,
+      "visibleExamples": 2
+    },
+    {
+      "input": "https://raider.io/Giannis",
+      "code": "INVALID_LINK",
+      "explicitMessage": true
+    }
+  ],
+  "scope": "Web error message only; no source parser or backend changes"
+}
