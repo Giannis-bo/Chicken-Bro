@@ -206,7 +206,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'unavailable', version: null, gameVersion: null, build: null,
       sourceCommit: null, runtimeRevision: 'runtime-only-hash' }))
     await act(async () => root.render(createElement(WebSimcView, { auth: { kind: 'web', csrfToken: 'other' } })))
-    expect(container.textContent).toContain('引擎暂不可用')
+    expect(container.textContent).toContain('SIMC 暂不可用')
     expect(container.textContent).not.toContain('runtime-only-hash')
   })
 
@@ -220,7 +220,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-03', gameVersion: '12.0.1',
       build: '66100', sourceCommit: 'abc', runtimeRevision: 'runtime-current' }))
     await click('重试引擎')
-    expect(container.textContent).toContain('模拟引擎 1200-03')
+    expect(container.textContent).toContain('SIMC 1200-03')
     expect(button('开始模拟').disabled).toBe(false)
   })
 
@@ -229,7 +229,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-04', gameVersion: '12.0.1',
       build: '66200', sourceCommit: 'abc', runtimeRevision: 'runtime-next' }))
     await click('新建模拟')
-    expect(container.textContent).toContain('模拟引擎 1200-04')
+    expect(container.textContent).toContain('SIMC 1200-04')
   })
 
   it('refreshes server task status when returning from a report', async () => {

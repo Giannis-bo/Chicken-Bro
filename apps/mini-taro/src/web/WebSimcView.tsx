@@ -134,11 +134,11 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
 
   return <div className={styles['workbench']} data-simc-phase={state.phase} data-simc-page={page}>
     <header className={styles['header']}>
-      <div><p className={styles['eyebrow']}>云端战斗模拟</p><h1>模拟工作台</h1></div>
+      <div><h1>SIMC</h1></div>
       <div className={styles['engine']} data-runtime-status={runtime?.status ?? 'unknown'}>
         <span className={styles['engineDot']} aria-hidden="true" />
-        <div><strong>{runtimeLoading ? '正在读取云端引擎…' : runtime?.status === 'available' && runtime.version ? `模拟引擎 ${runtime.version}` : runtime?.status === 'unavailable' ? '引擎暂不可用' : '引擎版本暂不可用'}</strong>
-          <small>当前云端引擎{runtime?.gameVersion ? ` · 游戏 ${runtime.gameVersion}` : ''}</small></div>
+        <div><strong>{runtimeLoading ? '正在读取 SIMC 版本…' : runtime?.status === 'available' && runtime.version ? `SIMC ${runtime.version}` : runtime?.status === 'unavailable' ? 'SIMC 暂不可用' : 'SIMC 版本暂不可用'}</strong>
+          {runtime?.gameVersion ? <small>游戏 {runtime.gameVersion}</small> : null}</div>
         {!runtimeLoading && runtime?.status !== 'available' ? <button data-simc-button="" className={styles['textButton']} onClick={() => void refreshRuntime()}>重试引擎</button> : null}
       </div>
     </header>
