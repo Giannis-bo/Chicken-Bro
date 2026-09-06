@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { createHash } = require('node:crypto')
-const { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
+const { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
 const { spawnSync } = require('node:child_process')
 const os = require('node:os')
 const path = require('node:path')
@@ -24,6 +24,21 @@ function run(args = [], env = {}) {
     encoding: 'utf8',
     env: { ...process.env, ...env },
   })
+}
+
+function inventoryFixture(t, ageSeconds = 0) {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'wow-provision-inventory-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  mkdirSync(path.join(root, 'docs/refactor'), { recursive: true })
+  mkdirSync(path.join(root, 'server/migrations/product'), { recursive: true })
+  const inventory = JSON.parse(readFileSync(INVENTORY, 'utf8'))
+  inventory.observedAt = new Date(Date.now() - ageSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  const contents = JSON.stringify(inventory)
+  writeFileSync(path.join(root, 'docs/refactor/chickenbro-simc-cloud-inventory.json'), contents)
+  writeFileSync(path.join(root, 'docs/project-state.json'), readFileSync(path.join(ROOT, 'docs/project-state.json')))
+  const script = path.join(root, 'server/provision_chickenbro_database_lighthouse.sh')
+  writeFileSync(script, source())
+  return { script, root, sha: createHash('sha256').update(contents).digest('hex') }
 }
 
 test('provisioning is fixed-target dry-run by default and contains no destructive legacy operation', () => {
@@ -165,21 +180,38 @@ test('local dry-run emits the refreshed redacted capacity gate and performs no p
   assert.doesNotMatch(result.stdout + result.stderr, /do-not-print|private-backup/i)
 })
 
-test('reviewed inventory hash is exact and authorized apply still stops before external state without an exact pgpass path', () => {
+test('reviewed inventory hash is exact and authorized apply still stops before external state without an exact pgpass path', (t) => {
   const wrong = run(['--dry-run', '--inventory-sha', '0'.repeat(64)])
   assert.notEqual(wrong.status, 0)
   assert.match(wrong.stderr, /inventory SHA does not match/i)
 
-  const blocked = run([
+  const fixture = inventoryFixture(t)
+  const blocked = spawnSync('bash', [fixture.script,
     '--apply',
-    '--inventory-sha', inventorySha(),
+    '--inventory-sha', fixture.sha,
   ], {
-    WOW_CHICKENBRO_RECOVERY_ROOT: '/var/lib/chickenbro-recovery',
-    WOW_REBUILD_MANAGEMENT_ROLE: 'postgres',
+    cwd: fixture.root,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      WOW_CHICKENBRO_RECOVERY_ROOT: '/var/lib/chickenbro-recovery',
+      WOW_REBUILD_MANAGEMENT_ROLE: 'postgres',
+      WOW_REBUILD_PGPASSFILE: '',
+    },
   })
   assert.notEqual(blocked.status, 0)
   assert.match(blocked.stderr, /WOW_REBUILD_PGPASSFILE must be an absolute path/)
   assert.doesNotMatch(blocked.stdout + blocked.stderr, /postgresql:\/\/|password|secret/i)
+})
+
+test('apply rejects a correctly hashed but expired inventory before external state', (t) => {
+  const fixture = inventoryFixture(t, 7 * 60 * 60)
+  const blocked = spawnSync('bash', [fixture.script, '--apply', '--inventory-sha', fixture.sha], {
+    cwd: fixture.root,
+    encoding: 'utf8',
+  })
+  assert.notEqual(blocked.status, 0)
+  assert.match(blocked.stderr, /reviewed inventory is stale/)
 })
 
 test('apply refreshes and matches the exact Tencent CVM identity before database work', () => {
