@@ -1,0 +1,38 @@
+{
+  "commit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+  "jobId": "7e2c4903-6de4-4049-a0f6-ea7f36118af3",
+  "reportSha256": "659d00a8fe15a56d443ffc01101eed2e99de7ea2dd3f4776a5ab3f150cca2b45",
+  "matchesOriginalStoredReport": true,
+  "metric": {
+    "name": "dps",
+    "error": 2284.5543282722847,
+    "value": 227723.910084102
+  },
+  "verifiedNamesAdded": 37,
+  "missingBefore": {
+    "abilities": 10,
+    "buffs": 27
+  },
+  "browser": {
+    "report": "Giannis 09/06 15:33 WCL report",
+    "abilities": 14,
+    "buffs": 43,
+    "unresolvedNames": 0,
+    "displayedMetric": "227,723.91",
+    "topAbility": "元素冲击",
+    "topAbilityAmount": "4,070,169.42",
+    "petSourceNamesRetained": true,
+    "desktopViewport": 2552,
+    "desktopDocumentWidth": 2537,
+    "narrowViewport": 390,
+    "narrowDocumentWidth": 375,
+    "narrowTableContainer": 314,
+    "narrowTableScrollWidth": 519,
+    "viewportRestored": true
+  },
+  "regression": {
+    "beforeFix": "3 newly added tests fail; 10 skills and 27 buffs unresolved",
+    "afterFix": "Full 206 frontend tests pass; real report numeric values remain unchanged"
+  },
+  "scope": "Current Giannis elemental report plus existing supported names; no universal all-class coverage claim."
+}

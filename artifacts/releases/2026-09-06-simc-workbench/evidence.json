@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
+  "commit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+      "value": "881ad4959d8dc6203e09b299156b8966d86b3d94"
     },
     "verification": {
       "status": "bound_at_check",
@@ -423,17 +423,59 @@
       "status": "pass",
       "result": "Pass",
       "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "result": "206 tests across 31 files; 3 new tests failed before the fix and pass after",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "result": "62 tests",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing two bundle warnings",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "result": "Pass; staged atomic promotion of 42 files; build compatibility only",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
-    "buildIdentity": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
+    "commit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+    "buildIdentity": "881ad4959d8dc6203e09b299156b8966d86b3d94",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\simc-heading-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "30ddc6cbd170f2aa76f87e38ccf99e9e89a6fcdc",
+    "rollbackRelease": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -491,6 +533,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json",
       "result": "SIMC heading and actual SIMC 1210-01 shown; cloud eyebrow removed; both requested inline link labels present and character example heading removed. Links wrap at 390px."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json",
+      "result": "Actual Giannis WCL report: all 14 skills and 43 buffs have Chinese names, zero unresolved labels. Original report unchanged; DPS 227723.910084102; desktop and 390px verified."
     }
   ],
   "risks": [
@@ -534,7 +581,10 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\example-inline-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\simc-heading-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-zh-cn-terms.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json"
   ],
-  "summary": "Test Web source examples use two inline label/link rows. Page title and engine card use SIMC; redundant cloud wording removed."
+  "summary": "Elemental report localization completed for real Giannis report: 37 additional verified names cover player, pet, set and trinket effects; all 57 rows named with original metrics preserved."
 }
