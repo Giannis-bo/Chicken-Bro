@@ -59,11 +59,15 @@ class SimulationJobPage:
 
 
 def public_simulation_report(view: SimulationJobView) -> dict[str, object] | None:
-    from server.app.simulation.report import validate_simc_report
+    from server.app.simulation.report import SimulationReportError, canonicalize_simc_report
     report = view.result.result.get("report") if view.result is not None else None
     if report is None:
         return None
-    if (not validate_simc_report(report) or report["metric"]["name"] != view.result.primary_metric_name
+    try:
+        report = canonicalize_simc_report(report)
+    except SimulationReportError:
+        raise SimulationApplicationError("SIMC_RESULT_INVALID", "simulation report is invalid") from None
+    if (report["metric"]["name"] != view.result.primary_metric_name
             or report["metric"]["value"] != view.result.primary_metric_value):
         raise SimulationApplicationError("SIMC_RESULT_INVALID", "simulation report is invalid")
     return report
@@ -159,6 +163,20 @@ def validated_simulation_result_provenance(
     ):
         raise _invalid_result()
     return provenance
+
+
+def public_simulation_metric_error(view: SimulationJobView) -> int | float | None:
+    """Expose persisted uncertainty only for a coherent, owner-bound result."""
+    validated_simulation_result_provenance(view)
+    if view.result is None:
+        return None
+    value = view.result.result.get("metricError")
+    if type(value) not in (int, float) or value < 0:
+        return None
+    try:
+        return value if math.isfinite(value) else None
+    except OverflowError:
+        return None
 
 
 def _value(row: Any, key: str, default: Any = None) -> Any:
@@ -403,4 +421,5 @@ __all__ = (
     "SimulationJobPage",
     "SimulationJobView",
     "validated_simulation_result_provenance",
+    "public_simulation_metric_error",
 )

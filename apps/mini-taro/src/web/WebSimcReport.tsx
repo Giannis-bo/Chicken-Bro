@@ -12,6 +12,7 @@ interface Props {
 
 export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Props) {
   const report = job.result?.report
+  const metricError = report?.metric.error ?? job.result?.metricError
   const actor = report?.actor ?? job.character
   const scenario = job.scenario
   const pending = job.status === 'queued' || job.status === 'running'
@@ -45,15 +46,15 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
       <section className={styles['metrics']} aria-label="模拟结果摘要" data-result-id={job.result.id}>
         <div className={styles['primaryMetric']}><span>{job.result.metricName.toUpperCase()}</span>
           <strong>{simcNumber(job.result.metricValue)}</strong>
-          <small>{report?.metric.error != null ? `误差 ± ${simcNumber(report.metric.error)}` : '误差未记录'}</small>
+          <small>{metricError != null ? `误差 ± ${simcNumber(metricError)}` : '误差未记录'}</small>
         </div>
         <div><span>迭代次数</span><strong>{simcNumber(report?.statistics.iterations)}</strong><small>实际完成的模拟次数</small></div>
         <div><span>平均战斗时长</span><strong>{simcNumber(report?.statistics.fightLengthSeconds)}{report?.statistics.fightLengthSeconds != null ? <em> 秒</em> : null}</strong><small>本次模拟的战斗长度</small></div>
         <div><span>计算耗时</span><strong>{simcNumber(report?.statistics.elapsedSeconds)}{report?.statistics.elapsedSeconds != null ? <em> 秒</em> : null}</strong><small>云端引擎运行时间</small></div>
       </section>
       {!report ? <div className={styles['notice']}>该历史任务仅保存了结果摘要，未记录技能、Buff、装备天赋及引擎版本详情。</div> : <>
-        <section className={styles['card']}><div className={styles['sectionHeading']}><h3>技能贡献</h3><span>按贡献量排序</span></div>
-          {report.abilities.length ? <div className={styles['tableScroll']}><table className={styles['abilityTable']}><thead><tr><th>技能</th><th>贡献量</th><th>占比</th><th>施放次数</th><th>暴击率</th></tr></thead><tbody>
+        <section className={styles['card']}><div className={styles['sectionHeading']}><h3>技能贡献</h3><span>按贡献量排序 · 占比以所列技能合计计算</span></div>
+          {report.abilities.length ? <div className={styles['tableScroll']}><table className={styles['abilityTable']}><thead><tr><th>技能</th><th>贡献量</th><th>贡献占比</th><th>施放次数</th><th>暴击率</th></tr></thead><tbody>
             {[...report.abilities].sort((a, b) => b.amount - a.amount).map((ability, index) => <tr key={`${ability.name}-${index}`}>
               <td><span>{ability.name}</span>{ability.portion != null ? <div className={styles['barTrack']}><i style={{ width: `${Math.min(100, Math.max(0, ability.portion))}%` }} /></div> : null}</td>
               <td>{simcNumber(ability.amount)}</td><td>{ability.portion == null ? '未记录' : `${simcNumber(ability.portion)}%`}</td>

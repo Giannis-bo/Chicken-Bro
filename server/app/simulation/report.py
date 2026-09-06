@@ -11,6 +11,7 @@ from typing import Any
 
 MAX_REPORT_BYTES = 8 * 1024 * 1024
 _MAX_ROWS = 256
+_PERCENT_EPSILON = 1e-9
 _CLASSES = ('Death Knight', 'Demon Hunter', 'Paladin', 'Warrior', 'Hunter', 'Rogue',
             'Priest', 'Shaman', 'Mage', 'Warlock', 'Monk', 'Druid', 'Evoker')
 # These canonical paper-doll values are fractions in the installed engine's
@@ -63,10 +64,10 @@ def _integer(value: Any) -> int | None:
 
 
 def _percent(value: Any, *, fraction: bool = False) -> float | None:
-    number = _number(value)
+    number = _number(value, minimum=-_PERCENT_EPSILON)
     if number is not None:
         number *= 100 if fraction else 1
-    return min(number, 100.0) if number is not None and number <= 100.000001 else None
+    return min(max(number, 0.0), 100.0) if number is not None and -_PERCENT_EPSILON <= number <= 100 + _PERCENT_EPSILON else None
 
 
 def _reject_constant(value: str) -> None:
@@ -95,7 +96,16 @@ def _crit_percent(stats: dict) -> float | None:
                 total += count
                 if name in ('crit', 'crit_block', 'glance_crit'):
                     crit += count
-    return 100 * crit / total if total > 0 else None
+    return _percent(100 * crit / total) if total > 0 else None
+
+
+def _set_compound_portions(abilities: list[dict]) -> None:
+    # Upstream portion_amount measures direct actual_amount, whereas these rows
+    # include child damage via compound_amount. Use the same displayed siblings
+    # for both numerator and denominator, without counting children twice.
+    total = math.fsum(row['amount'] for row in abilities)
+    for row in abilities:
+        row['portion'] = _percent(row['amount'] / total * 100) if total > 0 else None
 
 
 def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
@@ -154,9 +164,11 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
             if amount is None or amount <= 0 or not label:
                 continue
             abilities.append({'name': _text(f'{pet}: {label}') if pet else label, 'amount': amount,
-                'portion': _percent(stats.get('portion_amount'), fraction=True),
+                'portion': None,
                 'executions': _number(stats.get('num_executes')), 'critPercent': _crit_percent(stats)})
     abilities.sort(key=lambda item: item['amount'], reverse=True)
+    abilities = abilities[:_MAX_ROWS]
+    _set_compound_portions(abilities)
     buffs = []
     for raw in _rows(actor.get('buffs')) + _rows(actor.get('buffs_constant')):
         # A constant classification does not guarantee a measured 100% uptime.
@@ -206,6 +218,39 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
                        'elapsedSeconds': _number(_object(sim.get('statistics')).get('elapsed_time_seconds'))},
         'abilities': abilities[:_MAX_ROWS], 'buffs': buffs[:_MAX_ROWS], 'resources': resources,
         'attributes': attributes[:64], 'gear': gear}
+
+
+def canonicalize_simc_report(value: object) -> dict:
+    """Return a validated public copy, repairing only percentage roundoff.
+
+    Persisted pre-fix reports can contain 100.00000000000001. Keep the schema
+    validator strict and repair only bounded numerical drift on known fields;
+    never mutate stored data or forgive a materially out-of-range percentage.
+    """
+    if not isinstance(value, dict):
+        raise SimulationReportError()
+    candidate = dict(value)
+    for key, fields in (('abilities', ('portion', 'critPercent')), ('buffs', ('uptime',))):
+        rows = candidate.get(key)
+        if not isinstance(rows, list) or len(rows) > _MAX_ROWS:
+            raise SimulationReportError()
+        copied_rows = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise SimulationReportError()
+            copied = dict(row)
+            for field in fields:
+                number = copied.get(field)
+                if type(number) in (int, float) and -_PERCENT_EPSILON <= number <= 100 + _PERCENT_EPSILON:
+                    copied[field] = min(max(number, 0.0), 100.0)
+            copied_rows.append(copied)
+        candidate[key] = copied_rows
+    if not validate_simc_report(candidate):
+        raise SimulationReportError()
+    _set_compound_portions(candidate['abilities'])
+    # All remaining fields have been bounded and validated before copying.
+    from copy import deepcopy
+    return deepcopy(candidate)
 
 
 def validate_simc_report(value: object) -> bool:

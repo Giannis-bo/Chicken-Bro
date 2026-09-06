@@ -52,7 +52,7 @@ class SimulationReportTest(unittest.TestCase):
         self.assertEqual(report['metric'], {'name': 'dps', 'value': 10000, 'error': 50})
         self.assertEqual(report['engine'], {'version': '1210-01', 'gameVersion': '12.1.0.69299', 'build': '69299'})
         self.assertEqual(report['statistics'], {'iterations': 99, 'fightLengthSeconds': 180, 'elapsedSeconds': 1.25})
-        self.assertEqual(report['abilities'][0], {'name': 'lightning_bolt', 'amount': 900000, 'portion': 50, 'executions': 10, 'critPercent': 30})
+        self.assertEqual(report['abilities'][0], {'name': 'lightning_bolt', 'amount': 900000, 'portion': 100, 'executions': 10, 'critPercent': 30})
         self.assertEqual(report['resources'], [{'name': 'maelstrom', 'gained': 160, 'lost': 150}])
         self.assertEqual(report['gear'], [{'slot': 'main_hand', 'itemId': 12345, 'itemLevel': 150}])
         self.assertEqual(report['buffs'], [{'name': 'bloodlust', 'uptime': 22.2}])
@@ -107,6 +107,43 @@ class SimulationReportTest(unittest.TestCase):
         self.assertEqual(self.parse(payload)['buffs'], [
             {'name': 'zero_dynamic', 'uptime': 0}, {'name': 'known_constant', 'uptime': 100},
         ])
+
+    def test_aggregated_ability_portions_use_matching_compound_amounts(self):
+        payload = report_fixture()
+        actor = payload['sim']['players'][0]
+        actor['stats'] = [
+            {'name': 'crash_lightning', 'type': 'damage', 'compound_amount': 75, 'portion_amount': 0.03989,
+             'children': [{'name': 'child', 'type': 'damage', 'compound_amount': 60}]},
+            {'name': 'lightning_bolt', 'type': 'damage', 'compound_amount': 25, 'portion_amount': 0.25},
+        ]
+        abilities = self.parse(payload)['abilities']
+        self.assertEqual([(row['name'], row['amount'], row['portion']) for row in abilities],
+                         [('crash_lightning', 75, 75), ('lightning_bolt', 25, 25)])
+
+    def test_crit_rounding_at_one_hundred_remains_valid(self):
+        from server.app.simulation.report import validate_simc_report
+        payload = report_fixture()
+        payload['sim']['players'][0]['stats'][0]['direct_results'] = {'crit': {'count': {'mean': 0.8378378378378378}}}
+        report = self.parse(payload)
+        self.assertEqual(report['abilities'][0]['critPercent'], 100)
+        self.assertTrue(validate_simc_report(report))
+
+    def test_persisted_report_canonicalization_is_narrow_and_does_not_mutate(self):
+        from server.app.simulation.report import canonicalize_simc_report
+        report = self.parse(report_fixture())
+        report['abilities'][0]['critPercent'] = 100.00000000000001
+        report['abilities'][0]['portion'] = 50
+        report['buffs'][0]['uptime'] = -1e-14
+        corrected = canonicalize_simc_report(report)
+        self.assertEqual(corrected['abilities'][0]['critPercent'], 100)
+        self.assertEqual(corrected['abilities'][0]['portion'], 100)
+        self.assertEqual(corrected['buffs'][0]['uptime'], 0)
+        self.assertEqual(report['abilities'][0]['critPercent'], 100.00000000000001)
+        self.assertEqual(report['abilities'][0]['portion'], 50)
+        self.assertEqual(report['buffs'][0]['uptime'], -1e-14)
+        for invalid in (100.001, 100.00001, -0.001, float('nan'), float('inf'), True):
+            report['abilities'][0]['critPercent'] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError): canonicalize_simc_report(report)
 
     def test_arrays_strings_and_json_size_are_bounded(self):
         payload = report_fixture(); actor = payload['sim']['players'][0]

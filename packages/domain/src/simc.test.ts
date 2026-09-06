@@ -125,4 +125,14 @@ describe('formal SimC domain guards', () => {
       },
     })).toBe(false)
   })
+
+  it('accepts optional workbench metric uncertainty and rejects invalid values', () => {
+    for (const metricError of [12.5, 0, null]) {
+      expect(isSimulationJobDetail({ ...summary, attempts: [], result: { ...result, report: null, metricError } })).toBe(true)
+    }
+    for (const metricError of [-1, Number.NaN, Number.POSITIVE_INFINITY, true, '12.5']) {
+      expect(isSimulationJobDetail({ ...summary, attempts: [], result: { ...result, report: null, metricError } })).toBe(false)
+    }
+    expect(isSimulationJobDetail({ ...summary, attempts: [], result })).toBe(true)
+  })
 })

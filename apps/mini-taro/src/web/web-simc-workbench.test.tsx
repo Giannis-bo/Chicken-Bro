@@ -149,6 +149,20 @@ describe('Web SimC workbench', () => {
     expect(container.textContent).not.toContain('Lightning Bolt')
   })
 
+  it.each([12.5, 0])('shows saved historical uncertainty even without a structured report: %s', async (metricError) => {
+    api.getJob.mockResolvedValue(success({ ...job, result: { ...job.result, report: null, metricError } }))
+    await openReport()
+    expect(container.textContent).toContain(`误差 ± ${metricError}`)
+    expect(container.textContent).not.toContain('误差未记录')
+  })
+
+  it('prefers structured report uncertainty over a historical summary value', async () => {
+    api.getJob.mockResolvedValue(success({ ...job, result: { ...job.result, metricError: 999 } }))
+    await openReport()
+    expect(container.textContent).toContain('误差 ± 54.2')
+    expect(container.textContent).not.toContain('误差 ± 999')
+  })
+
   it('filters statuses in Chinese and presents failures with their actual diagnostic code', async () => {
     const failed = { ...job, id: 'job-failed', status: 'failed', metric: null, result: null, errorCode: 'SIMC_TIMEOUT' }
     api.listJobs.mockResolvedValue(success({ items: [job, failed], nextCursor: null }))

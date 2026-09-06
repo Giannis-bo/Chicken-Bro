@@ -66,6 +66,7 @@ export interface SimulationResultProvenance {
 
 export interface SimulationResultView {
   report?: SimulationReport | null
+  metricError?: number | null
   id: string
   profileSha256: string
   metricName: SimulationMetricName
@@ -247,8 +248,9 @@ function isSimulationResultView(value: unknown): value is SimulationResultView {
     'runtimeRevision',
     'provenance',
     'createdAt',
-  ], ['report'])) return false
+  ], ['report', 'metricError'])) return false
   return (!('report' in value) || value['report'] === null || (isSimulationReport(value['report']) && value['report'].metric.name === value['metricName'] && value['report'].metric.value === value['metricValue']))
+    && (!('metricError' in value) || value['metricError'] === null || (typeof value['metricError'] === 'number' && Number.isFinite(value['metricError']) && value['metricError'] >= 0))
     && uuid(value['id'])
     && sha256(value['profileSha256'])
     && (value['metricName'] === 'dps' || value['metricName'] === 'hps')

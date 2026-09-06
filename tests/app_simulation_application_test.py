@@ -479,6 +479,25 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
         with self.assertRaisesRegex(SimulationApplicationError, "SIMC_RESULT_INVALID"):
             validated_simulation_result_provenance(view)
 
+    def test_public_report_canonicalizes_historical_rounding_without_mutating_storage(self):
+        from server.app.simulation.application import public_simulation_report
+        from server.app.simulation.report import normalize_simc_report
+        from tests.app_simulation_report_test import report_fixture
+        report = normalize_simc_report(json.dumps(report_fixture()), expected_actor="Stormsample")
+        report["metric"]["value"] = 12345.0
+        report["abilities"][0]["critPercent"] = 100.00000000000001
+        report["abilities"][0]["portion"] = 3.989
+        result = replace(self.result, result={**self.result.result, "report": report})
+        public = public_simulation_report(self.view(result=result))
+        self.assertEqual(public["abilities"][0]["critPercent"], 100)
+        self.assertEqual(public["abilities"][0]["portion"], 100)
+        self.assertEqual(report["abilities"][0]["critPercent"], 100.00000000000001)
+        self.assertEqual(report["abilities"][0]["portion"], 3.989)
+        for invalid in (100.01, -0.01, float("nan")):
+            report["abilities"][0]["critPercent"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(SimulationApplicationError, "SIMC_RESULT_INVALID"):
+                public_simulation_report(self.view(result=result))
+
     def test_valid_result_returns_only_the_bound_public_provenance(self):
         self.assertEqual(
             validated_simulation_result_provenance(self.view()),

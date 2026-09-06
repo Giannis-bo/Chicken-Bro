@@ -1,6 +1,9 @@
 import unittest
+from dataclasses import replace
+from uuid import uuid4
 from unittest.mock import patch
 
+from server.app.simulation.domain import SimulationJobStatus, SimulationResult
 from tests.app_simc_api_test import build_simc_test_client
 from tests.app_chat_api_test import mini_headers
 
@@ -38,3 +41,34 @@ class WorkbenchApiTest(unittest.TestCase):
             response = self.client.get('/api/v2/simc/runtime', headers=mini_headers())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['version'], '1210-01')
+
+    def test_workbench_preserves_valid_legacy_metric_error_without_expanding_legacy_response(self):
+        snapshot = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json={
+            'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}).json()
+        created = self.client.post('/api/v2/simc/jobs', headers={**mini_headers(), 'Idempotency-Key': 'legacy-error-test'},
+            json={'snapshotId': snapshot['id'], 'scenario': {'iterations': 100}}).json()
+        job = next(iter(self.repository.jobs.values()))
+        source = self.repository.get_snapshot(job.user_id, job.snapshot_id)
+        provenance = {'snapshotId': str(job.snapshot_id), 'sourceRevision': source.provenance['sourceRevision'],
+            'sourceRawSha256': source.raw_sha256, 'profileSha256': 'c' * 64,
+            'compilerRevision': job.compiler_revision, 'runtimeRevision': job.runtime_revision, 'scenarioHash': job.scenario_hash}
+        self.repository.save_job(replace(job, status=SimulationJobStatus.SUCCEEDED))
+        for raw, expected in [(12.5, 12.5), (0, 0), (None, None), (-1, None), (float('inf'), None),
+                              (float('nan'), None), (True, None), ('12.5', None), (10 ** 1000, None)]:
+            with self.subTest(raw=str(raw)[:40]):
+                self.repository.save_result(SimulationResult(id=uuid4(), job_id=job.id, user_id=job.user_id,
+                    profile_sha256='c' * 64, result={'metricName': 'dps', 'metricValue': 12345.0,
+                        'metricError': raw, 'provenance': provenance},
+                    primary_metric_name='dps', primary_metric_value=12345.0,
+                    compiler_revision=job.compiler_revision, runtime_revision=job.runtime_revision,
+                    provenance=provenance, created_at=job.created_at))
+                path = '/api/v2/simc/jobs/' + created['id']
+                legacy = self.client.get(path, headers=mini_headers()).json()
+                self.assertNotIn('metricError', legacy['result'])
+                response = self.client.get(path + '?view=workbench', headers=mini_headers())
+                self.assertEqual(response.status_code, 200, response.text)
+                result = response.json()['result']
+                self.assertIn('metricError', result)
+                self.assertEqual(result['metricError'], expected)
+                self.assertIsNone(result['report'])
+        self.assertEqual(self.client.get(path + '?view=workbench', headers=mini_headers(other=True)).status_code, 404)

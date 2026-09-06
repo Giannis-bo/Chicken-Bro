@@ -18,6 +18,7 @@ from server.app.simulation.application import (
     SimulationJobView,
     validated_simulation_result_provenance,
     public_simulation_report,
+    public_simulation_metric_error,
 )
 from server.app.simulation.domain import SimulationAttempt, SourceSnapshot
 
@@ -134,7 +135,7 @@ def _result_payload(view: SimulationJobView, workbench: bool = False) -> dict[st
     return {
         "id": str(result.id),
         "profileSha256": result.profile_sha256,
-        **({"report": public_simulation_report(view)} if workbench else {}),
+        **({"report": public_simulation_report(view), "metricError": public_simulation_metric_error(view)} if workbench else {}),
         "metricName": result.primary_metric_name,
         "metricValue": result.primary_metric_value,
         "compilerRevision": result.compiler_revision,
