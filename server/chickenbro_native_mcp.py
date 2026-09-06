@@ -224,6 +224,7 @@ def _safe_observation(result, tool_name=TOOL_NAME, *, arguments=None, elapsed_ms
         "tool": tool_name,
         "sourceKey": str(packet.get("sourceKey") or "public_web_research"),
         "status": str(packet.get("status") or "partial"),
+        "errorCode": str(packet.get("errorCode") or "")[:128],
         "reasonCode": str(packet.get("reasonCode") or "")[:80],
         "elapsedMs": max(0, int(elapsed_ms)),
         "factCount": len(packet.get("facts") or []),

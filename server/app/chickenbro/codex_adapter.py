@@ -21,7 +21,7 @@ _AGENT_RULES_PATH = Path(__file__).resolve().parent / "agent" / "AGENTS.md"
 _MAX_AGENT_RULES_BYTES = 32768
 
 
-def _load_profile(profile: str | None) -> dict[str, Any]:
+def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dict[str, Any]:
     if not profile:
         return {}
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", profile):
@@ -46,6 +46,12 @@ def _load_profile(profile: str | None) -> dict[str, Any]:
                 "CHICKENBRO_SIMULATION_GATEWAY_URL",
                 "CHICKENBRO_SIMULATION_GATEWAY_TOKEN",
             ]))
+            if allow_simulation:
+                # Only the application's bounded, account-scoped operations are
+                # pre-authorized. Keep the server default and all other tools.
+                tool_settings = toolbox.setdefault("tools", {})
+                for name in ("prepare_simulation", "submit_simulation"):
+                    tool_settings.setdefault(name, {}).setdefault("approval_mode", "approve")
         return config
     except (OSError, ValueError):
         raise CodexUnavailable() from None
@@ -177,7 +183,8 @@ class NativeCodexChatAdapter:
             raise CodexStreamError("CODEX_OUTPUT_INVALID")
 
         developer_instructions = _load_agent_rules()
-        profile_config = _load_profile(self._profile)
+        profile_config = _load_profile(self._profile, allow_simulation=(
+            self._simulation_gateway is not None and tool_context is not None))
         deadline = time.monotonic() + max(1, int(timeout_seconds))
         try:
             job_dir = self._new_job_dir()

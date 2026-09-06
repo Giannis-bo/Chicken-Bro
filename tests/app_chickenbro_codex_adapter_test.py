@@ -111,6 +111,12 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["env_vars"], [
                 "CHICKENBRO_SOURCE_GATEWAY_TOKEN", "HTTP_PROXY",
                 "CHICKENBRO_SIMULATION_GATEWAY_URL", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"])
+            self.assertNotIn("tools", config["mcp_servers"]["chickenbro_toolbox"])
+            scoped = _load_profile("test", allow_simulation=True)
+            self.assertEqual(scoped["mcp_servers"]["chickenbro_toolbox"]["tools"], {
+                "prepare_simulation": {"approval_mode": "approve"},
+                "submit_simulation": {"approval_mode": "approve"},
+            })
 
     def test_uses_native_app_server_transport(self):
         def popen(command, **kwargs):
