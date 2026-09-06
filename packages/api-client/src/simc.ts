@@ -131,6 +131,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
     options: SimcRequestOptions,
     config: {
       method?: 'GET' | 'POST'
+      timeoutMs?: number
       mutating: boolean
       idempotencyKey?: string
       fallback: () => T
@@ -140,6 +141,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
     return transport.request(workbenchPath(path, options), {
       ...(config.method === undefined ? {} : { method: config.method }),
       ...(data === undefined ? {} : { data }),
+      ...(config.timeoutMs === undefined ? {} : { timeoutMs: config.timeoutMs }),
       header: {
         ...(config.idempotencyKey === undefined
           ? {}
@@ -167,6 +169,8 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
         options,
         {
           method: 'POST',
+          // Source resolution may read a report, identity and character details.
+          timeoutMs: 60000,
           mutating: true,
           fallback: emptySnapshot,
           validate: isSourceSnapshotView,

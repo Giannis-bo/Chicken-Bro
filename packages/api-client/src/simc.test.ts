@@ -21,6 +21,16 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
+  it('allows bounded multi-provider source reads without extending ordinary requests', async () => {
+    const transport = new RecordingTransport()
+    const client = createSimcClient(transport)
+    const auth = { kind: 'web' as const, csrfToken: 'csrf' }
+    await client.createSnapshot({ sourceUrl: 'https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4' }, { auth })
+    await client.listJobs({}, { auth })
+    expect(transport.requests[0]?.options.timeoutMs).toBe(60000)
+    expect(transport.requests[1]?.options.timeoutMs).toBeUndefined()
+  })
+
   it('opts into bounded workbench context and preserves actual scenario options', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)
