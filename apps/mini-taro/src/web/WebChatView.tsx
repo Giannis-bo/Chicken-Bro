@@ -64,7 +64,6 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
               <View className={styles['sideListIntroMascot'] ?? ''} />
               <View>
                 <Text className={styles['sideListIntroTitle'] ?? ''}>历史对话</Text>
-                <Text className={styles['sideListIntroMeta'] ?? ''}>服务端同步</Text>
               </View>
               <button
                 type="button"

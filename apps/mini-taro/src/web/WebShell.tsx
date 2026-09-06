@@ -40,7 +40,6 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
           </View>
           <View className={styles['brandCopy'] ?? ''}>
             <Text className={styles['brandName'] ?? ''}>炸鸡队长来啦</Text>
-            <Text className={styles['brandMeta'] ?? ''}>WOW COMPANION · WEB</Text>
           </View>
           <WebServiceHealth />
         </View>
