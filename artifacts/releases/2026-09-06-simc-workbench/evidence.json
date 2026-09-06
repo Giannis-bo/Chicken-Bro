@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "5536b553f4beecccddf4038c02b7d885107cc676",
+  "commit": "445f98f8d644548595ba671a9d6f9d198613d62f",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "5536b553f4beecccddf4038c02b7d885107cc676"
+      "value": "445f98f8d644548595ba671a9d6f9d198613d62f"
     },
     "verification": {
       "status": "bound_at_check",
@@ -58,13 +58,17 @@
       {
         "id": "giannis_links",
         "status": "pending"
+      },
+      {
+        "id": "tab_reply_continuity",
+        "status": "pending"
       }
     ],
     "rollup": {
-      "total": 8,
+      "total": 9,
       "accepted": 0,
       "notRunUserWaived": 0,
-      "pending": 8
+      "pending": 9
     }
   },
   "scope": [
@@ -353,17 +357,53 @@
       "status": "pass",
       "result": "Pass; existing bundle warnings",
       "sourceCommit": "5536b553f4beecccddf4038c02b7d885107cc676"
+    },
+    {
+      "command": "vitest run apps/mini-taro/src/web apps/mini-taro/src/features/chat/chat-model.test.ts",
+      "status": "pass",
+      "result": "79 tests across 10 files; four new regression tests failed before fix and pass after fix",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "result": "62 tests",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "Pass; no warnings",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing two bundle-size warnings",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "5536b553f4beecccddf4038c02b7d885107cc676",
-    "buildIdentity": "5536b553f4beecccddf4038c02b7d885107cc676",
+    "commit": "445f98f8d644548595ba671a9d6f9d198613d62f",
+    "buildIdentity": "445f98f8d644548595ba671a9d6f9d198613d62f",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
+    "rollbackRelease": "5536b553f4beecccddf4038c02b7d885107cc676",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -411,6 +451,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json",
       "result": "Actual Web placeholder matches user wording exactly; defensive explanation removed; both example links remain visible."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json",
+      "result": "Real reply completed while SimC visible; switching back and reloading both show the complete answer. Simulation draft retained; desktop and 390px layout checked."
     }
   ],
   "risks": [
@@ -449,7 +494,9 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json"
   ],
-  "summary": "Test Web source placeholder uses the exact requested copy and the redundant completeness explanation is removed."
+  "summary": "Test Web keeps visited business panes mounted: active chat reply continues across simulation tab switches. Actual cloud reply completed while hidden and persisted after reload."
 }

@@ -1,0 +1,43 @@
+{
+  "commit": "445f98f8d644548595ba671a9d6f9d198613d62f",
+  "url": "https://www.chickenbro.cloud/test/#/pages/chickenbro/index",
+  "verification": "Actual authenticated test Web session; new conversation at 2026-09-06 17:18 +08:00",
+  "waitingWhileSimcVisible": {
+    "activeView": "simc",
+    "chatHidden": true,
+    "replyPending": true,
+    "statusText": "鸡哥正在处理…"
+  },
+  "completedWhileSimcVisible": {
+    "activeView": "simc",
+    "replyPending": false,
+    "completeAnswerPresent": true,
+    "finalLine": "标签切换验证完成"
+  },
+  "returnedToChat": {
+    "sixParagraphAnswerVisible": true,
+    "finalLineVisible": true
+  },
+  "afterReload": {
+    "completeAnswerPersisted": true,
+    "replyPending": false
+  },
+  "simulationDraftRetainedAcrossSwitches": true,
+  "responsive": {
+    "desktopWidth": 2552,
+    "desktopDocumentWidth": 2552,
+    "narrowWidth": 390,
+    "narrowChatDocumentWidth": 390,
+    "narrowSimcDocumentWidth": 375,
+    "hiddenChatHeight": 0,
+    "returnedChatHeight": 465,
+    "viewportReset": true
+  },
+  "localRegression": {
+    "beforeFix": "4 tests fail: tab switch calls stream.abort and destroys drafts",
+    "afterFix": "4 tests pass; 79 targeted Web/chat tests total; shell removal still aborts"
+  },
+  "limitations": [
+    "Live run covered switching before the first reply text and completion while hidden; mid-stream repeated switches and shell disposal covered by DOM integration tests."
+  ]
+}

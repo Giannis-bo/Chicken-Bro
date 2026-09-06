@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-06T09:10:54.521Z",
+  "generatedAt": "2026-09-06T09:20:56.107Z",
   "release": {
     "date": "2026-09-06",
     "slug": "simc-workbench"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 10215
+          "sizeBytes": 10293
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-    "sizeBytes": 17389,
+    "sizeBytes": 19239,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Test Web source placeholder uses the exact requested copy and the redundant completeness explanation is removed."
+    "summary": "Test Web keeps visited business panes mounted: active chat reply continues across simulation tab switches. Actual cloud reply completed while hidden and persisted after reload."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "3 changed files currently visible to git status."
+      "detail": "6 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -447,11 +447,14 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 3,
+      "changedFileCount": 6,
       "changedFiles": [
         " M artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/source-copy-deployment.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/source-copy-verification.json"
+        " M artifacts/releases/2026-09-06-simc-workbench/requirement.json",
+        " M docs/plans/2026-09-06-simc-workbench.md",
+        " M docs/roadmap.md",
+        "?? artifacts/releases/2026-09-06-simc-workbench/chat-tab-deployment.json",
+        "?? artifacts/releases/2026-09-06-simc-workbench/chat-tab-verification.json"
       ]
     }
   },

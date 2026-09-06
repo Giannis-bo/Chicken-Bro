@@ -3,7 +3,7 @@
   "slug": "simc-workbench",
   "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions. User-provided Giannis mainland Raider.IO and WCL links must import from the actual Web form and finish real cloud simulations.",
+  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions. User-provided Giannis mainland Raider.IO and WCL links must import from the actual Web form and finish real cloud simulations. Keep an active Chat reply running when switching to the simulation tab and restore its current content on return.",
   "userValue": "Understand and reproduce actual cloud simulations from Web while retaining Mini compatibility.",
   "nonGoals": [
     "Production cutover",
@@ -27,7 +27,8 @@
       "server/app/api/routes/simc.py",
       "packages/domain/src/simc.ts",
       "packages/api-client/src/simc.ts",
-      "apps/mini-taro/src/web/WebSimcView.tsx"
+      "apps/mini-taro/src/web/WebSimcView.tsx",
+      "apps/mini-taro/src/web/WebShell.tsx"
     ],
     "mustNotChange": [
       "Identity ownership",
@@ -76,7 +77,8 @@
       "legacy_and_errors",
       "responsive_web",
       "cross_client_owner",
-      "giannis_links"
+      "giannis_links",
+      "tab_reply_continuity"
     ]
   },
   "releaseTrigger": "backend_api",
