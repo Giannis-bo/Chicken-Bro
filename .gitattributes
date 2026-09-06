@@ -1,3 +1,4 @@
 artifacts/ui-runtime-reviews/**/*.json text eol=lf
+*.sh text eol=lf
 artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/*.json text eol=lf
 artifacts/releases/2026-07-30-equipment-simulator-e2e-matrix/universe/official-snapshot/official-client-db2-v1/*.txt text eol=lf
