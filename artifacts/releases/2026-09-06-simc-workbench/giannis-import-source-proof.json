@@ -1,0 +1,85 @@
+[
+  {
+    "kind": "rio",
+    "missing": [],
+    "readiness": "READY_FOR_SIMC",
+    "blockers": [],
+    "character": {
+      "name": "Giannis",
+      "realm": "Silver Hand",
+      "region": "cn",
+      "classKey": "shaman",
+      "specKey": "elemental",
+      "raceKey": "dark_iron_dwarf",
+      "level": 90
+    },
+    "provenance": {
+      "provider": "raiderio",
+      "sourceUrl": "https://raider.io/characters/cn/silver-hand/Giannis",
+      "fetchedAt": "2026-09-06T07:24:23.036578+00:00",
+      "endpoint": "raiderio-character-profile",
+      "raiderioCharacterDetails": {
+        "provider": "raiderio",
+        "endpoint": "https://raider.io/api/characters/cn/silver-hand/Giannis",
+        "characterPath": "/characters/cn/silver-hand/Giannis",
+        "rawSha256": "db7d1fa78069f3569f6bd02d312917b754b2d8bbb4875f683269e0ff30108429",
+        "fields": [
+          "level"
+        ]
+      },
+      "sourceRevision": "2026-09-06T05:23:50.000Z"
+    },
+    "profileSha256": "a09652a4ee8f0453d6f1bb3815ad7d21450914f65f7b7ae5fb528cd8133d0bd6"
+  },
+  {
+    "kind": "wcl",
+    "missing": [],
+    "readiness": "READY_FOR_SIMC",
+    "blockers": [],
+    "character": {
+      "name": "Giannis",
+      "realm": "silver-hand",
+      "region": "cn",
+      "classKey": "shaman",
+      "specKey": "elemental",
+      "level": 90,
+      "raceKey": "dark_iron_dwarf"
+    },
+    "provenance": {
+      "provider": "warcraftlogs",
+      "sourceUrl": "https://www.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+      "reportCode": "CPGWvnJ2t9QMRrA1",
+      "fightId": 1,
+      "actorId": 4,
+      "guid": 109015493,
+      "fetchedAt": "2026-09-06T07:24:25.575734+00:00",
+      "endpoint": "warcraftlogs-report-player-details",
+      "wclCombatantInfo": {
+        "fightId": 1,
+        "actorId": 4,
+        "eventSha256": "30d1a003906e4504adfd50da51574aab3569a8ed6fbb1d972b308b1c1c60cc44",
+        "fields": [
+          "gear",
+          "talents"
+        ]
+      },
+      "raiderioCharacterDetails": {
+        "provider": "raiderio",
+        "endpoint": "https://raider.io/api/characters/cn/silver-hand/Giannis",
+        "characterPath": "/characters/cn/silver-hand/Giannis",
+        "rawSha256": "db7d1fa78069f3569f6bd02d312917b754b2d8bbb4875f683269e0ff30108429",
+        "fields": [
+          "level",
+          "raceKey",
+          "realm"
+        ],
+        "talentsVerifiedAgainstFight": true
+      },
+      "wclCharacterIdentity": {
+        "rawSha256": "f1cb47239c557ca95a0b1d1a84514f3aa8c522997cf9c1c7b4b1576514d8440a"
+      },
+      "sourceRevision": "6"
+    },
+    "profileSha256": "a09652a4ee8f0453d6f1bb3815ad7d21450914f65f7b7ae5fb528cd8133d0bd6"
+  }
+]

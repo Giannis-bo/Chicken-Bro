@@ -3,7 +3,7 @@
   "slug": "simc-workbench",
   "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions.",
+  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions. User-provided Giannis mainland Raider.IO and WCL links must import from the actual Web form and finish real cloud simulations.",
   "userValue": "Understand and reproduce actual cloud simulations from Web while retaining Mini compatibility.",
   "nonGoals": [
     "Production cutover",
@@ -75,7 +75,8 @@
       "engine_versions",
       "legacy_and_errors",
       "responsive_web",
-      "cross_client_owner"
+      "cross_client_owner",
+      "giannis_links"
     ]
   },
   "releaseTrigger": "backend_api",
@@ -86,6 +87,10 @@
     {
       "date": "2026-09-06",
       "decision": "User approved proposed workbench design and isolated test rollout."
+    },
+    {
+      "date": "2026-09-06",
+      "decision": "User requires both provided Giannis links to import and simulate; report actual blockers, never use a different-region character as acceptance."
     }
   ]
 }

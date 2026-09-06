@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "1e8be32135c9be83a61cacb429c1df39f14be117",
+  "commit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "1e8be32135c9be83a61cacb429c1df39f14be117"
+      "value": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
     },
     "verification": {
       "status": "bound_at_check",
@@ -54,13 +54,17 @@
       {
         "id": "cross_client_owner",
         "status": "pending"
+      },
+      {
+        "id": "giannis_links",
+        "status": "pending"
       }
     ],
     "rollup": {
-      "total": 7,
+      "total": 8,
       "accepted": 0,
       "notRunUserWaived": 0,
-      "pending": 7
+      "pending": 8
     }
   },
   "scope": [
@@ -229,18 +233,66 @@
       "status": "pass",
       "result": "42 files staged atomic promotion; existing bundle warning",
       "sourceCommit": "1e8be32135c9be83a61cacb429c1df39f14be117"
+    },
+    {
+      "command": "npm run test:backend",
+      "status": "pass",
+      "result": "372 tests pass in existing cloud environment",
+      "sourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "result": "199 tests pass; explicit CN URL and snapshot timeout regression coverage",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing bundle warnings",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "result": "42 files staged atomic promotion; existing bundle warning",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
+    },
+    {
+      "command": "source diff review",
+      "status": "pass",
+      "result": "Identity, per-fight event selection, exact talent equivalence, source hashes and old snapshots reviewed",
+      "sourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
+    },
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "result": "62 tests pass after source disposition and acceptance updates",
+      "sourceCommit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "1e8be32135c9be83a61cacb429c1df39f14be117",
-    "buildIdentity": "1e8be32135c9be83a61cacb429c1df39f14be117",
+    "commit": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
+    "buildIdentity": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\cn-link-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-final-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee",
-    "backendSourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    "rollbackRelease": "1e8be32135c9be83a61cacb429c1df39f14be117",
+    "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
     {
@@ -267,14 +319,20 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\cn-link-verification.json",
       "result": "CN WCL validation bug fixed and actual browser read reaches Giannis incomplete snapshot. Raider.IO missing level reproduced. Neither example can currently simulate."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json",
+      "result": "Both user-provided Giannis links entered in real Web UI. Raider.IO job b1807708-ad52-48f7-adcd-4d501f5d2f20 and WCL job 7e2c4903-6de4-4049-a0f6-ea7f36118af3 succeeded with positive validated reports and identical compiled profile hashes. Both completed tasks visible in task list."
     }
   ],
   "risks": [
     "Real Mini/Web user acceptance and second-user manual checks remain pending.",
     "Historical jobs retain only actually recorded fields; detailed skills and runtime version cannot be reconstructed.",
-    "Giannis examples resolve identity but remain INCOMPLETE_FOR_SIMC; WCL detailed data ingestion and verified level enrichment remain unresolved."
+    "WCL import requires recorded talent selections to match a verified export from the same character; changed or unavailable exports remain incomplete. Current level/race enrichment is source-attributed, not reconstructed historical identity."
   ],
   "rollback": [
+    "For the Giannis source change restore retained test release 1e8be32135c9be83a61cacb429c1df39f14be117 and restart test API/Worker; no schema change.",
     "Atomically restore /opt/chickenbro-test/current to retained release 5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da and restart test API/Worker. No schema or data migration.",
     "Previous releases retained; deployment rollback handler prepared. A forced rollback drill was not performed."
   ],
@@ -294,7 +352,11 @@
     "artifacts/releases/2026-09-06-simc-workbench/source-examples-verification.json",
     "artifacts/releases/2026-09-06-simc-workbench/source-examples-character.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\cn-link-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\cn-link-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\cn-link-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-import-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-import-source-proof.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-final-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json"
   ],
-  "summary": "CN WCL client rejection fixed on isolated test site. Both example snapshots remain incomplete; no claim of executable Giannis simulation."
+  "summary": "Both provided Giannis mainland links imported and completed actual cloud simulations through test Web. Current specific inputs have no import blocker. Manual acceptance, main integration and production cutover remain pending."
 }
