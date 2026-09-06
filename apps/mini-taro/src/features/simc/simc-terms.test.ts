@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { simcLabel, simcResourceName, simcSpellName } from './simc-terms'
+import elementalReport from '../../../../../tests/fixtures/simc/giannis_elemental_report.json'
 
 describe('mainland Chinese SimC terminology', () => {
+  it('names every ability and buff in the real Giannis elemental report', () => {
+    const unresolved = [
+      ...elementalReport.abilities.map((entry, index) => ({ raw: entry.name, label: simcSpellName(entry.name, '技能', index) })),
+      ...elementalReport.buffs.map((entry, index) => ({ raw: entry.name, label: simcSpellName(entry.name, '增益', index) })),
+    ].filter(({ label }) => label.includes('待收录') || /[A-Za-z]/u.test(label))
+    expect(unresolved).toEqual([])
+  })
+  it('distinguishes player, ancestor, elemental pets and different stat effects', () => {
+    expect(simcSpellName('lava_burst', '技能', 0)).toBe('熔岩爆裂')
+    expect(simcSpellName('ancestor: lava_burst', '技能', 0)).toBe('先祖：熔岩爆裂')
+    expect(simcSpellName('primal_fire_elemental: fire_blast', '技能', 0)).toBe('原始火元素：火焰冲击')
+    expect(simcSpellName('primal_storm_elemental: wind_gust', '技能', 0)).toBe('原始风暴元素：呼啸狂风')
+    expect(simcSpellName('elemental_blast_critical_strike', '增益', 0)).toBe('元素冲击：爆击')
+    expect(simcSpellName('debilitating_venom_Crit', '增益', 0)).toBe('衰弱毒液（爆击）')
+    expect(simcSpellName('empowering_venom_Vers', '增益', 0)).toBe('强化毒液（全能）')
+  })
   it('keeps the fury specialization distinct from the demon hunter resource', () => {
     expect(simcLabel('fury')).toBe('狂怒')
     expect(simcResourceName('fury')).toBe('恶魔之怒')

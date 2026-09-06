@@ -17,6 +17,7 @@ vi.mock('@tarojs/components', async () => {
 })
 
 import WebSimcView from './WebSimcView'
+import elementalReport from '../../../../tests/fixtures/simc/giannis_elemental_report.json'
 
 const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
 const actor = { name: '测试萨满', className: 'shaman', specialization: 'elemental', level: 90, race: 'orc' }
@@ -83,6 +84,21 @@ describe('Web SimC workbench', () => {
     await click('模拟任务')
     await act(async () => container.querySelector<HTMLButtonElement>('[data-job-id="job-completed"]')!.click())
   }
+
+  it('renders the real elemental report with named skills and buffs while preserving its metrics', async () => {
+    const before = JSON.stringify(elementalReport)
+    api.getJob.mockResolvedValue(success({ ...job, character: elementalReport.actor,
+      result: { ...job.result, metricValue: elementalReport.metric.value, report: elementalReport } }))
+    await openReport()
+    expect(container.textContent).not.toContain('待收录')
+    expect(container.textContent).toContain('先祖：熔岩爆裂')
+    expect(container.textContent).toContain('原始风暴元素：风暴怒火')
+    expect(container.textContent).toContain('元素奔涌')
+    expect(container.textContent).toContain('过载！')
+    expect(container.textContent).toContain('227,723.91')
+    expect(container.textContent).toContain('4,070,169.42')
+    expect(JSON.stringify(elementalReport)).toBe(before)
+  })
 
   it('separates setup, tasks and the report while retaining the current engine version', async () => {
     expect(button('新建模拟').getAttribute('aria-current')).toBe('page')

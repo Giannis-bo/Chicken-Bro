@@ -1,0 +1,266 @@
+{
+  "sourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "gameBuild": "12.1.0.69299",
+  "retrievedAt": "2026-09-06T11:24:47.185024+00:00",
+  "sourceCode": [
+    "engine/class_modules/sc_shaman.cpp",
+    "engine/player/unique_gear_midnight.cpp",
+    "engine/dbc/generated/sc_spell_data.inc"
+  ],
+  "records": [
+    {
+      "token": "elemental_blast",
+      "spellId": 117014,
+      "source": "https://nether.wowhead.com/tooltip/spell/117014?dataEnv=1&locale=4",
+      "zhCN": "元素冲击"
+    },
+    {
+      "token": "lava_burst",
+      "spellId": 51505,
+      "source": "https://nether.wowhead.com/tooltip/spell/51505?dataEnv=1&locale=4",
+      "zhCN": "熔岩爆裂"
+    },
+    {
+      "token": "ancestor: lava_burst",
+      "spellId": 447419,
+      "source": "https://nether.wowhead.com/tooltip/spell/447419?dataEnv=1&locale=4",
+      "npcId": 221177,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/221177?dataEnv=1&locale=4",
+      "zhCN": "先祖：熔岩爆裂"
+    },
+    {
+      "token": "ancestor: elemental_blast",
+      "spellId": 465717,
+      "source": "https://nether.wowhead.com/tooltip/spell/465717?dataEnv=1&locale=4",
+      "npcId": 221177,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/221177?dataEnv=1&locale=4",
+      "zhCN": "先祖：元素冲击"
+    },
+    {
+      "token": "primal_fire_elemental: fire_blast",
+      "spellId": 57984,
+      "source": "https://nether.wowhead.com/tooltip/spell/57984?dataEnv=1&locale=4",
+      "npcId": 61029,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/61029?dataEnv=1&locale=4",
+      "zhCN": "原始火元素：火焰冲击"
+    },
+    {
+      "token": "primal_storm_elemental: stormfury",
+      "spellId": 157375,
+      "source": "https://nether.wowhead.com/tooltip/spell/157375?dataEnv=1&locale=4",
+      "npcId": 77942,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/77942?dataEnv=1&locale=4",
+      "zhCN": "原始风暴元素：风暴怒火"
+    },
+    {
+      "token": "primal_storm_elemental: wind_gust",
+      "spellId": 157331,
+      "source": "https://nether.wowhead.com/tooltip/spell/157331?dataEnv=1&locale=4",
+      "npcId": 77942,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/77942?dataEnv=1&locale=4",
+      "zhCN": "原始风暴元素：呼啸狂风"
+    },
+    {
+      "token": "primal_fire_elemental: meteor",
+      "spellId": 117588,
+      "source": "https://nether.wowhead.com/tooltip/spell/117588?dataEnv=1&locale=4",
+      "npcId": 61029,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/61029?dataEnv=1&locale=4",
+      "zhCN": "原始火元素：流星"
+    },
+    {
+      "token": "primal_fire_elemental: immolate",
+      "spellId": 118297,
+      "source": "https://nether.wowhead.com/tooltip/spell/118297?dataEnv=1&locale=4",
+      "npcId": 61029,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/61029?dataEnv=1&locale=4",
+      "zhCN": "原始火元素：献祭"
+    },
+    {
+      "token": "primal_storm_elemental: call_lightning",
+      "spellId": 157348,
+      "source": "https://nether.wowhead.com/tooltip/spell/157348?dataEnv=1&locale=4",
+      "npcId": 77942,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/77942?dataEnv=1&locale=4",
+      "zhCN": "原始风暴元素：召唤闪电"
+    },
+    {
+      "token": "ancestral_swiftness",
+      "spellId": 443454,
+      "source": "https://nether.wowhead.com/tooltip/spell/443454?dataEnv=1&locale=4",
+      "zhCN": "先祖迅捷"
+    },
+    {
+      "token": "call_of_the_ancestors",
+      "spellId": 447244,
+      "source": "https://nether.wowhead.com/tooltip/spell/447244?dataEnv=1&locale=4",
+      "zhCN": "先祖的召唤"
+    },
+    {
+      "token": "elemental_blast_critical_strike",
+      "spellId": 118522,
+      "source": "https://nether.wowhead.com/tooltip/spell/118522?dataEnv=1&locale=4",
+      "zhCN": "元素冲击：爆击"
+    },
+    {
+      "token": "elemental_blast_haste",
+      "spellId": 173183,
+      "source": "https://nether.wowhead.com/tooltip/spell/173183?dataEnv=1&locale=4",
+      "zhCN": "元素冲击：急速"
+    },
+    {
+      "token": "elemental_blast_mastery",
+      "spellId": 173184,
+      "source": "https://nether.wowhead.com/tooltip/spell/173184?dataEnv=1&locale=4",
+      "zhCN": "元素冲击：精通"
+    },
+    {
+      "token": "fire_elemental",
+      "spellId": 188592,
+      "source": "https://nether.wowhead.com/tooltip/spell/188592?dataEnv=1&locale=4",
+      "zhCN": "火元素"
+    },
+    {
+      "token": "fireblood",
+      "spellId": 265226,
+      "source": "https://nether.wowhead.com/tooltip/spell/265226?dataEnv=1&locale=4",
+      "zhCN": "烈焰之血"
+    },
+    {
+      "token": "flowing_elements",
+      "spellId": 1300219,
+      "source": "https://nether.wowhead.com/tooltip/spell/1300219?dataEnv=1&locale=4",
+      "zhCN": "元素奔涌"
+    },
+    {
+      "token": "lava_surge",
+      "spellId": 77762,
+      "source": "https://nether.wowhead.com/tooltip/spell/77762?dataEnv=1&locale=4",
+      "zhCN": "熔岩奔腾"
+    },
+    {
+      "token": "lights_potential",
+      "spellId": 1236616,
+      "source": "https://nether.wowhead.com/tooltip/spell/1236616?dataEnv=1&locale=4",
+      "zhCN": "圣光潜力"
+    },
+    {
+      "token": "master_of_the_elements",
+      "spellId": 260734,
+      "source": "https://nether.wowhead.com/tooltip/spell/260734?dataEnv=1&locale=4",
+      "zhCN": "元素宗师"
+    },
+    {
+      "token": "overcharge_tier",
+      "spellId": 1300222,
+      "source": "https://nether.wowhead.com/tooltip/spell/1300222?dataEnv=1&locale=4",
+      "zhCN": "过载！"
+    },
+    {
+      "token": "purging_flames",
+      "spellId": 1259491,
+      "source": "https://nether.wowhead.com/tooltip/spell/1259491?dataEnv=1&locale=4",
+      "zhCN": "净化烈焰"
+    },
+    {
+      "token": "storm_elemental",
+      "spellId": 157299,
+      "source": "https://nether.wowhead.com/tooltip/spell/157299?dataEnv=1&locale=4",
+      "zhCN": "风暴元素"
+    },
+    {
+      "token": "stormkeeper",
+      "spellId": 191634,
+      "source": "https://nether.wowhead.com/tooltip/spell/191634?dataEnv=1&locale=4",
+      "zhCN": "风暴守护者"
+    },
+    {
+      "token": "tidal_insight",
+      "spellId": 1295057,
+      "source": "https://nether.wowhead.com/tooltip/spell/1295057?dataEnv=1&locale=4",
+      "zhCN": "潮汐洞察"
+    },
+    {
+      "token": "wind_gust",
+      "spellId": 263806,
+      "source": "https://nether.wowhead.com/tooltip/spell/263806?dataEnv=1&locale=4",
+      "zhCN": "呼啸狂风"
+    },
+    {
+      "token": "call_lightning",
+      "spellId": 157348,
+      "source": "https://nether.wowhead.com/tooltip/spell/157348?dataEnv=1&locale=4",
+      "zhCN": "召唤闪电"
+    },
+    {
+      "token": "flask_of_the_magisters",
+      "spellId": 1235108,
+      "source": "https://nether.wowhead.com/tooltip/spell/1235108?dataEnv=1&locale=4",
+      "zhCN": "魔导师合剂"
+    },
+    {
+      "token": "debilitating_venom_crit",
+      "spellId": 1295123,
+      "source": "https://nether.wowhead.com/tooltip/spell/1295123?dataEnv=1&locale=4",
+      "qualifier": "爆击",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "衰弱毒液（爆击）"
+    },
+    {
+      "token": "debilitating_venom_haste",
+      "spellId": 1295123,
+      "source": "https://nether.wowhead.com/tooltip/spell/1295123?dataEnv=1&locale=4",
+      "qualifier": "急速",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "衰弱毒液（急速）"
+    },
+    {
+      "token": "debilitating_venom_mastery",
+      "spellId": 1295123,
+      "source": "https://nether.wowhead.com/tooltip/spell/1295123?dataEnv=1&locale=4",
+      "qualifier": "精通",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "衰弱毒液（精通）"
+    },
+    {
+      "token": "debilitating_venom_vers",
+      "spellId": 1295123,
+      "source": "https://nether.wowhead.com/tooltip/spell/1295123?dataEnv=1&locale=4",
+      "qualifier": "全能",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "衰弱毒液（全能）"
+    },
+    {
+      "token": "empowering_venom_crit",
+      "spellId": 1293316,
+      "source": "https://nether.wowhead.com/tooltip/spell/1293316?dataEnv=1&locale=4",
+      "qualifier": "爆击",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "强化毒液（爆击）"
+    },
+    {
+      "token": "empowering_venom_haste",
+      "spellId": 1293316,
+      "source": "https://nether.wowhead.com/tooltip/spell/1293316?dataEnv=1&locale=4",
+      "qualifier": "急速",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "强化毒液（急速）"
+    },
+    {
+      "token": "empowering_venom_mastery",
+      "spellId": 1293316,
+      "source": "https://nether.wowhead.com/tooltip/spell/1293316?dataEnv=1&locale=4",
+      "qualifier": "精通",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "强化毒液（精通）"
+    },
+    {
+      "token": "empowering_venom_vers",
+      "spellId": 1293316,
+      "source": "https://nether.wowhead.com/tooltip/spell/1293316?dataEnv=1&locale=4",
+      "qualifier": "全能",
+      "qualifierSource": "engine/player/unique_gear_midnight.cpp: create_all_stat_buffs; independent secondary-stat effects",
+      "zhCN": "强化毒液（全能）"
+    }
+  ]
+}

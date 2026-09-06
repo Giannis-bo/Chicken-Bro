@@ -1,0 +1,467 @@
+{
+  "gear": [
+    {
+      "slot": "head",
+      "itemId": 271483,
+      "itemLevel": 321.0
+    },
+    {
+      "slot": "neck",
+      "itemId": 251234,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "shoulders",
+      "itemId": 249977,
+      "itemLevel": 289.0
+    },
+    {
+      "slot": "chest",
+      "itemId": 271486,
+      "itemLevel": 321.0
+    },
+    {
+      "slot": "waist",
+      "itemId": 244581,
+      "itemLevel": 331.0
+    },
+    {
+      "slot": "legs",
+      "itemId": 271482,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "feet",
+      "itemId": 159388,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "wrists",
+      "itemId": 159380,
+      "itemLevel": 321.0
+    },
+    {
+      "slot": "hands",
+      "itemId": 271484,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "finger1",
+      "itemId": 158366,
+      "itemLevel": 321.0
+    },
+    {
+      "slot": "finger2",
+      "itemId": 251136,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "trinket1",
+      "itemId": 273796,
+      "itemLevel": 321.0
+    },
+    {
+      "slot": "trinket2",
+      "itemId": 270167,
+      "itemLevel": 308.0
+    },
+    {
+      "slot": "back",
+      "itemId": 251132,
+      "itemLevel": 311.0
+    },
+    {
+      "slot": "main_hand",
+      "itemId": 245770,
+      "itemLevel": 331.0
+    }
+  ],
+  "actor": {
+    "name": "Giannis",
+    "race": "dark_iron_dwarf",
+    "level": 90,
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMGjZZbZMmhZAAAAgFzsBDYAzGTIzCAMbzMzYssYajZmtxyMPwMjhFLzMLDjZmFAgZAwMjhhB",
+    "className": "Shaman",
+    "specialization": "Elemental"
+  },
+  "buffs": [
+    {
+      "name": "ancestral_swiftness",
+      "uptime": 2.0194846603732226
+    },
+    {
+      "name": "arcanoweave_insight",
+      "uptime": 44.19334770871888
+    },
+    {
+      "name": "ascendance",
+      "uptime": 25.35634016133515
+    },
+    {
+      "name": "bloodlust",
+      "uptime": 67.61690709689375
+    },
+    {
+      "name": "call_of_the_ancestors",
+      "uptime": 72.43690011991617
+    },
+    {
+      "name": "critical_ritual",
+      "uptime": 16.567509612482247
+    },
+    {
+      "name": "debilitating_venom_Crit",
+      "uptime": 6.773663962936267
+    },
+    {
+      "name": "debilitating_venom_Haste",
+      "uptime": 5.19645286388436
+    },
+    {
+      "name": "debilitating_venom_Mastery",
+      "uptime": 6.689875876243993
+    },
+    {
+      "name": "debilitating_venom_Vers",
+      "uptime": 6.696347458270532
+    },
+    {
+      "name": "elemental_blast_critical_strike",
+      "uptime": 81.42623635774734
+    },
+    {
+      "name": "elemental_blast_haste",
+      "uptime": 80.4789824906119
+    },
+    {
+      "name": "elemental_blast_mastery",
+      "uptime": 81.35453067591152
+    },
+    {
+      "name": "empowering_venom_Crit",
+      "uptime": 6.844319218338239
+    },
+    {
+      "name": "empowering_venom_Haste",
+      "uptime": 5.766450677628031
+    },
+    {
+      "name": "empowering_venom_Mastery",
+      "uptime": 6.2385310422828555
+    },
+    {
+      "name": "empowering_venom_Vers",
+      "uptime": 6.507039223086028
+    },
+    {
+      "name": "fire_elemental",
+      "uptime": 33.80845354844688
+    },
+    {
+      "name": "fireblood",
+      "uptime": 13.523381419378751
+    },
+    {
+      "name": "flowing_elements",
+      "uptime": 19.36621302635928
+    },
+    {
+      "name": "hasty_ritual",
+      "uptime": 16.61307510704597
+    },
+    {
+      "name": "lava_surge",
+      "uptime": 11.892587160955465
+    },
+    {
+      "name": "lights_potential",
+      "uptime": 50.7126803226703
+    },
+    {
+      "name": "master_of_the_elements",
+      "uptime": 35.127703381756454
+    },
+    {
+      "name": "masterful_ritual",
+      "uptime": 14.010821702484323
+    },
+    {
+      "name": "overcharge_tier",
+      "uptime": 15.553190192494322
+    },
+    {
+      "name": "purging_flames",
+      "uptime": 27.29289837103689
+    },
+    {
+      "name": "storm_elemental",
+      "uptime": 33.04109379429108
+    },
+    {
+      "name": "stormkeeper",
+      "uptime": 12.90934871649323
+    },
+    {
+      "name": "tidal_insight",
+      "uptime": 82.00055304698965
+    },
+    {
+      "name": "versatile_ritual",
+      "uptime": 15.138037140297875
+    },
+    {
+      "name": "wind_gust",
+      "uptime": 26.541717278484768
+    },
+    {
+      "name": "call_lightning",
+      "uptime": 83.97018612626158
+    },
+    {
+      "name": "arcane_intellect",
+      "uptime": 100.0
+    },
+    {
+      "name": "battle_shout",
+      "uptime": 100.0
+    },
+    {
+      "name": "blessing_of_the_bronze",
+      "uptime": 100.0
+    },
+    {
+      "name": "flask_of_the_magisters",
+      "uptime": 100.0
+    },
+    {
+      "name": "lightning_shield",
+      "uptime": 100.0
+    },
+    {
+      "name": "mark_of_the_wild",
+      "uptime": 100.0
+    },
+    {
+      "name": "power_word_fortitude",
+      "uptime": 100.0
+    },
+    {
+      "name": "skyfury",
+      "uptime": 100.0
+    },
+    {
+      "name": "voidtouched",
+      "uptime": 100.0
+    },
+    {
+      "name": "well_fed",
+      "uptime": 100.0
+    }
+  ],
+  "engine": {
+    "build": "69299",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69299"
+  },
+  "metric": {
+    "name": "dps",
+    "error": 2284.5543282722847,
+    "value": 227723.910084102
+  },
+  "abilities": [
+    {
+      "name": "elemental_blast",
+      "amount": 4070169.418281406,
+      "portion": 30.007610550709657,
+      "executions": 9.989966555183946,
+      "critPercent": 52.36646382691007
+    },
+    {
+      "name": "lava_burst",
+      "amount": 2520985.637036667,
+      "portion": 18.586144070649283,
+      "executions": 15.622073578595318,
+      "critPercent": 100.0
+    },
+    {
+      "name": "lightning_bolt",
+      "amount": 2483908.33124837,
+      "portion": 18.312789023715,
+      "executions": 24.123745819397993,
+      "critPercent": 64.66648060284678
+    },
+    {
+      "name": "ancestor: lava_burst",
+      "amount": 2012446.4747035874,
+      "portion": 14.836903298377301,
+      "executions": 68.0200668896321,
+      "critPercent": 100.0
+    },
+    {
+      "name": "primal_fire_elemental: fire_blast",
+      "amount": 691644.239566396,
+      "portion": 5.099195843625003,
+      "executions": 10.434782608695652,
+      "critPercent": 41.73076923076923
+    },
+    {
+      "name": "flame_shock",
+      "amount": 364730.94003602077,
+      "portion": 2.689004530188931,
+      "executions": 5.4280936454849495,
+      "critPercent": 53.58822636929146
+    },
+    {
+      "name": "primal_storm_elemental: stormfury",
+      "amount": 296086.7867986502,
+      "portion": 2.1829206783280415,
+      "executions": 1.9966555183946488,
+      "critPercent": 47.41705165896682
+    },
+    {
+      "name": "voltaic_blaze",
+      "amount": 275121.05564454437,
+      "portion": 2.02834934953826,
+      "executions": 4.474916387959866,
+      "critPercent": 100.0
+    },
+    {
+      "name": "ancestor: elemental_blast",
+      "amount": 237935.46752710716,
+      "portion": 1.754195983509995,
+      "executions": 8.752508361204013,
+      "critPercent": 38.86953155245838
+    },
+    {
+      "name": "primal_storm_elemental: wind_gust",
+      "amount": 167919.33936867275,
+      "portion": 1.237997149965122,
+      "executions": 6.7558528428093645,
+      "critPercent": 37.336683417085425
+    },
+    {
+      "name": "ascendance",
+      "amount": 165167.10729179435,
+      "portion": 1.217706125238439,
+      "executions": 1.0,
+      "critPercent": null
+    },
+    {
+      "name": "primal_fire_elemental: meteor",
+      "amount": 109926.11398229725,
+      "portion": 0.8104380134442927,
+      "executions": 1.0,
+      "critPercent": 36.12040133779264
+    },
+    {
+      "name": "primal_fire_elemental: immolate",
+      "amount": 106495.70949715233,
+      "portion": 0.7851471148985754,
+      "executions": 1.0,
+      "critPercent": 39.19783464566928
+    },
+    {
+      "name": "primal_storm_elemental: call_lightning",
+      "amount": 61253.84278403389,
+      "portion": 0.451598267812105,
+      "executions": 1.9966555183946488,
+      "critPercent": 38.52596314907873
+    }
+  ],
+  "resources": [
+    {
+      "lost": 388.2943143812709,
+      "name": "maelstrom",
+      "gained": 444.29042904290424
+    },
+    {
+      "lost": 15118.729096989966,
+      "name": "mana",
+      "gained": 15001.095709570996
+    }
+  ],
+  "attributes": [
+    {
+      "name": "strength",
+      "value": 269.0
+    },
+    {
+      "name": "agility",
+      "value": 618.0
+    },
+    {
+      "name": "stamina",
+      "value": 43956.0
+    },
+    {
+      "name": "intellect",
+      "value": 3248.0
+    },
+    {
+      "name": "spell_power",
+      "value": 3248.0
+    },
+    {
+      "name": "attack_power",
+      "value": 648.0
+    },
+    {
+      "name": "crit_rating",
+      "value": 1243.0
+    },
+    {
+      "name": "crit_pct",
+      "value": 32.02173913043478
+    },
+    {
+      "name": "haste_rating",
+      "value": 699.0
+    },
+    {
+      "name": "haste_pct",
+      "value": 19.362954545454535
+    },
+    {
+      "name": "mastery_rating",
+      "value": 924.0
+    },
+    {
+      "name": "mastery_pct",
+      "value": 62.03804347826086
+    },
+    {
+      "name": "versatility_rating",
+      "value": 119.0
+    },
+    {
+      "name": "versatility_pct",
+      "value": 5.203703703703703
+    },
+    {
+      "name": "avoidance_rating",
+      "value": 167.0
+    },
+    {
+      "name": "avoidance_pct",
+      "value": 4.537978699848076
+    },
+    {
+      "name": "speed_rating",
+      "value": 53.0
+    },
+    {
+      "name": "manareg_per_second",
+      "value": 2560.0
+    },
+    {
+      "name": "armor",
+      "value": 1483.0
+    }
+  ],
+  "statistics": {
+    "iterations": 299,
+    "elapsedSeconds": 0.125439575,
+    "fightLengthSeconds": 59.96472240802676
+  },
+  "schemaVersion": 1
+}
