@@ -167,10 +167,9 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
                 <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
             <div className={styles['sourceExamples']} aria-label="合法链接格式示例">
-              <p className={styles['hint']}>链接格式示例 · Giannis－白银之手</p>
-              <div><span className={styles['exampleLabel']}>角色评分（Raider.IO）</span>
+              <div><span className={styles['exampleLabel']}>Raider.IO 链接格式参考：</span>
                 <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
-              <div><span className={styles['exampleLabel']}>战斗日志（WCL，已指定战斗和角色）</span>
+              <div><span className={styles['exampleLabel']}>WCL 链接参考格式参考：</span>
                 <a className={styles['exampleLink']} href="https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4" target="_blank" rel="noreferrer">https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&amp;source=4</a></div>
             </div>
             {snapshotCurrent ? <div className={styles['snapshot']} data-readiness={snapshot.readiness}>

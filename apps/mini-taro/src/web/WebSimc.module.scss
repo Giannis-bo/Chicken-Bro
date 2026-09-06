@@ -226,6 +226,6 @@
 @media (prefers-reduced-motion: reduce) { .workbench [data-simc-button] { transition: none; } }
 
 .sourceExamples { display: grid; gap: 9px; margin-top: 12px; font-size: 12px; line-height: 1.7; }
-.exampleLabel { display: block; color: var(--simc-muted); font-size: 11px; }
-.exampleLink { display: inline-block; max-width: 100%; color: var(--simc-accent); overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
+.exampleLabel { color: var(--simc-muted); }
+.exampleLink { color: var(--simc-accent); overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
 .exampleLink:focus-visible { outline: 2px solid var(--simc-accent); outline-offset: 3px; border-radius: 2px; }
