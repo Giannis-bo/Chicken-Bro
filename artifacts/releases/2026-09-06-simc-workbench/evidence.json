@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "445f98f8d644548595ba671a9d6f9d198613d62f",
+  "commit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "445f98f8d644548595ba671a9d6f9d198613d62f"
+      "value": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
     },
     "verification": {
       "status": "bound_at_check",
@@ -393,17 +393,47 @@
       "status": "pass",
       "result": "Pass",
       "sourceCommit": "445f98f8d644548595ba671a9d6f9d198613d62f"
+    },
+    {
+      "command": "vitest run apps/mini-taro/src/web/web-simc-workbench.test.tsx",
+      "status": "pass",
+      "result": "22 tests pass; current and unavailable runtime copy assertions updated",
+      "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing two bundle warnings",
+      "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "Pass",
+      "sourceCommit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "445f98f8d644548595ba671a9d6f9d198613d62f",
-    "buildIdentity": "445f98f8d644548595ba671a9d6f9d198613d62f",
+    "commit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
+    "buildIdentity": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\simc-heading-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "5536b553f4beecccddf4038c02b7d885107cc676",
+    "rollbackRelease": "30ddc6cbd170f2aa76f87e38ccf99e9e89a6fcdc",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -456,6 +486,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json",
       "result": "Real reply completed while SimC visible; switching back and reloading both show the complete answer. Simulation draft retained; desktop and 390px layout checked."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json",
+      "result": "SIMC heading and actual SIMC 1210-01 shown; cloud eyebrow removed; both requested inline link labels present and character example heading removed. Links wrap at 390px."
     }
   ],
   "risks": [
@@ -496,7 +531,10 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\chat-tab-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\example-inline-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\simc-heading-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json"
   ],
-  "summary": "Test Web keeps visited business panes mounted: active chat reply continues across simulation tab switches. Actual cloud reply completed while hidden and persisted after reload."
+  "summary": "Test Web source examples use two inline label/link rows. Page title and engine card use SIMC; redundant cloud wording removed."
 }

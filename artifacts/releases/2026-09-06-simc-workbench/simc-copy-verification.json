@@ -1,0 +1,22 @@
+{
+  "commit": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
+  "verification": "Authenticated test Web DOM after reload",
+  "heading": "SIMC",
+  "engine": "SIMC 1210-01",
+  "gameVersion": "12.1.0.69299",
+  "cloudEyebrowRemoved": true,
+  "cloudEngineSubtitleRemoved": true,
+  "examples": {
+    "rows": 2,
+    "labels": [
+      "Raider.IO 链接格式参考：",
+      "WCL 链接参考格式参考："
+    ],
+    "characterHeadingRemoved": true,
+    "urlsUnchanged": true,
+    "desktopInlineVerified": true,
+    "narrowWidth": 390,
+    "narrowDocumentWidth": 375,
+    "narrowWrapVerifiedOnCommit": "30ddc6cbd170f2aa76f87e38ccf99e9e89a6fcdc"
+  }
+}
