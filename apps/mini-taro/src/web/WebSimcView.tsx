@@ -163,11 +163,10 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
           <section className={styles['card']}>
             <div className={styles['sectionHeading']}><h3><span className={styles['step']}>01</span>角色来源</h3><span>从链接读取角色</span></div>
             <label data-simc-label="" className={styles['field']}><span>角色评分或战斗日志链接</span>
-              <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="粘贴角色或战斗报告的安全链接" onChange={(event) => setSourceUrl(event.target.value)} />
+              <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="仅接收 Raider.IO 或者 WCL 的合法链接，请参考示例" onChange={(event) => setSourceUrl(event.target.value)} />
                 <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
             <div className={styles['sourceExamples']} aria-label="合法链接格式示例">
-              <p className={styles['hint']}>链接有效不代表资料完整。网站未提供等级、种族、装备或天赋时，仍无法开始模拟；读取后会列出具体缺项。</p>
               <p className={styles['hint']}>链接格式示例 · Giannis－白银之手</p>
               <div><span className={styles['exampleLabel']}>角色评分（Raider.IO）</span>
                 <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
