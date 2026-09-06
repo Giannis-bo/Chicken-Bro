@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-simc-tools",
+  "requirementSlug": "chickenbro-simc-tools",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/chickenbro-simc-tools",
+  "commit": "5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "chickenbro-test-simc-5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "New SimC user acceptance and branch integration pending."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "Awaiting user test of on-demand Chat SimC. Prior research acceptance is recorded separately.",
+    "items": [
+      {
+        "id": "chat_on_demand_simc",
+        "status": "pending",
+        "evidence": "Agent is verifying actual test Web Chat and same-account SimC list."
+      }
+    ],
+    "rollup": {
+      "total": 1,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 1
+    }
+  },
+  "scope": [
+    "chickenbro_chat",
+    "simc"
+  ],
+  "verification": [
+    {
+      "command": "test:backend module list on /opt/chickenbro-runtime/bin/python",
+      "status": "pass",
+      "summary": "336 tests passed from exact final source commit in isolated cloud validation directory; no dependencies installed."
+    },
+    {
+      "command": "Node 23 --test test:control module list",
+      "status": "pass",
+      "summary": "62 tests passed."
+    },
+    {
+      "command": "independent local source review and targeted regression",
+      "status": "pass",
+      "summary": "Reviewer identified scenario follow-up gap; fixed and 118 tests passed, final review 65 tests passed. Real deployment exposed per-tool approval policy, corrected with 29 regression tests."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Source commit check passed."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "buildIdentity": "chickenbro-test-simc-5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da",
+    "commit": "5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da",
+    "environment": "test",
+    "manifest": "artifacts/releases/2026-09-06-chickenbro-simc-tools/test-deployment.json",
+    "smoke": {
+      "status": "pass",
+      "summary": "Test API/worker use compiler v2 and enhancement support on existing managed SimC binary. Production untouched."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "No async sync/backfill added."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "native_chat_simulation",
+      "status": "pass",
+      "evidence": "artifacts/releases/2026-09-06-chickenbro-simc-tools/evaluation-results.json",
+      "summary": "Existing test Web Chat, native Astra/high, 179.414 seconds: prepared real Drakthul snapshot, submitted four jobs, read real metrics and errors; same-owner queue/worker/results verified."
+    },
+    {
+      "type": "browser_chat_and_simc",
+      "status": "pass",
+      "summary": "Actual Web answer matches persisted DPS and uncertainty. All four job IDs visible in same-account SimC list; opened detail matches 546968.139 DPS and compiler v2."
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Final test readiness ready, changed runtime hashes match source commit, production PID unchanged."
+    }
+  ],
+  "risks": [
+    "Executable snapshot still requires genuine level/gear/talents. Missing levels can be verified only from exact matching supported current-world-ranking entries or official configured source.",
+    "Run budget is four distinct simulations and three distinct source preparations, capability expires after ten minutes.",
+    "Only elemental and enhancement shaman are enabled in this test environment; other specialization support requires actual runtime validation."
+  ],
+  "rollback": [
+    "Wait for zero queued/running v2 jobs; restore prior test release, remove only the three listed SimC configuration files, daemon-reload and restart test API/worker. Keep database and managed SimC binary."
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/plans/2026-09-06-chickenbro-simc-tools.md",
+    "artifacts/releases/2026-09-06-chickenbro-simc-tools/evaluation-results.json",
+    "artifacts/releases/2026-09-06-chickenbro-simc-tools/test-deployment.json",
+    "artifacts/releases/2026-09-06-chickenbro-simc-tools/review.md"
+  ],
+  "summary": "Owner-scoped cloud SimC is available on demand in test Chickenbro; real four-case comparison and shared Web list verified. Awaiting user acceptance, no production cutover or main merge."
+}

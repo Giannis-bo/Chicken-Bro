@@ -1,0 +1,543 @@
+{
+  "sourceCommit": "5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da",
+  "model": "gpt-6-astra",
+  "reasoningEffort": "high",
+  "entry": "existing test Web Chat, account A, original conversation",
+  "jobs": [
+    {
+      "jobId": "58abdeaa-80bb-4b92-98db-b5fc8ad66c72",
+      "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+      "status": "succeeded",
+      "scenario": {
+        "maxTime": 300,
+        "fightStyle": "Patchwerk",
+        "iterations": 10000,
+        "desiredTargets": 1
+      },
+      "compilerRevision": "chickenbro-simc-compiler-v2",
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "scenarioHash": "5818de0094ef8fa2ad7e77c2699dc64468ad29360a7e01379b174f6eed9ca0fe",
+      "metricName": "dps",
+      "metricValue": 159890.05603223058,
+      "metricError": 91.93960531924203,
+      "metricErrorPct": 0.06,
+      "provenance": {
+        "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+        "scenarioHash": "5818de0094ef8fa2ad7e77c2699dc64468ad29360a7e01379b174f6eed9ca0fe",
+        "profileSha256": "4e8001582aaf222fca07bd87fb052432c96343662da9cbfd7432704f5982e577",
+        "sourceRevision": "2026-09-05T04:43:26.000Z",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "sourceRawSha256": "ab321f7b4e3e7655d6d4ddb060fdfff83b301a872fa1042074fde36d86e6157f",
+        "compilerRevision": "chickenbro-simc-compiler-v2"
+      },
+      "createdAt": "2026-09-06T12:11:40.869715+08:00",
+      "updatedAt": "2026-09-06T12:12:05.387171+08:00",
+      "sharedOwnerVerified": true
+    },
+    {
+      "jobId": "6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4",
+      "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+      "status": "succeeded",
+      "scenario": {
+        "maxTime": 300,
+        "fightStyle": "Patchwerk",
+        "iterations": 10000,
+        "gemOverrides": {
+          "neck": [
+            240898,
+            240900
+          ],
+          "waist": [
+            240898
+          ],
+          "finger1": [
+            240898
+          ],
+          "finger2": [
+            240898
+          ]
+        },
+        "desiredTargets": 1
+      },
+      "compilerRevision": "chickenbro-simc-compiler-v2",
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "scenarioHash": "71176fd263998857ad77578d489798b6c6b92473f7be8515223c3419e825ae5a",
+      "metricName": "dps",
+      "metricValue": 160231.333028964,
+      "metricError": 90.94530100742996,
+      "metricErrorPct": 0.06,
+      "provenance": {
+        "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+        "scenarioHash": "71176fd263998857ad77578d489798b6c6b92473f7be8515223c3419e825ae5a",
+        "profileSha256": "7135606977e4f7eb3cb770530d75c49a98df9d24e6e04d9752502f9ac570aad1",
+        "sourceRevision": "2026-09-05T04:43:26.000Z",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "sourceRawSha256": "ab321f7b4e3e7655d6d4ddb060fdfff83b301a872fa1042074fde36d86e6157f",
+        "compilerRevision": "chickenbro-simc-compiler-v2"
+      },
+      "createdAt": "2026-09-06T12:11:50.353084+08:00",
+      "updatedAt": "2026-09-06T12:12:29.906048+08:00",
+      "sharedOwnerVerified": true
+    },
+    {
+      "jobId": "ee0f9a5e-ad41-4d08-aecd-4001c05471cd",
+      "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+      "status": "succeeded",
+      "scenario": {
+        "maxTime": 120,
+        "fightStyle": "Patchwerk",
+        "iterations": 10000,
+        "desiredTargets": 5
+      },
+      "compilerRevision": "chickenbro-simc-compiler-v2",
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "scenarioHash": "3837cf0b5d94e802101805ac5d900a8945b39684cee3451debd55476d10230c9",
+      "metricName": "dps",
+      "metricValue": 544610.3241976987,
+      "metricError": 828.4901148337115,
+      "metricErrorPct": 0.15,
+      "provenance": {
+        "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+        "scenarioHash": "3837cf0b5d94e802101805ac5d900a8945b39684cee3451debd55476d10230c9",
+        "profileSha256": "eb568c25f4622d8c284e134bcc44175ca3df6ddc3e147a5d1f08633290a1f960",
+        "sourceRevision": "2026-09-05T04:43:26.000Z",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "sourceRawSha256": "ab321f7b4e3e7655d6d4ddb060fdfff83b301a872fa1042074fde36d86e6157f",
+        "compilerRevision": "chickenbro-simc-compiler-v2"
+      },
+      "createdAt": "2026-09-06T12:11:50.547308+08:00",
+      "updatedAt": "2026-09-06T12:12:45.421753+08:00",
+      "sharedOwnerVerified": true
+    },
+    {
+      "jobId": "3cd3fe56-223d-414b-955e-6b44b726bdd6",
+      "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+      "status": "succeeded",
+      "scenario": {
+        "maxTime": 120,
+        "fightStyle": "Patchwerk",
+        "iterations": 10000,
+        "gemOverrides": {
+          "neck": [
+            240898,
+            240900
+          ],
+          "waist": [
+            240898
+          ],
+          "finger1": [
+            240898
+          ],
+          "finger2": [
+            240898
+          ]
+        },
+        "desiredTargets": 5
+      },
+      "compilerRevision": "chickenbro-simc-compiler-v2",
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "scenarioHash": "d6090c33fc34f1a9892583de2d0f4035e7c63fb36357ded90691988b4986ed47",
+      "metricName": "dps",
+      "metricValue": 546968.1393581369,
+      "metricError": 833.0906541191406,
+      "metricErrorPct": 0.15,
+      "provenance": {
+        "snapshotId": "b133a8ab-5e4b-48f3-bb2b-42e97a8fe759",
+        "scenarioHash": "d6090c33fc34f1a9892583de2d0f4035e7c63fb36357ded90691988b4986ed47",
+        "profileSha256": "87498f8c56e52f27d4ae792808c2ffa2dba88e5d3b62f85fcaccfb6020e0d793",
+        "sourceRevision": "2026-09-05T04:43:26.000Z",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "sourceRawSha256": "ab321f7b4e3e7655d6d4ddb060fdfff83b301a872fa1042074fde36d86e6157f",
+        "compilerRevision": "chickenbro-simc-compiler-v2"
+      },
+      "createdAt": "2026-09-06T12:11:50.730003+08:00",
+      "updatedAt": "2026-09-06T12:13:00.490234+08:00",
+      "sharedOwnerVerified": true
+    }
+  ],
+  "comparisons": [
+    {
+      "targets": 1,
+      "maxTime": 300,
+      "baselineJobId": "58abdeaa-80bb-4b92-98db-b5fc8ad66c72",
+      "variantJobId": "6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4",
+      "deltaDps": 341.27699673341704,
+      "deltaPct": 0.21344479150386952
+    },
+    {
+      "targets": 5,
+      "maxTime": 120,
+      "baselineJobId": "ee0f9a5e-ad41-4d08-aecd-4001c05471cd",
+      "variantJobId": "3cd3fe56-223d-414b-955e-6b44b726bdd6",
+      "deltaDps": 2357.8151604381856,
+      "deltaPct": 0.4329361849523483
+    }
+  ],
+  "toolObservations": [
+    {
+      "tool": "list_simulation_jobs",
+      "sourceKey": "simc",
+      "status": "ready",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 56,
+      "factCount": 1,
+      "argumentsSha256": "7d0587b5acc48e3a3c05d8b341d59a3ff0ba81cc1ce23e1dabe741c0916b5253",
+      "evidenceRefs": [],
+      "evidence": [],
+      "limitations": []
+    },
+    {
+      "tool": "query_raiderio_character",
+      "sourceKey": "raiderio",
+      "status": "source_reference",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 1167,
+      "factCount": 1,
+      "argumentsSha256": "3d0d5f17c0081ab154317620cd400d21fb7467602ac26a412822ca29211cc14f",
+      "evidenceRefs": [
+        "raiderio:character:us:sargeras:Drakthul"
+      ],
+      "evidence": [
+        {
+          "id": "raiderio:character:us:sargeras:Drakthul",
+          "sourceName": "Raider.IO",
+          "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+          "sourceStatus": "fetched",
+          "fetchedAt": "2026-09-06T04:11:05.979806+00:00",
+          "sourceRevision": "2026-09-05T04:43:26.000Z"
+        }
+      ],
+      "limitations": [
+        "Raider.IO did not provide percentages; none were estimated."
+      ]
+    },
+    {
+      "tool": "prepare_simulation",
+      "sourceKey": "simc",
+      "status": "ready",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 3649,
+      "factCount": 1,
+      "argumentsSha256": "1f312a8b99e3714ce0d7c4f00e5e365c6fc3ed9632a08b2ab2c7708c84b0cce0",
+      "evidenceRefs": [
+        "{'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": []
+    },
+    {
+      "tool": "query_raiderio_character",
+      "sourceKey": "raiderio",
+      "status": "source_reference",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 1149,
+      "factCount": 1,
+      "argumentsSha256": "3eca4cef1cb7f39f6b4b23a6548d8c0a090e317c02b068d32137ec05cea92736",
+      "evidenceRefs": [
+        "raiderio:character:us:area-52:Lampeao"
+      ],
+      "evidence": [
+        {
+          "id": "raiderio:character:us:area-52:Lampeao",
+          "sourceName": "Raider.IO",
+          "sourceUrl": "https://raider.io/characters/us/area-52/Lampeao",
+          "sourceStatus": "fetched",
+          "fetchedAt": "2026-09-06T04:11:21.512053+00:00",
+          "sourceRevision": "2026-09-05T05:16:30.000Z"
+        }
+      ],
+      "limitations": [
+        "Raider.IO did not provide percentages; none were estimated."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID",
+      "reasonCode": "",
+      "elapsedMs": 3,
+      "factCount": 0,
+      "argumentsSha256": "bbdb45cdff17cc4852716821c4c4362fcee756c41a05d6bf437993e720db8be1",
+      "evidenceRefs": [],
+      "evidence": [],
+      "limitations": [
+        "No new verified simulation result is available from this operation."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID",
+      "reasonCode": "",
+      "elapsedMs": 4,
+      "factCount": 0,
+      "argumentsSha256": "1eec419edac052c2994ed0b18df9a55fba3a38ffbffd4e176b612d4dfa1a6cb0",
+      "evidenceRefs": [],
+      "evidence": [],
+      "limitations": [
+        "No new verified simulation result is available from this operation."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID",
+      "reasonCode": "",
+      "elapsedMs": 2,
+      "factCount": 0,
+      "argumentsSha256": "5a8cc49f32601b0ab1f51a9580d9f2c907ffd106b405ed5f0ce3852d5ac44c11",
+      "evidenceRefs": [],
+      "evidence": [],
+      "limitations": [
+        "No new verified simulation result is available from this operation."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID",
+      "reasonCode": "",
+      "elapsedMs": 2,
+      "factCount": 0,
+      "argumentsSha256": "4c8b8f054a82554ed8bbfeb55d5df1514b51a97ced5af7c21ef7ecdd2d10b3ca",
+      "evidenceRefs": [],
+      "evidence": [],
+      "limitations": [
+        "No new verified simulation result is available from this operation."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "queued",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 159,
+      "factCount": 1,
+      "argumentsSha256": "5615f3caae3e963d37cb608536e4e7d708c1ea1b195aca10ad9cafa8a1a8cce6",
+      "evidenceRefs": [
+        "{'jobId': '58abdeaa-80bb-4b92-98db-b5fc8ad66c72', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "queued",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 191,
+      "factCount": 1,
+      "argumentsSha256": "79d1c4f499b8fc62c2b7b45b81155accc5d3dee27d2ef16aaa2d99e5e16b8ba7",
+      "evidenceRefs": [
+        "{'jobId': '6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "queued",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 182,
+      "factCount": 1,
+      "argumentsSha256": "caad620b43ed9dd624a71028c98907bd4a1630ad3f5992f677c9876e20eb0e8b",
+      "evidenceRefs": [
+        "{'jobId': 'ee0f9a5e-ad41-4d08-aecd-4001c05471cd', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "submit_simulation",
+      "sourceKey": "simc",
+      "status": "queued",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 170,
+      "factCount": 1,
+      "argumentsSha256": "aeff35b601253667b42c4f28839b7dbd88edf0491f5cd83b09d794e13bc4686d",
+      "evidenceRefs": [
+        "{'jobId': '3cd3fe56-223d-414b-955e-6b44b726bdd6', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "succeeded",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 6691,
+      "factCount": 1,
+      "argumentsSha256": "113790b7140f52a3249d04e94a1abad2731d47a8c4333a646535c5866cfabfc3",
+      "evidenceRefs": [
+        "{'jobId': '58abdeaa-80bb-4b92-98db-b5fc8ad66c72', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": []
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "queued",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 21889,
+      "factCount": 1,
+      "argumentsSha256": "4251fd502bd29e463f9b5fadf0733bdeaed25a5af0f17349fbbba7d49b0ba66a",
+      "evidenceRefs": [
+        "{'jobId': 'ee0f9a5e-ad41-4d08-aecd-4001c05471cd', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "succeeded",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 2319,
+      "factCount": 1,
+      "argumentsSha256": "ab0ff13348dee93395faf9a7c315c0822af6c5a924d6ece1869c97c7658d10b1",
+      "evidenceRefs": [
+        "{'jobId': '6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": []
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "running",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 21978,
+      "factCount": 1,
+      "argumentsSha256": "1d499559cf65a9954c5b19ccbfaf053bb0abe07619ff2f1da54a0e5e080f3d49",
+      "evidenceRefs": [
+        "{'jobId': '3cd3fe56-223d-414b-955e-6b44b726bdd6', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": [
+        "The simulation is pending; no performance result is available yet."
+      ]
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "succeeded",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 89,
+      "factCount": 1,
+      "argumentsSha256": "1d499559cf65a9954c5b19ccbfaf053bb0abe07619ff2f1da54a0e5e080f3d49",
+      "evidenceRefs": [
+        "{'jobId': '3cd3fe56-223d-414b-955e-6b44b726bdd6', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": []
+    },
+    {
+      "tool": "get_simulation_job",
+      "sourceKey": "simc",
+      "status": "succeeded",
+      "errorCode": "",
+      "reasonCode": "",
+      "elapsedMs": 88,
+      "factCount": 1,
+      "argumentsSha256": "4251fd502bd29e463f9b5fadf0733bdeaed25a5af0f17349fbbba7d49b0ba66a",
+      "evidenceRefs": [
+        "{'jobId': 'ee0f9a5e-ad41-4d08-aecd-4001c05471cd', 'snapshotId': 'b133a8ab-5e4b-48f3-bb2b-42e97a8fe759'}"
+      ],
+      "evidence": [],
+      "limitations": []
+    }
+  ],
+  "productionPidUnchanged": true,
+  "readiness": {
+    "status": "ready",
+    "requestId": "1938b9d1-9bcd-4c00-8eea-0901c7619ed9",
+    "components": {
+      "database": {
+        "status": "ready",
+        "code": ""
+      },
+      "worker": {
+        "status": "ready",
+        "code": ""
+      },
+      "codex": {
+        "status": "ready",
+        "code": ""
+      },
+      "raiderio": {
+        "status": "ready",
+        "code": ""
+      },
+      "warcraftlogs": {
+        "status": "ready",
+        "code": ""
+      },
+      "simc": {
+        "status": "ready",
+        "code": ""
+      },
+      "wechat_mini": {
+        "status": "ready",
+        "code": ""
+      }
+    }
+  },
+  "chat": {
+    "runId": "c116809f-d326-4669-99a6-327833c09682",
+    "conversationId": "4ade09bd-3a80-505b-9464-baee7e9f4cd6",
+    "status": "succeeded",
+    "elapsedSeconds": 179.4141,
+    "answer": "**四组云端模拟已完成：这次结果不支持“暴击更好”，两种场景都是换精通后略高。**\n\n使用 [Drakthul](https://raider.io/characters/us/sargeras/Drakthul) 同一角色快照、相同天赋与输出循环，每组 **10,000 次迭代、Patchwerk 站桩**。仅替换项链、腰带、两枚戒指上的四颗宝石，合计 **−36 暴击、＋36 精通**，项链另一颗宝石保持原样。\n\n| 场景 | 原配装 DPS ± 报告误差 | 换精通 DPS ± 报告误差 | 换精通提升 |\n|---|---:|---:|---:|\n| 单目标 300 秒 | 159,890.1 ± 91.9 | 160,231.3 ± 90.9 | **+341.3（+0.213%）** |\n| 5 目标 120 秒 | 544,610.3 ± 828.5 | 546,968.1 ± 833.1 | **+2,357.8（+0.433%）** |\n\n单体两组的误差比例均为 **0.06%**，五目标均为 **0.15%**。单体差值超过两组报告误差之和（182.9 DPS）；五目标也超过（1,661.6 DPS）。**按返回误差衡量，两种场景都支持这次换精通有小幅收益。**接口未标明误差的置信水平，因此不赋予具体的统计置信度。\n\n这也修正了前面的判断：**高分玩家装备里暴击多，不足以说明继续增加暴击比精通更划算。**对 Drakthul 这套配装而言，拿出这 36 点暴击换精通反而更好；结论限于本次快照和两种战斗场景，不能扩展成所有增强萨的固定属性排序。\n\n四组结果可在同账号 SimC 列表查看，任务 ID：\n\n- 单体原装：`58abdeaa-80bb-4b92-98db-b5fc8ad66c72`\n- 单体换精通：`6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4`\n- 五目标原装：`ee0f9a5e-ad41-4d08-aecd-4001c05471cd`\n- 五目标换精通：`3cd3fe56-223d-414b-955e-6b44b726bdd6`"
+  },
+  "browserVerification": {
+    "status": "pass",
+    "accountLabel": "测试账号 A",
+    "chatAnswer": "Four real results, deltas and actual error values match persisted SimC results; scoped conclusion correct.",
+    "sameAccountList": {
+      "status": "pass",
+      "jobIds": [
+        "58abdeaa-80bb-4b92-98db-b5fc8ad66c72",
+        "6b8d62e8-3528-4d1b-9cf4-a54cee0c95f4",
+        "ee0f9a5e-ad41-4d08-aecd-4001c05471cd",
+        "3cd3fe56-223d-414b-955e-6b44b726bdd6"
+      ]
+    },
+    "detail": {
+      "status": "pass",
+      "jobId": "3cd3fe56-223d-414b-955e-6b44b726bdd6",
+      "displayedDps": 546968.139,
+      "compilerRevision": "chickenbro-simc-compiler-v2"
+    },
+    "scope": "Agent-operated existing logged-in Web session; not manual user acceptance."
+  }
+}
