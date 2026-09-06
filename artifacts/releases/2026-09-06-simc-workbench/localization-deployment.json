@@ -1,0 +1,25 @@
+{
+  "status": "deployed_test_only",
+  "commit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007",
+  "previousCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+  "database": "chickenbro_test",
+  "productionUnchanged": true,
+  "simcSourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "simcBinarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "preservedFiles": 102,
+  "runtimeFiles": {
+    "server/app/simulation/application.py": "e2f3246c8f3b4732855d4cf1eea91a1779dbb7420308daa09d4f75900a1a1b56",
+    "server/app/simulation/worker.py": "bf98209b82fc0059ed06b14a2017a88ae12fabb086c958ec3652b56deb235d8a",
+    "server/app/simulation/report.py": "803f5b2474b7b50fc1c189e69ba5588eba5cf7a1270827dee88c6a90c2f04663",
+    "server/app/api/routes/simc.py": "b59e84e159b58050c0d541a4ae45a00b89faded178e77b0c7f80f6533226204e",
+    "server/app/simulation/localization.py": "36fbbadb3d5d09cb12f32989553d77c0ed3017cdfe2e94313aa3cc627a6eb7a2",
+    "server/app/simulation/report_identity.py": "3fdf5dfc596f31eb8e8420acccd9ad1a2d6f90385c2e32e1bf203afde87cc2e6",
+    "server/app/simulation/data/localization/12.1.0.69299/catalog.json.gz": "c9ff4c2ef340235911face08f01b3a76bb7662f411df0d7736d90d8445cdd071",
+    "server/app/simulation/data/localization/12.1.0.69299/manifest.json": "cbc8f806f06febf44acdabf50efdd78effe7ba64ceb89fdeb9dd96a1b664dd71",
+    "server/app/simulation/data/localization/12.1.0.69299/engine-rules.json": "9fe287fecbf71c4cea557a91dc4ff2e3b90f773ed70bbeff37cfd3be5a0a8c9c"
+  },
+  "webArchiveSha256": "1d2071ba83ac9a96ddec13071f4fdb1238d85f0cda21a27f144a30e6bc3e988a",
+  "readiness": "ready",
+  "coverageStatus": "partial",
+  "rollback": "/opt/chickenbro-test/releases/881ad4959d8dc6203e09b299156b8966d86b3d94"
+}

@@ -1,0 +1,49 @@
+{
+  "status": "test_web_verified",
+  "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007",
+  "url": "https://www.chickenbro.cloud/test/",
+  "newJob": "858cd9c2-12e3-43e9-8dad-cfedf6974174",
+  "input": {
+    "sourceUrl": "https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+    "iterations": 300,
+    "durationSeconds": 60,
+    "targets": 1
+  },
+  "result": {
+    "status": "succeeded",
+    "displayedDps": "227,067.96",
+    "abilityBaseNames": 14,
+    "abilitySourceNamesMissing": 8,
+    "buffNames": 43
+  },
+  "legacyJob": "7e2c4903-6de4-4049-a0f6-ea7f36118af3",
+  "legacy": {
+    "displayedDps": "227,723.91",
+    "abilities": 14,
+    "buffs": 43,
+    "identityLimitationVisible": true,
+    "storedReportUnchanged": true
+  },
+  "responsive": [
+    {
+      "viewportWidth": 2552,
+      "documentScrollWidth": 2537
+    },
+    {
+      "viewportWidth": 390,
+      "documentScrollWidth": 375,
+      "skillTableWidth": 519,
+      "skillTableContainerWidth": 314,
+      "skillTableOverflowX": "auto"
+    }
+  ],
+  "viewportRestored": true,
+  "checks": [
+    "Actual Web source read, submission, terminal report and task history passed",
+    "New persisted identity is valid after database round trip",
+    "Desktop and 390px screenshots inspected; table scrolls inside its container",
+    "No report names guessed to mask source-data gaps"
+  ],
+  "mini": "Shared contract and build verified; real WeChat acceptance not run",
+  "userAcceptance": "pending"
+}

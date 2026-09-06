@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+  "commit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+      "value": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
     },
     "verification": {
       "status": "bound_at_check",
@@ -469,18 +469,72 @@
       "status": "pass",
       "result": "Pass",
       "sourceCommit": "881ad4959d8dc6203e09b299156b8966d86b3d94"
+    },
+    {
+      "command": "npm run test:backend",
+      "result": "391 tests passed in existing cloud Python environment",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run test:taro",
+      "result": "209 tests across 31 files passed",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run test:control",
+      "result": "62 tests passed",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "Pass",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run lint",
+      "result": "Pass",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run build:h5",
+      "result": "Pass; test environment; existing bundle warnings",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "npm run build:weapp",
+      "result": "Pass; test build compatibility only; existing bundle warnings",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "local source review",
+      "result": "Independent review passed after runtime and HTML evidence binding fixes; 18 localization tests passed",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "command": "git diff --check",
+      "result": "Pass",
+      "status": "pass",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "881ad4959d8dc6203e09b299156b8966d86b3d94",
-    "buildIdentity": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+    "commit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007",
+    "buildIdentity": "d94646b6e97a4c84a3ac2af859d095d5c23cc007",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-deployment.json",
+    "evidence": "artifacts/releases/2026-09-06-simc-workbench/localization-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "416c8f59b4eeac6d2419b62ae5edfb86c1d360ef",
-    "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
+    "rollbackRelease": "881ad4959d8dc6203e09b299156b8966d86b3d94",
+    "backendSourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
   },
   "runtimeEvidence": [
     {
@@ -542,14 +596,29 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json",
       "result": "Actual Giannis WCL report: all 14 skills and 43 buffs have Chinese names, zero unresolved labels. Original report unchanged; DPS 227723.910084102; desktop and 390px verified."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts/releases/2026-09-06-simc-workbench/localization-runtime-verification.json",
+      "result": "New actual Web-submitted task succeeded with persisted identity and positive metrics. Legacy stored report hash unchanged. 14 base ability names and 43 buffs resolved; 8 summoning-source labels remain explicitly partial.",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts/releases/2026-09-06-simc-workbench/localization-browser-verification.json",
+      "result": "Actual new and historical reports checked on test Web; desktop and 390px pass. Mini build and contract verified; real Mini acceptance pending.",
+      "sourceCommit": "d94646b6e97a4c84a3ac2af859d095d5c23cc007"
     }
   ],
   "risks": [
     "Real Mini/Web user acceptance and second-user manual checks remain pending.",
     "Historical jobs retain only actually recorded fields; detailed skills and runtime version cannot be reconstructed.",
-    "WCL import requires recorded talent selections to match a verified export from the same character; changed or unavailable exports remain incomplete. Current level/race enrichment is source-attributed, not reconstructed historical identity."
+    "WCL import requires recorded talent selections to match a verified export from the same character; changed or unavailable exports remain incomplete. Current level/race enrichment is source-attributed, not reconstructed historical identity.",
+    "Build-exact Creature names are incomplete; 337 tested skill rows have resolved base names but unresolved summoning-source names, and 24 buff rows remain unresolved.",
+    "36 upstream runs fail obsolete talent imports; healing and other absent specs are not accepted. Existing Blizzard integration yielded no usable API credential for source-name enrichment."
   ],
   "rollback": [
+    "Restore retained test release 881ad4959d8dc6203e09b299156b8966d86b3d94 and restart test API/Worker; no schema migration. New private identity fields are ignored by old clients.",
     "For the Giannis source change restore retained test release 1e8be32135c9be83a61cacb429c1df39f14be117 and restart test API/Worker; no schema change.",
     "Atomically restore /opt/chickenbro-test/current to retained release 5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da and restart test API/Worker. No schema or data migration.",
     "Previous releases retained; deployment rollback handler prepared. A forced rollback drill was not performed."
@@ -588,14 +657,19 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\simc-copy-verification.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-zh-cn-terms.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json",
+    "artifacts/releases/2026-09-06-simc-workbench/localization-deployment.json",
+    "artifacts/releases/2026-09-06-simc-workbench/localization-runtime-verification.json",
+    "artifacts/releases/2026-09-06-simc-workbench/localization-browser-verification.json",
+    "artifacts/releases/2026-09-06-simc-workbench/localization-coverage.json",
+    "artifacts/releases/2026-09-06-simc-workbench/localization-review.json"
   ],
-  "summary": "Elemental report localization completed for real Giannis report: 37 additional verified names cover player, pet, set and trinket effects; all 57 rows named with original metrics preserved.",
+  "summary": "Generalized build-pinned zhCN report names deployed and tested through actual Web submission and persisted identity; legacy metrics preserved. Tested-profile coverage is partial and missing contexts remain explicit.",
   "localization": {
-    "status": "implementation_verified_coverage_partial",
+    "status": "test_runtime_verified_coverage_partial",
     "plan": "docs/plans/2026-09-06-simc-localization.md",
     "coverage": "artifacts/releases/2026-09-06-simc-workbench/localization-coverage.json",
     "catalog": "server/app/simulation/data/localization/12.1.0.69299/manifest.json",
-    "scope": "No production cutover or claim of all-specialization completeness. Runtime identity above still refers to the previously deployed workbench until localized test release passes."
+    "scope": "Version-pinned generalized resolver deployed to isolated test API/Worker/Web. 27 specs, 126 positive reports; NPC/source and 24 buff-row gaps remain. No full-specialization accuracy, production cutover or real Mini acceptance claim."
   }
 }
