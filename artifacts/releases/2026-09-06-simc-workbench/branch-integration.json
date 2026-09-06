@@ -1,5 +1,5 @@
 {
-  "status": "verified_for_main_integration",
+  "status": "main_integrated_branches_consolidated",
   "date": "2026-09-06",
   "authorization": "User approved consolidation into main and cleanup of fully merged development branches.",
   "originalMain": "f5468f65991a7033bb2f23339414753f18ead4f7",
@@ -88,5 +88,14 @@
     "Real Mini/Web cross-client user acceptance remains independently pending",
     "Full specialization/localization coverage remains partial as recorded in localization-coverage.json"
   ],
-  "cleanupPolicy": "Require ancestor proof, clean tracked/untracked status and exact remote ref equality before removal. Preserve scratch evidence and original historical stash; detach dependency junctions without following their targets."
+  "cleanupPolicy": "Require ancestor proof, clean tracked/untracked status and exact remote ref equality before removal. Preserve scratch evidence and original historical stash; detach dependency junctions without following their targets.",
+  "closure": {
+    "scratchBackup": "G:/Codex/wow/.superpowers/branch-consolidation-20260906/research-scratch",
+    "firstMainCommit": "9b31e3c0c3a38ed1dcf18e937eb4f45b35d976a0",
+    "remainingLocalAndRemoteBranches": 3,
+    "remainingWorktrees": 1,
+    "preview": "Test Mini package rebuilt from main and opened successfully with explicit quoted DevTools CLI path",
+    "historicalStashPreserved": true,
+    "productionDeployment": "unchanged"
+  }
 }
