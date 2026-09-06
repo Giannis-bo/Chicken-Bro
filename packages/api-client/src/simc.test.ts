@@ -21,6 +21,14 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
+  it('opts into the same zhCN report for Mini and Web without putting ownership in the URL', async () => {
+    const transport = new RecordingTransport()
+    const client = createSimcClient(transport)
+    for (const auth of [{ kind: 'mini' as const, accessToken: 'mini' }, { kind: 'web' as const, csrfToken: 'csrf' }]) {
+      await client.getJob('job-one', { auth, workbench: true, localizedReport: true })
+    }
+    expect(transport.requests.map(call => call.path)).toEqual(Array(2).fill('/api/v2/simc/jobs/job-one?view=workbench&reportLocale=zhCN'))
+  })
   it('allows bounded multi-provider source reads without extending ordinary requests', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)

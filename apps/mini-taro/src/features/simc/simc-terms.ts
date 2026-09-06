@@ -1,4 +1,4 @@
-import type { SimulationJobStatus } from '@wow-mini/domain'
+import type { SimulationJobStatus, SimulationReport } from '@wow-mini/domain'
 
 export const simcStatuses: Record<SimulationJobStatus, string> = {
   queued: '排队中', running: '运行中', succeeded: '已完成', failed: '失败', cancelled: '已取消',
@@ -161,5 +161,21 @@ const spellNames: Record<string, string> = {
 
 export function simcSpellName(value: string, kind: '技能' | '增益', index: number): string {
   return lookup(spellNames, termKey(value)) ?? (chinese.test(value) ? value : `名称待收录的${kind}（${index + 1}）`)
+}
+
+export function simcReportName(report: SimulationReport, group: 'abilities' | 'buffs', index: number): string {
+  const label = report.localization?.[group][index]
+  if (label) return label.text
+  return simcSpellName(report[group][index]?.name ?? '', group === 'abilities' ? '技能' : '增益', index)
+}
+
+export function simcNameStatus(report: SimulationReport): string {
+  switch (report.localization?.status) {
+    case 'complete': return '国服名称已匹配'
+    case 'partial': return '部分名称未匹配，已在对应条目标注'
+    case 'unavailable': return '该游戏版本的国服名称数据暂不可用'
+    case 'legacy': return '历史报告未保存技能编号，名称按已有信息匹配'
+    default: return ''
+  }
 }
 

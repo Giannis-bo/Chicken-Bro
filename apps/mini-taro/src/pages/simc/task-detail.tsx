@@ -1,5 +1,5 @@
 import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
-import { simcMetricName, simcStatuses } from '../../features/simc/simc-terms'
+import { simcMetricName, simcStatuses, simcReportName, simcNameStatus } from '../../features/simc/simc-terms'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useLoad } from '@tarojs/taro'
@@ -16,7 +16,7 @@ import styles from './task-detail.module.scss'
 function SimcTaskDetailPage() {
   const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
   const model = useMemo(
-    () => new SimcModel(wowApi.simc, () => sessions.createAuthContext()),
+    () => new SimcModel(wowApi.simc, () => sessions.createAuthContext(), { workbench: true, localizedReport: true }),
     [sessions],
   )
   const [state, setState] = useState<SimcModelState>(() => model.get())
@@ -56,6 +56,7 @@ function SimcTaskDetailPage() {
 
   const job = state.activeJob
   const result = job?.result
+  const report = result?.report
 
   return (
     <View className={styles['page'] ?? ''} data-simc-phase={state.phase} data-job-status={job?.status ?? 'unknown'}>
@@ -100,6 +101,22 @@ function SimcTaskDetailPage() {
               <Text className={styles['meta'] ?? ''}>场景校验：{result.provenance.scenarioHash}</Text>
             </View>
           ) : null}
+          {report ? <>
+            <View className={styles['card'] ?? ''}>
+              <Text className={styles['cardTitle'] ?? ''}>技能贡献</Text>
+              {report.localization && report.localization.status !== 'complete' ? <Text className={styles['hint'] ?? ''}>{simcNameStatus(report)}</Text> : null}
+              {report.abilities.map((ability, index) => <View key={`${ability.name}-${index}`} className={styles['attempt'] ?? ''}>
+                <Text>{simcReportName(report, 'abilities', index)}</Text>
+                <Text>{ability.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}{ability.portion == null ? '' : ` · ${ability.portion.toFixed(2)}%`}</Text>
+              </View>)}
+            </View>
+            <View className={styles['card'] ?? ''}>
+              <Text className={styles['cardTitle'] ?? ''}>增益覆盖</Text>
+              {report.buffs.map((buff, index) => <View key={`${buff.name}-${index}`} className={styles['attempt'] ?? ''}>
+                <Text>{simcReportName(report, 'buffs', index)}</Text><Text>{buff.uptime.toFixed(2)}%</Text>
+              </View>)}
+            </View>
+          </> : null}
         </ScrollView>
       ) : null}
 

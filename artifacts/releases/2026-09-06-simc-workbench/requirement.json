@@ -3,7 +3,7 @@
   "slug": "simc-workbench",
   "classification": "Standard",
   "status": "implementation_allowed",
-  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions. User-provided Giannis mainland Raider.IO and WCL links must import from the actual Web form and finish real cloud simulations. Keep an active Chat reply running when switching to the simulation tab and restore its current content on return.",
+  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions. User-provided Giannis mainland Raider.IO and WCL links must import from the actual Web form and finish real cloud simulations. Keep an active Chat reply running when switching to the simulation tab and restore its current content on return. Add build-pinned ID-first zhCN localization shared by Mini/Web; preserve report metrics and legacy contracts, report unsupported or missing coverage explicitly.",
   "userValue": "Understand and reproduce actual cloud simulations from Web while retaining Mini compatibility.",
   "nonGoals": [
     "Production cutover",
@@ -16,7 +16,8 @@
       "docs/project-state.json",
       "docs/roadmap.md",
       "docs/plans/2026-09-06-simc-workbench.md",
-      "docs/verification-matrix.md"
+      "docs/verification-matrix.md",
+      "docs/plans/2026-09-06-simc-localization.md"
     ],
     "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
     "featureIteration": "user_authorized_followup"
@@ -78,7 +79,8 @@
       "responsive_web",
       "cross_client_owner",
       "giannis_links",
-      "tab_reply_continuity"
+      "tab_reply_continuity",
+      "localized_report_names"
     ]
   },
   "releaseTrigger": "backend_api",
@@ -93,6 +95,10 @@
     {
       "date": "2026-09-06",
       "decision": "User requires both provided Giannis links to import and simulate; report actual blockers, never use a different-region character as acceptance."
+    },
+    {
+      "date": "2026-09-06",
+      "decision": "User approved generalized all-class localization plan; implementation and isolated testing authorized, incomplete source/spec coverage must be reported rather than guessed."
     }
   ]
 }

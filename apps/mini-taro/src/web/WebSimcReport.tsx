@@ -1,7 +1,8 @@
 import { simcDiagnosticMessage } from '../features/simc/simc-messages'
 import type { SimulationJobDetail } from '@wow-mini/domain'
 
-import { simcAttributeValue, simcDate, simcFightStyles, simcLabel, simcMetricName, simcResourceName, simcSpellName, simcNumber, simcStatuses } from './simc-presentation'
+import { simcAttributeValue, simcDate, simcFightStyles, simcLabel, simcMetricName, simcResourceName, simcNumber, simcStatuses } from './simc-presentation'
+import { simcReportName, simcNameStatus } from '../features/simc/simc-terms'
 import styles from './WebSimc.module.scss'
 
 interface Props {
@@ -54,10 +55,11 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
         <div><span>计算耗时</span><strong>{simcNumber(report?.statistics.elapsedSeconds)}{report?.statistics.elapsedSeconds != null ? <em> 秒</em> : null}</strong><small>云端引擎运行时间</small></div>
       </section>
       {!report ? <div className={styles['notice']}>该历史任务仅保存了结果摘要，未记录技能、增益、装备天赋及引擎版本详情。</div> : <>
+        {report.localization && report.localization.status !== 'complete' ? <p className={styles['notice']} role="status">{simcNameStatus(report)}</p> : null}
         <section className={styles['card']}><div className={styles['sectionHeading']}><h3>技能贡献</h3><span>按贡献量排序 · 占比以所列技能合计计算</span></div>
           {report.abilities.length ? <div className={styles['tableScroll']}><table className={styles['abilityTable']}><thead><tr><th>技能</th><th>贡献量</th><th>贡献占比</th><th>施放次数</th><th>爆击率</th></tr></thead><tbody>
-            {[...report.abilities].sort((a, b) => b.amount - a.amount).map((ability, index) => <tr key={`${ability.name}-${index}`}>
-              <td><span>{simcSpellName(ability.name, '技能', index)}</span>{ability.portion != null ? <div className={styles['barTrack']}><i style={{ width: `${Math.min(100, Math.max(0, ability.portion))}%` }} /></div> : null}</td>
+            {report.abilities.map((ability, index) => ({ ability, index })).sort((a, b) => b.ability.amount - a.ability.amount).map(({ ability, index }) => <tr key={`${ability.name}-${index}`}>
+              <td><span>{simcReportName(report, 'abilities', index)}</span>{ability.portion != null ? <div className={styles['barTrack']}><i style={{ width: `${Math.min(100, Math.max(0, ability.portion))}%` }} /></div> : null}</td>
               <td>{simcNumber(ability.amount)}</td><td>{ability.portion == null ? '未记录' : `${simcNumber(ability.portion)}%`}</td>
               <td>{simcNumber(ability.executions)}</td><td>{ability.critPercent == null ? '未记录' : `${simcNumber(ability.critPercent)}%`}</td>
             </tr>)}
@@ -65,7 +67,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
         </section>
         <div className={styles['reportColumns']}>
           <section className={styles['card']}><h3>增益覆盖</h3>{report.buffs.length ? <div className={styles['buffList']}>
-            {report.buffs.map((buff, index) => <div key={`${buff.name}-${index}`}><div className={styles['summaryRow']}><span>{simcSpellName(buff.name, '增益', index)}</span><strong>{simcNumber(buff.uptime)}%</strong></div><div className={styles['barTrack']}><i style={{ width: `${Math.min(100, Math.max(0, buff.uptime))}%` }} /></div></div>)}
+            {report.buffs.map((buff, index) => <div key={`${buff.name}-${index}`}><div className={styles['summaryRow']}><span>{simcReportName(report, 'buffs', index)}</span><strong>{simcNumber(buff.uptime)}%</strong></div><div className={styles['barTrack']}><i style={{ width: `${Math.min(100, Math.max(0, buff.uptime))}%` }} /></div></div>)}
           </div> : <p className={styles['missing']}>本次报告未记录增益覆盖。</p>}</section>
           <section className={styles['card']}><h3>资源</h3>{report.resources.length ? <div className={styles['tableScroll']}><table><thead><tr><th>资源</th><th>获得</th><th>消耗</th></tr></thead><tbody>
             {report.resources.map((resource, index) => <tr key={`${resource.name}-${index}`}><td>{simcResourceName(resource.name)}</td><td>{simcNumber(resource.gained)}</td><td>{simcNumber(resource.lost)}</td></tr>)}
@@ -96,6 +98,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
     <details className={styles['provenance']}><summary>运行记录与来源</summary><dl>
       <div><dt>任务编号</dt><dd>{job.id}</dd></div><div><dt>编译器</dt><dd>{job.compilerRevision}</dd></div>
       <div><dt>运行身份</dt><dd>{job.runtimeRevision}</dd></div><div><dt>场景校验</dt><dd>{job.scenarioHash}</dd></div>
+      {report?.localization ? <><div><dt>国服名称</dt><dd>{simcNameStatus(report)}</dd></div><div><dt>名称数据校验</dt><dd>{report.localization.catalogRevision ?? '不可用'}</dd></div></> : null}
       {job.result ? <div><dt>角色配置校验</dt><dd>{job.result.profileSha256}</dd></div> : null}
     </dl></details>
   </article>

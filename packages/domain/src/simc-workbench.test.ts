@@ -9,6 +9,16 @@ const report: SimulationReport = {
   buffs:[{name:'Bloodlust',uptime:13}],resources:[],attributes:[],gear:[],
 }
 describe('SimC workbench guards', () => {
+  it('requires aligned versioned localization without widening the legacy contract', () => {
+    const label = { text: '闪电箭', status: 'resolved', spellId: 188196, sourceNpcId: null, method: 'spell_id' }
+    const localization = { locale: 'zhCN', gameVersion: report.engine.gameVersion, catalogRevision: 'a'.repeat(64), status: 'complete', abilities: [label], buffs: [{ ...label, text: '嗜血', spellId: 2825 }] }
+    expect(isSimulationReport({ ...report, schemaVersion: 2, localization })).toBe(true)
+    expect(isSimulationReport({ ...report, localization })).toBe(false)
+    expect(isSimulationReport({ ...report, schemaVersion: 2 })).toBe(false)
+    expect(isSimulationReport({ ...report, schemaVersion: 2, localization: { ...localization, abilities: [] } })).toBe(false)
+    expect(isSimulationReport({ ...report, schemaVersion: 2, localization: { ...localization, gameVersion: 'other' } })).toBe(false)
+    expect(isSimulationReport({ ...report, schemaVersion: 2, localization: { ...localization, abilities: [{ ...label, spellId: true }] } })).toBe(false)
+  })
   it('accepts a bounded report and rejects invalid metrics and private expansion', () => {
     expect(isSimulationReport(report)).toBe(true)
     expect(isSimulationReport({...report,metric:{...report.metric,value:Infinity}})).toBe(false)

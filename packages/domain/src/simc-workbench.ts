@@ -28,7 +28,8 @@ export interface SimulationRuntimeView {
 }
 
 export interface SimulationReport {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
+  localization?: SimulationLocalization
   engine: { version: string | null; gameVersion: string | null; build: string | null }
   actor: SimulationCharacter & { talents: string | null }
   metric: { name: 'dps' | 'hps'; value: number; error: number | null }
@@ -38,6 +39,23 @@ export interface SimulationReport {
   resources: readonly { name: string; gained: number | null; lost: number | null }[]
   attributes: readonly { name: string; value: number }[]
   gear: readonly { slot: string; itemId: number; itemLevel: number | null }[]
+}
+
+export interface SimulationLocalizedName {
+  text: string
+  status: 'resolved' | 'partial' | 'unresolved' | 'ambiguous' | 'legacy'
+  spellId: number | null
+  sourceNpcId: number | null
+  method: 'spell_id' | 'exact_name' | 'engine_rule' | 'unresolved'
+}
+
+export interface SimulationLocalization {
+  locale: 'zhCN'
+  gameVersion: string | null
+  catalogRevision: string | null
+  status: 'complete' | 'partial' | 'unavailable' | 'legacy'
+  abilities: readonly SimulationLocalizedName[]
+  buffs: readonly SimulationLocalizedName[]
 }
 
 type Obj = Record<string, unknown>
@@ -75,7 +93,10 @@ export function isSimulationRuntimeView(v: unknown): v is SimulationRuntimeView 
     && (v['status'] !== 'available' || (typeof v['version'] === 'string' && v['version'].length > 0 && typeof v['runtimeRevision'] === 'string' && v['runtimeRevision'].length > 0))
 }
 export function isSimulationReport(v: unknown): v is SimulationReport {
-  if (!obj(v) || !keys(v, ['schemaVersion','engine','actor','metric','statistics','abilities','buffs','resources','attributes','gear']) || v['schemaVersion'] !== 1) return false
+  if (!obj(v) || ![1, 2].includes(Number(v['schemaVersion']))) return false
+  if (!keys(v, ['schemaVersion','engine','actor','metric','statistics','abilities','buffs','resources','attributes','gear', ...(v['schemaVersion'] === 2 ? ['localization'] : [])])) return false
+  if (v['schemaVersion'] !== 1 && v['schemaVersion'] !== 2) return false
+  if (v['schemaVersion'] === 2 && !isSimulationLocalization(v['localization'], v['abilities'], v['buffs'], v['engine'])) return false
   const engine = v['engine'], actor = v['actor'], metric = v['metric'], stats = v['statistics']
   if (!obj(engine) || !keys(engine, ['version','gameVersion','build']) || !Object.values(engine).every(x => maybe(x, n => str(n)))) return false
   if (!obj(actor) || !keys(actor, ['name','className','specialization','level','race','talents']) || !maybe(actor['talents'], x => str(x, 4096))) return false
@@ -88,4 +109,20 @@ export function isSimulationReport(v: unknown): v is SimulationReport {
     && list(v['resources'], 32, r => obj(r) && keys(r,['name','gained','lost']) && str(r['name']) && maybe(r['gained'], n => num(n)) && maybe(r['lost'], n => num(n)))
     && list(v['attributes'], 64, a => obj(a) && keys(a,['name','value']) && str(a['name']) && num(a['value']))
     && list(v['gear'], 32, g => obj(g) && keys(g,['slot','itemId','itemLevel']) && str(g['slot']) && num(g['itemId'],2147483647) && Number.isInteger(g['itemId']) && g['itemId'] > 0 && maybe(g['itemLevel'], n => num(n,10000)))
+}
+
+function isSimulationLocalization(v: unknown, abilities: unknown, buffs: unknown, engine: unknown): v is SimulationLocalization {
+  const identity = (x: unknown) => maybe(x, n => num(n, 2147483647) && Number.isInteger(n) && n > 0)
+  const name = (x: unknown) => obj(x) && keys(x, ['text','status','spellId','sourceNpcId','method'])
+    && str(x['text'], 320) && x['text'].length > 0
+    && ['resolved','partial','unresolved','ambiguous','legacy'].includes(String(x['status']))
+    && identity(x['spellId']) && identity(x['sourceNpcId'])
+    && ['spell_id','exact_name','engine_rule','unresolved'].includes(String(x['method']))
+  return obj(v) && keys(v, ['locale','gameVersion','catalogRevision','status','abilities','buffs']) && v['locale'] === 'zhCN'
+    && obj(engine) && v['gameVersion'] === engine['gameVersion'] && maybe(v['gameVersion'], n => str(n, 64))
+    && maybe(v['catalogRevision'], n => typeof n === 'string' && /^[a-f0-9]{64}$/u.test(n))
+    && ['complete','partial','unavailable','legacy'].includes(String(v['status']))
+    && list(v['abilities'], 256, name) && list(v['buffs'], 256, name)
+    && Array.isArray(abilities) && Array.isArray(v['abilities']) && abilities.length === v['abilities'].length
+    && Array.isArray(buffs) && Array.isArray(v['buffs']) && buffs.length === v['buffs'].length
 }

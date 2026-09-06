@@ -62,13 +62,17 @@
       {
         "id": "tab_reply_continuity",
         "status": "pending"
+      },
+      {
+        "id": "localized_report_names",
+        "status": "pending"
       }
     ],
     "rollup": {
-      "total": 9,
+      "total": 10,
       "accepted": 0,
       "notRunUserWaived": 0,
-      "pending": 9
+      "pending": 10
     }
   },
   "scope": [
@@ -586,5 +590,12 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\elemental-terms-verification.json"
   ],
-  "summary": "Elemental report localization completed for real Giannis report: 37 additional verified names cover player, pet, set and trinket effects; all 57 rows named with original metrics preserved."
+  "summary": "Elemental report localization completed for real Giannis report: 37 additional verified names cover player, pet, set and trinket effects; all 57 rows named with original metrics preserved.",
+  "localization": {
+    "status": "implementation_verified_coverage_partial",
+    "plan": "docs/plans/2026-09-06-simc-localization.md",
+    "coverage": "artifacts/releases/2026-09-06-simc-workbench/localization-coverage.json",
+    "catalog": "server/app/simulation/data/localization/12.1.0.69299/manifest.json",
+    "scope": "No production cutover or claim of all-specialization completeness. Runtime identity above still refers to the previously deployed workbench until localized test release passes."
+  }
 }

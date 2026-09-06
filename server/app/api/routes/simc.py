@@ -125,7 +125,7 @@ def _attempt_payload(attempt: SimulationAttempt) -> dict[str, object]:
     }
 
 
-def _result_payload(view: SimulationJobView, workbench: bool = False) -> dict[str, object] | None:
+def _result_payload(view: SimulationJobView, workbench: bool = False, localized: bool = False) -> dict[str, object] | None:
     provenance = validated_simulation_result_provenance(view)
     result = view.result
     if result is None:
@@ -135,7 +135,7 @@ def _result_payload(view: SimulationJobView, workbench: bool = False) -> dict[st
     return {
         "id": str(result.id),
         "profileSha256": result.profile_sha256,
-        **({"report": public_simulation_report(view), "metricError": public_simulation_metric_error(view)} if workbench else {}),
+        **({"report": public_simulation_report(view, localized=localized), "metricError": public_simulation_metric_error(view)} if workbench else {}),
         "metricName": result.primary_metric_name,
         "metricValue": result.primary_metric_value,
         "compilerRevision": result.compiler_revision,
@@ -145,11 +145,11 @@ def _result_payload(view: SimulationJobView, workbench: bool = False) -> dict[st
     }
 
 
-def _job_detail(view: SimulationJobView, workbench: bool = False) -> dict[str, object]:
+def _job_detail(view: SimulationJobView, workbench: bool = False, localized: bool = False) -> dict[str, object]:
     return {
         **_job_summary(view, workbench),
         "attempts": [_attempt_payload(attempt) for attempt in view.attempts[:20]],
-        "result": _result_payload(view, workbench),
+        "result": _result_payload(view, workbench, localized),
     }
 
 
@@ -235,6 +235,7 @@ def list_jobs(
 def create_job(
     body: SimulationCreateBody,
     view: str | None = None,
+    reportLocale: str | None = None,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_mutating_principal),
     application: SimulationApplication = Depends(simulation_application),
@@ -246,7 +247,7 @@ def create_job(
             body.scenario,
             idempotency_key or "",
         )
-        return _job_detail(application.read_job(principal, job.id), view == "workbench")
+        return _job_detail(application.read_job(principal, job.id), view == "workbench", reportLocale == 'zhCN')
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
@@ -255,11 +256,12 @@ def create_job(
 def get_job(
     job_id: UUID,
     view: str | None = None,
+    reportLocale: str | None = None,
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _job_detail(application.read_job(principal, job_id), view == "workbench")
+        return _job_detail(application.read_job(principal, job_id), view == "workbench", reportLocale == 'zhCN')
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 

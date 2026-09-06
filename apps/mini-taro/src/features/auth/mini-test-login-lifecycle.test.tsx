@@ -153,6 +153,7 @@ describe('Mini test login lifecycle', () => {
     await click('Enter A')
     expect(runtime.getJob).toHaveBeenCalledWith(runtime.params.id, {
       auth: { kind: 'mini', accessToken: 'test-session-A-123456789' },
+      workbench: true, localizedReport: true,
     })
     expect(container.textContent).toContain(runtime.params.id)
   })

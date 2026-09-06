@@ -20,7 +20,7 @@ function validNumber(value: string, minimum: number, maximum: number, integer = 
 }
 
 export default function WebSimcView({ auth }: WebSimcViewProps) {
-  const model = useMemo(() => new SimcModel(wowApi.simc, () => auth, { workbench: true }), [auth])
+  const model = useMemo(() => new SimcModel(wowApi.simc, () => auth, { workbench: true, localizedReport: true }), [auth])
   const [state, setState] = useState<SimcModelState>(() => model.get())
   const [page, setPage] = useState<WorkbenchPage>('new')
   const [filter, setFilter] = useState<SimulationJobStatus | 'all'>('all')

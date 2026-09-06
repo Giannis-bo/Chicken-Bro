@@ -58,7 +58,7 @@ class SimulationJobPage:
     next_cursor: str | None
 
 
-def public_simulation_report(view: SimulationJobView) -> dict[str, object] | None:
+def public_simulation_report(view: SimulationJobView, *, localized: bool = False) -> dict[str, object] | None:
     from server.app.simulation.report import SimulationReportError, canonicalize_simc_report
     report = view.result.result.get("report") if view.result is not None else None
     if report is None:
@@ -70,6 +70,14 @@ def public_simulation_report(view: SimulationJobView) -> dict[str, object] | Non
     if (report["metric"]["name"] != view.result.primary_metric_name
             or report["metric"]["value"] != view.result.primary_metric_value):
         raise SimulationApplicationError("SIMC_RESULT_INVALID", "simulation report is invalid")
+    if localized:
+        from server.app.simulation.localization import catalog_for_build, localize_report
+        try:
+            names = localize_report(report, view.result.result.get('reportIdentity'),
+                                    catalog_for_build(report['engine']['gameVersion']), engine_revision=view.result.runtime_revision)
+        except ValueError:
+            raise SimulationApplicationError('SIMC_RESULT_INVALID', 'simulation identity is invalid') from None
+        return {**report, 'schemaVersion': 2, 'localization': names}
     return report
 
 

@@ -16,6 +16,7 @@ from server.app.simulation.readiness import (
     inspect_managed_simc_runtime, runtime_revision_matches_identity,
 )
 from server.app.simulation.report import MAX_REPORT_BYTES, SimulationReportError, normalize_simc_report
+from server.app.simulation.report_identity import npc_sources_from_html
 from server.app.worker.handlers import RetryableJobError
 from server.app.worker.leases import JobLease, LostLeaseError
 
@@ -36,6 +37,7 @@ class RawSimulationExecution:
     timed_out: bool = False
     report_json: str | bytes | None = None
     requires_json: bool = False
+    npc_sources: dict | None = None
 
 
 class SimulationCraftPort(Protocol):
@@ -73,8 +75,9 @@ class LocalSimulationCraftPort:
         try:
             with tempfile.TemporaryDirectory(prefix="chickenbro-simc-") as private_dir:
                 output = Path(private_dir) / "report.json"
+                html_output = Path(private_dir) / "report.html"
                 completed = self._runner(
-                    [binary, "-", f"json={output},full_states=0", "report_details=1"],
+                    [binary, "-", f"json={output},full_states=0", f"html={html_output}", "report_details=1"],
                     input=compiled_input.profile,
                     text=True,
                     encoding="utf-8",
@@ -91,6 +94,7 @@ class LocalSimulationCraftPort:
                 if after_identity != identity:
                     raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
                 report_json = None
+                npc_sources = {}
                 if int(completed.returncode) == 0:
                     try:
                         if output.is_symlink() or not output.is_file() or output.stat().st_size > MAX_REPORT_BYTES:
@@ -101,6 +105,16 @@ class LocalSimulationCraftPort:
                             raise SimulationWorkerError("SIMC_REPORT_INVALID")
                     except OSError:
                         raise SimulationWorkerError("SIMC_REPORT_INVALID") from None
+                    # HTML is private metadata only. Missing/oversized HTML may leave
+                    # pet names unresolved, but must not discard valid JSON metrics.
+                    try:
+                        if not html_output.is_symlink() and html_output.is_file() and html_output.stat().st_size <= 16 * 1024 * 1024:
+                            with html_output.open('rb') as stream:
+                                html = stream.read(16 * 1024 * 1024 + 1)
+                            if len(html) <= 16 * 1024 * 1024:
+                                npc_sources = npc_sources_from_html(html.decode('utf-8', errors='replace'))
+                    except (OSError, ValueError):
+                        pass
         except subprocess.TimeoutExpired:
             raise SimulationWorkerError("SIMC_TIMEOUT", retryable=True) from None
         except OSError:
@@ -112,6 +126,7 @@ class LocalSimulationCraftPort:
             runtime_revision=runtime_revision,
             report_json=report_json,
             requires_json=True,
+            npc_sources=npc_sources,
         )
 
 
@@ -122,6 +137,7 @@ class SemanticSimulationMetric:
     error: float | None = None
     error_pct: float | None = None
     report: dict | None = None
+    report_identity: dict | None = None
 
 
 class SimulationResultParser:
@@ -155,7 +171,9 @@ class SimulationResultParser:
             raise SimulationWorkerError("SIMC_FATAL_DIAGNOSTIC")
         if execution.requires_json or execution.report_json is not None:
             try:
-                report = normalize_simc_report(execution.report_json, expected_actor=expected_actor)
+                report_identity = {}
+                report = normalize_simc_report(execution.report_json, expected_actor=expected_actor,
+                    identity_sink=report_identity, npc_sources=execution.npc_sources)
             except SimulationReportError as error:
                 raise SimulationWorkerError(error.code) from None
             metric = report["metric"]
@@ -167,6 +185,7 @@ class SimulationResultParser:
                 name=metric["name"], value=metric["value"], error=error,
                 error_pct=error_pct,
                 report=report,
+                report_identity=report_identity,
             )
         actor_matches = list(self._ACTOR_PATTERN.finditer(execution.stdout or ""))
         actors = [match.group(1).strip() for match in actor_matches]
@@ -329,6 +348,7 @@ class SimulationWorker:
                 "metricName": metric.name,
                 "metricValue": metric.value,
                 **({"report": metric.report} if metric.report is not None else {}),
+                **({"reportIdentity": metric.report_identity} if metric.report_identity is not None else {}),
                 **({"metricError": metric.error, "metricErrorPct": metric.error_pct} if metric.error is not None else {}),
                 "provenance": {
                     **provenance,

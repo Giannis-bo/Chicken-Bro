@@ -100,6 +100,21 @@ describe('Web SimC workbench', () => {
     expect(JSON.stringify(elementalReport)).toBe(before)
   })
 
+  it('keeps server names attached to their metrics when contributions are sorted', async () => {
+    const labels = ['低贡献技能', '高贡献技能'].map(text => ({ text, status: 'resolved', spellId: 2136, sourceNpcId: null, method: 'spell_id' }))
+    const localized = { ...report, schemaVersion: 2,
+      abilities: [{ ...report.abilities[0], name: 'same_token', amount: 10 }, { ...report.abilities[0], name: 'same_token', amount: 100 }],
+      localization: { locale: 'zhCN', gameVersion: report.engine.gameVersion, catalogRevision: 'a'.repeat(64), status: 'complete', abilities: labels,
+        buffs: [{ ...labels[0], text: '服务端增益名称' }] } }
+    api.getJob.mockResolvedValue(success({ ...job, result: { ...job.result, report: localized } }))
+    await openReport()
+    const rows = container.querySelector('tbody')!.querySelectorAll('tr')
+    expect(rows[0]?.textContent).toContain('高贡献技能')
+    expect(rows[1]?.textContent).toContain('低贡献技能')
+    expect(container.textContent).toContain('服务端增益名称')
+    expect(api.getJob.mock.calls[0]?.[1]).toMatchObject({ workbench: true, localizedReport: true })
+  })
+
   it('separates setup, tasks and the report while retaining the current engine version', async () => {
     expect(button('新建模拟').getAttribute('aria-current')).toBe('page')
     expect(container.querySelector('[data-job-id]')).toBeNull()

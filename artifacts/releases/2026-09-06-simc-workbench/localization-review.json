@@ -1,0 +1,18 @@
+{
+  "status": "reviewed",
+  "reviewMethod": "independent local source review",
+  "issues": [
+    {
+      "severity": "P2",
+      "issue": "Coverage runtime identity was inferred from archive path",
+      "resolution": "Collector verifies managed runtime and archive source correspondence; analyzer uses recorded verified per-run revision."
+    },
+    {
+      "severity": "P2",
+      "issue": "HTML NPC metadata was not hash-bound",
+      "resolution": "Collector records bounded HTML SHA and status; analyzer rejects changed files."
+    }
+  ],
+  "deltaReview": "No remaining P1/P2 found; 18 localization tests passed. Corpus recollected with corrected verifier.",
+  "productionAuthorized": false
+}

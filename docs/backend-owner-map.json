@@ -37,7 +37,8 @@
       "characterization": [
         "tests/app_simulation_application_test.py",
         "tests/app_simc_cross_client_test.py",
-        "tests/app_chickenbro_simulation_tools_test.py"
+        "tests/app_chickenbro_simulation_tools_test.py",
+        "tests/app_simulation_localization_test.py"
       ]
     },
     "worker": {

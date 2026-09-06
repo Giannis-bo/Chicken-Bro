@@ -108,7 +108,8 @@ def _set_compound_portions(abilities: list[dict]) -> None:
         row['portion'] = _percent(row['amount'] / total * 100) if total > 0 else None
 
 
-def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
+def normalize_simc_report(payload: str | bytes, *, expected_actor: str,
+                          identity_sink: dict | None = None, npc_sources: dict | None = None) -> dict:
     if not isinstance(payload, (str, bytes)) or len(payload) > MAX_REPORT_BYTES:
         raise SimulationReportError()
     try:
@@ -206,7 +207,7 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
             gear.append({'slot': _text(slot), 'itemId': item_id,
                          'itemLevel': item_level if item_level is not None and item_level <= 10000 else None})
     level = _integer(actor.get('level'))
-    return {'schemaVersion': 1,
+    report = {'schemaVersion': 1,
         'engine': {'version': version, 'gameVersion': _text(game.get('wow_version'), 64) or None,
                    'build': str(_integer(game.get('build_level'))) if _integer(game.get('build_level')) is not None else None},
         'actor': {'name': name, 'className': class_name, 'specialization': spec_name,
@@ -218,6 +219,15 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str) -> dict:
                        'elapsedSeconds': _number(_object(sim.get('statistics')).get('elapsed_time_seconds'))},
         'abilities': abilities[:_MAX_ROWS], 'buffs': buffs[:_MAX_ROWS], 'resources': resources,
         'attributes': attributes[:64], 'gear': gear}
+    if identity_sink is not None:
+        from server.app.simulation.report_identity import extract_report_identity
+        try:
+            identity = extract_report_identity(data, report, npc_sources)
+        except ValueError:
+            raise SimulationReportError() from None
+        identity_sink.clear()
+        identity_sink.update(identity)
+    return report
 
 
 def canonicalize_simc_report(value: object) -> dict:

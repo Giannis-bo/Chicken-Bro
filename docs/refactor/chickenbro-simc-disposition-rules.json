@@ -17,6 +17,12 @@
         "packages/domain/src/simc-workbench.test.ts",
         "packages/domain/src/simc-workbench.ts",
         "server/app/simulation/report.py",
+        "server/app/simulation/report_identity.py",
+        "server/app/simulation/localization.py",
+        "scripts/build_simc_localization_catalog.py",
+        "scripts/verify_simc_localization_matrix.py",
+        "tests/app_simulation_localization_test.py",
+        "docs/plans/2026-09-06-simc-localization.md",
         "server/app/simulation/runtime.py",
         "tests/app_simc_workbench_api_test.py",
         "tests/app_simc_workbench_test.py",
@@ -32,6 +38,7 @@
         "tests/fixtures/simc/giannis_elemental_report.json"
       ],
       "prefixes": [
+        "server/app/simulation/data/localization/",
         "artifacts/releases/2026-09-06-simc-workbench/"
       ]
     },

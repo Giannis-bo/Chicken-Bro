@@ -29,6 +29,7 @@ export interface SimcModelDependencies {
   sleep?: (delayMs: number) => Promise<void>
   maxPolls?: number
   workbench?: boolean
+  localizedReport?: boolean
 }
 
 export interface SimulationPollOptions {
@@ -154,6 +155,7 @@ export class SimcModel {
   private readonly sleep: (delayMs: number) => Promise<void>
   private readonly maxPolls: number
   private readonly workbench: boolean
+  private readonly localizedReport: boolean
   private pendingSubmission: { identity: string; idempotencyKey: string } | null = null
   private submitInFlight: Promise<SimulationJobDetail | null> | null = null
   private sourceGeneration = 0
@@ -167,6 +169,7 @@ export class SimcModel {
     dependencies: SimcModelDependencies = {},
   ) {
     this.workbench = dependencies.workbench ?? false
+    this.localizedReport = dependencies.localizedReport ?? false
     this.requestId = dependencies.requestId ?? defaultRequestId
     this.sleep = dependencies.sleep ?? defaultSleep
     this.maxPolls = Math.min(Math.max(dependencies.maxPolls ?? 8, 1), 20)
@@ -305,7 +308,7 @@ export class SimcModel {
     try {
       result = await this.client.createJob(
         { snapshotId: snapshot.id, scenario },
-        { auth, ...(this.workbench ? { workbench: true } : {}), idempotencyKey: pending.idempotencyKey },
+        { auth, ...(this.workbench ? { workbench: true } : {}), ...(this.localizedReport ? { localizedReport: true } : {}), idempotencyKey: pending.idempotencyKey },
       )
     } catch (error) {
       if (
@@ -363,7 +366,7 @@ export class SimcModel {
       this.authFailure(error)
       return null
     }
-    const result = await this.client.getJob(jobId, { auth, ...(this.workbench ? { workbench: true } : {}) })
+    const result = await this.client.getJob(jobId, { auth, ...(this.workbench ? { workbench: true } : {}), ...(this.localizedReport ? { localizedReport: true } : {}) })
     if (generation !== this.activeJobGeneration || cancelled?.()) return null
     if (result.fromFallback) {
       if (operationGeneration === this.operationGeneration) {
