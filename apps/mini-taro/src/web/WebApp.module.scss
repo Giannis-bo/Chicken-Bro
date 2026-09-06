@@ -545,6 +545,10 @@
   animation-direction: alternate-reverse;
 }
 
+.businessPane[hidden] {
+  display: none;
+}
+
 .businessView {
   position: relative;
   z-index: 1;

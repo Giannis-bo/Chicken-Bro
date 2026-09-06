@@ -25,6 +25,7 @@ export interface WebShellProps {
 
 export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps) {
   const [activeView, setActiveView] = useState<BusinessView>('chat')
+  const [simcVisited, setSimcVisited] = useState(false)
   const [isHordeSkin, setIsHordeSkin] = useState(true)
 
   return (
@@ -51,7 +52,10 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
               className={styles['navButton'] ?? ''}
               data-active={activeView === mode.id ? 'true' : 'false'}
               aria-label={mode.id === 'simc' ? 'SimC 模拟' : '队长对话'}
-              onClick={() => setActiveView(mode.id)}
+              onClick={() => {
+                if (mode.id === 'simc') setSimcVisited(true)
+                setActiveView(mode.id)
+              }}
             >
               <Text className={styles['modeSwitchNumber'] ?? ''}>{mode.number}</Text>
               <Text>{mode.label}</Text>
@@ -93,9 +97,15 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
             </View>
           ) : null}
 
-          {activeView === 'chat'
-            ? <WebChatView auth={auth} showHordeSkin={isHordeSkin} />
-            : <WebSimcView auth={auth} />}
+          {/* A tab change must not dispose the chat model and abort its active stream. */}
+          <div className={styles['businessPane']} hidden={activeView !== 'chat'}>
+            <WebChatView auth={auth} showHordeSkin={isHordeSkin} />
+          </div>
+          {simcVisited ? (
+            <div className={styles['businessPane']} hidden={activeView !== 'simc'}>
+              <WebSimcView auth={auth} />
+            </div>
+          ) : null}
         </View>
       </View>
     </View>

@@ -12,6 +12,7 @@
         "apps/mini-taro/src/web/WebSimcReport.tsx",
         "apps/mini-taro/src/web/simc-presentation.ts",
         "apps/mini-taro/src/web/web-simc-workbench.test.tsx",
+        "apps/mini-taro/src/web/web-shell-stream.test.tsx",
         "docs/plans/2026-09-06-simc-workbench.md",
         "packages/domain/src/simc-workbench.test.ts",
         "packages/domain/src/simc-workbench.ts",
