@@ -1,0 +1,68 @@
+{
+  "commit": "1e8be32135c9be83a61cacb429c1df39f14be117",
+  "rootCauses": {
+    "wcl": "Shared client omitted cn.warcraftlogs.com; rejected before source API. Backend accepts this hostname.",
+    "raiderio": "Actual profile response omits level; no verified enrichment supplied level.",
+    "wclCompleteness": "Current adapter uses playerDetails without combatant info; real selected player lacks level/race/gear/talents in this response. This remains incomplete, not a usable simulation."
+  },
+  "sourceReads": [
+    {
+      "url": "https://raider.io/cn/characters/cn/silver-hand/Giannis",
+      "character": {
+        "name": "Giannis",
+        "realm": "Silver Hand",
+        "region": "cn",
+        "classKey": "shaman",
+        "specKey": "elemental",
+        "raceKey": "dark_iron_dwarf"
+      },
+      "missingFields": [
+        "character.level"
+      ]
+    },
+    {
+      "url": "https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1?fight=1&source=4",
+      "character": {
+        "name": "Giannis",
+        "realm": "白银之手",
+        "region": "cn",
+        "classKey": "shaman",
+        "specKey": "elemental"
+      },
+      "missingFields": [
+        "character.level",
+        "character.raceKey",
+        "talents.loadout",
+        "gear.head",
+        "gear.neck",
+        "gear.shoulder",
+        "gear.back",
+        "gear.chest",
+        "gear.wrist",
+        "gear.hands",
+        "gear.waist",
+        "gear.legs",
+        "gear.feet",
+        "gear.finger1",
+        "gear.finger2",
+        "gear.trinket1",
+        "gear.trinket2",
+        "gear.main_hand",
+        "gear.off_hand"
+      ]
+    }
+  ],
+  "tests": {
+    "red": "Two tests fail on original client for query and fragment forms",
+    "green": "198 frontend tests pass including positive and invalid CN URL cases",
+    "typecheck": "pass",
+    "lint": "pass",
+    "h5": "pass; two existing bundle warnings",
+    "weapp": "pass; staged atomic promotion of 42 files"
+  },
+  "browser": {
+    "wclQueryUrl": "Actual test account A read returns Giannis incomplete snapshot instead of INVALID_LINK; simulation remains disabled",
+    "raiderio": "Actual test account A read returns Giannis with missing level, no INVALID_LINK"
+  },
+  "acceptance": "Import completeness remains unresolved; no claim of successful simulation for these examples"
+}

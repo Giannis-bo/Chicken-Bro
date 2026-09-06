@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-06T05:48:01.736Z",
+  "generatedAt": "2026-09-06T06:14:44.380Z",
   "release": {
     "date": "2026-09-06",
     "slug": "simc-workbench"
@@ -53,7 +53,7 @@
         {
           "path": "docs/roadmap.md",
           "exists": true,
-          "sizeBytes": 9710
+          "sizeBytes": 9793
         },
         {
           "path": "docs/README.md",
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-    "sizeBytes": 9334,
+    "sizeBytes": 10949,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Isolated test site updated with verified character source link examples. User acceptance, main integration and production cutover remain pending."
+    "summary": "CN WCL client rejection fixed on isolated test site. Both example snapshots remain incomplete; no claim of executable Giannis simulation."
   },
   "evidence": {
     "localTests": {
@@ -417,7 +417,7 @@
       "id": "dirty_worktree",
       "severity": "medium",
       "status": "watch",
-      "detail": "6 changed files currently visible to git status."
+      "detail": "4 changed files currently visible to git status."
     },
     {
       "id": "localTests_missing",
@@ -447,14 +447,12 @@
   "repo": {
     "git": {
       "status": "dirty",
-      "changedFileCount": 6,
+      "changedFileCount": 4,
       "changedFiles": [
         " M artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-        " M docs/plans/2026-09-06-simc-workbench.md",
         " M docs/roadmap.md",
-        "?? artifacts/releases/2026-09-06-simc-workbench/source-examples-character.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/source-examples-deployment.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/source-examples-verification.json"
+        "?? artifacts/releases/2026-09-06-simc-workbench/cn-link-deployment.json",
+        "?? artifacts/releases/2026-09-06-simc-workbench/cn-link-verification.json"
       ]
     }
   },
