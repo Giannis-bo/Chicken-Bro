@@ -32,7 +32,14 @@ def _load_profile(profile: str | None) -> dict[str, Any]:
             raw = source.read(262145)
         if len(raw) > 262144:
             raise ValueError("oversized profile")
-        return tomllib.loads(raw.decode("utf-8"))
+        config = tomllib.loads(raw.decode("utf-8"))
+        toolbox = config.get("mcp_servers", {}).get("chickenbro_toolbox")
+        if isinstance(toolbox, dict):
+            # The test service must execute the tools from its own release,
+            # even when it inherits the same model/auth profile as production.
+            toolbox["args"] = [str(Path(__file__).resolve().parents[2] / "chickenbro_native_mcp.py")]
+            toolbox["tool_timeout_sec"] = 90
+        return config
     except (OSError, ValueError):
         raise CodexUnavailable() from None
 

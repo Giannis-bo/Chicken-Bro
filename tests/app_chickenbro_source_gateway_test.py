@@ -116,53 +116,39 @@ class ChickenbroSourceGatewayTest(unittest.TestCase):
         self.assertEqual("KfVp6AQ8GMHYFN42", result["facts"][0]["reportCode"])
         self.assertEqual(["wcl.report", "wcl.fight", "wcl.events"], result["evidenceRefs"])
 
-    def test_server_query_uses_raiderio_character_api_and_returns_bounded_snapshot(self):
-        query = ServerConfiguredSourceQuery()
-        candidate = type(
-            "Candidate",
-            (),
-            {
-                "snapshot": {
-                    "character": {
-                        "name": "Giannis",
-                        "realm": "Silver Hand",
-                        "region": "cn",
-                        "classKey": "shaman",
-                        "specKey": "elemental",
-                        "level": 90,
-                    },
-                    "gear": {"head": {"itemId": 1, "itemLevel": 90, "bonusIds": [1], "enchant": 2}},
-                    "talents": {"string": "loadout"},
-                    "profileSource": "raiderio",
-                },
-                "provenance": {
-                    "sourceUrl": "https://raider.io/characters/cn/silver-hand/Giannis",
-                    "sourceRevision": "rev-1",
-                    "fetchedAt": "2026-09-02T01:00:00+00:00",
-                },
-                "raw_sha256": "a" * 64,
-                "readiness": type("Readiness", (), {"value": "INCOMPLETE_FOR_SIMC"})(),
-                "source_url": "https://raider.io/characters/cn/silver-hand/Giannis",
-            },
-        )()
+    def test_research_query_routes_without_simc_projection_and_retains_capability(self):
+        class Research:
+            def character(self, target):
+                return {"status": "source_reference", "facts": [{"gear": {"neck": {
+                    "gems_detail": [{"name": "16 Mastery & 7 Crit"}], "tier": "36"}}}], "target": target}
+            def rankings(self, options):
+                return {"status": "source_reference", "facts": [{"score": 3600}], "options": options}
+            def characters(self, targets):
+                return {"status": "partial", "facts": [{"targets": targets}]}
+        service = ServerConfiguredSourceQuery(raiderio_research=Research())
+        gateway = ChickenbroSourceGateway(query_service=service)
+        token = gateway.issue_capability()
+        target = "https://raider.io/cn/characters/cn/silver-hand/Giannis"
+        profile = gateway.query(token, "raiderio", target)
+        self.assertEqual(profile["facts"][0]["gear"]["neck"]["gems_detail"][0]["name"], "16 Mastery & 7 Crit")
+        ranking = gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement"})
+        self.assertEqual(ranking["options"]["spec"], "enhancement")
+        batch = gateway.query(token, "raiderio_batch", "characters", {"targets": [target]})
+        self.assertEqual(batch["facts"][0]["targets"], [target])
+        gateway.revoke(token)
+        with self.assertRaises(SourceGatewayUnauthorized):
+            gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement"})
 
-        class Router:
-            def resolve(self, target):
-                self.target = target
-                return candidate
-
-        router = Router()
-        result = ServerConfiguredSourceQuery(character_router=router).query(
-            "raiderio",
-            "https://raider.io/cn/characters/cn/silver-hand/Giannis",
-        )
-
-        self.assertEqual("https://raider.io/cn/characters/cn/silver-hand/Giannis", router.target)
-        self.assertEqual("raiderio", result["sourceKey"])
-        self.assertEqual("source_reference", result["status"])
-        self.assertEqual("Giannis", result["facts"][0]["character"]["name"])
-        self.assertEqual("a" * 64, result["evidence"][0]["rawSha256"])
-        self.assertNotIn("access_key", str(result))
+    def test_research_dispatch_rejects_unrecognized_targets_and_options(self):
+        from server.app.simulation.sources import InvalidSourceLink
+        service = ServerConfiguredSourceQuery(raiderio_research=object())
+        for provider, target, options in [
+            ("raiderio_batch", "characters", {"targets": [], "extra": "forbidden"}),
+            ("raiderio_rankings", "https://localhost", {"className": "shaman", "spec": "enhancement"}),
+            ("raiderio", "https://raider.io/characters/us/area-52/Test", {"extra": 1}),
+        ]:
+            with self.subTest(provider=provider), self.assertRaises(InvalidSourceLink):
+                service.query(provider, target, options)
 
 
 if __name__ == "__main__":

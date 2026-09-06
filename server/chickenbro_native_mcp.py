@@ -8,8 +8,10 @@ public-web reader already owned by the backend.
 """
 
 import json
+import hashlib
 import os
 import sys
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -25,13 +27,17 @@ MCP_PROTOCOL_VERSION = "2025-03-26"
 TOOL_NAME = "research_public_web"
 WARCRAFTLOGS_TOOL_NAME = "query_warcraftlogs_report"
 RAIDERIO_TOOL_NAME = "query_raiderio_character"
+RAIDERIO_RANKINGS_TOOL_NAME = "query_raiderio_rankings"
+RAIDERIO_BATCH_TOOL_NAME = "query_raiderio_characters"
 SOURCE_GATEWAY_URL_ENV = "CHICKENBRO_SOURCE_GATEWAY_URL"
 SOURCE_GATEWAY_TOKEN_ENV = "CHICKENBRO_SOURCE_GATEWAY_TOKEN"
 TOOL_DEFINITION = {
     "name": TOOL_NAME,
     "description": (
-        "Read a small, safe snapshot from a Codex-selected public HTTPS page or search query. "
-        "Use a concrete target. The result includes source URLs, checked time, scope and limitations."
+        "Search public sources or read a public HTTPS article for game mechanics, patches and guides. "
+        "Use target=query for discovery or target=URL to read. Empty JS shells/challenges are not evidence. "
+        "Follow returned nextStart with start to continue a truncated article, or match to locate a term. "
+        "For ranked character samples use query_raiderio_rankings instead of the website homepage."
     ),
     "inputSchema": {
         "type": "object",
@@ -41,8 +47,10 @@ TOOL_DEFINITION = {
             "target": {
                 "type": "string",
                 "description": "A concrete public-web research query or safe HTTPS URL.",
-                "maxLength": 360,
-            }
+                "maxLength": 2048,
+            },
+            "start": {"type": "integer", "minimum": 0, "maximum": 750000},
+            "match": {"type": "string", "maxLength": 120},
         },
     },
     "annotations": {"readOnlyHint": True},
@@ -88,7 +96,9 @@ RAIDERIO_TOOL_DEFINITION = {
     "description": (
         "Query one Raider.IO character profile through the server-configured Raider.IO API. "
         "Use this for a Raider.IO character URL; do not open the public profile page instead. "
-        "The result is a bounded character, gear and talent snapshot."
+        "Returns selected talents and analysis-ready gear including gem/enchant descriptions, tier membership, "
+        "scores and snapshot dates. Missing statistics are explicit; not a combat log or simulated stat weight. "
+        "Discover unknown character URLs with query_raiderio_rankings, or read multiple with query_raiderio_characters."
     ),
     "inputSchema": {
         "type": "object",
@@ -104,10 +114,49 @@ RAIDERIO_TOOL_DEFINITION = {
     },
     "annotations": {"readOnlyHint": True},
 }
+RAIDERIO_RANKINGS_TOOL_DEFINITION = {
+    "name": RAIDERIO_RANKINGS_TOOL_NAME,
+    "description": (
+        "Discover high-scoring Mythic+ characters by class and specialization through the Raider.IO API. "
+        "Use when the user asks about top players or popular builds without providing character links. "
+        "season=current resolves the upstream active season. Returns ranks, scores, character URLs and page metadata. "
+        "Use nextPage/nextOffset to continue, then query_raiderio_characters for the selected sample. "
+        "Ranked samples are observations, not proof of individual stat gains."
+    ),
+    "inputSchema": {
+        "type": "object", "additionalProperties": False, "required": ["className", "spec"],
+        "properties": {
+            "className": {"type": "string", "description": "Class slug, e.g. shaman, death-knight, demon-hunter.", "maxLength": 24},
+            "spec": {"type": "string", "description": "Matching specialization slug, e.g. enhancement.", "maxLength": 24},
+            "region": {"type": "string", "enum": ["world", "us", "eu", "kr", "tw", "cn"]},
+            "season": {"type": "string", "description": "current (default) or explicit Raider.IO season slug.", "maxLength": 50},
+            "page": {"type": "integer", "minimum": 0, "maximum": 20},
+            "offset": {"type": "integer", "minimum": 0, "maximum": 99},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+        },
+    },
+    "annotations": {"readOnlyHint": True},
+}
+RAIDERIO_BATCH_TOOL_DEFINITION = {
+    "name": RAIDERIO_BATCH_TOOL_NAME,
+    "description": (
+        "Read up to 10 public Raider.IO characters concurrently using the server API. "
+        "Use URLs discovered by query_raiderio_rankings or supplied by the user. "
+        "Returns analysis-ready gear/talents and individual failures; only use successful matching profiles as evidence."
+    ),
+    "inputSchema": {
+        "type": "object", "additionalProperties": False, "required": ["targets"],
+        "properties": {"targets": {"type": "array", "minItems": 1, "maxItems": 10,
+                                    "items": {"type": "string", "maxLength": 2048}}},
+    },
+    "annotations": {"readOnlyHint": True},
+}
 TOOL_DEFINITIONS = [
     TOOL_DEFINITION,
     WARCRAFTLOGS_TOOL_DEFINITION,
     RAIDERIO_TOOL_DEFINITION,
+    RAIDERIO_RANKINGS_TOOL_DEFINITION,
+    RAIDERIO_BATCH_TOOL_DEFINITION,
 ]
 
 
@@ -139,12 +188,16 @@ def _partial_tool_result(limitation, source_key="public_web_research"):
     }
 
 
-def _safe_observation(result, tool_name=TOOL_NAME):
+def _safe_observation(result, tool_name=TOOL_NAME, *, arguments=None, elapsed_ms=0):
     packet = result if isinstance(result, dict) else {}
     return {
         "tool": tool_name,
         "sourceKey": str(packet.get("sourceKey") or "public_web_research"),
         "status": str(packet.get("status") or "partial"),
+        "reasonCode": str(packet.get("reasonCode") or "")[:80],
+        "elapsedMs": max(0, int(elapsed_ms)),
+        "factCount": len(packet.get("facts") or []),
+        "argumentsSha256": hashlib.sha256(json.dumps(arguments or {}, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
         "evidenceRefs": [str(value) for value in packet.get("evidenceRefs") or [] if str(value)],
         "evidence": [item for item in packet.get("evidence") or [] if isinstance(item, dict)],
         "limitations": [str(value) for value in packet.get("limitations") or [] if str(value)],
@@ -199,7 +252,7 @@ def query_source_gateway(provider, target, options=None):
         method="POST",
     )
     try:
-        with urlopen(request, timeout=30) as response:
+        with urlopen(request, timeout=85 if provider == "raiderio_batch" else 30) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
         return _partial_tool_result(
@@ -235,16 +288,13 @@ def handle_rpc_request(request, *, observation_writer=None):
     if method == "tools/call":
         params = packet.get("params") if isinstance(packet.get("params"), dict) else {}
         tool_name = str(params.get("name") or "")
-        if tool_name not in {
-            TOOL_NAME,
-            WARCRAFTLOGS_TOOL_NAME,
-            RAIDERIO_TOOL_NAME,
-        }:
+        if tool_name not in {definition["name"] for definition in TOOL_DEFINITIONS}:
             return _response(
                 request_id,
                 {"content": [{"type": "text", "text": "Unknown read-only tool."}], "isError": True},
             )
         arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
+        started = time.monotonic()
         if tool_name == TOOL_NAME:
             target = str(arguments.get("target") or "").strip()
             if not target:
@@ -260,9 +310,13 @@ def handle_rpc_request(request, *, observation_writer=None):
                     result = query_source_gateway("raiderio", target)
                 else:
                     try:
-                        result = build_public_web_research_tool_result({"target": target})
+                        result = build_public_web_research_tool_result(arguments)
                     except Exception:
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
+        elif tool_name in {RAIDERIO_RANKINGS_TOOL_NAME, RAIDERIO_BATCH_TOOL_NAME}:
+            provider, target = (("raiderio_rankings", "rankings") if tool_name == RAIDERIO_RANKINGS_TOOL_NAME
+                                else ("raiderio_batch", "characters"))
+            result = query_source_gateway(provider, target, options=arguments)
         else:
             try:
                 result = query_source_gateway(
@@ -275,7 +329,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                     "The server-configured source query failed before a safe observation was returned.",
                     "source_gateway",
                 )
-        observation = _safe_observation(result, tool_name=tool_name)
+        observation = _safe_observation(result, tool_name=tool_name, arguments=arguments,
+                                        elapsed_ms=(time.monotonic() - started) * 1000)
         if observation_writer:
             try:
                 observation_writer(observation)

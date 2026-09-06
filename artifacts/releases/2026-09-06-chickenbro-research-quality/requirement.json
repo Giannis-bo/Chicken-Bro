@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "slug": "chickenbro-research-quality",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "让鸡哥自主获取高分角色样本并基于有效资料回答魔兽研究问题。",
+  "userValue": "同样的 Astra/high 在完整证据工具下完成研究，减少用户补链接和无效检索。",
+  "nonGoals": [
+    "新增产品页面或领域",
+    "生产数据库变更",
+    "本地运行SimC",
+    "本轮宣称全面超过通用助手"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/2026-09-06-chickenbro-research-quality.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+    "featureIteration": "user_authorized_followup"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/app/chickenbro/raiderio_research.py",
+      "server/app/chickenbro/source_gateway.py",
+      "server/chickenbro_native_mcp.py",
+      "server/chickenbro_public_web_research.py",
+      "server/app/chickenbro/agent/AGENTS.md",
+      "server/app/chickenbro/codex_adapter.py",
+      "server/app/api/routes/source_gateway.py"
+    ],
+    "mustNotChange": [
+      "production_database",
+      "Mini/Web identity transport",
+      "SimC snapshot semantics",
+      "production runtime during test rollout"
+    ],
+    "evidenceRequired": [
+      "targeted/backend/control tests",
+      "actual provider responses",
+      "native model original-question evaluation",
+      "test deployment manifest and rollback"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/app/chickenbro/source_gateway.py",
+    "consumers": [
+      "native Chickenbro Codex",
+      "Mini/Web Chat"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "New research adapter avoids coupling Chat evidence to SimC projection; bounded source tools and existing authentication are preserved."
+  },
+  "acceptanceEvidence": [
+    "python -m unittest tests.app_chickenbro_raiderio_research_test tests.app_chickenbro_public_web_test tests.app_chickenbro_source_gateway_test tests.app_chickenbro_native_mcp_test -v",
+    "npm run test:backend",
+    "npm run test:control",
+    "cloud original-question evaluation and test Chat"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "research_answer_quality"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-06",
+      "decision": "用户确认首轮研究质量方案并授权实施、测试验证。"
+    }
+  ]
+}

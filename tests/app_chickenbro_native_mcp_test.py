@@ -1,4 +1,5 @@
 import importlib
+import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -40,12 +41,42 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
                 "research_public_web",
                 "query_warcraftlogs_report",
                 "query_raiderio_character",
+                "query_raiderio_rankings",
+                "query_raiderio_characters",
             },
             {item["name"] for item in listed["result"]["tools"]},
         )
         self.assertTrue(
             all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"])
         )
+
+    def test_discovery_and_batch_use_capability_gateway_without_user_character_link(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        cases = [
+            ("query_raiderio_rankings", {"className": "shaman", "spec": "enhancement", "offset": 10},
+             "raiderio_rankings", "rankings"),
+            ("query_raiderio_characters", {"targets": ["https://raider.io/characters/eu/draenor/Example"]},
+             "raiderio_batch", "characters"),
+        ]
+        for name, arguments, provider, target in cases:
+            with self.subTest(name=name), patch.object(module, "query_source_gateway", return_value={"status": "source_reference"}) as query:
+                module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}})
+                query.assert_called_once_with(provider, target, options=arguments)
+
+    def test_web_continuation_and_observation_preserve_scope_without_raw_query(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        arguments = {"target": "https://example.com/guide", "start": 6000, "match": "Overcharge"}
+        observations = []
+        packet = {"status": "partial", "reasonCode": "JS_SHELL", "facts": [], "evidence": [], "evidenceRefs": []}
+        with patch.object(module, "build_public_web_research_tool_result", return_value=packet) as read:
+            module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {
+                "name": "research_public_web", "arguments": arguments}}, observation_writer=observations.append)
+        read.assert_called_once_with(arguments)
+        self.assertGreaterEqual(observations[0]["elapsedMs"], 0)
+        self.assertEqual(observations[0]["reasonCode"], "JS_SHELL")
+        self.assertEqual(observations[0]["factCount"], 0)
+        self.assertEqual(len(observations[0]["argumentsSha256"]), 64)
+        self.assertNotIn("Overcharge", json.dumps(observations))
 
     def test_toolbox_has_no_legacy_news_or_cached_mythic_plus_dependency(self):
         source = (ROOT / "server/chickenbro_native_mcp.py").read_text(encoding="utf-8")

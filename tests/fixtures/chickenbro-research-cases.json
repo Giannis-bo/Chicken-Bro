@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "original-enhancement-crit",
+      "category": "research",
+      "prompt": "帮我看看IO上，高分的增强萨，为啥暴击都很高？想办法帮我分析一下原因。",
+      "humanRubric": [
+        "自主确认当前赛季并发现相关高分样本，不要求用户补角色链接",
+        "样本装备、天赋与机制结论分别有可核对证据",
+        "说明样本和资料的适用范围，不把相关性写成确定因果",
+        "回答精炼，资料缺失时只限制对应结论"
+      ]
+    },
+    {
+      "id": "variant-enhancement-secondary-stats",
+      "category": "research-variant",
+      "prompt": "现在 Raider.IO 排名前面的增强萨，副属性选择有什么共同点？这些选择可能和哪些机制有关？",
+      "humanRubric": [
+        "自行发现同赛季同专精样本并说明样本范围",
+        "不预设某一副属性必然占优",
+        "区分观察到的配装事实和机制解释",
+        "引用的角色或指南资料可追溯"
+      ]
+    },
+    {
+      "id": "simple-class-question",
+      "category": "simple",
+      "prompt": "增强萨是什么类型的职业专精？",
+      "humanRubric": [
+        "直接回答基础问题",
+        "不为简单问题启动无必要的多轮研究",
+        "不要求用户提供角色或日志"
+      ]
+    }
+  ]
+}

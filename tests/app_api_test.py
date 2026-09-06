@@ -92,6 +92,34 @@ class AppApiTest(unittest.TestCase):
         self.assertIsNone(app.redoc_url)
         self.assertIsNone(app.openapi_url)
 
+    def test_research_batch_http_contract_and_capability_revocation(self):
+        from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
+        from types import SimpleNamespace
+        calls = []
+        gateway = ChickenbroSourceGateway(query_service=SimpleNamespace(query=lambda provider, target, options: (
+            calls.append((provider, target, options)) or {"status": "source_reference", "facts": []}
+        )))
+        self.client.app.state.chickenbro_source_gateway = gateway
+        token = gateway.issue_capability()
+        headers = {"X-Chickenbro-Source-Gateway": token}
+        body = {"provider": "raiderio_batch", "target": "characters", "options": {
+            "targets": ["https://raider.io/characters/us/area-52/Test"]}}
+        url = "/api/v2/internal/chickenbro/source-query"
+        response = self.client.post(url, json=body, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(calls[0][2], body["options"])
+        gateway.revoke(token)
+        self.assertEqual(self.client.post(url, json=body, headers=headers).status_code, 401)
+        self.assertEqual(len(calls), 1)
+
+    def test_research_http_options_reject_boolean_and_nested_objects(self):
+        url = "/api/v2/internal/chickenbro/source-query"
+        for value in (True, {"unexpected": "nested"}, [False]):
+            with self.subTest(value=value):
+                response = self.client.post(url, json={"provider": "raiderio_rankings",
+                    "target": "rankings", "options": {"limit": value}})
+                self.assertEqual(response.status_code, 422)
+
     def test_default_readiness_reports_wechat_configuration_without_network_calls(self):
         settings = AppSettings(
             environment="test",

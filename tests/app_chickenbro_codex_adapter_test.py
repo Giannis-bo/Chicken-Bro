@@ -62,6 +62,20 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_profile_uses_current_release_toolbox_and_bounded_batch_timeout(self):
+        from server.app.chickenbro.codex_adapter import _load_profile
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            Path(directory, "test.config.toml").write_text(
+                'model="gpt-6-astra"\nmodel_reasoning_effort="high"\n'
+                '[mcp_servers.chickenbro_toolbox]\ncommand="/usr/bin/python3"\n'
+                'args=["/opt/old-release/server/chickenbro_native_mcp.py"]\ntool_timeout_sec=30\n', encoding='utf-8')
+            config = _load_profile("test")
+            self.assertEqual(config["model"], "gpt-6-astra")
+            self.assertEqual(config["model_reasoning_effort"], "high")
+            self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["args"],
+                             [str(Path(__file__).resolve().parents[1] / "server/chickenbro_native_mcp.py")])
+            self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["tool_timeout_sec"], 90)
+
     def test_uses_native_app_server_transport(self):
         def popen(command, **kwargs):
             self.assertIn('app-server', command)
