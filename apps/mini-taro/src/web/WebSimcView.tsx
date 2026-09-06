@@ -138,17 +138,17 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
         <span className={styles['engineDot']} aria-hidden="true" />
         <div><strong>{runtimeLoading ? '正在读取云端引擎…' : runtime?.status === 'available' && runtime.version ? `SimulationCraft ${runtime.version}` : runtime?.status === 'unavailable' ? '引擎暂不可用' : '引擎版本暂不可用'}</strong>
           <small>当前云端引擎{runtime?.gameVersion ? ` · 游戏 ${runtime.gameVersion}` : ''}</small></div>
-        {!runtimeLoading && runtime?.status !== 'available' ? <button className={styles['textButton']} onClick={() => void refreshRuntime()}>重试引擎</button> : null}
+        {!runtimeLoading && runtime?.status !== 'available' ? <button data-simc-button="" className={styles['textButton']} onClick={() => void refreshRuntime()}>重试引擎</button> : null}
       </div>
     </header>
     <nav className={styles['navigation']} aria-label="SimC 工作台">
-      <button aria-current={page === 'new' ? 'page' : undefined} onClick={() => navigate('new')}>新建模拟</button>
-      <button aria-current={page !== 'new' ? 'page' : undefined} onClick={() => navigate('tasks')}>模拟任务</button>
+      <button data-simc-button="" aria-current={page === 'new' ? 'page' : undefined} onClick={() => navigate('new')}>新建模拟</button>
+      <button data-simc-button="" aria-current={page !== 'new' ? 'page' : undefined} onClick={() => navigate('tasks')}>模拟任务</button>
     </nav>
 
     {state.phase === 'blocked' || state.phase === 'signed_out' ? <div className={styles['error']} role="alert" data-error-code={state.errorCode}>
       <span>{state.phase === 'signed_out' ? 'Web 登录已失效，请重新扫码登录' : state.errorMessage}</span>
-      {state.retryable && state.phase !== 'signed_out' ? <button className={styles['textButton']} onClick={() => {
+      {state.retryable && state.phase !== 'signed_out' ? <button data-simc-button="" className={styles['textButton']} onClick={() => {
         if (page === 'report' && selectedJobId) void openJob(selectedJobId)
         else if (page === 'tasks') void model.loadJobs()
         else if (sourceUrl.trim()) void resolve()
@@ -161,9 +161,9 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
         <div className={styles['configStack']}>
           <section className={styles['card']}>
             <div className={styles['sectionHeading']}><h3><span className={styles['step']}>01</span>角色来源</h3><span>从链接读取角色</span></div>
-            <label className={styles['field']}><span>Raider.IO / Warcraft Logs 链接</span>
-              <div className={styles['sourceRow']}><input name="sourceUrl" type="url" value={sourceUrl} placeholder="粘贴角色或战斗报告的 HTTPS 链接" onChange={(event) => setSourceUrl(event.target.value)} />
-                <button className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
+            <label data-simc-label="" className={styles['field']}><span>Raider.IO / Warcraft Logs 链接</span>
+              <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="粘贴角色或战斗报告的 HTTPS 链接" onChange={(event) => setSourceUrl(event.target.value)} />
+                <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
             <p className={styles['hint']}>WCL 报告可携带 fight、source 参数，指定战斗与角色。</p>
             {snapshotCurrent ? <div className={styles['snapshot']} data-readiness={snapshot.readiness}>
@@ -177,23 +177,23 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
           <section className={styles['card']}>
             <div className={styles['sectionHeading']}><h3><span className={styles['step']}>02</span>战斗设置</h3></div>
             <div className={styles['fieldGrid']}>
-              <label className={styles['field']}><span>战斗类型</span><select name="fightStyle" value={fightStyle} onChange={(event) => setFightStyle(event.target.value as keyof typeof simcFightStyles)}>
+              <label data-simc-label="" className={styles['field']}><span>战斗类型</span><select name="fightStyle" value={fightStyle} onChange={(event) => setFightStyle(event.target.value as keyof typeof simcFightStyles)}>
                 {Object.entries(simcFightStyles).map(([value, label]) => <option key={value} value={value}>{label} · {value}</option>)}
               </select></label>
-              <label className={styles['field']}><span>目标数</span><input name="desiredTargets" type="number" min="1" max="20" step="1" value={targets} onChange={(event) => setTargets(event.target.value)} /><small>1–20 个目标</small></label>
-              <label className={styles['field']}><span>战斗时长（秒）</span><input name="maxTime" type="number" min="30" max="600" value={maxTime} onChange={(event) => setMaxTime(event.target.value)} /><small>30–600 秒</small></label>
-              <label className={styles['field']}><span>时长浮动（± %）</span><input name="varyCombatLength" type="number" min="0" max="50" value={variation} onChange={(event) => setVariation(event.target.value)} /><small>0–50%，让每次战斗长度略有变化</small></label>
+              <label data-simc-label="" className={styles['field']}><span>目标数</span><input data-simc-input="" name="desiredTargets" type="number" min="1" max="20" step="1" value={targets} onChange={(event) => setTargets(event.target.value)} /><small>1–20 个目标</small></label>
+              <label data-simc-label="" className={styles['field']}><span>战斗时长（秒）</span><input data-simc-input="" name="maxTime" type="number" min="30" max="600" value={maxTime} onChange={(event) => setMaxTime(event.target.value)} /><small>30–600 秒</small></label>
+              <label data-simc-label="" className={styles['field']}><span>时长浮动（± %）</span><input data-simc-input="" name="varyCombatLength" type="number" min="0" max="50" value={variation} onChange={(event) => setVariation(event.target.value)} /><small>0–50%，让每次战斗长度略有变化</small></label>
             </div>
           </section>
           <section className={styles['card']}>
             <div className={styles['sectionHeading']}><h3><span className={styles['step']}>03</span>精度与增益</h3></div>
             <div className={styles['fieldGrid']}>
-              <label className={styles['field']}><span>迭代上限</span><input name="iterations" type="number" min="1" max="10000" step="1" value={iterations} onChange={(event) => setIterations(event.target.value)} /><small>1–10,000 次，增加次数可降低随机误差</small></label>
-              <label className={styles['field']}><span>目标误差（%）</span><input name="targetError" type="number" min="0" max="5" step="0.1" value={targetError} onChange={(event) => setTargetError(event.target.value)} /><small>0 表示按迭代上限；大于 0 时达到精度可提前结束</small></label>
+              <label data-simc-label="" className={styles['field']}><span>迭代上限</span><input data-simc-input="" name="iterations" type="number" min="1" max="10000" step="1" value={iterations} onChange={(event) => setIterations(event.target.value)} /><small>1–10,000 次，增加次数可降低随机误差</small></label>
+              <label data-simc-label="" className={styles['field']}><span>目标误差（%）</span><input data-simc-input="" name="targetError" type="number" min="0" max="5" step="0.1" value={targetError} onChange={(event) => setTargetError(event.target.value)} /><small>0 表示按迭代上限；大于 0 时达到精度可提前结束</small></label>
             </div>
             <div className={styles['toggles']}>
-              <label><div><strong>团队增益</strong><small>启用标准团队 Buff</small></div><input name="raidBuffs" type="checkbox" checked={raidBuffs} onChange={(event) => setRaidBuffs(event.target.checked)} /></label>
-              <label><div><strong>嗜血 / 英勇</strong><small>启用战斗中的急速增益</small></div><input name="bloodlust" type="checkbox" checked={bloodlust} onChange={(event) => setBloodlust(event.target.checked)} /></label>
+              <label data-simc-label=""><div><strong>团队增益</strong><small>启用标准团队 Buff</small></div><input data-simc-input="" name="raidBuffs" type="checkbox" checked={raidBuffs} onChange={(event) => setRaidBuffs(event.target.checked)} /></label>
+              <label data-simc-label=""><div><strong>嗜血 / 英勇</strong><small>启用战斗中的急速增益</small></div><input data-simc-input="" name="bloodlust" type="checkbox" checked={bloodlust} onChange={(event) => setBloodlust(event.target.checked)} /></label>
             </div>
           </section>
         </div>
@@ -206,19 +206,19 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
             <div><dt>目标误差</dt><dd>{targetError === '0' ? '按迭代上限' : `${targetError || '—'}%`}</dd></div>
             <div><dt>团队增益</dt><dd>{raidBuffs ? '开启' : '关闭'}</dd></div><div><dt>嗜血 / 英勇</dt><dd>{bloodlust ? '开启' : '关闭'}</dd></div>
           </dl>
-          <button className={styles['primaryButton']} disabled={!canSubmit} onClick={() => void submit()}>{state.phase === 'submitting' ? '正在提交…' : '开始模拟'}</button>
+          <button data-simc-button="" className={styles['primaryButton']} disabled={!canSubmit} onClick={() => void submit()}>{state.phase === 'submitting' ? '正在提交…' : '开始模拟'}</button>
           <p className={styles['submitHint']}>{!sourceReady ? '读取完整角色资料后即可提交' : !scenarioValid ? '请检查参数范围，所有数值均需填写' : runtime?.status !== 'available' ? '等待云端引擎可用后提交' : '任务在云端运行，可在模拟任务中继续查看'}</p>
         </aside>
       </div>
     </> : null}
 
     {page === 'tasks' ? <section>
-      <div className={styles['pageIntro']}><div><h2>模拟任务</h2><p>查看本账号在 Web 与小程序提交的模拟。</p></div><button className={styles['secondaryButton']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs()}>刷新任务</button></div>
+      <div className={styles['pageIntro']}><div><h2>模拟任务</h2><p>查看本账号在 Web 与小程序提交的模拟。</p></div><button data-simc-button="" className={styles['secondaryButton']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs()}>刷新任务</button></div>
       <div className={styles['taskToolbar']}><div className={styles['filters']} aria-label="任务状态筛选">
-        {(['all', 'queued', 'running', 'succeeded', 'failed', 'cancelled'] as const).map((status) => <button key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{status === 'all' ? '全部' : simcStatuses[status]}</button>)}
+        {(['all', 'queued', 'running', 'succeeded', 'failed', 'cancelled'] as const).map((status) => <button data-simc-button="" key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{status === 'all' ? '全部' : simcStatuses[status]}</button>)}
       </div><span className={styles['muted']}>已加载 {state.jobs.length} 项</span></div>
       <div className={styles['taskList']}>
-        {filteredJobs.map((job) => <button key={job.id} className={styles['taskRow']} data-job-id={job.id} onClick={() => void openJob(job.id)}>
+        {filteredJobs.map((job) => <button data-simc-button="" key={job.id} className={styles['taskRow']} data-job-id={job.id} onClick={() => void openJob(job.id)}>
           <span className={styles['taskCharacter']}><strong>{job.character?.name || '角色信息未记录'}</strong><small>{job.character ? `${simcLabel(job.character.specialization)} ${simcLabel(job.character.className)}` : `任务 ${job.id.slice(0, 8)}`}</small></span>
           <span className={styles['taskScenario']}>{job.scenario ? `${simcFightStyles[job.scenario.fightStyle as keyof typeof simcFightStyles] ?? job.scenario.fightStyle} · ${job.scenario.desiredTargets} 目标` : '配置未记录'}<small>{simcDate(job.createdAt)}</small></span>
           <span className={styles['taskMetric']}>{job.metric ? <><strong>{simcNumber(job.metric.value)}</strong><small>{job.metric.name.toUpperCase()}</small></> : <small>{job.status === 'queued' || job.status === 'running' ? '等待结果' : '无结果'}</small>}</span>
@@ -226,8 +226,8 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
         </button>)}
       </div>
       {!filteredJobs.length && state.phase !== 'blocked' && state.phase !== 'signed_out' ? <div className={styles['empty']} role="status"><h3>{state.phase === 'loading' ? '正在读取任务…' : filter === 'all' ? '还没有模拟任务' : '暂无此状态的任务'}</h3><p>{filter === 'all' ? '读取角色并开始模拟，你的结果会保存在这里。' : '切换其他状态查看，或刷新任务列表。'}</p></div> : null}
-      {state.nextCursor ? <button className={styles['loadMore']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs(state.nextCursor ?? undefined)}>{state.phase === 'loading' ? '正在加载…' : '加载更多任务'}</button> : null}
+      {state.nextCursor ? <button data-simc-button="" className={styles['loadMore']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs(state.nextCursor ?? undefined)}>{state.phase === 'loading' ? '正在加载…' : '加载更多任务'}</button> : null}
     </section> : null}
-    {page === 'report' ? activeJob && !opening ? <WebSimcReport job={activeJob} onBack={() => navigate('tasks')} onRefresh={() => void openJob(activeJob.id)} refreshing={opening} /> : <div className={styles['empty']}><button className={styles['backButton']} onClick={() => navigate('tasks')}>返回模拟任务</button><p role="status">{opening ? '正在读取模拟报告…' : '暂时无法读取报告，请重试。'}</p></div> : null}
+    {page === 'report' ? activeJob && !opening ? <WebSimcReport job={activeJob} onBack={() => navigate('tasks')} onRefresh={() => void openJob(activeJob.id)} refreshing={opening} /> : <div className={styles['empty']}><button data-simc-button="" className={styles['backButton']} onClick={() => navigate('tasks')}>返回模拟任务</button><p role="status">{opening ? '正在读取模拟报告…' : '暂时无法读取报告，请重试。'}</p></div> : null}
   </div>
 }

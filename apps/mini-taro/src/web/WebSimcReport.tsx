@@ -16,7 +16,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
   const scenario = job.scenario
   const pending = job.status === 'queued' || job.status === 'running'
   return <article className={styles['report']} data-job-status={job.status}>
-    <button className={styles['backButton']} onClick={onBack}>返回模拟任务</button>
+    <button data-simc-button="" className={styles['backButton']} onClick={onBack}>返回模拟任务</button>
     <div className={styles['reportHeader']}>
       <div><p className={styles['eyebrow']}>SIMULATION REPORT</p><h2>模拟报告</h2>
         <p className={styles['muted']}>{actor ? `${actor.name} · ${simcLabel(actor.specialization)} ${simcLabel(actor.className)}` : '角色信息未记录'} · {simcDate(job.createdAt)}</p>
@@ -33,7 +33,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
       <span className={styles['pendingIcon']} aria-hidden="true">◷</span>
       <h3>{job.status === 'queued' ? '任务已提交，等待云端模拟' : '云端正在模拟你的角色'}</h3>
       <p>结果生成后会自动更新。你也可以返回任务列表，稍后继续查看。</p>
-      <button className={styles['secondaryButton']} disabled={refreshing} onClick={onRefresh}>{refreshing ? '正在更新…' : '刷新状态'}</button>
+      <button data-simc-button="" className={styles['secondaryButton']} disabled={refreshing} onClick={onRefresh}>{refreshing ? '正在更新…' : '刷新状态'}</button>
     </section> : null}
     {job.status === 'failed' || job.status === 'cancelled' ? <section className={styles['empty']}>
       <h3>{job.status === 'failed' ? '模拟未完成' : '任务已取消'}</h3>
