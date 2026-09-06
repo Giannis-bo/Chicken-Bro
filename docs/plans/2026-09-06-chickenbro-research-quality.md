@@ -30,3 +30,10 @@
 - 初始工作区干净，隔离分支 `codex/chickenbro-research` 基于 `3be4e6cb`，保留原 `codex/test-account-login`。
 - 本地：新增单测、Chat/source/MCP/SimC 回归、控制面、`git diff --check`；缺少本地 runtime 的部分使用云端现有 Python 验证，明确分开标记。
 - 发布身份、备份和实际问题回答记录在 `artifacts/releases/2026-09-06-chickenbro-research-quality/`，不得将一次回答改进宣称为全面超过通用助手。
+
+2026-09-06 首轮交付：步骤 1–4 已实现并完成独立审查；步骤 5 的测试部署与云端模型验证完成，浏览器旧登录已过期，新会话实测待重新登录。运行源码提交 `db7e1537049c9c37775210a51aecc7fb24e9b1d4`；7 个运行文件更新，其余 114 个测试 release 文件逐项保留。正式 API 进程与核对文件不变。测试回滚为保留的 `e718d287817b99390b2924315fe8b6d028e539de` release，并重启测试 API；无数据库变更。
+
+- 验证：本地 72 项专项、云端最终提交 299 项后端、Node 23 的 62 项控制面通过。真实 IO 榜单和当前顶层 `talentLoadout` 均已验证，过期能力/非法参数/空结果/部分失败有回归覆盖。
+- 实测：原题和变体分别 153.870/153.734 秒；最终提交原题复测 143.368 秒；基础题 10.434 秒、无来源工具调用。研究首字约 116–124 秒，尚不能宣称效率全面超过通用助手。
+- [独立人工复核](../../artifacts/releases/2026-09-06-chickenbro-research-quality/evaluation-review.md) 复算样本及机制；日志只覆盖自有 MCP，不能据此还原原生网页工具的完整取证过程。缓存、跨轮证据和更广基准留待后续。
+- [测试发布证据](../../artifacts/releases/2026-09-06-chickenbro-research-quality/evidence.json) 保持用户验收 pending；不合入 main、不宣称真实双端或用户验收完成。
