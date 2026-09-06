@@ -1,0 +1,11 @@
+{
+  "commit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
+  "scope": "Remove two user-marked subtitles, including duplicate brand subtitle on login page",
+  "browser": {
+    "brandText": "炸鸡队长来啦",
+    "historyHeading": "历史对话",
+    "brandSubtitlePresent": false,
+    "historySubtitlePresent": false
+  },
+  "url": "https://www.chickenbro.cloud/test/"
+}

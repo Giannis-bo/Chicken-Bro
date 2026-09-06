@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
+  "commit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
+      "value": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
     },
     "verification": {
       "status": "bound_at_check",
@@ -305,17 +305,41 @@
       "status": "pass",
       "result": "Pass; existing bundle warnings",
       "sourceCommit": "72db568c0dc361ae831196a97eec28dcaf6aeacb"
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "result": "199 tests pass",
+      "sourceCommit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing bundle warnings",
+      "sourceCommit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
-    "buildIdentity": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
+    "commit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
+    "buildIdentity": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "e4a4326e5f4a11c73b55bb2912115f7b91644ef3",
+    "rollbackRelease": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -353,6 +377,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json",
       "result": "Unapproved host and malformed Raider.IO URL both display explicit illegal-link message and refer to two visible examples. Existing legal-source classifications preserved."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json",
+      "result": "Live test Web brand displays only its Chinese name; history heading displays only history title and new-conversation action. Both requested small subtitles absent."
     }
   ],
   "risks": [
@@ -387,7 +416,9 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-final-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\giannis-runtime-proof.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json"
   ],
-  "summary": "Test Web now explicitly identifies invalid links and directs users to source examples; prior real Giannis simulation evidence remains valid."
+  "summary": "Removed user-marked brand and history subtitles from test Web. Existing SimC import and execution behavior unchanged."
 }
