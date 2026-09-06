@@ -148,7 +148,7 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
     </nav>
 
     {state.phase === 'blocked' || state.phase === 'signed_out' ? <div className={styles['error']} role="alert" data-error-code={state.errorCode}>
-      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新扫码登录' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
+      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新扫码登录' : state.errorCode === 'INVALID_LINK' ? '非法链接：链接格式不正确或来源不受支持。请参考输入框下方的角色评分、战斗日志链接示例，修改后重新读取。' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
       {state.retryable && state.phase !== 'signed_out' ? <button data-simc-button="" className={styles['textButton']} onClick={() => {
         if (page === 'report' && selectedJobId) void openJob(selectedJobId)
         else if (page === 'tasks') void model.loadJobs()
