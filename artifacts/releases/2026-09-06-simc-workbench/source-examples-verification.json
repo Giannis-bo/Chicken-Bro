@@ -1,0 +1,37 @@
+{
+  "commit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee",
+  "scope": "Web source example labels and links only",
+  "links": [
+    {
+      "provider": "Raider.IO",
+      "url": "https://raider.io/cn/characters/cn/silver-hand/Giannis",
+      "parserAccepted": true
+    },
+    {
+      "provider": "WCL",
+      "url": "https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+      "parserAccepted": true,
+      "character": "Giannis",
+      "server": "白银之手",
+      "report": "CPGWvnJ2t9QMRrA1",
+      "fight": 1,
+      "actor": 4,
+      "identityAndFightMembershipVerified": "Cloud WCL GraphQL read-only query"
+    }
+  ],
+  "browser": {
+    "desktop": "Both labeled links visible with exact href and full text",
+    "mobileViewport": 390,
+    "documentWidth": 375,
+    "linksWrap": true,
+    "horizontalOverflow": false,
+    "viewportReset": true
+  },
+  "checks": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "webWorkbenchTests": 22,
+    "h5Build": "pass; existing bundle size warnings",
+    "diffCheck": "pass"
+  }
+}

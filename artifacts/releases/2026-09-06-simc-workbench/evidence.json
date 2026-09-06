@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
+  "commit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+      "value": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
     },
     "verification": {
       "status": "bound_at_check",
@@ -163,17 +163,53 @@
       "status": "pass",
       "result": "Terminology catalog matches source evidence; protocol and numeric behavior unchanged",
       "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
+    },
+    {
+      "command": "Web workbench DOM tests",
+      "status": "pass",
+      "result": "22 tests passed",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Test Web built; existing bundle size warnings",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
+    },
+    {
+      "command": "source URL parser verification",
+      "status": "pass",
+      "result": "Both exact example URLs accepted",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "result": "No whitespace errors",
+      "sourceCommit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
-    "buildIdentity": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
+    "commit": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee",
+    "buildIdentity": "84ccd5d31565502e5dbcaf4de38db9da7a1ffdee",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-deployment.json",
+    "evidence": "artifacts/releases/2026-09-06-simc-workbench/source-examples-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+    "rollbackRelease": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
     "backendSourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
   },
   "runtimeEvidence": [
@@ -191,6 +227,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-verification.json",
       "result": "Chinese terminology verified on the actual cloud report and at390px; report metrics unchanged."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts/releases/2026-09-06-simc-workbench/source-examples-verification.json",
+      "result": "Both actual links visible and parser accepted; WCL character and fight membership verified; desktop and 390px browser checks passed."
     }
   ],
   "risks": [
@@ -212,7 +253,10 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\backend-tests.log",
     "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-verification.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-terms.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-terms.json",
+    "artifacts/releases/2026-09-06-simc-workbench/source-examples-deployment.json",
+    "artifacts/releases/2026-09-06-simc-workbench/source-examples-verification.json",
+    "artifacts/releases/2026-09-06-simc-workbench/source-examples-character.json"
   ],
-  "summary": "Isolated test site updated with verified mainland Chinese game terms. User acceptance, main integration and production cutover remain pending."
+  "summary": "Isolated test site updated with verified character source link examples. User acceptance, main integration and production cutover remain pending."
 }

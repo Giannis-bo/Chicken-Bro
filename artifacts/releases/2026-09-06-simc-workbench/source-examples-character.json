@@ -1,0 +1,32 @@
+{
+  "reportCode": "CPGWvnJ2t9QMRrA1",
+  "actors": [
+    {
+      "id": 4,
+      "name": "Giannis",
+      "server": "白银之手"
+    }
+  ],
+  "fights": [
+    {
+      "id": 1,
+      "name": "Kings' Rest"
+    },
+    {
+      "id": 2,
+      "name": "Temple of Sethraliss"
+    },
+    {
+      "id": 3,
+      "name": "Murder Row"
+    },
+    {
+      "id": 4,
+      "name": "Unknown"
+    },
+    {
+      "id": 5,
+      "name": "Kings' Rest"
+    }
+  ]
+}
