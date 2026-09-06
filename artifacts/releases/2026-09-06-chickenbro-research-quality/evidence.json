@@ -24,20 +24,20 @@
   },
   "manualAcceptance": {
     "required": true,
-    "status": "pending",
-    "reason": "User review of research answer quality is pending. Browser session expired before post-deployment Chat verification.",
+    "status": "complete",
+    "reason": "User supplied actual new Chat screenshots and explicitly accepted image1 answer quality.",
     "items": [
       {
         "id": "research_answer_quality",
-        "status": "pending",
-        "reason": "Awaiting user test and explicit acceptance."
+        "status": "accepted",
+        "evidence": "2026-09-06 user: 非常好，图1的回答我认为已经符合预期； screenshot of actual Chat research answer."
       }
     ],
     "rollup": {
       "total": 1,
-      "accepted": 0,
+      "accepted": 1,
       "notRunUserWaived": 0,
-      "pending": 1
+      "pending": 0
     }
   },
   "scope": [

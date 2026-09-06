@@ -2,6 +2,22 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "chickenbro-simc-tools",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized on-demand owner-scoped cloud SimC tools.",
+      "paths": [
+        "docs/plans/2026-09-06-chickenbro-simc-tools.md",
+        "server/app/chickenbro/simulation_tools.py",
+        "server/app/api/routes/simulation_tools.py",
+        "tests/app_chickenbro_simulation_tools_test.py"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-06-chickenbro-simc-tools/"
+      ]
+    },
+    {
       "id": "chickenbro-research-quality",
       "disposition": "keep",
       "category": "current-control-plane",

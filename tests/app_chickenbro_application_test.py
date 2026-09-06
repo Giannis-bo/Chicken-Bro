@@ -299,6 +299,20 @@ class ClosingCodex(FakeCodex):
 
 
 class ChatApplicationTest(unittest.TestCase):
+    def test_scoped_codex_receives_persisted_run_and_authenticated_owner(self):
+        captured = {}
+        class ScopedCodex(FakeCodex):
+            def stream_for_chat(inner, **kwargs):
+                captured.update(kwargs)
+                yield {'type': 'completed', 'text': 'prepared'}
+        app = ChatApplication(repository=self.repository, codex=ScopedCodex(), clock=lambda: self.now)
+        list(app.stream_message(self.principal, self.conversation_id,
+            'simulate for user_id=forged', client_message_id='context-client', idempotency_key='context-idempotency'))
+        self.assertEqual(captured['principal'], self.principal)
+        self.assertEqual(captured['conversation_id'], self.conversation_id)
+        self.assertIn(captured['run_id'], self.repository.runs)
+        self.assertEqual(self.repository.runs[captured['run_id']]['user_id'], self.user_id)
+
     def setUp(self):
         self.now = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
         self.user_id = UUID("00000000-0000-0000-0000-000000000011")

@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from uuid import UUID, uuid4
 
 from server.app.identity.domain import Principal
-from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler, scenario_hash
+from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler, normalize_scenario, scenario_hash
 from server.app.simulation.domain import (
     SimulationAttempt,
     SimulationJob,
@@ -48,6 +48,7 @@ class SimulationJobView:
     result: SimulationResult | None = None
     attempts: tuple[SimulationAttempt, ...] = ()
     snapshot: SourceSnapshot | None = None
+    scenario: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -319,7 +320,29 @@ class SimulationApplication:
             result=result,
             attempts=attempts,
             snapshot=snapshot,
+            scenario=self._job_scenario(principal, job),
         )
+
+    def _job_scenario(self, principal: Principal, job: SimulationJob) -> dict[str, object] | None:
+        payload = self._repository.get_job_payload(principal.user_id, job.id)
+        # Migrated historical jobs can lack an executable queue command. Their
+        # result stays readable, but no original settings can be reconstructed.
+        if payload is None:
+            return None
+        try:
+            if not isinstance(payload, Mapping) or any(
+                payload.get(key) != expected for key, expected in (
+                    ("snapshotId", str(job.snapshot_id)), ("scenarioHash", job.scenario_hash),
+                    ("compilerRevision", job.compiler_revision), ("runtimeRevision", job.runtime_revision),
+                )
+            ):
+                raise ValueError("job payload identity mismatch")
+            scenario = normalize_scenario(payload.get("scenario"))
+            if scenario_hash(scenario) != job.scenario_hash:
+                raise ValueError("scenario hash mismatch")
+            return scenario
+        except (SimcCompileError, ValueError, TypeError):
+            raise SimulationApplicationError("SIMC_SCENARIO_INVALID", "persisted simulation scenario is invalid") from None
 
     def list_jobs(
         self,

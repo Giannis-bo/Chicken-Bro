@@ -328,10 +328,12 @@ class ChatApplication:
         try:
             history = self._repository.list_messages(principal.user_id, conversation_id)
             prompt = self._prompt(history, message)
-            codex_events = self._codex.stream(
-                prompt=prompt,
-                timeout_seconds=self._timeout_seconds,
-            )
+            scoped_stream = getattr(self._codex, "stream_for_chat", None)
+            if callable(scoped_stream):
+                codex_events = scoped_stream(principal=principal, conversation_id=conversation_id,
+                    run_id=_as_uuid(_value(run, "id")), prompt=prompt, timeout_seconds=self._timeout_seconds)
+            else:
+                codex_events = self._codex.stream(prompt=prompt, timeout_seconds=self._timeout_seconds)
             try:
                 for raw_event in codex_events:
                     event_type = str(_value(raw_event, "type", "")).strip().lower()

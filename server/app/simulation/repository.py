@@ -239,6 +239,26 @@ class PostgresSimulationRepository:
                 rows = cursor.fetchall()
         return [self._job_from_row(row) for row in rows]
 
+    def get_job_payload(self, user_id: UUID, job_id: UUID) -> object:
+        """Read the persisted command only through its owner-scoped SimC job."""
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT q.payload_json
+                    FROM ops.job_queue q
+                    JOIN simc.simulation_jobs j ON q.id = j.id AND q.aggregate_id = j.id
+                    WHERE j.user_id = %s AND j.id = %s
+                      AND q.domain = 'simc' AND q.command_type = 'run_simulation'
+                    """,
+                    (user_id, job_id),
+                )
+                row = cursor.fetchone()
+        if row is None:
+            return None
+        payload = _row_value(row, "payload_json", 0)
+        return json.loads(payload) if isinstance(payload, str) else payload
+
     def list_attempts(self, job_id: UUID, limit: int = 20) -> Sequence[SimulationAttempt]:
         bounded_limit = min(max(int(limit), 1), 20)
         with self._connection_factory() as connection:

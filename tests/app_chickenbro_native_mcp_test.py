@@ -30,7 +30,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         ]:
             self.assertFalse(module._source_gateway_target_is_local(target))
 
-    def test_toolbox_exposes_only_chat_owned_read_only_sources(self):
+    def test_toolbox_exposes_sources_and_account_scoped_simulation_tools(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
         listed = module.handle_rpc_request(
             {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
@@ -43,12 +43,24 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
                 "query_raiderio_character",
                 "query_raiderio_rankings",
                 "query_raiderio_characters",
+                "prepare_simulation", "submit_simulation", "get_simulation_job", "list_simulation_jobs",
             },
             {item["name"] for item in listed["result"]["tools"]},
         )
         self.assertTrue(
-            all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"])
+            all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"]
+                if item['name'] not in {'prepare_simulation', 'submit_simulation'})
         )
+
+    def test_simc_tools_dispatch_without_model_identity(self):
+        module = importlib.import_module('server.chickenbro_native_mcp')
+        for name, operation in [('prepare_simulation', 'prepare'), ('submit_simulation', 'submit'),
+                                ('get_simulation_job', 'get'), ('list_simulation_jobs', 'list')]:
+            with self.subTest(name=name), patch.object(module, 'query_simulation_gateway', return_value={
+                    'sourceKey': 'simc', 'status': 'queued', 'facts': [{'jobId': 'safe-job'}]}) as query:
+                module.handle_rpc_request({'id': 2, 'method': 'tools/call',
+                    'params': {'name': name, 'arguments': {'jobId': 'safe-job'}}})
+                query.assert_called_once_with(operation, {'jobId': 'safe-job'})
 
     def test_discovery_and_batch_use_capability_gateway_without_user_character_link(self):
         module = importlib.import_module("server.chickenbro_native_mcp")

@@ -28,14 +28,16 @@
         "tests/app_chickenbro_raiderio_research_test.py",
         "tests/app_chickenbro_public_web_test.py",
         "tests/app_chickenbro_native_mcp_test.py",
-        "tests/app_chickenbro_source_gateway_test.py"
+        "tests/app_chickenbro_source_gateway_test.py",
+        "tests/app_chickenbro_simulation_tools_test.py"
       ]
     },
     "simc": {
       "path": "server/app/simulation/application.py",
       "characterization": [
         "tests/app_simulation_application_test.py",
-        "tests/app_simc_cross_client_test.py"
+        "tests/app_simc_cross_client_test.py",
+        "tests/app_chickenbro_simulation_tools_test.py"
       ]
     },
     "worker": {

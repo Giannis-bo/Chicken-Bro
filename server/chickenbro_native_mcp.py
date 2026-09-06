@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Read-only MCP ToolBox used by the native Chickenbro Codex Agent.
+"""Research and account-scoped simulation tools for the native Chickenbro agent.
 
 The server deliberately exposes generic operations rather than game, site or
 question-specific routes.  Codex decides whether to use them and how to
-interpret the returned observation; this process only enforces the bounded
-public-web reader already owned by the backend.
+interpret the returned observation. Research uses the bounded public-web reader;
+simulation uses the current Chat run's server-issued, owner-scoped capability.
 """
 
 import json
@@ -31,6 +31,10 @@ RAIDERIO_RANKINGS_TOOL_NAME = "query_raiderio_rankings"
 RAIDERIO_BATCH_TOOL_NAME = "query_raiderio_characters"
 SOURCE_GATEWAY_URL_ENV = "CHICKENBRO_SOURCE_GATEWAY_URL"
 SOURCE_GATEWAY_TOKEN_ENV = "CHICKENBRO_SOURCE_GATEWAY_TOKEN"
+SIMULATION_GATEWAY_URL_ENV = "CHICKENBRO_SIMULATION_GATEWAY_URL"
+SIMULATION_GATEWAY_TOKEN_ENV = "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"
+SIMULATION_OPERATIONS = {"prepare_simulation": "prepare", "submit_simulation": "submit",
+                         "get_simulation_job": "get", "list_simulation_jobs": "list"}
 TOOL_DEFINITION = {
     "name": TOOL_NAME,
     "description": (
@@ -159,6 +163,32 @@ TOOL_DEFINITIONS = [
     RAIDERIO_BATCH_TOOL_DEFINITION,
 ]
 
+_UUID_SCHEMA = {"type": "string", "format": "uuid", "maxLength": 36}
+_SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties": {
+    "fightStyle": {"type": "string", "maxLength": 64},
+    "desiredTargets": {"type": "integer", "minimum": 1, "maximum": 20},
+    "iterations": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "maxTime": {"type": "integer", "minimum": 30, "maximum": 600},
+    "gemOverrides": {"type": "object", "maxProperties": 16,
+        "description": "Canonical equipment slot to replacement gem ITEM IDs; preserve exact socket count. Obtain real IDs from sources; never invent them.",
+        "additionalProperties": {"type": "array", "minItems": 1, "maxItems": 32,
+            "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}}},
+}}
+for _name, _description, _required, _properties, _read_only in [
+    ("prepare_simulation", "Prepare and validate an owner-scoped SimC snapshot from a Raider.IO/WCL URL. Does not run SimC. Returns character, original gear/gem IDs, talents, snapshotId and exact readiness blockers. Reuse the same snapshot for comparisons.",
+     ["sourceUrl"], {"sourceUrl": {"type": "string", "maxLength": 2048}}, False),
+    ("submit_simulation", "Submit an actual cloud SimulationCraft job for the current account. Use when the user asks to run a simulation, not for explanation-only questions. Requires a ready snapshotId from prepare_simulation. Up to 4 distinct jobs per Chat turn; repeated same snapshot/scenario is idempotent. Compare baseline and gemOverrides with identical target/time/iterations. Queued is not a result; read get_simulation_job. Jobs also appear in the account's SimC list.",
+     ["snapshotId", "scenario"], {"snapshotId": _UUID_SCHEMA, "scenario": _SCENARIO_SCHEMA}, False),
+    ("get_simulation_job", "Read this account's SimC job, status, validated DPS/HPS, uncertainty when available and provenance. waitSeconds up to20 waits for completion. Poll reasonably within the Chat time budget; pending is not success. Never invent DPS or significance when uncertainty is absent.",
+     ["jobId"], {"jobId": _UUID_SCHEMA, "waitSeconds": {"type": "integer", "minimum": 0, "maximum": 20}}, True),
+    ("list_simulation_jobs", "List the current account's existing SimC jobs and available results. Useful for follow-up questions and jobs still running after a prior Chat turn; no ownership parameter is accepted.",
+     [], {"limit": {"type": "integer", "minimum": 1, "maximum": 10}, "cursor": {"type": "string", "maxLength": 1024}}, True),
+]:
+    TOOL_DEFINITIONS.append({"name": _name, "description": _description,
+        "inputSchema": {"type": "object", "additionalProperties": False, "required": _required,
+                        "properties": _properties},
+        "annotations": {"readOnlyHint": _read_only, "destructiveHint": False, "idempotentHint": True}})
+
 
 def _response(request_id, result):
     return {"jsonrpc": "2.0", "id": request_id, "result": result}
@@ -265,6 +295,29 @@ def query_source_gateway(provider, target, options=None):
     )
 
 
+def query_simulation_gateway(operation, arguments):
+    url = os.environ.get(SIMULATION_GATEWAY_URL_ENV, "")
+    token = os.environ.get(SIMULATION_GATEWAY_TOKEN_ENV, "")
+    expected_path = "/api/v2/internal/chickenbro/simc-tool"
+    parsed = urlparse(url)
+    local_source_url = parsed._replace(path="/api/v2/internal/chickenbro/source-query").geturl()
+    if not token or parsed.path != expected_path or not _source_gateway_target_is_local(local_source_url):
+        return _partial_tool_result("This run has no authenticated account-scoped simulation capability.", "simc")
+    request = Request(url, data=json.dumps({"operation": operation, "arguments": arguments}).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Chickenbro-Simulation-Gateway": token}, method="POST")
+    try:
+        with urlopen(request, timeout=85) as response:
+            raw = response.read(1048577)
+        if len(raw) > 1048576:
+            raise ValueError("oversized simulation response")
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("invalid simulation response")
+        return payload
+    except (HTTPError, URLError, OSError, ValueError):
+        return _partial_tool_result("The simulation gateway did not return a usable response. Check status before retrying a submission.", "simc")
+
+
 def handle_rpc_request(request, *, observation_writer=None):
     """Handle one stdio JSON-RPC request without exposing any host capability."""
     packet = request if isinstance(request, dict) else {}
@@ -278,7 +331,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "chickenbro-native-toolbox", "version": "1.0.0"},
                 "instructions": (
-                    "Read-only research tools are exposed. Choose the relevant tool and state the returned "
+                    "Research and account-scoped cloud SimC tools are exposed. Submit simulations only when "
+                    "the user asks to run them. Choose the relevant tool and state the returned "
                     "source scope and limitations."
                 ),
             },
@@ -313,6 +367,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                         result = build_public_web_research_tool_result(arguments)
                     except Exception:
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
+        elif tool_name in SIMULATION_OPERATIONS:
+            result = query_simulation_gateway(SIMULATION_OPERATIONS[tool_name], arguments)
         elif tool_name in {RAIDERIO_RANKINGS_TOOL_NAME, RAIDERIO_BATCH_TOOL_NAME}:
             provider, target = (("raiderio_rankings", "rankings") if tool_name == RAIDERIO_RANKINGS_TOOL_NAME
                                 else ("raiderio_batch", "characters"))

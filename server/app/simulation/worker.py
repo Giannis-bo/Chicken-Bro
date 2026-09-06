@@ -3,7 +3,7 @@ import os
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
 from uuid import UUID, uuid4
@@ -87,13 +87,15 @@ class LocalSimulationCraftPort:
 class SemanticSimulationMetric:
     name: str
     value: float
+    error: float | None = None
+    error_pct: float | None = None
 
 
 class SimulationResultParser:
     _METRIC_PATTERN = re.compile(
-        r"\b(DPS|HPS)\s*(?:=|:)\s*"
-        r"([+-]?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|nan|inf(?:inity)?))\b",
-        re.IGNORECASE,
+        r"^[ \t]*(DPS|HPS)[ \t]*(?:=|:)[ \t]*"
+        r"([+-]?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|nan|inf(?:inity)?))(?=\s|$)",
+        re.IGNORECASE | re.MULTILINE,
     )
     _ACTOR_PATTERN = re.compile(r"^\s*Player:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
     _PLACEHOLDER_ACTOR = re.compile(
@@ -118,7 +120,8 @@ class SimulationResultParser:
         combined_diagnostics = "\n".join((execution.stdout or "", execution.stderr or ""))
         if self._FATAL_DIAGNOSTIC.search(combined_diagnostics):
             raise SimulationWorkerError("SIMC_FATAL_DIAGNOSTIC")
-        actors = [match.group(1).strip() for match in self._ACTOR_PATTERN.finditer(execution.stdout or "")]
+        actor_matches = list(self._ACTOR_PATTERN.finditer(execution.stdout or ""))
+        actors = [match.group(1).strip() for match in actor_matches]
         normalized_expected_actor = str(expected_actor or "").strip().casefold()
         normalized_actor = actors[0].casefold() if len(actors) == 1 else ""
         if (
@@ -131,14 +134,40 @@ class SimulationResultParser:
             )
         ):
             raise SimulationWorkerError("SIMC_ACTOR_INVALID")
-        matches = list(self._METRIC_PATTERN.finditer(execution.stdout or ""))
+        # Only the player's summary immediately after its header is a metric.
+        # Action/pet rows, targets and diagnostics must not replace that result.
+        summary_lines = []
+        for line in execution.stdout[actor_matches[0].end():].splitlines():
+            if not line.strip():
+                if summary_lines:
+                    break
+                continue
+            if self._METRIC_PATTERN.match(line) is None:
+                break
+            summary_lines.append(line)
+        summary = "\n".join(summary_lines)
+        matches = list(self._METRIC_PATTERN.finditer(summary))
         if not matches:
             raise SimulationWorkerError("SIMC_METRIC_MISSING")
-        selected = matches[-1]
+        selected = next((match for match in matches if match.group(1).lower() == "dps"), matches[0])
         value = float(selected.group(2))
         if not math.isfinite(value) or value <= 0:
             raise SimulationWorkerError("SIMC_METRIC_INVALID")
-        return SemanticSimulationMetric(name=selected.group(1).lower(), value=value)
+        name = selected.group(1).lower()
+        metric_line = summary[selected.start():].splitlines()[0]
+        # SimC report_text.cpp prints <metric>-Error=<absolute>/<percent>%.
+        # Preserve only an unambiguous finite pair from that same summary row.
+        number = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
+        error_matches = list(re.finditer(
+            rf"\b{name}-Error=({number})/({number})%(?=\s|$)", metric_line, re.IGNORECASE
+        ))
+        error = error_pct = None
+        error_label_count = len(re.findall(rf"\b{name}-Error=", metric_line, re.IGNORECASE))
+        if len(error_matches) == 1 and error_label_count == 1:
+            raw_error, raw_pct = map(float, error_matches[0].groups())
+            if math.isfinite(raw_error) and math.isfinite(raw_pct) and raw_error >= 0 and raw_pct >= 0:
+                error, error_pct = raw_error, raw_pct
+        return SemanticSimulationMetric(name=name, value=value, error=error, error_pct=error_pct)
 
 
 class SimulationWorker:
@@ -251,6 +280,7 @@ class SimulationWorker:
             result={
                 "metricName": metric.name,
                 "metricValue": metric.value,
+                **({"metricError": metric.error, "metricErrorPct": metric.error_pct} if metric.error is not None else {}),
                 "provenance": {
                     **provenance,
                     "sourceUrl": str(compiled.provenance.get("sourceUrl", "")),
@@ -311,7 +341,17 @@ class SimulationWorker:
             or expected_runtime_revision != job.runtime_revision
         ):
             raise SimulationWorkerError("JOB_PAYLOAD_INVALID")
-        compiled = self._compiler.compile(snapshot, scenario)
+        compiler = self._compiler
+        if (
+            type(compiler) is SimcProfileCompiler
+            and job.compiler_revision == "chickenbro-simc-compiler-v1"
+            and self._runtime_capabilities.compiler_revision == "chickenbro-simc-compiler-v2"
+            and job.runtime_revision == self._runtime_capabilities.runtime_revision
+        ):
+            compiler = SimcProfileCompiler(capabilities=replace(
+                self._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v1"
+            ))
+        compiled = compiler.compile(snapshot, scenario)
         if compiled.compiler_revision != job.compiler_revision or compiled.runtime_revision != job.runtime_revision:
             raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
         if expected_scenario_hash != compiled.scenario_hash:
