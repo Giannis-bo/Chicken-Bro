@@ -11,6 +11,9 @@ from server.app.integrations.warcraftlogs import (
     warcraftlogs_oauth_token,
 )
 from server.app.simulation.domain import SourceProvider, SourceReadiness
+from server.app.simulation.source_details import (
+    combatant_input, matching_talent_export, read_character_details,
+)
 from server.app.simulation.snapshots import (
     CharacterSnapshotCandidate,
     missing_snapshot_fields,
@@ -588,6 +591,16 @@ class RaiderIOCharacterAdapter:
             self._official_enricher,
         )
         if not _positive_int(character.get("level")):
+            details = read_character_details(
+                lambda url: _fetch_json(self._http_client, url),
+                parsed_url.region, parsed_url.realm, parsed_url.character_name, character,
+            )
+            if details is not None:
+                detail_character, metadata = details
+                character["level"] = detail_character["level"]
+                provenance["raiderioCharacterDetails"] = {**metadata, "fields": ["level"]}
+                raw_sha256 = sha256_json({"primarySha256": raw_sha256, "details": metadata})
+        if not _positive_int(character.get("level")):
             ranking_level = _raiderio_ranking_level(self._http_client, parsed_url, character)
             if ranking_level is not None:
                 level, metadata_provenance, raw_metadata = ranking_level
@@ -612,15 +625,27 @@ class RaiderIOCharacterAdapter:
 
 
 WCL_CHARACTER_QUERY = """
-query ChickenbroCharacterSnapshot($code: String!, $fightIds: [Int]) {
+query ChickenbroCharacterSnapshot($code: String!, $fightIds: [Int], $sourceId: Int) {
   reportData {
     report(code: $code) {
       code
       revision
       fights { id name }
-      playerDetails(fightIDs: $fightIds)
+      playerDetails(fightIDs: $fightIds, includeCombatantInfo: true)
+      events(fightIDs: $fightIds, sourceID: $sourceId, dataType: CombatantInfo, limit: 2) {
+        data
+        nextPageTimestamp
+      }
     }
   }
+}
+"""
+
+WCL_IDENTITY_QUERY = """
+query ChickenbroCharacterIdentity($name: String!, $realm: String!, $region: String!) {
+  characterData { character(name: $name, serverSlug: $realm, serverRegion: $region) {
+    name level server { name slug region { slug } }
+  } }
 }
 """
 
@@ -672,6 +697,7 @@ class WclCharacterAdapter:
                     "variables": {
                         "code": parsed_url.report_code,
                         "fightIds": [parsed_url.fight_id] if parsed_url.fight_id else None,
+                        "sourceId": parsed_url.actor_id,
                     },
                 },
             )
@@ -735,6 +761,56 @@ class WclCharacterAdapter:
             self._official_enricher,
         )
         snapshot["character"] = character
+        combat = combatant_input(report, fight_id, actor_id)
+        if combat is not None:
+            fight_input, event = combat
+            snapshot.update(fight_input)
+            # A WCL entry/rank list is not a SimC talent export hash.
+            snapshot["talents"] = {}
+            provenance["wclCombatantInfo"] = {
+                "fightId": fight_id, "actorId": actor_id,
+                "eventSha256": sha256_json(event), "fields": ["gear", "talents"],
+            }
+            try:
+                identity_raw = _fetch_json(
+                    self._http_client, self._endpoint,
+                    headers={"Authorization": f"Bearer {token}"}, method="POST",
+                    json_body={"query": WCL_IDENTITY_QUERY, "variables": {
+                        "name": character.get("name"), "realm": character.get("realm"),
+                        "region": character.get("region"),
+                    }},
+                )
+                identity = identity_raw["data"]["characterData"]["character"]
+                server = identity["server"]
+                if (_text(identity["name"]).casefold() != _text(character.get("name")).casefold()
+                        or _text(server["name"]).casefold() != _text(character.get("realm")).casefold()
+                        or _text(server["region"]["slug"]).casefold() != _text(character.get("region")).casefold()):
+                    raise ValueError("character identity mismatch")
+                details = read_character_details(
+                    lambda url: _fetch_json(self._http_client, url),
+                    character["region"], server["slug"], character["name"], character,
+                )
+                if details is not None:
+                    detail_character, metadata = details
+                    if type(identity.get("level")) is not int or identity["level"] != detail_character["level"]:
+                        raise ValueError("character level mismatch")
+                    if not character.get("level"):
+                        character["level"] = detail_character["level"]
+                    if not character.get("raceKey"):
+                        character["raceKey"] = _key(detail_character["race"]["slug"])
+                    character["realm"] = server["slug"]
+                    code = matching_talent_export(event.get("talentTree"), detail_character, character["specKey"])
+                    if code:
+                        snapshot["talents"] = {"string": code}
+                    provenance["raiderioCharacterDetails"] = {
+                        **metadata, "fields": ["level", "raceKey", "realm"],
+                        "talentsVerifiedAgainstFight": bool(code),
+                    }
+                    provenance["wclCharacterIdentity"] = {"rawSha256": sha256_json(identity_raw)}
+                    raw_sha256 = sha256_json({"primarySha256": raw_sha256,
+                                             "identity": identity_raw, "details": metadata})
+            except (KeyError, TypeError, ValueError, SourceHttpError):
+                pass
         if not source_revision:
             source_revision = enriched_source_revision
         if source_revision:

@@ -1,0 +1,3009 @@
+{
+  "characterDetails": {
+    "character": {
+      "name": "Giannis",
+      "path": "/characters/cn/silver-hand/Giannis",
+      "level": 90,
+      "class": {
+        "id": 7,
+        "name": "Shaman",
+        "slug": "shaman"
+      },
+      "race": {
+        "id": 34,
+        "name": "Dark Iron Dwarf",
+        "slug": "dark-iron-dwarf",
+        "faction": "alliance"
+      },
+      "spec": {
+        "id": 262,
+        "name": "Elemental",
+        "slug": "elemental",
+        "class_id": 7,
+        "role": "dps",
+        "is_melee": false,
+        "patch": "1.0.0",
+        "ordinal": 0
+      },
+      "realm": {
+        "id": 2176,
+        "connectedRealmId": 404,
+        "wowRealmId": 707,
+        "wowConnectedRealmId": 707,
+        "name": "Silver Hand",
+        "altName": "白银之手",
+        "slug": "silver-hand",
+        "altSlug": "白银之手",
+        "locale": "zh_CN",
+        "isConnected": false,
+        "realmType": "live"
+      },
+      "region": {
+        "name": "China",
+        "slug": "cn",
+        "short_name": "CN"
+      },
+      "talentLoadout": {
+        "nodes": [
+          {
+            "node": {
+              "id": 99845,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 3,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 123377,
+                  "traitDefinitionId": 0,
+                  "traitSubTreeId": 56,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": null
+                },
+                {
+                  "id": 123376,
+                  "traitDefinitionId": 0,
+                  "traitSubTreeId": 55,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": null
+                }
+              ],
+              "important": false,
+              "posX": 7199,
+              "posY": 600,
+              "row": 11,
+              "col": 7
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103588,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127861,
+                  "traitDefinitionId": 132670,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1064,
+                    "name": "Chain Heal",
+                    "icon": "inv_1115_shaman_chainheal",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3300,
+              "posY": 1200,
+              "row": 10,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103598,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127873,
+                  "traitDefinitionId": 132682,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 51505,
+                    "name": "Lava Burst",
+                    "icon": "spell_shaman_lavaburst",
+                    "school": 4,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 1200,
+              "row": 10,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": true
+          },
+          {
+            "node": {
+              "id": 103583,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127856,
+                  "traitDefinitionId": 132665,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 188443,
+                    "name": "Chain Lightning",
+                    "icon": "spell_nature_chainlightning",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 1200,
+              "row": 10,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103596,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127871,
+                  "traitDefinitionId": 132680,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 974,
+                    "name": "Earth Shield",
+                    "icon": "spell_nature_skinofearth",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 2700,
+              "posY": 1800,
+              "row": 9,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103605,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127880,
+                  "traitDefinitionId": 132689,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 382886,
+                    "name": "Fire and Ice",
+                    "icon": "spell_firefrostorb",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 1800,
+              "row": 9,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103581,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127854,
+                  "traitDefinitionId": 132663,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 260878,
+                    "name": "Spirit Wolf",
+                    "icon": "spell_hunter_lonewolf",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 127853,
+                  "traitDefinitionId": 132662,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378075,
+                    "name": "Thunderous Paws",
+                    "icon": "ability_hunter_longevity",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5100,
+              "posY": 1800,
+              "row": 9,
+              "col": 4
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94862,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 117459,
+                  "traitDefinitionId": 122471,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443449,
+                    "name": "Latent Wisdom",
+                    "icon": "spell_holy_spiritualguidence",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 123632,
+                  "traitDefinitionId": 128470,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443423,
+                    "name": "Ancient Fellowship",
+                    "icon": "spell_shaman_astralshift",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 7500,
+              "posY": 1798,
+              "row": 8,
+              "col": 0
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103602,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127877,
+                  "traitDefinitionId": 132686,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 383010,
+                    "name": "Elemental Orbit",
+                    "icon": "ability_mage_shattershield",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 2700,
+              "posY": 2400,
+              "row": 8,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103591,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127865,
+                  "traitDefinitionId": 132674,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 58875,
+                    "name": "Spirit Walk",
+                    "icon": "ability_tracking",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                },
+                {
+                  "id": 127864,
+                  "traitDefinitionId": 132673,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 192063,
+                    "name": "Gust of Wind",
+                    "icon": "inv_misc_volatileair",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3300,
+              "posY": 2400,
+              "row": 8,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103616,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127893,
+                  "traitDefinitionId": 132702,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 108271,
+                    "name": "Astral Shift",
+                    "icon": "ability_shaman_astralshift",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 2400,
+              "row": 8,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103613,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127890,
+                  "traitDefinitionId": 132699,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 30884,
+                    "name": "Nature's Guardian",
+                    "icon": "spell_nature_natureguardian",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 2400,
+              "row": 8,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94887,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117484,
+                  "traitDefinitionId": 122496,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443451,
+                    "name": "Offering from Beyond",
+                    "icon": "spell_shaman_blessingoftheeternals",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 7500,
+              "posY": 2398,
+              "row": 7,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103614,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127891,
+                  "traitDefinitionId": 132700,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 2,
+                  "spell": {
+                    "id": 382215,
+                    "name": "Winds of Al'Akir",
+                    "icon": "ability_druid_galewinds",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3900,
+              "posY": 3000,
+              "row": 7,
+              "col": 2
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103611,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127888,
+                  "traitDefinitionId": 132697,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381647,
+                    "name": "Planes Traveler",
+                    "icon": "spell_shaman_astralshift",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 127887,
+                  "traitDefinitionId": 132696,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 377933,
+                    "name": "Astral Bulwark",
+                    "icon": "spell_shaman_ancestralawakening",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 3000,
+              "row": 7,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103582,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127855,
+                  "traitDefinitionId": 132664,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 2,
+                  "spell": {
+                    "id": 381689,
+                    "name": "Brimming with Life",
+                    "icon": "inv_jewelry_talisman_06",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5100,
+              "posY": 3000,
+              "row": 7,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 2,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103615,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127892,
+                  "traitDefinitionId": 132701,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 57994,
+                    "name": "Wind Shear",
+                    "icon": "spell_nature_cyclone",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 6300,
+              "posY": 3000,
+              "row": 7,
+              "col": 6
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94858,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 117455,
+                  "traitDefinitionId": 122467,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443442,
+                    "name": "Natural Harmony",
+                    "icon": "spell_nature_natureguardian",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 123631,
+                  "traitDefinitionId": 128469,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443441,
+                    "name": "Earthen Communion",
+                    "icon": "spell_nature_skinofearth",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 7500,
+              "posY": 3000,
+              "row": 6,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103579,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127851,
+                  "traitDefinitionId": 132660,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 192058,
+                    "name": "Capacitor Totem",
+                    "icon": "spell_nature_brilliance",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 3600,
+              "row": 6,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 110085,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 136585,
+                  "traitDefinitionId": 141358,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270375,
+                    "name": "Spiritual Awakening",
+                    "icon": "spell_shaman_blessingoftheeternals",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5100,
+              "posY": 3600,
+              "row": 6,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103606,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127881,
+                  "traitDefinitionId": 132690,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462796,
+                    "name": "Enhanced Imbues",
+                    "icon": "spell_nature_rockbiter",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 3600,
+              "row": 6,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103628,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127910,
+                  "traitDefinitionId": 132719,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 355630,
+                    "name": "Windveil",
+                    "icon": "inv_elemental_primal_air",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 6300,
+              "posY": 3600,
+              "row": 6,
+              "col": 6
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103608,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127884,
+                  "traitDefinitionId": 132693,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 51886,
+                    "name": "Cleanse Spirit",
+                    "icon": "ability_shaman_cleansespirit",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3900,
+              "posY": 4200,
+              "row": 5,
+              "col": 2
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103627,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127909,
+                  "traitDefinitionId": 132718,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 192077,
+                    "name": "Wind Rush Totem",
+                    "icon": "ability_shaman_windwalktotem",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": true,
+              "posX": 5100,
+              "posY": 4200,
+              "row": 5,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103585,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127858,
+                  "traitDefinitionId": 132667,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 198103,
+                    "name": "Earth Elemental",
+                    "icon": "spell_nature_earthelemental_totem",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 4200,
+              "row": 5,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103624,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127905,
+                  "traitDefinitionId": 132714,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 370,
+                    "name": "Purge",
+                    "icon": "spell_nature_purge",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                },
+                {
+                  "id": 127904,
+                  "traitDefinitionId": 132713,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378773,
+                    "name": "Greater Purge",
+                    "icon": "spell_shaman_focusedstrikes",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3300,
+              "posY": 4800,
+              "row": 4,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103617,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127894,
+                  "traitDefinitionId": 132703,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 2,
+                  "spell": {
+                    "id": 381655,
+                    "name": "Nature's Fury",
+                    "icon": "spell_nature_spiritarmor",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 4800,
+              "row": 4,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 2,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103607,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127883,
+                  "traitDefinitionId": 132692,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462791,
+                    "name": "Ascending Air",
+                    "icon": "achievement_raidprimalist_windelemental",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 127882,
+                  "traitDefinitionId": 132691,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462817,
+                    "name": "Jet Stream",
+                    "icon": "inv_elemental_primal_air",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5100,
+              "posY": 4800,
+              "row": 4,
+              "col": 4
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103612,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127889,
+                  "traitDefinitionId": 132698,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1279819,
+                    "name": "Primordial Bond",
+                    "icon": "inv_elemental_primal_earth",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 4800,
+              "row": 4,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103584,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127857,
+                  "traitDefinitionId": 132666,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 79206,
+                    "name": "Spiritwalker's Grace",
+                    "icon": "spell_shaman_spiritwalkersgrace",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 2700,
+              "posY": 5400,
+              "row": 3,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103586,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127859,
+                  "traitDefinitionId": 132668,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381650,
+                    "name": "Elemental Warding",
+                    "icon": "inv_10_elementalcombinedfoozles_primordial",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 5400,
+              "row": 3,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103626,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127908,
+                  "traitDefinitionId": 132717,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 192088,
+                    "name": "Graceful Spirit",
+                    "icon": "spell_shaman_spectraltransformation",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 127907,
+                  "traitDefinitionId": 132716,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378077,
+                    "name": "Spiritwalker's Aegis",
+                    "icon": "ability_racial_forceshield",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 2700,
+              "posY": 6000,
+              "row": 2,
+              "col": 0
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103599,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127874,
+                  "traitDefinitionId": 132683,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 8143,
+                    "name": "Tremor Totem",
+                    "icon": "spell_nature_tremortotem",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                },
+                {
+                  "id": 136567,
+                  "traitDefinitionId": 141340,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 383013,
+                    "name": "Poison Cleansing Totem",
+                    "icon": "spell_nature_poisoncleansingtotem",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 6000,
+              "row": 2,
+              "col": 3
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103593,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127868,
+                  "traitDefinitionId": 132677,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1217622,
+                    "name": "Therazane's Resilience",
+                    "icon": "shaman_pvp_rockshield",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 136584,
+                  "traitDefinitionId": 141357,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462454,
+                    "name": "Reactive Warding",
+                    "icon": "inv_10_elementalcombinedfoozles_water",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5100,
+              "posY": 6000,
+              "row": 2,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103620,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127899,
+                  "traitDefinitionId": 132708,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378081,
+                    "name": "Nature's Swiftness",
+                    "icon": "spell_nature_ravenform",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 3300,
+              "posY": 6600,
+              "row": 1,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 109388,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 135592,
+                  "traitDefinitionId": 140348,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381867,
+                    "name": "Totemic Surge",
+                    "icon": "spell_nature_agitatingtotem",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 4500,
+              "posY": 6600,
+              "row": 1,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 109387,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 135591,
+                  "traitDefinitionId": 140347,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270350,
+                    "name": "Instinctive Imbuements",
+                    "icon": "ability_shaman_ascendance",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 5700,
+              "posY": 6600,
+              "row": 1,
+              "col": 5
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94888,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117485,
+                  "traitDefinitionId": 122497,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443450,
+                    "name": "Call of the Ancestors",
+                    "icon": "ability_racial_ancestralcall",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8400,
+              "posY": 1200,
+              "row": 9,
+              "col": 2
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": true
+          },
+          {
+            "node": {
+              "id": 80984,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101854,
+                  "traitDefinitionId": 106811,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 8042,
+                    "name": "Earth Shock",
+                    "icon": "spell_nature_earthshock",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                },
+                {
+                  "id": 127924,
+                  "traitDefinitionId": 132733,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 117014,
+                    "name": "Elemental Blast",
+                    "icon": "shaman_talent_elementalblast",
+                    "school": 28,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 1200,
+              "row": 10,
+              "col": 13
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94884,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 117481,
+                  "traitDefinitionId": 122493,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443444,
+                    "name": "Heed My Call",
+                    "icon": "spell_unused2",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 123630,
+                  "traitDefinitionId": 128468,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443445,
+                    "name": "Routine Communication",
+                    "icon": "spell_nature_undyingstrength",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8100,
+              "posY": 1800,
+              "row": 8,
+              "col": 1
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94869,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117466,
+                  "traitDefinitionId": 122478,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443418,
+                    "name": "Elemental Reverb",
+                    "icon": "ability_shaman_echooftheelements",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8700,
+              "posY": 1798,
+              "row": 8,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 109732,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 135990,
+                  "traitDefinitionId": 140745,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270446,
+                    "name": "Ancestral Influence",
+                    "icon": "shaman_pvp_leaderclan",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 9300,
+              "posY": 1800,
+              "row": 8,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80985,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101855,
+                  "traitDefinitionId": 106814,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462620,
+                    "name": "Earthquake",
+                    "icon": "spell_shaman_earthquake",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                },
+                {
+                  "id": 127925,
+                  "traitDefinitionId": 132734,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 61882,
+                    "name": "Earthquake",
+                    "icon": "spell_shaman_earthquake",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12000,
+              "posY": 1800,
+              "row": 9,
+              "col": 12
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80983,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101853,
+                  "traitDefinitionId": 106810,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 60188,
+                    "name": "Elemental Fury",
+                    "icon": "spell_fire_volcano",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 1800,
+              "row": 9,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80981,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101850,
+                  "traitDefinitionId": 106837,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 333919,
+                    "name": "Echo of the Elements",
+                    "icon": "ability_shaman_echooftheelements",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13200,
+              "posY": 1800,
+              "row": 9,
+              "col": 14
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94860,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117457,
+                  "traitDefinitionId": 122469,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443448,
+                    "name": "Primordial Capacity",
+                    "icon": "ability_monk_chiswirl",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8100,
+              "posY": 2398,
+              "row": 7,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94861,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117458,
+                  "traitDefinitionId": 122470,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443425,
+                    "name": "Spiritwalker's Momentum",
+                    "icon": "spell_shaman_spiritwalkersgrace",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8700,
+              "posY": 2398,
+              "row": 7,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 109731,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 135989,
+                  "traitDefinitionId": 140744,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270447,
+                    "name": "Windspeaker",
+                    "icon": "achievement_raidprimalist_windelemental",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 9300,
+              "posY": 2400,
+              "row": 7,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80990,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101861,
+                  "traitDefinitionId": 106843,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381936,
+                    "name": "Flash of Lightning",
+                    "icon": "spell_lightning_lightningbolt01",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 11400,
+              "posY": 2400,
+              "row": 8,
+              "col": 11
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81000,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101874,
+                  "traitDefinitionId": 106831,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1258899,
+                    "name": "Tectonic Collapse",
+                    "icon": "item_earthenmight",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 101873,
+                  "traitDefinitionId": 106830,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 273221,
+                    "name": "Aftershock",
+                    "icon": "spell_nature_stormreach",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 2400,
+              "row": 8,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80999,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101872,
+                  "traitDefinitionId": 106832,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1258843,
+                    "name": "Molten Wrath",
+                    "icon": "spell_shaman_lavaburst",
+                    "school": 4,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 136714,
+                  "traitDefinitionId": 141486,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 16166,
+                    "name": "Master of the Elements",
+                    "icon": "spell_nature_elementalabsorption",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13800,
+              "posY": 2400,
+              "row": 8,
+              "col": 15
+            },
+            "entryIndex": 1,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94883,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117480,
+                  "traitDefinitionId": 122492,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443447,
+                    "name": "Maelstrom Supremacy",
+                    "icon": "spell_shadow_soulleech_2",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8100,
+              "posY": 3000,
+              "row": 6,
+              "col": 1
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94875,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117472,
+                  "traitDefinitionId": 122484,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 443446,
+                    "name": "Final Calling",
+                    "icon": "spell_shaman_ancestralawakening",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8700,
+              "posY": 3000,
+              "row": 6,
+              "col": 3
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 109730,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 135988,
+                  "traitDefinitionId": 140743,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270450,
+                    "name": "Mystic Knowledge",
+                    "icon": "achievement_raidprimalist_council",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 9300,
+              "posY": 3000,
+              "row": 6,
+              "col": 4
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80997,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101870,
+                  "traitDefinitionId": 106817,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462862,
+                    "name": "Lightning Capacitor",
+                    "icon": "spell_nature_lightningshield",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 10800,
+              "posY": 3000,
+              "row": 7,
+              "col": 10
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80988,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101859,
+                  "traitDefinitionId": 106819,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 191634,
+                    "name": "Stormkeeper",
+                    "icon": "ability_thunderking_lightningwhip",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 3000,
+              "row": 7,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81004,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101879,
+                  "traitDefinitionId": 106829,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 318038,
+                    "name": "Flametongue Weapon",
+                    "icon": "spell_fire_flametounge",
+                    "school": 4,
+                    "rank": "Weapon Imbue",
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 14400,
+              "posY": 3000,
+              "row": 7,
+              "col": 16
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 94894,
+              "treeId": 786,
+              "subTreeId": 56,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 117491,
+                  "traitDefinitionId": 122503,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 448861,
+                    "name": "Ancestral Swiftness",
+                    "icon": "inv_ability_farseershaman_ancestralswiftness",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 8400,
+              "posY": 3600,
+              "row": 5,
+              "col": 2
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103635,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127917,
+                  "traitDefinitionId": 132726,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462695,
+                    "name": "Storm Frenzy",
+                    "icon": "spell_nature_callstorm",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 11400,
+              "posY": 3600,
+              "row": 6,
+              "col": 11
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81016,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101893,
+                  "traitDefinitionId": 106815,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381707,
+                    "name": "Swelling Maelstrom",
+                    "icon": "spell_shaman_maelstromweapon",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12000,
+              "posY": 3600,
+              "row": 6,
+              "col": 12
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103639,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127920,
+                  "traitDefinitionId": 132729,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378193,
+                    "name": "Primordial Fury",
+                    "icon": "inv_10_elementalshardfoozles_primordial",
+                    "school": 28,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 3600,
+              "row": 6,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80998,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101871,
+                  "traitDefinitionId": 106816,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 191717,
+                    "name": "Fury of the Storms",
+                    "icon": "inv_stormelemental",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 128223,
+                  "traitDefinitionId": 133030,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 468571,
+                    "name": "Herald of the Storms",
+                    "icon": "achievement_raidprimalist_windelemental",
+                    "school": 8,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13200,
+              "posY": 3600,
+              "row": 6,
+              "col": 14
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103630,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 127912,
+                  "traitDefinitionId": 132721,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378266,
+                    "name": "Flames of the Cauldron",
+                    "icon": "inv_misc_cauldron_fire",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 14400,
+              "posY": 3600,
+              "row": 6,
+              "col": 16
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103638,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 127919,
+                  "traitDefinitionId": 132728,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1269360,
+                    "name": "Amped Up",
+                    "icon": "inv_10_elementalcombinedfoozles_lightning",
+                    "school": 28,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 10800,
+              "posY": 4200,
+              "row": 5,
+              "col": 10
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103631,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 9,
+              "entries": [
+                {
+                  "id": 127913,
+                  "traitDefinitionId": 132722,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1258895,
+                    "name": "Elemental Resonance",
+                    "icon": "inv_10_elementalcombinedfoozles_primordial",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 135716,
+                  "traitDefinitionId": 140471,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462757,
+                    "name": "Thunderstrike Ward",
+                    "icon": "inv_armorkit_lightning_imbued",
+                    "school": 8,
+                    "rank": "Shield Imbue",
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12000,
+              "posY": 4200,
+              "row": 5,
+              "col": 12
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 110066,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 8,
+              "entries": [
+                {
+                  "id": 136561,
+                  "traitDefinitionId": 141334,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1269364,
+                    "name": "Path of the Seer",
+                    "icon": "spell_shaman_elementaloath",
+                    "school": 28,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 4200,
+              "row": 5,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80995,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101867,
+                  "traitDefinitionId": 106821,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 468626,
+                    "name": "Earthshatter",
+                    "icon": "spell_nature_earthquake",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 11400,
+              "posY": 4800,
+              "row": 4,
+              "col": 11
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81015,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101892,
+                  "traitDefinitionId": 106824,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 382032,
+                    "name": "Echo Chamber",
+                    "icon": "spell_nature_lightningoverload",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 4800,
+              "row": 4,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80989,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101860,
+                  "traitDefinitionId": 106820,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 114050,
+                    "name": "Ascendance",
+                    "icon": "inv121_ability_shaman_ascendance_fire",
+                    "school": 4,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 5400,
+              "row": 3,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81008,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101885,
+                  "traitDefinitionId": 106852,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1259047,
+                    "name": "Inferno Arc",
+                    "icon": "spell_shaman_shockinglava",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13200,
+              "posY": 5400,
+              "row": 3,
+              "col": 14
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81002,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101876,
+                  "traitDefinitionId": 106826,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 381726,
+                    "name": "Mountains Will Fall",
+                    "icon": "inv_elementalearth2",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12000,
+              "posY": 6000,
+              "row": 2,
+              "col": 12
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80992,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101864,
+                  "traitDefinitionId": 106846,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 378255,
+                    "name": "Call of Fire",
+                    "icon": "spell_fire_elemental_totem",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 6000,
+              "row": 2,
+              "col": 13
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 81007,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101883,
+                  "traitDefinitionId": 106850,
+                  "traitSubTreeId": 0,
+                  "type": 1,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 470057,
+                    "name": "Voltaic Blaze",
+                    "icon": "inv_10_dungeonjewelry_primalist_trinket_1ragingelement_fire",
+                    "school": 12,
+                    "rank": null,
+                    "hasCooldown": true
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13800,
+              "posY": 6000,
+              "row": 2,
+              "col": 15
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103640,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 2,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 127921,
+                  "traitDefinitionId": 132730,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462440,
+                    "name": "First Ascendant",
+                    "icon": "spell_shaman_astralshift",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 128224,
+                  "traitDefinitionId": 133031,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 462443,
+                    "name": "Preeminence",
+                    "icon": "spell_shaman_improvedreincarnation",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12000,
+              "posY": 6600,
+              "row": 1,
+              "col": 12
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 80978,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 0,
+              "entries": [
+                {
+                  "id": 101844,
+                  "traitDefinitionId": 106856,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 117013,
+                    "name": "Primal Elementalist",
+                    "icon": "shaman_talent_primalelementalist",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13200,
+              "posY": 6600,
+              "row": 1,
+              "col": 14
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103632,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 127914,
+                  "traitDefinitionId": 132723,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 2,
+                  "spell": {
+                    "id": 1269215,
+                    "name": "Crackling Fury",
+                    "icon": "inv_10_dungeonjewelry_primalist_trinket_1ragingelement_air",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 13800,
+              "posY": 6600,
+              "row": 1,
+              "col": 15
+            },
+            "entryIndex": 0,
+            "rank": 2,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 103637,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 0,
+              "flags": 1,
+              "entries": [
+                {
+                  "id": 101884,
+                  "traitDefinitionId": 106851,
+                  "traitSubTreeId": 0,
+                  "type": 2,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1259471,
+                    "name": "Purging Flames",
+                    "icon": "inv12_ability_shaman_purgingflames",
+                    "school": 4,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 14400,
+              "posY": 6600,
+              "row": 1,
+              "col": 16
+            },
+            "entryIndex": 0,
+            "rank": 1,
+            "grantedNode": false
+          },
+          {
+            "node": {
+              "id": 110402,
+              "treeId": 786,
+              "subTreeId": 0,
+              "type": 1,
+              "flags": 256,
+              "entries": [
+                {
+                  "id": 136974,
+                  "traitDefinitionId": 141737,
+                  "traitSubTreeId": 0,
+                  "type": 13,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270061,
+                    "name": "Feedback Loop",
+                    "icon": "inv12_apextalent_shaman_feedbackloop",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 136973,
+                  "traitDefinitionId": 141736,
+                  "traitSubTreeId": 0,
+                  "type": 13,
+                  "maxRanks": 2,
+                  "spell": {
+                    "id": 1270062,
+                    "name": "Feedback Loop",
+                    "icon": "inv12_apextalent_shaman_feedbackloop",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                },
+                {
+                  "id": 136972,
+                  "traitDefinitionId": 141735,
+                  "traitSubTreeId": 0,
+                  "type": 13,
+                  "maxRanks": 1,
+                  "spell": {
+                    "id": 1270064,
+                    "name": "Feedback Loop",
+                    "icon": "inv12_apextalent_shaman_feedbackloop",
+                    "school": 1,
+                    "rank": null,
+                    "hasCooldown": false
+                  }
+                }
+              ],
+              "important": false,
+              "posX": 12600,
+              "posY": 7350,
+              "row": 0,
+              "col": 13
+            },
+            "entryIndex": 2,
+            "rank": 4,
+            "grantedNode": false
+          }
+        ],
+        "specId": 262,
+        "heroSubTreeId": 56,
+        "loadoutText": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMGjZZbZMmhZAAAAgFzsBDYAzGTIzCAMbzMzYssYajZmtxyMPwMjhFLzMLDjZmFAgZAwMjhhB",
+        "dbcIndexVersion": "12.1.0"
+      }
+    }
+  }
+}

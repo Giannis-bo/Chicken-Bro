@@ -55,6 +55,122 @@ class FailingGateway:
 
 
 class SimulationSourcesTest(unittest.TestCase):
+    def _giannis_gateway(self):
+        directory = Path(__file__).parent / "fixtures" / "simc"
+        details = json.loads((directory / "giannis_raiderio_details.json").read_text(encoding="utf-8"))
+        report = json.loads((directory / "giannis_wcl_report.json").read_text(encoding="utf-8"))
+        identity = {"data": {"characterData": {"character": {
+            "name": "Giannis", "level": 90,
+            "server": {"name": "白银之手", "slug": "silver-hand", "region": {"slug": "CN"}},
+        }}}}
+        primary = json.loads((FIXTURE_DIR / "raiderio_ready.json").read_text())
+        primary.update(name="Giannis", realm="Silver Hand", region="cn", race="Dark Iron Dwarf")
+        primary.pop("level", None)
+
+        class Gateway:
+            def __init__(self): self.calls = []
+            def fetch_json(self, url, **kwargs):
+                self.calls.append((url, kwargs))
+                if "/api/characters/" in url: return details
+                if "raider.io" in url: return primary
+                query = kwargs.get("json_body", {}).get("query", "")
+                if "characterData" in query: return identity
+                return report
+        gateway = Gateway()
+        official = BlizzardProfileEnricher(gateway, token_provider=lambda: "")
+        return gateway, official, primary, details, report, identity
+
+    def test_giannis_cn_profile_gets_explicit_level_from_verified_character_details(self):
+        gateway, official, primary, details, _, _ = self._giannis_gateway()
+        candidate = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(
+            parse_character_source_url("https://raider.io/cn/characters/cn/silver-hand/Giannis"))
+        self.assertEqual(candidate.snapshot["character"].get("level"), 90)
+        self.assertNotIn("character.level", candidate.missing_fields)
+        self.assertIn("raiderioCharacterDetails", candidate.provenance)
+        original = candidate.raw_sha256
+        details["characterDetails"]["character"]["level"] = 89
+        changed = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(
+            parse_character_source_url("https://raider.io/cn/characters/cn/silver-hand/Giannis"))
+        self.assertNotEqual(original, changed.raw_sha256)
+
+    def test_cn_details_identity_mismatch_never_fills_level(self):
+        for field, value in [("name", "SomeoneElse"), ("level", True),
+                             ("region", {"slug": "us"}), ("realm", {"slug": "other"}),
+                             ("class", {"slug": "mage"}), ("path", "/characters/cn/other/Giannis")]:
+            with self.subTest(field=field):
+                gateway, official, _, details, _, _ = self._giannis_gateway()
+                details["characterDetails"]["character"][field] = value
+                candidate = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(
+                    parse_character_source_url("https://raider.io/cn/characters/cn/silver-hand/Giannis"))
+                self.assertIn("character.level", candidate.missing_fields)
+
+    def test_wcl_giannis_uses_fight_gear_and_verified_equivalent_talent_export(self):
+        gateway, official, _, details, report, _ = self._giannis_gateway()
+        candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+            parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+        self.assertEqual(candidate.missing_fields, ())
+        self.assertEqual(candidate.snapshot["character"]["level"], 90)
+        self.assertEqual(candidate.snapshot["character"]["raceKey"], "dark_iron_dwarf")
+        self.assertEqual(candidate.snapshot["gear"]["head"]["enchant"], 8017)
+        self.assertEqual(candidate.snapshot["gear"]["neck"]["gems"], [240983])
+        self.assertEqual(candidate.snapshot["gear"]["main_hand"]["itemId"], 245770)
+        self.assertEqual(candidate.snapshot["gearState"]["unequippedSlots"], ["off_hand"])
+        self.assertEqual(candidate.snapshot["talents"]["string"],
+                         details["characterDetails"]["character"]["talentLoadout"]["loadoutText"])
+        self.assertIn("wclCombatantInfo", candidate.provenance)
+        from server.app.simulation.compiler import SimcProfileCompiler
+        from server.app.simulation.readiness import SimcRuntimeCapabilities, SimcReadinessValidator
+        capabilities = SimcRuntimeCapabilities("simc:test", "chickenbro-simc-compiler-v3", frozenset({("shaman", "elemental")}))
+        saved = candidate.to_source_snapshot(user_id="00000000-0000-4000-8000-000000000001",
+            snapshot_id="00000000-0000-4000-8000-000000000002",
+            readiness_report=SimcReadinessValidator().validate(candidate, capabilities))
+        profile = SimcProfileCompiler(capabilities=capabilities).compile(saved, {}).profile
+        self.assertIn("server=silver-hand", profile)
+        self.assertIn("level=90", profile)
+        self.assertIn("talents=CYQ", profile)
+
+        self.assertTrue(any("includeCombatantInfo: true" in c[1].get("json_body", {}).get("query", "") for c in gateway.calls))
+
+    def test_wcl_talent_change_never_silently_uses_current_profile_talents(self):
+        gateway, official, _, details, report, _ = self._giannis_gateway()
+        report["data"]["reportData"]["report"]["events"]["data"][0]["talentTree"][0]["rank"] = 2
+        candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+            parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+        self.assertIn("talents.loadout", candidate.missing_fields)
+        self.assertNotIn("string", candidate.snapshot["talents"])
+
+    def test_wcl_wrong_fight_or_actor_event_cannot_supply_gear(self):
+        for field, value in [("fight", 2), ("sourceID", 5)]:
+            gateway, official, _, _, report, _ = self._giannis_gateway()
+            report["data"]["reportData"]["report"]["events"]["data"][0][field] = value
+            candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+                parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+            self.assertIn("gear.head", candidate.missing_fields)
+
+    def test_wcl_metadata_identity_or_level_mismatch_stays_incomplete(self):
+        for field, value in [("name", "Other"), ("level", 89), ("level", True)]:
+            with self.subTest(field=field):
+                gateway, official, _, _, _, identity = self._giannis_gateway()
+                identity["data"]["characterData"]["character"][field] = value
+                candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+                    parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+                self.assertIn("character.level", candidate.missing_fields)
+                self.assertIn("talents.loadout", candidate.missing_fields)
+                self.assertEqual(candidate.snapshot["gear"]["head"]["itemId"], 271483)
+
+    def test_talent_export_requires_exact_choices_and_no_duplicate_log_entries(self):
+        from server.app.simulation.source_details import matching_talent_export
+        for mutation in ("choice", "duplicate", "missing", "different_spec"):
+            gateway, official, _, details, report, _ = self._giannis_gateway()
+            character = details["characterDetails"]["character"]
+            tree = report["data"]["reportData"]["report"]["events"]["data"][0]["talentTree"]
+            if mutation == "choice":
+                next(e for e in tree if e["nodeID"] == 99845)["id"] = 123376
+            elif mutation == "duplicate": tree.append(tree[0])
+            elif mutation == "missing": tree.pop()
+            elif mutation == "different_spec": character["spec"]["slug"] = "restoration"
+            self.assertEqual(matching_talent_export(tree, character, "elemental"), "", mutation)
+
     def _ranking_source(self):
         primary = json.loads((FIXTURE_DIR / "raiderio_ready.json").read_text())
         primary.pop("level")
@@ -144,7 +260,7 @@ class SimulationSourcesTest(unittest.TestCase):
                 candidate = adapter.resolve(parsed)
                 self.assertIn("character.level", candidate.missing_fields)
                 self.assertNotIn("raiderioLevelMetadata", candidate.provenance)
-                self.assertLessEqual(len(gateway.urls), 3)
+                self.assertLessEqual(len(gateway.urls), 4)
 
     def test_ranking_fetch_failure_retains_primary_snapshot_and_missing_level(self):
         for failing_endpoint in ("/affixes?", "/rankings/specs?"):
@@ -178,7 +294,7 @@ class SimulationSourcesTest(unittest.TestCase):
             "https://raider.io/characters/cn/area-52/Stormsample",
         ))
         self.assertIn("character.level", candidate.missing_fields)
-        self.assertEqual(len(gateway.urls), 1)
+        self.assertEqual(len(gateway.urls), 2)
 
     def test_router_rejects_non_https_and_unallowlisted_hosts_without_fetching(self):
         gateway = FakeGateway({})
@@ -361,7 +477,7 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertNotIn("raceKey", candidate.snapshot["character"])
         self.assertIn("character.level", candidate.missing_fields)
         self.assertIn("character.raceKey", candidate.missing_fields)
-        self.assertEqual(len(gateway.urls), 1)
+        self.assertEqual(len(gateway.urls), 2)
 
     def test_official_profile_identity_mismatch_is_rejected_without_merging(self):
         primary = json.loads((FIXTURE_DIR / "raiderio_ready.json").read_text())
