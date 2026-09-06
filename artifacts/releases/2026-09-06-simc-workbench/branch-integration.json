@@ -1,0 +1,92 @@
+{
+  "status": "verified_for_main_integration",
+  "date": "2026-09-06",
+  "authorization": "User approved consolidation into main and cleanup of fully merged development branches.",
+  "originalMain": "f5468f65991a7033bb2f23339414753f18ead4f7",
+  "integrationCommit": "3c8ffd998bc514e55ae3fa845464eea59c8a5ad6",
+  "finalSourceCommit": "95d0f4057841f05d846b21508a9c3be42ab01f51",
+  "includedBranches": {
+    "codex/test-account-login": "3be4e6cb94d3347b04a8094a0bc2e5640e8a5b57",
+    "codex/chickenbro-research": "a1201c150b1e40ec4291651378d9f32d0fab94f6",
+    "codex/chickenbro-simc-tools": "ae4cbc5fac55df1b24e7e53e343d385208937182",
+    "codex/simc-workbench": "9059af4271c54b562f6df61af7229d08127e95a2"
+  },
+  "retainedBranches": [
+    "main",
+    "codex/local-web-test-mode",
+    "codex/archive-local-stash-20260904"
+  ],
+  "review": {
+    "conflicts": [
+      "docs/plans/README.md",
+      "docs/roadmap.md"
+    ],
+    "resolution": "Preserved current workbench/localization entries and incoming cloud tool verification. No application source conflict.",
+    "sourceDeltaFromTestRelease": "Application source unchanged; added Shell LF checkout rule and repaired time-dependent provisioning test using an isolated fixture plus expiry rejection regression."
+  },
+  "verification": [
+    {
+      "suite": "frontend",
+      "pass": 209,
+      "sourceCommit": "3c8ffd998bc514e55ae3fa845464eea59c8a5ad6"
+    },
+    {
+      "suite": "control",
+      "pass": 62,
+      "sourceCommit": "3c8ffd998bc514e55ae3fa845464eea59c8a5ad6"
+    },
+    {
+      "suite": "backend",
+      "pass": 391,
+      "sourceCommit": "3c8ffd998bc514e55ae3fa845464eea59c8a5ad6"
+    },
+    {
+      "suite": "migration",
+      "pass": 63,
+      "skipped": 1,
+      "reason": "PostgreSQL integration fixture unavailable"
+    },
+    {
+      "suite": "ops-node-linux",
+      "pass": 79,
+      "sourceCommit": "95d0f4057841f05d846b21508a9c3be42ab01f51"
+    },
+    {
+      "suite": "ops-node-windows",
+      "pass": 21,
+      "skipped": 1,
+      "reason": "Windows file symlink privilege unavailable"
+    },
+    {
+      "suite": "ops-python",
+      "pass": 14
+    },
+    {
+      "suite": "typecheck",
+      "status": "pass"
+    },
+    {
+      "suite": "lint",
+      "status": "pass"
+    },
+    {
+      "suite": "production-h5-build",
+      "status": "pass",
+      "sourceCommit": "3c8ffd998bc514e55ae3fa845464eea59c8a5ad6",
+      "testAccountUiPresent": false
+    },
+    {
+      "suite": "production-weapp-build",
+      "status": "pass",
+      "sourceCommit": "9c0c883a2f65554cd043fc7eb3be1f702f0c41a9",
+      "testAccountUiPresent": false
+    }
+  ],
+  "environmentNotes": "Used existing Node/Python/Taro dependencies. Linux tests ran in an isolated exported source tree with temporary Git metadata for dry-run contracts, no service deployment. Initial CRLF/archive and historical timestamp failures were reproduced and corrected.",
+  "deployment": "Production and isolated test runtime releases unchanged; Git consolidation is not production cutover.",
+  "remainingAcceptance": [
+    "Real Mini/Web cross-client user acceptance remains independently pending",
+    "Full specialization/localization coverage remains partial as recorded in localization-coverage.json"
+  ],
+  "cleanupPolicy": "Require ancestor proof, clean tracked/untracked status and exact remote ref equality before removal. Preserve scratch evidence and original historical stash; detach dependency junctions without following their targets."
+}
