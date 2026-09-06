@@ -17,9 +17,9 @@ router = APIRouter()
 class SourceGatewayQueryBody(BaseModel):
     provider: str = Field(min_length=1, max_length=40)
     target: str = Field(min_length=1, max_length=2048)
-    options: dict[str, str | int | float] = Field(default_factory=dict, max_length=4)
+    options: dict[str, str | int | float | list[str]] = Field(default_factory=dict, max_length=7)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 @router.post(SOURCE_GATEWAY_PATH, include_in_schema=False)

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "slug": "chickenbro-research-quality",
+  "requirementSlug": "chickenbro-research-quality",
+  "status": "runtime_verified",
+  "highestEvidenceLevel": "runtime_verified",
+  "branch": "codex/chickenbro-research",
+  "commit": "db7e1537049c9c37775210a51aecc7fb24e9b1d4",
+  "identities": {
+    "runtime": {
+      "status": "bound",
+      "kind": "build_identity",
+      "value": "chickenbro-test-research-db7e1537049c9c37775210a51aecc7fb24e9b1d4"
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "Merge and archive closure have not occurred."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "complete",
+    "reason": "User supplied actual new Chat screenshots and explicitly accepted image1 answer quality.",
+    "items": [
+      {
+        "id": "research_answer_quality",
+        "status": "accepted",
+        "evidence": "2026-09-06 user: 非常好，图1的回答我认为已经符合预期； screenshot of actual Chat research answer."
+      }
+    ],
+    "rollup": {
+      "total": 1,
+      "accepted": 1,
+      "notRunUserWaived": 0,
+      "pending": 0
+    }
+  },
+  "scope": [
+    "chickenbro_chat"
+  ],
+  "verification": [
+    {
+      "command": "python -m unittest targeted Chickenbro modules -q",
+      "status": "pass",
+      "summary": "72 tests passed locally with Python 3.13."
+    },
+    {
+      "command": "test:backend module list using /opt/chickenbro-runtime/bin/python",
+      "status": "pass",
+      "summary": "299 tests passed on the exact source commit in the cloud isolated candidate; local FastAPI unavailable, no dependencies installed."
+    },
+    {
+      "command": "Node 23 --test test:control module list",
+      "status": "pass",
+      "summary": "62 control tests passed; final packet check recorded separately."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "summary": "Fresh source check passed."
+    }
+  ],
+  "candidateDeployment": {
+    "status": "candidate_verified",
+    "buildIdentity": "chickenbro-test-research-db7e1537049c9c37775210a51aecc7fb24e9b1d4",
+    "commit": "db7e1537049c9c37775210a51aecc7fb24e9b1d4",
+    "environment": "test",
+    "manifest": "artifacts/releases/2026-09-06-chickenbro-research-quality/test-deployment.json",
+    "smoke": {
+      "status": "pass",
+      "summary": "Test API readiness ready; 7 runtime source files replaced, 114 inherited files unchanged; production PID/files unchanged."
+    },
+    "timerBackflow": {
+      "status": "not_applicable",
+      "reason": "No background sync or timers added."
+    }
+  },
+  "runtimeEvidence": [
+    {
+      "type": "model_evaluation",
+      "status": "pass",
+      "evidence": "artifacts/releases/2026-09-06-chickenbro-research-quality/evaluation-results.json",
+      "summary": "Original and variant completed in ~154s each; simple question ~10s, zero source tools. Exact final source commit original repeated successfully in143368ms. Core claims independently checked.",
+      "finalCommitEvidence": "artifacts/releases/2026-09-06-chickenbro-research-quality/final-commit-original-evaluation.json"
+    },
+    {
+      "type": "smoke",
+      "status": "pass",
+      "summary": "Isolated test readiness ready after deploy."
+    },
+    {
+      "type": "browser_chat",
+      "status": "blocked",
+      "summary": "Existing test Web session expired; user re-login requested. No persisted Chat acceptance claimed."
+    }
+  ],
+  "risks": [
+    "First text for the two research cases took ~121-124 seconds; broad cache and cross-turn evidence are deferred.",
+    "A small evaluation set cannot establish overall superiority to a general assistant.",
+    "Raider.IO snapshots omit panel stat percentages and may differ from score-time equipment.",
+    "MCP observations cover custom tools; native web tool retrieval history is not persisted. Core mechanics were independently verified, not inferred from answer links alone."
+  ],
+  "rollback": [
+    "Atomically point /opt/chickenbro-test/current to /opt/chickenbro-test/releases/e718d287817b99390b2924315fe8b6d028e539de and restart chickenbro-test-api.service. No database changes."
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/plans/2026-09-06-chickenbro-research-quality.md",
+    "artifacts/releases/2026-09-06-chickenbro-research-quality/evaluation-results.json",
+    "artifacts/releases/2026-09-06-chickenbro-research-quality/test-deployment.json",
+    "artifacts/releases/2026-09-06-chickenbro-research-quality/final-commit-original-evaluation.json",
+    "artifacts/releases/2026-09-06-chickenbro-research-quality/evaluation-review.md"
+  ],
+  "summary": "Read-only research tools implemented and deployed to isolated test; Astra/high research and basic-question evaluation completed. User acceptance pending."
+}

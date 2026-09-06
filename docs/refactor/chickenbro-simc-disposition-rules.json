@@ -2,13 +2,51 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "chickenbro-simc-tools",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized on-demand owner-scoped cloud SimC tools.",
+      "paths": [
+        "docs/plans/2026-09-06-chickenbro-simc-tools.md",
+        "server/app/chickenbro/simulation_tools.py",
+        "server/app/api/routes/simulation_tools.py",
+        "tests/app_chickenbro_simulation_tools_test.py"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-06-chickenbro-simc-tools/"
+      ]
+    },
+    {
+      "id": "chickenbro-research-quality",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "chickenbro_chat",
+      "reason": "User-approved read-only research tools and reproducible evaluation.",
+      "paths": [
+        "docs/plans/2026-09-06-chickenbro-research-quality.md",
+        "server/app/chickenbro/raiderio_research.py",
+        "tests/app_chickenbro_raiderio_research_test.py",
+        "tests/app_chickenbro_public_web_test.py",
+        "scripts/evaluate-chickenbro-research.py",
+        "tests/fixtures/chickenbro-research-cases.json"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-06-chickenbro-research-quality/"
+      ]
+    },
+    {
       "id": "chickenbro-agent-rules-followup",
       "disposition": "keep",
       "category": "current-control-plane",
       "owner": "chickenbro_chat",
       "reason": "User-approved runtime instruction policy and verification.",
-      "paths": ["docs/plans/2026-09-05-chickenbro-agent-rules.md"],
-      "prefixes": ["artifacts/releases/2026-09-05-chickenbro-agent-rules/"]
+      "paths": [
+        "docs/plans/2026-09-05-chickenbro-agent-rules.md"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-05-chickenbro-agent-rules/"
+      ]
     },
     {
       "id": "test-account-login-followup",

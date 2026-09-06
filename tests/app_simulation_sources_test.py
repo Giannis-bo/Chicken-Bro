@@ -1,4 +1,5 @@
 import json
+import copy
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -54,6 +55,131 @@ class FailingGateway:
 
 
 class SimulationSourcesTest(unittest.TestCase):
+    def _ranking_source(self):
+        primary = json.loads((FIXTURE_DIR / "raiderio_ready.json").read_text())
+        primary.pop("level")
+        affixes = {
+            "region": "us",
+            "leaderboard_url": "https://raider.io/mythic-plus-affix-rankings/season-example-2/all/us/leaderboards-strict/current",
+        }
+        ranked = {
+            "name": "Stormsample", "region": {"slug": "us"},
+            "realm": {"slug": "area-52"}, "class": {"slug": "shaman"},
+            "spec": {"slug": "elemental"}, "race": {"slug": "tauren"},
+            "path": "/characters/us/area-52/Stormsample", "level": 90,
+        }
+        rankings = {"rankings": {"rankedCharacters": [{"rank": 1, "character": ranked}]}}
+
+        class Gateway(FakeGateway):
+            def fetch_json(self, url, **kwargs):
+                self.urls.append((url, {}))
+                if "/affixes?" in url:
+                    return affixes
+                if "/rankings/specs?" in url:
+                    return rankings
+                return primary
+
+        gateway = Gateway(primary)
+        adapter = RaiderIOCharacterAdapter(
+            gateway, official_enricher=BlizzardProfileEnricher(gateway, token_provider=lambda: ""),
+        )
+        parsed = parse_character_source_url("https://raider.io/characters/us/area-52/Stormsample")
+        return adapter, parsed, primary, affixes, rankings, ranked, gateway
+
+    def test_current_ranking_fills_explicit_level_and_binds_both_metadata_inputs(self):
+        adapter, parsed, primary, affixes, rankings, ranked, gateway = self._ranking_source()
+        candidate = adapter.resolve(parsed)
+
+        self.assertEqual(candidate.snapshot["character"].get("level"), 90)
+        self.assertNotIn("character.level", candidate.missing_fields)
+        metadata = candidate.provenance["raiderioLevelMetadata"]
+        self.assertEqual(metadata["season"], "season-example-2")
+        self.assertEqual(metadata["characterPath"], ranked["path"])
+        self.assertEqual(metadata["affixesRawSha256"], sha256_json(affixes))
+        self.assertEqual(metadata["rankingsRawSha256"], sha256_json(rankings))
+        self.assertIn("season=season-example-2", gateway.urls[-1][0])
+        self.assertIn("class=shaman&spec=elemental&page=0", gateway.urls[-1][0])
+        original_hash = candidate.raw_sha256
+        primary["profileRevision"] = "new-primary-revision"
+        self.assertNotEqual(original_hash, adapter.resolve(parsed).raw_sha256)
+        primary_hash = adapter.resolve(parsed).raw_sha256
+        ranked["level"] = 89
+        self.assertNotEqual(primary_hash, adapter.resolve(parsed).raw_sha256)
+        ranking_hash = adapter.resolve(parsed).raw_sha256
+        affixes["title"] = "changed-current-affixes"
+        self.assertNotEqual(ranking_hash, adapter.resolve(parsed).raw_sha256)
+
+    def test_ranking_mismatches_and_invalid_levels_never_fill_missing_level(self):
+        for field, value in (
+            ("name", "Someoneelse"), ("region", {"slug": "eu"}),
+            ("realm", {"slug": "sargeras"}), ("class", {"slug": "mage"}),
+            ("spec", {"slug": "enhancement"}), ("race", {"slug": "orc"}),
+            ("path", "/characters/us/sargeras/Stormsample"),
+            ("level", None), ("level", True), ("level", 90.5), ("level", -1),
+        ):
+            with self.subTest(field=field, value=value):
+                adapter, parsed, primary, affixes, rankings, ranked, gateway = self._ranking_source()
+                ranked[field] = value
+                candidate = adapter.resolve(parsed)
+                self.assertIn("character.level", candidate.missing_fields)
+                self.assertNotIn("raiderioLevelMetadata", candidate.provenance)
+                self.assertEqual(candidate.raw_sha256, sha256_json(primary))
+
+    def test_ranking_absence_ambiguity_and_untrusted_season_remain_incomplete(self):
+        for case in ("absent", "duplicate", "malformed", "wrong-region", "foreign-url", "primary-mismatch"):
+            with self.subTest(case=case):
+                adapter, parsed, primary, affixes, rankings, ranked, gateway = self._ranking_source()
+                if case == "absent":
+                    rankings["rankings"]["rankedCharacters"] = []
+                elif case == "duplicate":
+                    rankings["rankings"]["rankedCharacters"].append({"character": copy.deepcopy(ranked)})
+                elif case == "malformed":
+                    rankings["rankings"] = []
+                elif case == "wrong-region":
+                    affixes["region"] = "eu"
+                elif case == "foreign-url":
+                    affixes["leaderboard_url"] = affixes["leaderboard_url"].replace("raider.io", "evil.example")
+                else:
+                    primary["name"] = "DifferentCharacter"
+                candidate = adapter.resolve(parsed)
+                self.assertIn("character.level", candidate.missing_fields)
+                self.assertNotIn("raiderioLevelMetadata", candidate.provenance)
+                self.assertLessEqual(len(gateway.urls), 3)
+
+    def test_ranking_fetch_failure_retains_primary_snapshot_and_missing_level(self):
+        for failing_endpoint in ("/affixes?", "/rankings/specs?"):
+            with self.subTest(endpoint=failing_endpoint):
+                adapter, parsed, primary, affixes, rankings, ranked, gateway = self._ranking_source()
+                fetch = gateway.fetch_json
+
+                def fail_metadata(url, **kwargs):
+                    if failing_endpoint in url:
+                        raise SourceHttpError(502)
+                    return fetch(url, **kwargs)
+
+                gateway.fetch_json = fail_metadata
+                candidate = adapter.resolve(parsed)
+                self.assertIn("character.level", candidate.missing_fields)
+                self.assertEqual(candidate.snapshot["gear"]["neck"]["gems"], [2001])
+                self.assertEqual(candidate.snapshot["gear"]["head"]["bonusIds"], [1, 2])
+                self.assertEqual(candidate.raw_sha256, sha256_json(primary))
+
+    def test_present_primary_level_and_unsupported_region_do_not_use_rankings(self):
+        adapter, parsed, primary, affixes, rankings, ranked, gateway = self._ranking_source()
+        primary["level"] = 80
+        candidate = adapter.resolve(parsed)
+        self.assertEqual(candidate.snapshot["character"]["level"], 80)
+        self.assertEqual(len(gateway.urls), 1)
+
+        primary.pop("level")
+        primary["region"] = "cn"
+        gateway.urls.clear()
+        candidate = adapter.resolve(parse_character_source_url(
+            "https://raider.io/characters/cn/area-52/Stormsample",
+        ))
+        self.assertIn("character.level", candidate.missing_fields)
+        self.assertEqual(len(gateway.urls), 1)
+
     def test_router_rejects_non_https_and_unallowlisted_hosts_without_fetching(self):
         gateway = FakeGateway({})
         router = CharacterSourceRouter(gateway)

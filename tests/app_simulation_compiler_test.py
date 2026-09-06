@@ -1,8 +1,9 @@
 import json
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
-from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler
+from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler, normalize_scenario, scenario_hash
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.sources import RaiderIOCharacterAdapter, parse_character_source_url
 
@@ -45,6 +46,67 @@ class SimulationCompilerTest(unittest.TestCase):
         self.assertEqual(len(compiled.profile_sha256), 64)
         self.assertEqual(compiled.runtime_revision, "simc:current:abc")
         self.assertEqual(compiled.provenance["sourceUrl"], self.snapshot.source_url)
+
+    def test_legacy_scenario_and_profile_hashes_are_unchanged(self):
+        compiled = SimcProfileCompiler(capabilities=self.capabilities).compile(self.snapshot, {})
+        self.assertEqual(compiled.scenario, {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 300})
+        self.assertEqual(compiled.scenario_hash, "10f5bee236346ae6a5d7e1ec9023570b6548140387846bcdff75f5be87c57b61")
+        self.assertEqual(compiled.profile_sha256, "6ed223804c0377d0350be01e7cc1289c77af3bd8371854c591c36e0719b0a157")
+
+    def test_fixed_duration_and_gems_compile_without_mutating_snapshot(self):
+        compiler = SimcProfileCompiler(capabilities=replace(
+            self.capabilities, compiler_revision="chickenbro-simc-compiler-v2"
+        ))
+        before = json.dumps(self.snapshot.snapshot, sort_keys=True)
+        scenario = {"maxTime": 120, "desiredTargets": 5, "gemOverrides": {"neck": [9999]}}
+        compiled = compiler.compile(self.snapshot, scenario)
+        self.assertIn("max_time=120\nfixed_time=1\nvary_combat_length=0\n", compiled.profile)
+        self.assertIn("neck=,id=1002,bonus_id=1,gem_id=9999\n", compiled.profile)
+        self.assertNotIn("gem_id=2001", compiled.profile)
+        self.assertEqual(before, json.dumps(self.snapshot.snapshot, sort_keys=True))
+        self.assertNotEqual(compiled.scenario_hash, scenario_hash({**scenario, "maxTime": 300}))
+        self.assertNotEqual(compiled.scenario_hash, scenario_hash({**scenario, "gemOverrides": {"neck": [9998]}}))
+        scenario["gemOverrides"]["neck"][0] = 8888
+        self.assertEqual(compiled.scenario["gemOverrides"], {"neck": [9999]})
+
+    def test_new_scenario_fields_require_compiler_v2(self):
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(self.snapshot, {"maxTime": 300})
+        self.assertEqual(error.exception.code, "COMPILER_UNAVAILABLE")
+
+    def test_new_scenario_fields_are_strict_and_bounded(self):
+        invalid = [{"maxTime": value} for value in (None, True, "300", 300.0, 29, 601)]
+        invalid += [{"gemOverrides": value} for value in (
+            None, [], {"ring1": [1]}, {"neck": []}, {"neck": [True]},
+            {"neck": ["1"]}, {"neck": [0]}, {"neck": [-1]}, {"neck": [1.0]},
+            {"neck": [1] * 33}, {"neck": ["1\noutput=/tmp/out"]},
+        )]
+        for scenario in invalid:
+            with self.subTest(scenario=scenario):
+                with self.assertRaises(SimcCompileError) as error:
+                    normalize_scenario(scenario)
+                self.assertEqual(error.exception.code, "SCENARIO_INVALID")
+        self.assertEqual(normalize_scenario({"maxTime": 30})["maxTime"], 30)
+        self.assertEqual(normalize_scenario({"maxTime": 600})["maxTime"], 600)
+
+    def test_gem_overrides_cannot_add_or_remove_sockets_or_target_unequipped_slots(self):
+        compiler = SimcProfileCompiler(capabilities=replace(
+            self.capabilities, compiler_revision="chickenbro-simc-compiler-v2"
+        ))
+        for overrides in ({"head": [9999]}, {"neck": [9999, 9998]}):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(SimcCompileError) as error:
+                    compiler.compile(self.snapshot, {"gemOverrides": overrides})
+                self.assertEqual(error.exception.code, "GEM_OVERRIDE_SOCKET_MISMATCH")
+        payload = {
+            **self.snapshot.snapshot,
+            "gear": dict(self.snapshot.snapshot["gear"]),
+            "gearState": {"unequippedSlots": ["off_hand"]},
+        }
+        payload["gear"].pop("off_hand")
+        with self.assertRaises(SimcCompileError) as error:
+            compiler.compile(replace(self.snapshot, snapshot=payload), {"gemOverrides": {"off_hand": [9999]}})
+        self.assertEqual(error.exception.code, "GEM_OVERRIDE_SOCKET_MISMATCH")
 
     def test_compiler_rejects_non_ready_snapshot_and_unsafe_scenario(self):
         blocked = self.snapshot.__class__(

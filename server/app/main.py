@@ -13,6 +13,7 @@ from server.app.api.errors import (
 )
 from server.app.api.routes import router as health_router
 from server.app.chickenbro.application import ChatApplication
+from server.app.chickenbro.simulation_tools import SimulationToolGateway
 from server.app.chickenbro.codex_adapter import NativeCodexChatAdapter
 from server.app.chickenbro.repository import PostgresChatRepository
 from server.app.chickenbro.source_gateway import (
@@ -65,16 +66,6 @@ def create_app(
             wechat_gateway=WechatMiniClient(settings),
             settings=settings,
         )
-    if chat_application is None:
-        if postgres_factory is None:
-            raise RuntimeError("Chat application was not constructed")
-        chat_application = ChatApplication(
-            repository=PostgresChatRepository(postgres_factory.connection),
-            codex=NativeCodexChatAdapter(
-                source_gateway=source_gateway,
-                source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
-            ),
-        )
     if simulation_application is None:
         if postgres_factory is None:
             postgres_factory = PostgresConnectionFactory(settings)
@@ -85,6 +76,20 @@ def create_app(
             readiness_validator=SimcReadinessValidator(),
             compiler=SimcProfileCompiler(capabilities=runtime_capabilities),
             runtime_capabilities=runtime_capabilities,
+        )
+    simulation_gateway = SimulationToolGateway(simulation_application)
+    app.state.chickenbro_simulation_gateway = simulation_gateway
+    if chat_application is None:
+        if postgres_factory is None:
+            raise RuntimeError("Chat application was not constructed")
+        chat_application = ChatApplication(
+            repository=PostgresChatRepository(postgres_factory.connection),
+            codex=NativeCodexChatAdapter(
+                source_gateway=source_gateway,
+                simulation_gateway=simulation_gateway,
+                simulation_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/simc-tool",
+                source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
+            ),
         )
     app.state.web_auth_application = web_auth_application
     app.state.auth_audit_sink = (

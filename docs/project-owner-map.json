@@ -60,7 +60,12 @@
         "tests/app_chat_api_test.py",
         "tests/app_chat_cross_client_test.py",
         "packages/api-client/src/chat.test.ts",
-        "packages/domain/src/chat.test.ts"
+        "packages/domain/src/chat.test.ts",
+        "tests/app_chickenbro_raiderio_research_test.py",
+        "tests/app_chickenbro_public_web_test.py",
+        "tests/app_chickenbro_native_mcp_test.py",
+        "tests/app_chickenbro_source_gateway_test.py",
+        "tests/app_chickenbro_simulation_tools_test.py"
       ],
       "changedPathPatterns": [
         "server/app/chickenbro/**",
@@ -89,7 +94,8 @@
         "tests/app_simc_cross_client_test.py",
         "tests/chickenbro-simc-runtime-update.test.js",
         "packages/api-client/src/simc.test.ts",
-        "packages/domain/src/simc.test.ts"
+        "packages/domain/src/simc.test.ts",
+        "tests/app_chickenbro_simulation_tools_test.py"
       ],
       "changedPathPatterns": [
         "server/app/simulation/**",

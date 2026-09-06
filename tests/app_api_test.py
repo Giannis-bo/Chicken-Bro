@@ -82,6 +82,34 @@ class AppApiTest(unittest.TestCase):
             "SOURCE_GATEWAY_UNAUTHORIZED",
         )
 
+    def test_simulation_tool_http_rejects_missing_capability_and_identity_body(self):
+        url = '/api/v2/internal/chickenbro/simc-tool'
+        response = self.client.post(url, json={'operation': 'list', 'arguments': {}})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()['error']['code'], 'SIMULATION_TOOL_UNAUTHORIZED')
+        response = self.client.post(url, json={'operation': 'list', 'arguments': {}, 'userId': 'forged'})
+        self.assertEqual(response.status_code, 422)
+
+    def test_simulation_tool_http_uses_same_gateway_and_revoke(self):
+        from uuid import uuid4
+        from server.app.chickenbro.simulation_tools import SimulationToolContext, SimulationToolGateway
+        from server.app.identity.domain import Principal
+        from server.app.simulation.application import SimulationJobPage
+        from types import SimpleNamespace
+        calls = []
+        principal = Principal(uuid4(), 'web_cookie')
+        gateway = SimulationToolGateway(SimpleNamespace(list_jobs=lambda owner, cursor, limit: (
+            calls.append(owner) or SimulationJobPage((), None))))
+        self.client.app.state.chickenbro_simulation_gateway = gateway
+        token = gateway.issue_capability(SimulationToolContext(principal, uuid4(), uuid4()))
+        url = '/api/v2/internal/chickenbro/simc-tool'
+        headers = {'X-Chickenbro-Simulation-Gateway': token}
+        response = self.client.post(url, headers=headers, json={'operation': 'list', 'arguments': {}})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(calls, [principal])
+        gateway.revoke(token)
+        self.assertEqual(self.client.post(url, headers=headers, json={'operation': 'list', 'arguments': {}}).status_code, 401)
+
     def test_production_disables_interactive_api_docs(self):
         settings = AppSettings(
             environment="production",
@@ -91,6 +119,34 @@ class AppApiTest(unittest.TestCase):
         self.assertIsNone(app.docs_url)
         self.assertIsNone(app.redoc_url)
         self.assertIsNone(app.openapi_url)
+
+    def test_research_batch_http_contract_and_capability_revocation(self):
+        from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
+        from types import SimpleNamespace
+        calls = []
+        gateway = ChickenbroSourceGateway(query_service=SimpleNamespace(query=lambda provider, target, options: (
+            calls.append((provider, target, options)) or {"status": "source_reference", "facts": []}
+        )))
+        self.client.app.state.chickenbro_source_gateway = gateway
+        token = gateway.issue_capability()
+        headers = {"X-Chickenbro-Source-Gateway": token}
+        body = {"provider": "raiderio_batch", "target": "characters", "options": {
+            "targets": ["https://raider.io/characters/us/area-52/Test"]}}
+        url = "/api/v2/internal/chickenbro/source-query"
+        response = self.client.post(url, json=body, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(calls[0][2], body["options"])
+        gateway.revoke(token)
+        self.assertEqual(self.client.post(url, json=body, headers=headers).status_code, 401)
+        self.assertEqual(len(calls), 1)
+
+    def test_research_http_options_reject_boolean_and_nested_objects(self):
+        url = "/api/v2/internal/chickenbro/source-query"
+        for value in (True, {"unexpected": "nested"}, [False]):
+            with self.subTest(value=value):
+                response = self.client.post(url, json={"provider": "raiderio_rankings",
+                    "target": "rankings", "options": {"limit": value}})
+                self.assertEqual(response.status_code, 422)
 
     def test_default_readiness_reports_wechat_configuration_without_network_calls(self):
         settings = AppSettings(

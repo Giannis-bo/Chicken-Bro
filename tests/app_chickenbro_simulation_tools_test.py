@@ -1,0 +1,223 @@
+import json
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+from uuid import UUID, uuid4
+
+from server.app.chickenbro import simulation_tools
+from server.app.simulation.domain import SimulationJobStatus, SimulationResult
+from tests import app_simulation_application_test as application_fixtures
+
+
+class SimulationToolGatewayTest(unittest.TestCase):
+    def setUp(self):
+        fixture = application_fixtures.SimulationApplicationTest()
+        fixture.setUp()
+        self.application = fixture.application
+        self.repository = fixture.repository
+        self.queue = fixture.queue
+        self.owner = fixture.owner
+        self.other = fixture.other
+        self.now = fixture.now
+        self.ticks = 0.0
+        self.gateway = simulation_tools.SimulationToolGateway(
+            self.application, clock=lambda: self.ticks, sleep=self.advance,
+        )
+        self.context = simulation_tools.SimulationToolContext(self.owner, uuid4(), uuid4())
+        self.token = self.gateway.issue_capability(self.context)
+        self.url = "https://raider.io/characters/us/area-52/Stormsample"
+
+    def advance(self, seconds):
+        self.ticks += seconds
+
+    def prepare(self, token=None):
+        return self.gateway.execute(token or self.token, "prepare", {"sourceUrl": self.url})
+
+    def submit(self, snapshot_id, scenario=None, token=None):
+        return self.gateway.execute(token or self.token, "submit", {
+            "snapshotId": snapshot_id, "scenario": scenario or {},
+        })
+
+    def complete(self, packet):
+        job_id = UUID(packet["jobId"])
+        job = self.repository.jobs[(self.owner.user_id, job_id)]
+        snapshot = self.repository.snapshots[(self.owner.user_id, job.snapshot_id)]
+        provenance = {
+            "snapshotId": str(snapshot.id), "sourceRevision": snapshot.provenance["sourceRevision"],
+            "sourceRawSha256": snapshot.raw_sha256, "profileSha256": "a" * 64,
+            "compilerRevision": job.compiler_revision, "runtimeRevision": job.runtime_revision,
+            "scenarioHash": job.scenario_hash,
+        }
+        self.repository.save_job(replace(job, status=SimulationJobStatus.SUCCEEDED))
+        result = SimulationResult(
+            uuid4(), job_id, self.owner.user_id, "a" * 64,
+            {"metricName": "dps", "metricValue": 12345.0, "provenance": provenance,
+             "metricError": 12.0, "metricErrorPct": 0.0972,
+             "stdout": "PRIVATE_RAW", "storagePath": "/private/run"},
+            "dps", 12345.0, job.compiler_revision, job.runtime_revision, provenance, self.now,
+        )
+        self.repository.save_result(result)
+        return result
+
+    def test_preparation_is_deduplicated_and_projects_real_gems(self):
+        first = self.prepare()
+        second = self.prepare()
+        self.assertEqual(first["snapshotId"], second["snapshotId"])
+        self.assertEqual(len(self.repository.snapshots), 1)
+        self.assertEqual(first["status"], "ready")
+        self.assertEqual(first["gear"]["neck"]["gems"], [2001])
+        self.assertEqual(first["character"]["level"], 80)
+        self.assertNotIn(str(self.owner.user_id), json.dumps(first))
+        self.assertEqual(len(self.queue.calls), 0)
+
+    def test_new_run_can_identify_baseline_and_gem_variant_from_persisted_jobs(self):
+        capabilities = replace(self.application._runtime_capabilities,
+            compiler_revision="chickenbro-simc-compiler-v2")
+        self.application._runtime_capabilities = capabilities
+        self.application._compiler = application_fixtures.SimcProfileCompiler(capabilities=capabilities)
+        snapshot = self.prepare()
+        baseline = self.submit(snapshot["snapshotId"], {"maxTime": 60})
+        variant = self.submit(snapshot["snapshotId"], {"maxTime": 60, "gemOverrides": {"neck": [2002]}})
+        self.gateway.revoke(self.token)
+        gateway = simulation_tools.SimulationToolGateway(self.application)
+        token = gateway.issue_capability(replace(self.context, run_id=uuid4()))
+        jobs = {row["jobId"]: row for row in gateway.execute(token, "list", {})["jobs"]}
+        self.assertEqual(jobs[baseline["jobId"]]["scenario"],
+            {"fightStyle": "Patchwerk", "desiredTargets": 1, "iterations": 300, "maxTime": 60})
+        self.assertEqual(jobs[variant["jobId"]]["scenario"]["gemOverrides"], {"neck": [2002]})
+        read = gateway.execute(token, "get", {"jobId": variant["jobId"]})
+        self.assertEqual(read["scenario"], jobs[variant["jobId"]]["scenario"])
+        self.assertEqual(len(self.queue.calls), 2)
+
+    def test_legacy_job_without_scenario_is_explicitly_limited(self):
+        queued = self.submit(self.prepare()["snapshotId"])
+        self.queue.calls.clear()
+        packet = self.gateway.execute(self.token, "get", {"jobId": queued["jobId"]})
+        self.assertIsNone(packet["scenario"])
+        self.assertTrue(any("scenario" in value for value in packet["limitations"]))
+
+    def test_foreign_owner_cannot_submit_or_read_or_list_jobs(self):
+        snapshot = self.prepare()
+        queued = self.submit(snapshot["snapshotId"])
+        other_token = self.gateway.issue_capability(replace(self.context, principal=self.other))
+        rejected = self.submit(snapshot["snapshotId"], token=other_token)
+        self.assertEqual(rejected["errorCode"], "SNAPSHOT_NOT_FOUND")
+        rejected = self.gateway.execute(other_token, "get", {"jobId": queued["jobId"]})
+        self.assertEqual(rejected["errorCode"], "SIMULATION_NOT_FOUND")
+        self.assertEqual(self.gateway.execute(other_token, "list", {})["jobs"], [])
+        self.assertEqual(len(self.queue.calls), 1)
+
+    def test_invalid_expired_and_revoked_capabilities_cannot_act(self):
+        for bad in ("", "invalid", None):
+            with self.assertRaises(simulation_tools.SimulationToolUnauthorized):
+                self.gateway.execute(bad, "list", {})
+        self.gateway.revoke(self.token)
+        with self.assertRaises(simulation_tools.SimulationToolUnauthorized):
+            self.prepare()
+        token = self.gateway.issue_capability(replace(self.context, run_id=uuid4()))
+        self.advance(901)
+        with self.assertRaises(simulation_tools.SimulationToolUnauthorized):
+            self.prepare(token)
+        self.assertEqual(len(self.repository.snapshots), 0)
+
+    def test_invalid_arguments_and_identity_injection_have_no_side_effects(self):
+        invalid = [
+            ("prepare", {"sourceUrl": self.url, "userId": str(self.other.user_id)}),
+            ("submit", {"snapshotId": "bad", "scenario": {}}),
+            ("submit", {"snapshotId": str(uuid4()), "scenario": {"userId": "attacker"}}),
+            ("submit", {"snapshotId": str(uuid4()), "scenario": [], "idempotencyKey": "evil"}),
+            ("get", {"jobId": str(uuid4()), "waitSeconds": 21}),
+            ("get", {"jobId": str(uuid4()), "waitSeconds": True}),
+            ("list", {"limit": 11}), ("list", {"limit": "1"}),
+            ("list", {"cursor": "x" * 1025}), ("unknown", {}),
+        ]
+        for operation, args in invalid:
+            with self.subTest(operation=operation, args=args):
+                packet = self.gateway.execute(self.token, operation, args)
+                self.assertEqual(packet["status"], "blocked")
+        self.assertEqual(len(self.queue.calls), 0)
+
+    def test_budget_shared_between_capabilities_and_idempotent_retry(self):
+        snapshot = self.prepare()
+        token2 = self.gateway.issue_capability(self.context)
+        first = self.submit(snapshot["snapshotId"])
+        repeated = self.submit(snapshot["snapshotId"], {"desiredTargets": 1}, token2)
+        self.assertEqual(first["jobId"], repeated["jobId"])
+        for targets in (2, 3, 4):
+            self.assertEqual(self.submit(snapshot["snapshotId"], {"desiredTargets": targets})["status"], "queued")
+        rejected = self.submit(snapshot["snapshotId"], {"desiredTargets": 5}, token2)
+        self.assertEqual(rejected["errorCode"], "SIMC_JOB_BUDGET_EXCEEDED")
+        self.assertEqual(len(self.queue.calls), 4)
+        self.assertEqual(self.submit(snapshot["snapshotId"])["jobId"], first["jobId"])
+
+    def test_concurrent_retries_enqueue_once_and_prepare_budget_is_bounded(self):
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            snapshots = list(pool.map(lambda _: self.prepare(), range(16)))
+            jobs = list(pool.map(lambda _: self.submit(snapshots[0]["snapshotId"]), range(16)))
+        self.assertEqual(len({packet["snapshotId"] for packet in snapshots}), 1)
+        self.assertEqual(len({packet["jobId"] for packet in jobs}), 1)
+        self.assertEqual(len(self.queue.calls), 1)
+        for name in ("Other", "Third"):
+            self.gateway.execute(self.token, "prepare", {"sourceUrl": self.url.replace("Stormsample", name)})
+        rejected = self.gateway.execute(self.token, "prepare", {"sourceUrl": self.url + "fourth"})
+        self.assertEqual(rejected["errorCode"], "SIMC_PREPARE_BUDGET_EXCEEDED")
+        self.assertEqual(len(self.repository.snapshots), 3)
+
+    def test_success_requires_semantic_result_and_returns_only_safe_fields(self):
+        queued = self.submit(self.prepare()["snapshotId"])
+        result = self.complete(queued)
+        packet = self.gateway.execute(self.token, "get", {"jobId": queued["jobId"]})
+        self.assertEqual(packet["status"], "succeeded")
+        self.assertEqual(packet["result"]["metricValue"], 12345.0)
+        self.assertEqual(packet["result"]["metricError"], 12.0)
+        self.assertEqual(packet["result"]["metricErrorPct"], 0.0972)
+        raw = json.dumps(packet)
+        for private in ("PRIVATE_RAW", "storagePath", str(self.owner.user_id)):
+            self.assertNotIn(private, raw)
+        self.repository.save_result(replace(result, primary_metric_value=0))
+        rejected = self.gateway.execute(self.token, "get", {"jobId": queued["jobId"]})
+        self.assertEqual(rejected["errorCode"], "SIMC_RESULT_INVALID")
+
+    def test_polling_stops_at_bound_and_does_not_invent_results(self):
+        queued = self.submit(self.prepare()["snapshotId"])
+        packet = self.gateway.execute(self.token, "get", {"jobId": queued["jobId"], "waitSeconds": 3})
+        self.assertEqual(self.ticks, 3)
+        self.assertEqual(packet["status"], "queued")
+        self.assertIsNone(packet["result"])
+        self.assertTrue(packet["limitations"])
+
+    def test_polling_rechecks_revocation(self):
+        queued = self.submit(self.prepare()["snapshotId"])
+        def revoke_during_sleep(seconds):
+            self.advance(seconds)
+            self.gateway.revoke(self.token)
+        self.gateway._sleep = revoke_during_sleep
+        with self.assertRaises(simulation_tools.SimulationToolUnauthorized):
+            self.gateway.execute(self.token, "get", {"jobId": queued["jobId"], "waitSeconds": 3})
+
+    def test_failed_preparations_are_deduplicated_and_cannot_exceed_budget(self):
+        for suffix in ("one", "two", "three"):
+            self.gateway.execute(self.token, "prepare", {"sourceUrl": "https://untrusted.example/" + suffix})
+        rejected = self.prepare()
+        self.assertEqual(rejected["errorCode"], "SIMC_PREPARE_BUDGET_EXCEEDED")
+        self.assertEqual(len(self.repository.snapshots), 0)
+
+    def test_uncertain_submission_retains_budget_and_retries_idempotently(self):
+        snapshot_id = self.prepare()["snapshotId"]
+        original = self.application.submit
+        def lost_response(*args, **kwargs):
+            original(*args, **kwargs)
+            raise RuntimeError("PRIVATE_DATABASE_CONNECTION")
+        self.application.submit = lost_response
+        for targets in (1, 2, 3, 4):
+            packet = self.submit(snapshot_id, {"desiredTargets": targets})
+            self.assertEqual(packet["status"], "blocked")
+            self.assertNotIn("PRIVATE_DATABASE_CONNECTION", json.dumps(packet))
+        self.application.submit = original
+        self.assertEqual(self.submit(snapshot_id, {"desiredTargets": 5})["errorCode"], "SIMC_JOB_BUDGET_EXCEEDED")
+        self.assertEqual(self.submit(snapshot_id)["status"], "queued")
+        self.assertEqual(len(self.queue.calls), 4)
+
+
+if __name__ == "__main__":
+    unittest.main()

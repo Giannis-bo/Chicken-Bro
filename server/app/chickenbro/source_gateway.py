@@ -12,8 +12,6 @@ from typing import Any
 
 from server.app.simulation.domain import SourceProvider
 from server.app.simulation.sources import (
-    CharacterSourceRouter,
-    HttpxSourceGateway,
     InvalidSourceLink,
     parse_character_source_url,
 )
@@ -36,45 +34,10 @@ def _text(value: Any, limit: int = 400) -> str:
     return str(value or "").strip()[:limit]
 
 
-def _source_status(candidate: Any) -> str:
-    readiness = getattr(candidate, "readiness", "")
-    return _text(getattr(readiness, "value", readiness), 80).lower()
-
-
 def _safe_mapping(value: Any, keys: tuple[str, ...]) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return {}
-    return {
-        key: value[key]
-        for key in keys
-        if key in value and value[key] not in (None, "")
-    }
-
-
-def _safe_gear(value: Any) -> dict[str, dict[str, Any]]:
-    if not isinstance(value, Mapping):
-        return {}
-    allowed = ("itemId", "name", "itemLevel", "bonusIds", "gems", "enchant")
-    result: dict[str, dict[str, Any]] = {}
-    for slot, raw_item in value.items():
-        if not isinstance(raw_item, Mapping):
-            continue
-        item = _safe_mapping(raw_item, allowed)
-        if item:
-            result[_text(slot, 80)] = item
-    return result
-
-
-def _safe_talents(value: Any) -> dict[str, Any]:
-    if not isinstance(value, Mapping):
-        return {}
-    result: dict[str, Any] = {}
-    if isinstance(value.get("loadout"), list):
-        result["loadout"] = value["loadout"][:120]
-    talent_string = _text(value.get("string"), 1000)
-    if talent_string:
-        result["string"] = talent_string
-    return result
+    return {key: value[key] for key in keys if key in value and value[key] not in (None, "")}
 
 
 class ServerConfiguredSourceQuery:
@@ -83,21 +46,31 @@ class ServerConfiguredSourceQuery:
     def __init__(
         self,
         *,
-        character_router: CharacterSourceRouter | None = None,
+        raiderio_research: Any | None = None,
         wcl_reader: Callable[[Mapping[str, str]], Mapping[str, Any]] | None = None,
     ):
-        self._character_router = character_router or CharacterSourceRouter(
-            HttpxSourceGateway(timeout_seconds=15)
-        )
+        from server.app.chickenbro.raiderio_research import RaiderIOResearch
+        self._raiderio = raiderio_research if raiderio_research is not None else RaiderIOResearch()
         self._wcl_reader = wcl_reader or build_wcl_log_evidence
 
     def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
+        options = options or {}
+        if normalized_provider == "raiderio_rankings":
+            if target != "rankings":
+                raise InvalidSourceLink()
+            return self._raiderio.rankings(options)
+        if normalized_provider == "raiderio_batch":
+            if target != "characters" or set(options) != {"targets"}:
+                raise InvalidSourceLink()
+            return self._raiderio.characters(options["targets"])
         parsed = parse_character_source_url(target)
         if normalized_provider == "warcraftlogs" and parsed.provider is SourceProvider.WARCRAFTLOGS:
             return self._query_warcraftlogs(parsed.url, validate_wcl_options(options))
         if normalized_provider == "raiderio" and parsed.provider is SourceProvider.RAIDERIO:
-            return self._query_raiderio(target)
+            if options:
+                raise InvalidSourceLink()
+            return self._raiderio.character(parsed.url)
         raise InvalidSourceLink()
 
     def _query_warcraftlogs(self, target: str, options: Mapping[str, Any]) -> dict[str, Any]:
@@ -185,57 +158,6 @@ class ServerConfiguredSourceQuery:
             }]
         return result
 
-    def _query_raiderio(self, target: str) -> dict[str, Any]:
-        candidate = self._character_router.resolve(target)
-        snapshot = candidate.snapshot if isinstance(candidate.snapshot, Mapping) else {}
-        character = _safe_mapping(
-            snapshot.get("character"),
-            ("name", "realm", "region", "classKey", "specKey", "raceKey", "level", "levelSource", "sourceLevel"),
-        )
-        provenance = candidate.provenance if isinstance(candidate.provenance, Mapping) else {}
-        source_url = _text(provenance.get("sourceUrl"), 2048) or _text(candidate.source_url, 2048) or _text(target, 2048)
-        raw_sha256 = _text(candidate.raw_sha256, 64)
-        source_evidence = {
-            "id": "raiderio:character:" + ":".join(
-                _text(character.get(key), 120) for key in ("region", "realm", "name")
-            ),
-            "sourceName": "Raider.IO",
-            "sourceUrl": source_url,
-            "sourceStatus": "fetched" if character else _source_status(candidate),
-            "sourceRevision": _text(provenance.get("sourceRevision"), 160),
-            "fetchedAt": _text(provenance.get("fetchedAt"), 80),
-            "rawSha256": raw_sha256,
-        }
-        if not character:
-            return {
-                "sourceKey": "raiderio",
-                "status": _source_status(candidate) or "blocked",
-                "facts": [],
-                "evidence": [source_evidence],
-                "evidenceRefs": [],
-                "limitations": ["The configured Raider.IO API did not return a usable character profile."],
-                "nextActions": ["Check the character region, realm slug and name, then retry the Raider.IO profile query."],
-            }
-        facts = {
-            "queryMode": "server_configured_raiderio_api",
-            "character": character,
-            "gear": _safe_gear(snapshot.get("gear")),
-            "talents": _safe_talents(snapshot.get("talents")),
-            "profileSource": _text(snapshot.get("profileSource"), 80),
-            "summary": "Raider.IO character profile was fetched through the server-configured API.",
-        }
-        return {
-            "sourceKey": "raiderio",
-            "status": "source_reference",
-            "facts": [facts],
-            "evidence": [source_evidence],
-            "evidenceRefs": [source_evidence["id"]],
-            "limitations": [
-                "This is a Raider.IO character snapshot, not a Warcraft Logs combat record or a personal DPS verdict.",
-                "The SimC application applies its max-level policy when the profile is used for simulation.",
-            ],
-            "nextActions": [],
-        }
 
 
 class ChickenbroSourceGateway:

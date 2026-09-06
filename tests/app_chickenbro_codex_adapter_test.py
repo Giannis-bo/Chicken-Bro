@@ -62,6 +62,62 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_simulation_capability_uses_server_context_and_is_revoked(self):
+        from uuid import uuid4
+        from server.app.identity.domain import Principal
+        class SimulationGateway:
+            context = None
+            revoked = None
+            def issue_capability(self, context):
+                self.context = context
+                return 'simulation-capability'
+            def revoke(self, token):
+                self.revoked = token
+        gateway = SimulationGateway()
+        captured = {}
+        process = FakeProcess(answer())
+        def popen(command, **kwargs):
+            captured.update(kwargs)
+            return process
+        principal = Principal(uuid4(), 'web_cookie')
+        conversation_id, run_id = uuid4(), uuid4()
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=popen,
+                simulation_gateway=gateway, simulation_gateway_url='http://127.0.0.1:8792/api/v2/internal/chickenbro/simc-tool')
+            events = list(adapter.stream_for_chat(principal=principal, conversation_id=conversation_id,
+                run_id=run_id, prompt='simulate', timeout_seconds=30))
+        self.assertEqual(events[-1]['type'], 'completed')
+        self.assertEqual(gateway.context.principal, principal)
+        self.assertEqual(gateway.context.run_id, run_id)
+        self.assertEqual(gateway.context.conversation_id, conversation_id)
+        self.assertEqual(captured['env']['CHICKENBRO_SIMULATION_GATEWAY_TOKEN'], 'simulation-capability')
+        self.assertNotIn(str(principal.user_id), str(captured['env']))
+        self.assertEqual(gateway.revoked, 'simulation-capability')
+
+    def test_profile_uses_current_release_toolbox_and_bounded_batch_timeout(self):
+        from server.app.chickenbro.codex_adapter import _load_profile
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            Path(directory, "test.config.toml").write_text(
+                'model="gpt-6-astra"\nmodel_reasoning_effort="high"\n'
+                '[mcp_servers.chickenbro_toolbox]\ncommand="/usr/bin/python3"\n'
+                'args=["/opt/old-release/server/chickenbro_native_mcp.py"]\ntool_timeout_sec=30\n'
+                'env_vars=["CHICKENBRO_SOURCE_GATEWAY_TOKEN", "HTTP_PROXY"]\n', encoding='utf-8')
+            config = _load_profile("test")
+            self.assertEqual(config["model"], "gpt-6-astra")
+            self.assertEqual(config["model_reasoning_effort"], "high")
+            self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["args"],
+                             [str(Path(__file__).resolve().parents[1] / "server/chickenbro_native_mcp.py")])
+            self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["tool_timeout_sec"], 90)
+            self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["env_vars"], [
+                "CHICKENBRO_SOURCE_GATEWAY_TOKEN", "HTTP_PROXY",
+                "CHICKENBRO_SIMULATION_GATEWAY_URL", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"])
+            self.assertNotIn("tools", config["mcp_servers"]["chickenbro_toolbox"])
+            scoped = _load_profile("test", allow_simulation=True)
+            self.assertEqual(scoped["mcp_servers"]["chickenbro_toolbox"]["tools"], {
+                "prepare_simulation": {"approval_mode": "approve"},
+                "submit_simulation": {"approval_mode": "approve"},
+            })
+
     def test_uses_native_app_server_transport(self):
         def popen(command, **kwargs):
             self.assertIn('app-server', command)

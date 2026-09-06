@@ -101,6 +101,11 @@ class MemorySimulationRepository:
     def get_job(self, user_id, job_id):
         return self.jobs.get((user_id, job_id))
 
+    def get_job_payload(self, user_id, job_id):
+        if (user_id, job_id) not in self.jobs or self.queue is None:
+            return None
+        return next((call["payload"] for call in self.queue.calls if call["job_id"] == job_id), None)
+
     def list_jobs(self, user_id, boundary, limit):
         self.list_job_calls.append((user_id, boundary, limit))
         rows = [job for (owner, _), job in self.jobs.items() if owner == user_id]
@@ -194,6 +199,38 @@ class SimulationApplicationTest(unittest.TestCase):
 
         with self.assertRaisesRegex(SimulationApplicationError, "SNAPSHOT_NOT_FOUND"):
             self.application.submit(self.other, snapshot.id, {"fightStyle": "Patchwerk"}, "sim-request-2")
+
+    def test_job_scenario_survives_application_restart_and_is_owner_scoped(self):
+        snapshot = self.application.resolve_source(self.owner, "https://raider.io/characters/us/area-52/Stormsample")
+        job = self.application.submit(self.owner, snapshot.id, {"desiredTargets": 2}, "scenario-restart")
+        restarted = SimulationApplication(repository=self.repository, source_router=None,
+            readiness_validator=None, compiler=None, runtime_capabilities=None)
+        expected = {"fightStyle": "Patchwerk", "desiredTargets": 2, "iterations": 300}
+        self.assertEqual(restarted.read_job(self.owner, job.id).scenario, expected)
+        self.assertEqual(restarted.list_jobs(self.owner).items[0].scenario, expected)
+        with self.assertRaisesRegex(SimulationApplicationError, "SIMULATION_NOT_FOUND"):
+            restarted.read_job(self.other, job.id)
+        self.assertEqual(restarted.list_jobs(self.other).items, ())
+
+    def test_job_scenario_rejects_corrupt_persisted_payload_bindings(self):
+        snapshot = self.application.resolve_source(self.owner, "https://raider.io/characters/us/area-52/Stormsample")
+        job = self.application.submit(self.owner, snapshot.id, {}, "scenario-corrupt")
+        original = self.queue.calls[0]["payload"]
+        for changed in ({"scenario": {"desiredTargets": 2}}, {"scenario": []},
+                        {"scenarioHash": "f" * 64}, {"snapshotId": str(self.other.user_id)},
+                        {"compilerRevision": "wrong"}, {"runtimeRevision": "wrong"}):
+            with self.subTest(changed=changed):
+                self.queue.calls[0]["payload"] = {**original, **changed}
+                with self.assertRaisesRegex(SimulationApplicationError, "SIMC_SCENARIO_INVALID"):
+                    self.application.read_job(self.owner, job.id)
+                with self.assertRaisesRegex(SimulationApplicationError, "SIMC_SCENARIO_INVALID"):
+                    self.application.list_jobs(self.owner)
+
+    def test_legacy_job_without_queue_payload_remains_readable_without_invented_scenario(self):
+        snapshot = self.application.resolve_source(self.owner, "https://raider.io/characters/us/area-52/Stormsample")
+        job = self.application.submit(self.owner, snapshot.id, {}, "scenario-legacy")
+        self.queue.calls.clear()
+        self.assertIsNone(self.application.read_job(self.owner, job.id).scenario)
 
     def test_idempotency_key_contract_matches_the_typed_clients(self):
         snapshot_id = UUID("00000000-0000-4000-8000-000000000099")
@@ -577,6 +614,22 @@ class AtomicSubmissionConnection(RecordingConnection):
 
 
 class SimulationRepositoryOwnerTest(unittest.TestCase):
+    def test_job_payload_query_binds_queue_identity_and_owner(self):
+        owner_id = UUID("00000000-0000-4000-8000-0000000000a1")
+        job_id = UUID("00000000-0000-4000-8000-0000000000a2")
+        payload = {"scenario": {"desiredTargets": 2}}
+        cursor = RecordingCursor([(payload,)])
+        repository = PostgresSimulationRepository(lambda: RecordingConnection(cursor))
+        self.assertEqual(repository.get_job_payload(owner_id, job_id), payload)
+        statement, parameters = cursor.executed[0]
+        self.assertIn("JOIN simc.simulation_jobs", statement)
+        self.assertIn("j.user_id = %s AND j.id = %s", statement)
+        self.assertIn("q.id = j.id", statement)
+        self.assertIn("q.aggregate_id = j.id", statement)
+        self.assertIn("q.domain = 'simc'", statement)
+        self.assertIn("q.command_type = 'run_simulation'", statement)
+        self.assertEqual(parameters, (owner_id, job_id))
+
     def test_snapshot_revision_and_insert_share_one_user_locked_transaction(self):
         owner_id = UUID("00000000-0000-4000-8000-0000000000d1")
         now = datetime(2026, 9, 3, tzinfo=timezone.utc)

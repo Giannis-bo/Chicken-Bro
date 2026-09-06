@@ -1,4 +1,5 @@
 import importlib
+import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -29,7 +30,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         ]:
             self.assertFalse(module._source_gateway_target_is_local(target))
 
-    def test_toolbox_exposes_only_chat_owned_read_only_sources(self):
+    def test_toolbox_exposes_sources_and_account_scoped_simulation_tools(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
         listed = module.handle_rpc_request(
             {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
@@ -40,12 +41,54 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
                 "research_public_web",
                 "query_warcraftlogs_report",
                 "query_raiderio_character",
+                "query_raiderio_rankings",
+                "query_raiderio_characters",
+                "prepare_simulation", "submit_simulation", "get_simulation_job", "list_simulation_jobs",
             },
             {item["name"] for item in listed["result"]["tools"]},
         )
         self.assertTrue(
-            all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"])
+            all(item["annotations"]["readOnlyHint"] for item in listed["result"]["tools"]
+                if item['name'] not in {'prepare_simulation', 'submit_simulation'})
         )
+
+    def test_simc_tools_dispatch_without_model_identity(self):
+        module = importlib.import_module('server.chickenbro_native_mcp')
+        for name, operation in [('prepare_simulation', 'prepare'), ('submit_simulation', 'submit'),
+                                ('get_simulation_job', 'get'), ('list_simulation_jobs', 'list')]:
+            with self.subTest(name=name), patch.object(module, 'query_simulation_gateway', return_value={
+                    'sourceKey': 'simc', 'status': 'queued', 'facts': [{'jobId': 'safe-job'}]}) as query:
+                module.handle_rpc_request({'id': 2, 'method': 'tools/call',
+                    'params': {'name': name, 'arguments': {'jobId': 'safe-job'}}})
+                query.assert_called_once_with(operation, {'jobId': 'safe-job'})
+
+    def test_discovery_and_batch_use_capability_gateway_without_user_character_link(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        cases = [
+            ("query_raiderio_rankings", {"className": "shaman", "spec": "enhancement", "offset": 10},
+             "raiderio_rankings", "rankings"),
+            ("query_raiderio_characters", {"targets": ["https://raider.io/characters/eu/draenor/Example"]},
+             "raiderio_batch", "characters"),
+        ]
+        for name, arguments, provider, target in cases:
+            with self.subTest(name=name), patch.object(module, "query_source_gateway", return_value={"status": "source_reference"}) as query:
+                module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}})
+                query.assert_called_once_with(provider, target, options=arguments)
+
+    def test_web_continuation_and_observation_preserve_scope_without_raw_query(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        arguments = {"target": "https://example.com/guide", "start": 6000, "match": "Overcharge"}
+        observations = []
+        packet = {"status": "partial", "reasonCode": "JS_SHELL", "facts": [], "evidence": [], "evidenceRefs": []}
+        with patch.object(module, "build_public_web_research_tool_result", return_value=packet) as read:
+            module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {
+                "name": "research_public_web", "arguments": arguments}}, observation_writer=observations.append)
+        read.assert_called_once_with(arguments)
+        self.assertGreaterEqual(observations[0]["elapsedMs"], 0)
+        self.assertEqual(observations[0]["reasonCode"], "JS_SHELL")
+        self.assertEqual(observations[0]["factCount"], 0)
+        self.assertEqual(len(observations[0]["argumentsSha256"]), 64)
+        self.assertNotIn("Overcharge", json.dumps(observations))
 
     def test_toolbox_has_no_legacy_news_or_cached_mythic_plus_dependency(self):
         source = (ROOT / "server/chickenbro_native_mcp.py").read_text(encoding="utf-8")

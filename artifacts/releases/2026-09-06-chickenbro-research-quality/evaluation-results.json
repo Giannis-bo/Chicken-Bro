@@ -1,0 +1,766 @@
+{
+  "runId": "7e2c5e5b21d647de9c288adfeb1c9cd4",
+  "evaluationStatus": "awaiting_review",
+  "configuration": {
+    "profile": "chickenbro-production",
+    "model": "gpt-6-astra",
+    "reasoningEffort": "high",
+    "runtimeRevision": "codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+  },
+  "caseCount": 3,
+  "results": [
+    {
+      "caseId": "original-enhancement-crit",
+      "category": "research",
+      "prompt": "帮我看看IO上，高分的增强萨，为啥暴击都很高？想办法帮我分析一下原因。",
+      "humanRubric": [
+        "自主确认当前赛季并发现相关高分样本，不要求用户补角色链接",
+        "样本装备、天赋与机制结论分别有可核对证据",
+        "说明样本和资料的适用范围，不把相关性写成确定因果",
+        "回答精炼，资料缺失时只限制对应结论"
+      ],
+      "evaluationStatus": "awaiting_review",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "finalAnswer": "**主要原因是这批高分增强萨玩的风暴使者，能把暴击同时转化成“更容易暴击”和“自然技能暴击更疼”。但实际配装并不是人人无脑堆暴击，精通、急速仍在搭配。**\n\n我查了 IO 当前赛季（至暗之夜 S2）世界榜前 20 名：成功核实 19 人，另 1 人因角色身份不匹配剔除。19 人当前都是增强，均点了风暴使者的 Tempest、Overcharge，并穿齐至少四件套。装备快照为 9 月 3—6 日；IO 没返回面板百分比，所以这次能确认配装选择，不能统计他们平均多少暴击。\n\n**1. 最直接的原因：Overcharge 让暴击有两层收益。**\n\n技能原文是：自然技能的暴击伤害，按你暴击率的 **40%** 获得提升。也就是说，增加暴击率，既增加暴击次数，也增强这些暴击的伤害。这能作用于风暴使者的自然伤害技能，包括 Tempest。[Overcharge 技能说明](https://www.wowhead.com/spell=1251026/overcharge)、[Tempest 技能说明](https://www.wowhead.com/spell=454009/tempest)\n\n样本里 **19 人的两个戒指全部选择 Eyes of the Eagle**，这个附魔提高暴击效果，也体现了他们围绕暴击伤害搭配的方向；它加的是暴击效果，不是面板暴击率。[附魔说明](https://www.wowhead.com/item=243957/enchant-ring-eyes-of-the-eagle)\n\n**2. 看他们能自由选择的宝石，就知道不是统一把暴击放第一。**\n\n| 19 人的宝石选择 | 人数 |\n|---|---:|\n| 使用主暴击的副属性宝石 | 4 |\n| 暴击只出现在主精通、副暴击宝石上 | 4 |\n| 普通副属性宝石全部选急速、精通组合 | 11 |\n\n例如，[Sinôcx](https://raider.io/characters/eu/ysondre/Sin%C3%B4cx) 插了四颗“16 暴击＋7 精通”；[Lampeao](https://raider.io/characters/us/area-52/Lampeao) 插了四颗“16 精通＋7 暴击”；[Enhapumper](https://raider.io/characters/eu/draenor/Enhapumper) 则用“16 急速＋7 精通”。\n\n**我的判断是：他们在按整套装备补属性。** 高面板暴击可以和“宝石继续补急速、精通”同时存在，不能只看最终面板就推断下一件装备也该选暴击。\n\n**3. 套装会影响技能收益，但不能把高暴击全归因于套装自带。**\n\n这套四件套通过火焰新星缩短毁灭闪电冷却、提高下一次毁灭闪电伤害，会改变技能的使用频率和伤害构成。[套装原文](https://www.wowhead.com/item=271483/serpent-crown-of-the-ophidian-oracle)\n\n不过本季转化套装会保留原装备副属性，因此单凭套装名称，无法确认每个人到底被动带了多少暴击。[转化机制说明](https://www.icy-veins.com/wow/enhancement-shaman-pve-dps-gear-best-in-slot)\n\n攻略目前也存在分歧：同为 8 月 24 日更新，[Method](https://www.method.gg/guides/enhancement-shaman/stats-races-and-consumables) 仍给精通、急速优先的通用排序；[Icy Veins](https://www.icy-veins.com/wow/enhancement-shaman-pve-dps-stat-priority) 则明确针对 S2 风暴使者，把暴击与精通列为接近，保留基础急速。这与本次样本的流派更吻合，但具体换装仍要看整套属性。\n\n**你配装时，可以把暴击视为风暴使者的重要竞争属性；别为了追榜上某个暴击百分比，直接把急速、精通全洗掉。** 用自己的装备比较“暴击精通”和“急速精通”组合的单体、多目标模拟，才能决定下一步该补什么。",
+      "firstTextMs": 121121,
+      "totalMs": 153870,
+      "toolObservations": [
+        {
+          "tool": "query_raiderio_rankings",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 2021,
+          "factCount": 10,
+          "argumentsSha256": "1b9348d5549cce86b73fc34de3cd60bbca346347c0091a885786214655660e88",
+          "evidenceRefs": [
+            "raiderio:season:season-mn-2",
+            "raiderio:rankings:season-mn-2:world:shaman:enhancement:0"
+          ],
+          "limitations": [],
+          "evidence": [
+            {
+              "id": "raiderio:season:season-mn-2",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/v1/mythic-plus/affixes?region=us&locale=en",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:rankings:season-mn-2:world:shaman:enhancement:0",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=shaman&spec=enhancement&page=0",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_characters",
+          "sourceKey": "raiderio",
+          "status": "partial",
+          "reasonCode": "",
+          "elapsedMs": 3646,
+          "factCount": 9,
+          "argumentsSha256": "249323ce981b8f12f18dece01a509249ab8b29187f07ac743cea556c8aeed428",
+          "evidenceRefs": [
+            "raiderio:character:eu:gordunni:Сметанкаи",
+            "raiderio:character:us:area-52:Lampeao",
+            "raiderio:character:eu:draenor:Enhapumper",
+            "raiderio:character:eu:stormscale:Shadi",
+            "raiderio:character:cn:barrens:羊宫妃那丶",
+            "raiderio:character:us:sargeras:Drakthul",
+            "raiderio:character:eu:blackmoore:Timí",
+            "raiderio:character:eu:sanguino:Ashtral",
+            "raiderio:character:eu:ysondre:Sinôcx"
+          ],
+          "limitations": [
+            "1 of 10 unique Raider.IO profiles could not be verified.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "The Raider.IO profile identity did not exactly match the requested character.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated."
+          ],
+          "evidence": [
+            {
+              "id": "raiderio:character:eu:gordunni:Сметанкаи",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/gordunni/%D0%A1%D0%BC%D0%B5%D1%82%D0%B0%D0%BD%D0%BA%D0%B0%D0%B8",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:area-52:Lampeao",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Lampeao",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:draenor:Enhapumper",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/draenor/Enhapumper",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:zuljin:Falei",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/zuljin/Falei",
+              "sourceStatus": "identity_mismatch"
+            },
+            {
+              "id": "raiderio:character:eu:stormscale:Shadi",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/stormscale/Shadi",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:cn:barrens:羊宫妃那丶",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/cn/barrens/%E7%BE%8A%E5%AE%AB%E5%A6%83%E9%82%A3%E4%B8%B6",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:sargeras:Drakthul",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:blackmoore:Timí",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/blackmoore/Tim%C3%AD",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:sanguino:Ashtral",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/sanguino/Ashtral",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:ysondre:Sinôcx",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/ysondre/Sin%C3%B4cx",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "research_public_web",
+          "sourceKey": "public_web_research",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 2423,
+          "factCount": 2,
+          "argumentsSha256": "235ce51cea8f74b08991f2bdc6894581da3cf314bf0532a586d1449de0e6195f",
+          "evidenceRefs": [
+            "public-web:dictionary-cambridge-org-zhs-e8-af-8d-e5-85-b8-e8-8b-b1-e8-af-ad-e6-b1-89-e8-af-ad-e7-ae-80-e4-bd-93-enhancement",
+            "public-web:www-iciba-com-word"
+          ],
+          "limitations": [
+            "Public community pages are source-scoped snapshots. Their data window and metrics must be stated with the conclusion; they do not by themselves establish a universal balance or personal-performance verdict."
+          ],
+          "evidence": [
+            {
+              "id": "public-web:dictionary-cambridge-org-zhs-e8-af-8d-e5-85-b8-e8-8b-b1-e8-af-ad-e6-b1-89-e8-af-ad-e7-ae-80-e4-bd-93-enhancement",
+              "sourceName": "dictionary.cambridge.org",
+              "sourceUrl": "https://dictionary.cambridge.org/zhs/%E8%AF%8D%E5%85%B8/%E8%8B%B1%E8%AF%AD-%E6%B1%89%E8%AF%AD-%E7%AE%80%E4%BD%93/enhancement",
+              "title": "ENHANCEMENT中文(简体)翻译：剑桥词典",
+              "checkedAt": "2026-09-06T02:36:48.909315+00:00",
+              "sourceScope": "public_community_web"
+            },
+            {
+              "id": "public-web:www-iciba-com-word",
+              "sourceName": "www.iciba.com",
+              "sourceUrl": "https://www.iciba.com/word?w=enhancement",
+              "title": "enhancement是什么意思_enhancement的翻译_音标_读音_用法_例句_爱词霸在线词典",
+              "checkedAt": "2026-09-06T02:36:49.246168+00:00",
+              "sourceScope": "public_community_web"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_rankings",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 850,
+          "factCount": 10,
+          "argumentsSha256": "578345b39e6ee5b0ae33626f5f1c310839585824cd7d35e7b1ad558152714cb6",
+          "evidenceRefs": [
+            "raiderio:rankings:season-mn-2:world:shaman:enhancement:0"
+          ],
+          "limitations": [],
+          "evidence": [
+            {
+              "id": "raiderio:rankings:season-mn-2:world:shaman:enhancement:0",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=shaman&spec=enhancement&page=0",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "research_public_web",
+          "sourceKey": "public_web_research",
+          "status": "partial",
+          "reasonCode": "READ_ERROR",
+          "elapsedMs": 824,
+          "factCount": 0,
+          "argumentsSha256": "fba79f77cbf1afdcdce3a849f9a7667c5c907efc2b2dc5832584663f81c58d00",
+          "evidenceRefs": [],
+          "limitations": [
+            "The selected page could not be read within the public web safety limits."
+          ],
+          "evidence": []
+        },
+        {
+          "tool": "query_raiderio_characters",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 4747,
+          "factCount": 10,
+          "argumentsSha256": "e8e06fbff955f4a172ff51e79bf4f31c87caf2559c03f9091638910046cc7c6d",
+          "evidenceRefs": [
+            "raiderio:character:us:area-52:Ndle",
+            "raiderio:character:us:area-52:Nosfenrir",
+            "raiderio:character:eu:hyjal:Torticookie",
+            "raiderio:character:eu:hyjal:Giorc",
+            "raiderio:character:cn:deathwing:Uncleben",
+            "raiderio:character:eu:ysondre:Jrmw",
+            "raiderio:character:us:dalaran:Lemonelement",
+            "raiderio:character:eu:tarren-mill:Broforreal",
+            "raiderio:character:us:sargeras:Cyclrin",
+            "raiderio:character:us:emerald-dream:Rykenh"
+          ],
+          "limitations": [
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated."
+          ],
+          "evidence": [
+            {
+              "id": "raiderio:character:us:area-52:Ndle",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Ndle",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:area-52:Nosfenrir",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Nosfenrir",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:hyjal:Torticookie",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/hyjal/Torticookie",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:hyjal:Giorc",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/hyjal/Giorc",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:cn:deathwing:Uncleben",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/cn/deathwing/Uncleben",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:ysondre:Jrmw",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/ysondre/Jrmw",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:dalaran:Lemonelement",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/dalaran/Lemonelement",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:tarren-mill:Broforreal",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/tarren-mill/Broforreal",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:sargeras:Cyclrin",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/sargeras/Cyclrin",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:emerald-dream:Rykenh",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/emerald-dream/Rykenh",
+              "sourceStatus": "fetched"
+            }
+          ]
+        }
+      ],
+      "configuration": {
+        "profile": "chickenbro-production",
+        "model": "gpt-6-astra",
+        "reasoningEffort": "high",
+        "runtimeRevision": "codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+      }
+    },
+    {
+      "caseId": "variant-enhancement-secondary-stats",
+      "category": "research-variant",
+      "prompt": "现在 Raider.IO 排名前面的增强萨，副属性选择有什么共同点？这些选择可能和哪些机制有关？",
+      "humanRubric": [
+        "自行发现同赛季同专精样本并说明样本范围",
+        "不预设某一副属性必然占优",
+        "区分观察到的配装事实和机制解释",
+        "引用的角色或指南资料可追溯"
+      ],
+      "evaluationStatus": "awaiting_review",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "finalAnswer": "**共同点是普遍补精通，同时搭配急速或暴击；暴击效果附魔高度统一，并没有人人相同的副属性排序。**\n\n我抽查了当前赛季（Midnight 第 2 赛季）**世界大秘境增强萨前 20 名**：19 个角色核验成功，1 个身份不匹配已剔除。19 人当前均为增强，采用风暴使者天赋，并穿着至少四件本季套装。[榜单来源](https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=shaman&spec=enhancement&page=0)\n\n| 可自由选择的配置 | 19 人样本中的共同点 |\n|---|---|\n| 精通宝石 | 人人都用；62 颗普通副属性宝石中，61 颗带精通 |\n| 急速搭配 | 14 人使用带急速的宝石 |\n| 暴击搭配 | 8 人使用带暴击的宝石，与急速组有重叠 |\n| 全能宝石 | 未出现 |\n| 戒指附魔 | 19 人全部双用 **Eyes of the Eagle**，提高暴击效果 |\n\n具体能看到不同补法：[Lampeao](https://raider.io/characters/us/area-52/Lampeao)用主精通／副暴击，[Enhapumper](https://raider.io/characters/eu/draenor/Enhapumper)用主急速／副精通，[Sinôcx](https://raider.io/characters/eu/ysondre/Sin%C3%B4cx)用主暴击／副精通。\n\n这些选择与下面几组机制吻合：\n\n- **精通同时强化元素伤害和触发。** 精通提高火焰、冰霜、自然伤害，也提高风怒和风暴奔涌的触发几率；样本全部选择的 **Storm’s Wrath**，进一步放大精通提供的触发几率加成。因此精通能兼顾闪电链、毁灭闪电、Tempest 等伤害，以及近战触发循环。[精通说明](https://www.wowhead.com/spell=77223/mastery-enhanced-elements)、[天赋说明](https://www.wowhead.com/spell=392352/storms-wrath)\n\n- **暴击有“过载”的额外收益。** 19 人全部选择过载：自然法术的暴击伤害，会按自身暴击几率的 **40%** 获得额外提高。暴击因此既增加暴击次数，又强化自然暴击伤害；双戒指附魔则进一步提高暴击效果。这能解释为什么部分玩家主动补暴击。[过载](https://www.wowhead.com/cn/spell=1251026/过载)、[戒指附魔](https://www.wowhead.com/item=243957/enchant-ring-eyes-of-the-eagle)\n\n- **急速与漩涡武器周转有关。** 急速加快攻击和技能节奏；消耗漩涡武器又能通过 **Elemental Tempo** 缩短风暴打击、熔岩猛击冷却，并提供触发 Tempest 的机会。这条循环为补急速提供了机制依据。[Elemental Tempo](https://www.wowhead.com/spell=1250364/elemental-tempo)、[Tempest](https://www.wowhead.com/spell=454009/tempest)\n\n- **本季四件套继续强化火焰／自然伤害链。** 两件套让 Voltaic Blaze 引发持续的火焰新星；四件套让火焰新星减少毁灭闪电冷却、提高其下一次伤害。由此推断，精通覆盖的伤害环节更多，自然伤害部分也能与过载配合。[套装效果](https://www.wowhead.com/item=271483/serpent-crown-of-the-ophidian-oracle)\n\n这些是 **9 月 3—6 日的装备快照**，并非打出榜单分数时的锁定配装。Raider.IO 没有提供面板百分比，因此目前能确认的是上述补属性趋势；具体急速、精通、暴击配比，仍需结合个人装备模拟。",
+      "firstTextMs": 124250,
+      "totalMs": 153734,
+      "toolObservations": [
+        {
+          "tool": "query_raiderio_rankings",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 3076,
+          "factCount": 10,
+          "argumentsSha256": "1b9348d5549cce86b73fc34de3cd60bbca346347c0091a885786214655660e88",
+          "evidenceRefs": [
+            "raiderio:season:season-mn-2",
+            "raiderio:rankings:season-mn-2:world:shaman:enhancement:0"
+          ],
+          "limitations": [],
+          "evidence": [
+            {
+              "id": "raiderio:season:season-mn-2",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/v1/mythic-plus/affixes?region=us&locale=en",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:rankings:season-mn-2:world:shaman:enhancement:0",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=shaman&spec=enhancement&page=0",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_characters",
+          "sourceKey": "raiderio",
+          "status": "partial",
+          "reasonCode": "",
+          "elapsedMs": 4191,
+          "factCount": 9,
+          "argumentsSha256": "d966e01e5031dee5d5b4a4f7693760ba545772e3254122a8b87654d82c0fb008",
+          "evidenceRefs": [
+            "raiderio:character:eu:gordunni:Сметанкаи",
+            "raiderio:character:us:area-52:Lampeao",
+            "raiderio:character:eu:draenor:Enhapumper",
+            "raiderio:character:eu:stormscale:Shadi",
+            "raiderio:character:cn:barrens:羊宫妃那丶",
+            "raiderio:character:us:sargeras:Drakthul",
+            "raiderio:character:eu:blackmoore:Timí",
+            "raiderio:character:eu:sanguino:Ashtral",
+            "raiderio:character:eu:ysondre:Sinôcx"
+          ],
+          "limitations": [
+            "1 of 10 unique Raider.IO profiles could not be verified.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "The Raider.IO profile identity did not exactly match the requested character.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated."
+          ],
+          "evidence": [
+            {
+              "id": "raiderio:character:eu:gordunni:Сметанкаи",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/gordunni/%D0%A1%D0%BC%D0%B5%D1%82%D0%B0%D0%BD%D0%BA%D0%B0%D0%B8",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:area-52:Lampeao",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Lampeao",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:draenor:Enhapumper",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/draenor/Enhapumper",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:zuljin:Falei",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/zuljin/Falei",
+              "sourceStatus": "identity_mismatch"
+            },
+            {
+              "id": "raiderio:character:eu:stormscale:Shadi",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/stormscale/Shadi",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:cn:barrens:羊宫妃那丶",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/cn/barrens/%E7%BE%8A%E5%AE%AB%E5%A6%83%E9%82%A3%E4%B8%B6",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:sargeras:Drakthul",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:blackmoore:Timí",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/blackmoore/Tim%C3%AD",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:sanguino:Ashtral",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/sanguino/Ashtral",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:ysondre:Sinôcx",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/ysondre/Sin%C3%B4cx",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "research_public_web",
+          "sourceKey": "public_web_research",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 7403,
+          "factCount": 2,
+          "argumentsSha256": "9935e81740a5640447d02bfbf8c0540889c43400d0c54b932478efa646c81374",
+          "evidenceRefs": [
+            "public-web:dictionary-cambridge-org-zhs-e8-af-8d-e5-85-b8-e8-8b-b1-e8-af-ad-e6-b1-89-e8-af-ad-e7-ae-80-e4-bd-93-enhancement",
+            "public-web:www-iciba-com-word"
+          ],
+          "limitations": [
+            "Public community pages are source-scoped snapshots. Their data window and metrics must be stated with the conclusion; they do not by themselves establish a universal balance or personal-performance verdict."
+          ],
+          "evidence": [
+            {
+              "id": "public-web:dictionary-cambridge-org-zhs-e8-af-8d-e5-85-b8-e8-8b-b1-e8-af-ad-e6-b1-89-e8-af-ad-e7-ae-80-e4-bd-93-enhancement",
+              "sourceName": "dictionary.cambridge.org",
+              "sourceUrl": "https://dictionary.cambridge.org/zhs/%E8%AF%8D%E5%85%B8/%E8%8B%B1%E8%AF%AD-%E6%B1%89%E8%AF%AD-%E7%AE%80%E4%BD%93/enhancement",
+              "title": "ENHANCEMENT中文(简体)翻译：剑桥词典",
+              "checkedAt": "2026-09-06T02:39:24.704756+00:00",
+              "sourceScope": "public_community_web"
+            },
+            {
+              "id": "public-web:www-iciba-com-word",
+              "sourceName": "www.iciba.com",
+              "sourceUrl": "https://www.iciba.com/word?w=enhancement",
+              "title": "enhancement是什么意思_enhancement的翻译_音标_读音_用法_例句_爱词霸在线词典",
+              "checkedAt": "2026-09-06T02:39:25.059541+00:00",
+              "sourceScope": "public_community_web"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_characters",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 2635,
+          "factCount": 9,
+          "argumentsSha256": "e5a15fe545239bb0db7883b1b500f9aa112e983de07213f71aaba5d96f6eabeb",
+          "evidenceRefs": [
+            "raiderio:character:eu:gordunni:Сметанкаи",
+            "raiderio:character:us:area-52:Lampeao",
+            "raiderio:character:eu:draenor:Enhapumper",
+            "raiderio:character:eu:stormscale:Shadi",
+            "raiderio:character:cn:barrens:羊宫妃那丶",
+            "raiderio:character:us:sargeras:Drakthul",
+            "raiderio:character:eu:blackmoore:Timí",
+            "raiderio:character:eu:sanguino:Ashtral",
+            "raiderio:character:eu:ysondre:Sinôcx"
+          ],
+          "limitations": [
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated."
+          ],
+          "evidence": [
+            {
+              "id": "raiderio:character:eu:gordunni:Сметанкаи",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/gordunni/%D0%A1%D0%BC%D0%B5%D1%82%D0%B0%D0%BD%D0%BA%D0%B0%D0%B8",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:area-52:Lampeao",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Lampeao",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:draenor:Enhapumper",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/draenor/Enhapumper",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:stormscale:Shadi",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/stormscale/Shadi",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:cn:barrens:羊宫妃那丶",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/cn/barrens/%E7%BE%8A%E5%AE%AB%E5%A6%83%E9%82%A3%E4%B8%B6",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:sargeras:Drakthul",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/sargeras/Drakthul",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:blackmoore:Timí",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/blackmoore/Tim%C3%AD",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:sanguino:Ashtral",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/sanguino/Ashtral",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:ysondre:Sinôcx",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/ysondre/Sin%C3%B4cx",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_rankings",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 1451,
+          "factCount": 10,
+          "argumentsSha256": "96155729a9e6c9d882990b06cf177b4139c1dcd414a4d4f9b385669dbc6f4f4d",
+          "evidenceRefs": [
+            "raiderio:season:season-mn-2",
+            "raiderio:rankings:season-mn-2:world:shaman:enhancement:0"
+          ],
+          "limitations": [],
+          "evidence": [
+            {
+              "id": "raiderio:season:season-mn-2",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/v1/mythic-plus/affixes?region=us&locale=en",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:rankings:season-mn-2:world:shaman:enhancement:0",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=shaman&spec=enhancement&page=0",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "query_raiderio_characters",
+          "sourceKey": "raiderio",
+          "status": "source_reference",
+          "reasonCode": "",
+          "elapsedMs": 3585,
+          "factCount": 10,
+          "argumentsSha256": "e8e06fbff955f4a172ff51e79bf4f31c87caf2559c03f9091638910046cc7c6d",
+          "evidenceRefs": [
+            "raiderio:character:us:area-52:Ndle",
+            "raiderio:character:us:area-52:Nosfenrir",
+            "raiderio:character:eu:hyjal:Torticookie",
+            "raiderio:character:eu:hyjal:Giorc",
+            "raiderio:character:cn:deathwing:Uncleben",
+            "raiderio:character:eu:ysondre:Jrmw",
+            "raiderio:character:us:dalaran:Lemonelement",
+            "raiderio:character:eu:tarren-mill:Broforreal",
+            "raiderio:character:us:sargeras:Cyclrin",
+            "raiderio:character:us:emerald-dream:Rykenh"
+          ],
+          "limitations": [
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated.",
+            "Raider.IO did not provide percentages; none were estimated."
+          ],
+          "evidence": [
+            {
+              "id": "raiderio:character:us:area-52:Ndle",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Ndle",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:area-52:Nosfenrir",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/area-52/Nosfenrir",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:hyjal:Torticookie",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/hyjal/Torticookie",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:hyjal:Giorc",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/hyjal/Giorc",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:cn:deathwing:Uncleben",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/cn/deathwing/Uncleben",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:ysondre:Jrmw",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/ysondre/Jrmw",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:dalaran:Lemonelement",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/dalaran/Lemonelement",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:eu:tarren-mill:Broforreal",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/eu/tarren-mill/Broforreal",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:sargeras:Cyclrin",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/sargeras/Cyclrin",
+              "sourceStatus": "fetched"
+            },
+            {
+              "id": "raiderio:character:us:emerald-dream:Rykenh",
+              "sourceName": "Raider.IO",
+              "sourceUrl": "https://raider.io/characters/us/emerald-dream/Rykenh",
+              "sourceStatus": "fetched"
+            }
+          ]
+        },
+        {
+          "tool": "research_public_web",
+          "sourceKey": "public_web_research",
+          "status": "partial",
+          "reasonCode": "READ_ERROR",
+          "elapsedMs": 709,
+          "factCount": 0,
+          "argumentsSha256": "a8b8910c932fa6e1fa6b93310d2a021e8d8280bee94dcef72be6def60501676f",
+          "evidenceRefs": [],
+          "limitations": [
+            "The selected page could not be read within the public web safety limits."
+          ],
+          "evidence": []
+        },
+        {
+          "tool": "research_public_web",
+          "sourceKey": "public_web_research",
+          "status": "partial",
+          "reasonCode": "READ_ERROR",
+          "elapsedMs": 726,
+          "factCount": 0,
+          "argumentsSha256": "077f76b13ad19c30b637a270b95c42ca960d10b7540fbf7db687628289305daf",
+          "evidenceRefs": [],
+          "limitations": [
+            "The selected page could not be read within the public web safety limits."
+          ],
+          "evidence": []
+        }
+      ],
+      "configuration": {
+        "profile": "chickenbro-production",
+        "model": "gpt-6-astra",
+        "reasoningEffort": "high",
+        "runtimeRevision": "codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+      }
+    },
+    {
+      "caseId": "simple-class-question",
+      "category": "simple",
+      "prompt": "增强萨是什么类型的职业专精？",
+      "humanRubric": [
+        "直接回答基础问题",
+        "不为简单问题启动无必要的多轮研究",
+        "不要求用户提供角色或日志"
+      ],
+      "evaluationStatus": "awaiting_review",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "finalAnswer": "增强萨是萨满祭司的**近战输出专精（DPS）**，穿锁甲，通常双持单手武器，把武器攻击与闪电、火焰和风元素法术结合起来打伤害。\n\n玩法强调技能联动、触发效果和资源管理，节奏比较忙；还能用打断、图腾和辅助治疗支援队伍，但定位不是坦克或治疗。",
+      "firstTextMs": 5760,
+      "totalMs": 10434,
+      "toolObservations": [],
+      "configuration": {
+        "profile": "chickenbro-production",
+        "model": "gpt-6-astra",
+        "reasoningEffort": "high",
+        "runtimeRevision": "codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+      }
+    }
+  ]
+}

@@ -37,7 +37,7 @@ _SAFE_SCENARIO_TEXT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$")
 def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
-    allowed = {"fightStyle", "desiredTargets", "iterations"}
+    allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
     fight_style = str(scenario.get("fightStyle", "Patchwerk"))
@@ -50,11 +50,33 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
         raise SimcCompileError("SCENARIO_INVALID") from None
     if not 1 <= desired_targets <= 20 or not 1 <= iterations <= 10000:
         raise SimcCompileError("SCENARIO_INVALID")
-    return {
+    normalized: dict[str, object] = {
         "fightStyle": fight_style,
         "desiredTargets": desired_targets,
         "iterations": iterations,
     }
+    # Optional fields stay absent for legacy requests, preserving their hashes.
+    if "maxTime" in scenario:
+        max_time = scenario["maxTime"]
+        if type(max_time) is not int or not 30 <= max_time <= 600:
+            raise SimcCompileError("SCENARIO_INVALID")
+        normalized["maxTime"] = max_time
+    if "gemOverrides" in scenario:
+        overrides = scenario["gemOverrides"]
+        if not isinstance(overrides, Mapping) or len(overrides) > len(REQUIRED_GEAR_SLOTS):
+            raise SimcCompileError("SCENARIO_INVALID")
+        copied_overrides = {}
+        for slot, gems in overrides.items():
+            if (
+                slot not in REQUIRED_GEAR_SLOTS
+                or not isinstance(gems, list)
+                or not 1 <= len(gems) <= 32
+                or any(type(gem) is not int or not 1 <= gem <= 2147483647 for gem in gems)
+            ):
+                raise SimcCompileError("SCENARIO_INVALID")
+            copied_overrides[slot] = list(gems)
+        normalized["gemOverrides"] = copied_overrides
+    return normalized
 
 
 def scenario_hash(scenario: Mapping[str, object]) -> str:
@@ -91,7 +113,14 @@ class SimcProfileCompiler:
         race_key = self._token(character.get("raceKey"), "race", "MISSING_RACE")
         region = self._token(character.get("region"), "region", "MISSING_REGION")
         realm = self._server_token(character.get("realm"))
-        if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v1":
+        if self._capabilities.compiler_revision not in {
+            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2"
+        }:
+            raise SimcCompileError("COMPILER_UNAVAILABLE")
+        if (
+            {"maxTime", "gemOverrides"}.intersection(normalized_scenario)
+            and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v2"
+        ):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if not self._capabilities.runtime_revision or not self._capabilities.supports(class_key, spec_key):
             raise SimcCompileError("RUNTIME_UNAVAILABLE")
@@ -134,6 +163,12 @@ class SimcProfileCompiler:
             for slot in gear_state.get("unequippedSlots", ())
             if isinstance(slot, str)
         }
+        gem_overrides = normalized_scenario.get("gemOverrides", {})
+        for slot, replacement in gem_overrides.items():
+            item = gear.get(slot)
+            original_gems = item.get("gems") if isinstance(item, Mapping) else None
+            if not isinstance(original_gems, (list, tuple)) or len(replacement) != len(original_gems):
+                raise SimcCompileError("GEM_OVERRIDE_SOCKET_MISMATCH")
         for slot in REQUIRED_GEAR_SLOTS:
             item = gear.get(slot)
             if slot == "off_hand" and item is None and slot in unequipped_slots:
@@ -170,7 +205,7 @@ class SimcProfileCompiler:
                 raise SimcCompileError(f"INVALID_GEAR_{slot.upper()}_ENCHANT")
             line = f"{slot}=,id={item_id}"
             bonus_ids = self._positive_ints(item.get("bonusIds"))
-            gems = self._positive_ints(item.get("gems"))
+            gems = gem_overrides.get(slot, self._positive_ints(item.get("gems")))
             enchant = item.get("enchant")
             if bonus_ids:
                 line += ",bonus_id=" + "/".join(str(value) for value in bonus_ids)
@@ -187,6 +222,12 @@ class SimcProfileCompiler:
             f"fight_style={normalized_scenario['fightStyle']}",
             f"desired_targets={normalized_scenario['desiredTargets']}",
         ])
+        if "maxTime" in normalized_scenario:
+            lines.extend([
+                f"max_time={normalized_scenario['maxTime']}",
+                "fixed_time=1",
+                "vary_combat_length=0",
+            ])
         profile = "\n".join(lines) + "\n"
         if len(profile) > 24000:
             raise SimcCompileError("PROFILE_TOO_LARGE")

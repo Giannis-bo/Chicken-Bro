@@ -202,6 +202,18 @@ class SimulationWorkerTest(unittest.TestCase):
         )
         return worker, repository
 
+    def test_v2_worker_replays_v1_job_without_relabelling_its_profile(self):
+        from server.app.simulation.compiler import SimcProfileCompiler
+
+        worker, repository = self.build_worker(RawSimulationExecution(0, "Player: Stormsample\nDPS=12345\n", "", "simc:current:abc"))
+        worker._runtime_capabilities = replace(worker._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v2")
+        worker._compiler = SimcProfileCompiler(capabilities=worker._runtime_capabilities)
+        status = worker.handle(self.lease)
+        self.assertEqual(status, SimulationJobStatus.SUCCEEDED)
+        self.assertEqual(repository.results[0].compiler_revision, "chickenbro-simc-compiler-v1")
+        self.assertEqual(repository.results[0].profile_sha256, "6ed223804c0377d0350be01e7cc1289c77af3bd8371854c591c36e0719b0a157")
+        self.assertNotIn("metricError", repository.results[0].result)
+
     def test_only_semantic_metric_publishes_succeeded_result(self):
         worker, repository = self.build_worker(
             RawSimulationExecution(
@@ -218,6 +230,8 @@ class SimulationWorkerTest(unittest.TestCase):
         self.assertEqual(len(repository.results), 1)
         self.assertEqual(repository.results[0].primary_metric_name, "dps")
         self.assertEqual(repository.results[0].primary_metric_value, 12345)
+        self.assertEqual(repository.results[0].result["metricError"], 0)
+        self.assertEqual(repository.results[0].result["metricErrorPct"], 0)
         self.assertEqual(
             repository.results[0].provenance,
             {

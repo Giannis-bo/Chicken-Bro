@@ -423,6 +423,98 @@ def _enrich_character(
     return merged, raw_sha256, source_revision
 
 
+def _raiderio_ranking_level(
+    client: object,
+    parsed: ParsedSourceUrl,
+    character: Mapping[str, object],
+) -> tuple[int, dict[str, object], dict[str, object]] | None:
+    """Read an explicit level from one current ranking page, never infer it.
+
+    This deliberately bounded fallback cannot cover unranked characters. The
+    primary profile, requested identity, and ranked identity must all agree.
+    """
+    def realm_key(value: object) -> str:
+        return _text(value).casefold().replace("'", "").replace(" ", "-")
+
+    if (
+        parsed.region not in {"us", "eu", "kr", "tw"}
+        or _text(character.get("region")).casefold() != parsed.region
+        or realm_key(character.get("realm")) != realm_key(parsed.realm)
+        or _text(character.get("name")).casefold() != parsed.character_name.casefold()
+        or not character.get("classKey")
+        or not character.get("specKey")
+    ):
+        return None
+    affixes_endpoint = "https://raider.io/api/v1/mythic-plus/affixes?" + urlencode({
+        "region": parsed.region, "locale": "en",
+    })
+    try:
+        affixes = _fetch_json(client, affixes_endpoint)
+        if not isinstance(affixes, Mapping) or affixes.get("region") != parsed.region:
+            return None
+        leaderboard = urlparse(_text(affixes.get("leaderboard_url")))
+        match = re.fullmatch(
+            r"/mythic-plus-affix-rankings/(season-[a-z0-9-]+)/all/([a-z]{2})/[^?#]+",
+            leaderboard.path,
+        )
+        if (
+            leaderboard.scheme != "https" or leaderboard.netloc != "raider.io"
+            or leaderboard.query or leaderboard.fragment or not match
+            or match.group(2) != parsed.region
+        ):
+            return None
+        season = match.group(1)
+        rankings_endpoint = "https://raider.io/api/mythic-plus/rankings/specs?" + urlencode({
+            "region": "world", "season": season,
+            "class": _text(character["classKey"]).replace("_", "-"),
+            "spec": _text(character["specKey"]).replace("_", "-"), "page": 0,
+        })
+        raw_rankings = _fetch_json(client, rankings_endpoint)
+    except Exception:
+        return None
+    rankings = raw_rankings.get("rankings") if isinstance(raw_rankings, Mapping) else None
+    rows = rankings.get("rankedCharacters") if isinstance(rankings, Mapping) else None
+    if not isinstance(rows, list) or len(rows) > 100:
+        return None
+    matches = []
+    for row in rows:
+        ranked = row.get("character") if isinstance(row, Mapping) else None
+        if not isinstance(ranked, Mapping):
+            continue
+        def slug(field: str) -> str:
+            nested = ranked.get(field)
+            return _text(nested.get("slug")) if isinstance(nested, Mapping) else ""
+
+        if (
+            _text(ranked.get("name")).casefold() == parsed.character_name.casefold()
+            and slug("region") == parsed.region
+            and slug("realm").casefold() == parsed.realm.casefold()
+        ):
+            matches.append(ranked)
+    if len(matches) != 1:
+        return None
+    ranked = matches[0]
+    for source_field, ranking_field in (("classKey", "class"), ("specKey", "spec"), ("raceKey", "race")):
+        nested = ranked.get(ranking_field)
+        if character.get(source_field) and (
+            not isinstance(nested, Mapping) or _key(nested.get("slug")) != character[source_field]
+        ):
+            return None
+    expected_path = f"/characters/{parsed.region}/{parsed.realm}/{parsed.character_name}"
+    if unquote(_text(ranked.get("path"))).casefold() != expected_path.casefold():
+        return None
+    level = ranked.get("level")
+    if type(level) is not int or level <= 0:
+        return None
+    raw_metadata = {"affixes": affixes, "rankings": raw_rankings}
+    provenance = {
+        "provider": "raiderio", "season": season, "characterPath": ranked["path"],
+        "affixesEndpoint": affixes_endpoint, "affixesRawSha256": sha256_json(affixes),
+        "rankingsEndpoint": rankings_endpoint, "rankingsRawSha256": sha256_json(raw_rankings),
+    }
+    return level, provenance, raw_metadata
+
+
 class RaiderIOCharacterAdapter:
     def __init__(
         self,
@@ -495,6 +587,15 @@ class RaiderIOCharacterAdapter:
             raw,
             self._official_enricher,
         )
+        if not _positive_int(character.get("level")):
+            ranking_level = _raiderio_ranking_level(self._http_client, parsed_url, character)
+            if ranking_level is not None:
+                level, metadata_provenance, raw_metadata = ranking_level
+                character["level"] = level
+                provenance["raiderioLevelMetadata"] = metadata_provenance
+                raw_sha256 = sha256_json({
+                    "primarySha256": raw_sha256, "raiderioLevelMetadata": raw_metadata,
+                })
         snapshot["character"] = character
         if source_revision:
             provenance["sourceRevision"] = source_revision
