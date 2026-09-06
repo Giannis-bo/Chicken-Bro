@@ -214,6 +214,28 @@ class SimulationWorkerTest(unittest.TestCase):
         self.assertEqual(repository.results[0].profile_sha256, "6ed223804c0377d0350be01e7cc1289c77af3bd8371854c591c36e0719b0a157")
         self.assertNotIn("metricError", repository.results[0].result)
 
+    def test_v3_worker_replays_v1_and_v2_jobs_with_original_revision(self):
+        from server.app.simulation.compiler import SimcProfileCompiler
+        for revision in ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2"):
+            self.job = replace(self.job, compiler_revision=revision)
+            lease = replace(self.lease, payload={**self.lease.payload, "compilerRevision": revision})
+            worker, repository = self.build_worker(RawSimulationExecution(0, "Player: Stormsample\nDPS=12345\n", "", "simc:current:abc"))
+            worker._runtime_capabilities = replace(worker._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v3")
+            worker._compiler = SimcProfileCompiler(capabilities=worker._runtime_capabilities)
+            with self.subTest(revision=revision):
+                self.assertEqual(worker.handle(lease), SimulationJobStatus.SUCCEEDED)
+                self.assertEqual(repository.results[0].compiler_revision, revision)
+
+    def test_structured_report_is_persisted_with_original_provenance(self):
+        import json
+        from tests.app_simulation_report_test import report_fixture
+        execution = RawSimulationExecution(0, "", "", "simc:current:abc", report_json=json.dumps(report_fixture()), requires_json=True)
+        worker, repository = self.build_worker(execution)
+        self.assertEqual(worker.handle(self.lease), SimulationJobStatus.SUCCEEDED)
+        result = repository.results[0]
+        self.assertEqual(result.result["report"]["metric"]["value"], result.primary_metric_value)
+        self.assertEqual(result.result["provenance"]["runtimeRevision"], "simc:current:abc")
+
     def test_only_semantic_metric_publishes_succeeded_result(self):
         worker, repository = self.build_worker(
             RawSimulationExecution(

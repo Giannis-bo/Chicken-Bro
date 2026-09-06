@@ -3,6 +3,10 @@ import {
   isSimulationJobPage,
   isSourceSnapshotView,
   isValidIdempotencyKey,
+  isSimulationScenario,
+  isSimulationRuntimeView,
+  type SimulationRuntimeView,
+  type SimulationScenario,
   type SimulationJobDetail,
   type SimulationJobPage,
   type SourceSnapshotView,
@@ -15,6 +19,7 @@ import { apiV2Path } from './api-v2-prefix'
 
 export interface SimcRequestOptions {
   auth: ClientAuthContext
+  workbench?: boolean
 }
 
 export interface SimcJobMutationOptions extends SimcRequestOptions {
@@ -30,11 +35,7 @@ export interface SimulationJobListRequest {
   limit?: number
 }
 
-export interface SimulationScenarioRequest {
-  fightStyle?: string
-  desiredTargets?: number
-  iterations?: number
-}
+export type SimulationScenarioRequest = SimulationScenario
 
 export interface SimulationJobCreateRequest {
   snapshotId: string
@@ -42,6 +43,7 @@ export interface SimulationJobCreateRequest {
 }
 
 export interface SimcClient {
+  getRuntime(options: SimcRequestOptions): Promise<ApiResult<SimulationRuntimeView>>
   createSnapshot(
     request: SourceSnapshotCreateRequest,
     options: SimcRequestOptions,
@@ -114,26 +116,12 @@ function sourceUrl(value: string): string {
 }
 
 function scenario(value: SimulationScenarioRequest): SimulationScenarioRequest {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError('simulation scenario is invalid')
-  }
-  const keys = Object.keys(value)
-  if (keys.some((key) => !['fightStyle', 'desiredTargets', 'iterations'].includes(key))) {
-    throw new TypeError('simulation scenario is invalid')
-  }
-  if (
-    value.fightStyle !== undefined
-    && (typeof value.fightStyle !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$/u.test(value.fightStyle))
-  ) throw new TypeError('simulation scenario is invalid')
-  if (
-    value.desiredTargets !== undefined
-    && (!Number.isInteger(value.desiredTargets) || value.desiredTargets < 1 || value.desiredTargets > 20)
-  ) throw new TypeError('simulation scenario is invalid')
-  if (
-    value.iterations !== undefined
-    && (!Number.isInteger(value.iterations) || value.iterations < 1 || value.iterations > 10000)
-  ) throw new TypeError('simulation scenario is invalid')
+  if (!isSimulationScenario(value)) throw new TypeError('simulation scenario is invalid')
   return { ...value }
+}
+
+function workbenchPath(path: string, options: SimcRequestOptions): string {
+  return options.workbench ? `${path}${path.includes('?') ? '&' : '?'}view=workbench` : path
 }
 
 export function createSimcClient(transport: ApiTransport): SimcClient {
@@ -149,7 +137,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
       validate: (value: unknown) => boolean
     },
   ): Promise<ApiResult<T>> => {
-    return transport.request(path, {
+    return transport.request(workbenchPath(path, options), {
       ...(config.method === undefined ? {} : { method: config.method }),
       ...(data === undefined ? {} : { data }),
       header: {
@@ -165,6 +153,13 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
   }
 
   return {
+    getRuntime(options) {
+      return request(apiV2Path('/simc/runtime'), undefined, options, {
+        mutating: false,
+        fallback: () => ({ status: 'unavailable', version: null, gameVersion: null, build: null, sourceCommit: null, runtimeRevision: null }),
+        validate: isSimulationRuntimeView,
+      })
+    },
     createSnapshot(createRequest, options) {
       return request(
         apiV2Path('/simc/snapshots'),

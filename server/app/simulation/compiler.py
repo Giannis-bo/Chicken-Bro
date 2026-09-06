@@ -1,4 +1,5 @@
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 from typing import Mapping
@@ -31,24 +32,23 @@ class CompiledSimcInput:
     provenance: Mapping[str, object]
 
 
-_SAFE_SCENARIO_TEXT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$")
+SUPPORTED_FIGHT_STYLES = frozenset({"Patchwerk", "HecticAddCleave", "LightMovement", "HeavyMovement"})
 
 
 def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
-    allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides"}
+    allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides",
+               "varyCombatLength", "targetError", "raidBuffs", "bloodlust"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
-    fight_style = str(scenario.get("fightStyle", "Patchwerk"))
-    if _SAFE_SCENARIO_TEXT.fullmatch(fight_style) is None:
+    fight_style = scenario.get("fightStyle", "Patchwerk")
+    if not isinstance(fight_style, str) or fight_style not in SUPPORTED_FIGHT_STYLES:
         raise SimcCompileError("SCENARIO_INVALID")
-    try:
-        desired_targets = int(scenario.get("desiredTargets", 1))
-        iterations = int(scenario.get("iterations", 300))
-    except (TypeError, ValueError):
-        raise SimcCompileError("SCENARIO_INVALID") from None
-    if not 1 <= desired_targets <= 20 or not 1 <= iterations <= 10000:
+    desired_targets = scenario.get("desiredTargets", 1)
+    iterations = scenario.get("iterations", 300)
+    if (type(desired_targets) is not int or type(iterations) is not int
+            or not 1 <= desired_targets <= 20 or not 1 <= iterations <= 10000):
         raise SimcCompileError("SCENARIO_INVALID")
     normalized: dict[str, object] = {
         "fightStyle": fight_style,
@@ -56,6 +56,17 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
         "iterations": iterations,
     }
     # Optional fields stay absent for legacy requests, preserving their hashes.
+    for key, maximum in (("varyCombatLength", 0.5), ("targetError", 5)):
+        if key in scenario:
+            value = scenario[key]
+            if type(value) not in (int, float) or not math.isfinite(value) or not 0 <= value <= maximum:
+                raise SimcCompileError("SCENARIO_INVALID")
+            normalized[key] = float(value)
+    for key in ("raidBuffs", "bloodlust"):
+        if key in scenario:
+            if type(scenario[key]) is not bool:
+                raise SimcCompileError("SCENARIO_INVALID")
+            normalized[key] = scenario[key]
     if "maxTime" in scenario:
         max_time = scenario["maxTime"]
         if type(max_time) is not int or not 30 <= max_time <= 600:
@@ -114,13 +125,16 @@ class SimcProfileCompiler:
         region = self._token(character.get("region"), "region", "MISSING_REGION")
         realm = self._server_token(character.get("realm"))
         if self._capabilities.compiler_revision not in {
-            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2"
+            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3"
         }:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if (
             {"maxTime", "gemOverrides"}.intersection(normalized_scenario)
-            and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v2"
+            and self._capabilities.compiler_revision == "chickenbro-simc-compiler-v1"
         ):
+            raise SimcCompileError("COMPILER_UNAVAILABLE")
+        if ({"varyCombatLength", "targetError", "raidBuffs", "bloodlust"}.intersection(normalized_scenario)
+                and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v3"):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if not self._capabilities.runtime_revision or not self._capabilities.supports(class_key, spec_key):
             raise SimcCompileError("RUNTIME_UNAVAILABLE")
@@ -228,6 +242,12 @@ class SimcProfileCompiler:
                 "fixed_time=1",
                 "vary_combat_length=0",
             ])
+        for key, option in (("varyCombatLength", "vary_combat_length"), ("targetError", "target_error")):
+            if key in normalized_scenario:
+                lines.append(f"{option}={normalized_scenario[key]:g}")
+        for key, option in (("raidBuffs", "optimal_raid"), ("bloodlust", "override.bloodlust")):
+            if key in normalized_scenario:
+                lines.append(f"{option}={int(normalized_scenario[key])}")
         profile = "\n".join(lines) + "\n"
         if len(profile) > 24000:
             raise SimcCompileError("PROFILE_TOO_LARGE")

@@ -18,6 +18,7 @@ from server.app.simulation.domain import (
     SourceSnapshot,
 )
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
+from server.app.simulation.runtime import get_simc_runtime_info
 from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink
 
 
@@ -55,6 +56,17 @@ class SimulationJobView:
 class SimulationJobPage:
     items: tuple[SimulationJobView, ...]
     next_cursor: str | None
+
+
+def public_simulation_report(view: SimulationJobView) -> dict[str, object] | None:
+    from server.app.simulation.report import validate_simc_report
+    report = view.result.result.get("report") if view.result is not None else None
+    if report is None:
+        return None
+    if (not validate_simc_report(report) or report["metric"]["name"] != view.result.primary_metric_name
+            or report["metric"]["value"] != view.result.primary_metric_value):
+        raise SimulationApplicationError("SIMC_RESULT_INVALID", "simulation report is invalid")
+    return report
 
 
 def _invalid_result() -> SimulationApplicationError:
@@ -296,6 +308,9 @@ class SimulationApplication:
             )
         return persisted
 
+    def runtime_info(self, principal: Principal) -> dict[str, object]:
+        return get_simc_runtime_info()
+
     def read_snapshot(self, principal: Principal, snapshot_id: UUID) -> SourceSnapshot:
         snapshot = self._repository.get_snapshot(principal.user_id, snapshot_id)
         if snapshot is None:
@@ -310,11 +325,7 @@ class SimulationApplication:
         attempts: tuple[SimulationAttempt, ...] = (),
     ) -> SimulationJobView:
         result = self._repository.get_result(principal.user_id, job.id)
-        snapshot = (
-            self._repository.get_snapshot(principal.user_id, job.snapshot_id)
-            if result is not None
-            else None
-        )
+        snapshot = self._repository.get_snapshot(principal.user_id, job.snapshot_id)
         return SimulationJobView(
             job=job,
             result=result,

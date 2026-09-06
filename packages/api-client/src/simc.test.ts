@@ -21,6 +21,18 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
+  it('opts into bounded workbench context and preserves actual scenario options', async () => {
+    const transport = new RecordingTransport()
+    const client = createSimcClient(transport)
+    const auth = { kind: 'web' as const, csrfToken: 'csrf' }
+    const scenario = { fightStyle: 'HeavyMovement', desiredTargets: 2, iterations: 1000, maxTime: 240, varyCombatLength: .2, targetError: .5, raidBuffs: true, bloodlust: false }
+    await client.createJob({ snapshotId: 'snapshot-one', scenario }, { auth, workbench: true, idempotencyKey: 'workbench-create-1' })
+    expect(transport.requests[0]?.path).toBe('/api/v2/simc/jobs?view=workbench')
+    expect(transport.requests[0]?.options.data).toEqual({ snapshotId: 'snapshot-one', scenario })
+    await client.getRuntime({ auth })
+    expect(transport.requests[1]?.path).toBe('/api/v2/simc/runtime')
+    expect(() => client.createJob({ snapshotId: 'snapshot-one', scenario: {targetError: NaN} }, { auth, idempotencyKey: 'workbench-create-2' })).toThrow()
+  })
   it('uses the isolated candidate prefix for every formal SimC route', async () => {
     vi.stubGlobal('__WOW_API_V2_PREFIX__', '/api/v2-candidate')
     try {

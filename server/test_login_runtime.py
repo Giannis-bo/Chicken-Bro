@@ -36,6 +36,7 @@ def prepare_environment(source, read_text=lambda path: Path(path).read_text()):
         'WOW_WORKER_V2_HEARTBEAT_PATH': '/var/lib/chickenbro/test-worker-heartbeat.json',
         'WOW_CODEX_JOBS_DIR': '/var/lib/chickenbro/test-codex-jobs',
         'WOW_WEB_SESSION_TTL_SECONDS': '86400',
+        'WOW_SIMC_COMPILER_REVISION': 'chickenbro-simc-compiler-v3',
     })
     return env
 

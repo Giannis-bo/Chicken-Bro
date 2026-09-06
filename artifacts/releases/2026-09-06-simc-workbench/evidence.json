@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 2,
+  "slug": "simc-workbench",
+  "requirementSlug": "simc-workbench",
+  "status": "implementation_allowed",
+  "highestEvidenceLevel": "implementation_allowed",
+  "branch": "codex/simc-workbench",
+  "commit": "pending",
+  "identities": {
+    "runtime": {
+      "status": "pending",
+      "reason": "Test deployment pending."
+    },
+    "verification": {
+      "status": "bound_at_check",
+      "kind": "git_ref",
+      "value": "HEAD"
+    },
+    "closure": {
+      "status": "pending",
+      "reason": "User acceptance and merge not completed."
+    }
+  },
+  "manualAcceptance": {
+    "required": true,
+    "status": "pending",
+    "reason": "Implementation approved; post-test user acceptance pending.",
+    "items": [
+      {
+        "id": "independent_tasks",
+        "status": "pending"
+      },
+      {
+        "id": "simulation_options",
+        "status": "pending"
+      },
+      {
+        "id": "structured_report",
+        "status": "pending"
+      },
+      {
+        "id": "engine_versions",
+        "status": "pending"
+      },
+      {
+        "id": "legacy_and_errors",
+        "status": "pending"
+      },
+      {
+        "id": "responsive_web",
+        "status": "pending"
+      },
+      {
+        "id": "cross_client_owner",
+        "status": "pending"
+      }
+    ],
+    "rollup": {
+      "total": 7,
+      "accepted": 0,
+      "notRunUserWaived": 0,
+      "pending": 7
+    }
+  },
+  "scope": [
+    "simc",
+    "dual_client"
+  ],
+  "verification": [],
+  "candidateDeployment": {
+    "status": "pending",
+    "reason": "Test deployment pending."
+  },
+  "runtimeEvidence": [],
+  "risks": [
+    "Historical jobs only have summary reports."
+  ],
+  "rollback": [
+    "Atomically restore previous test release and restart test API/Worker; no schema changes."
+  ],
+  "cleanup": {
+    "required": false
+  },
+  "archivedReferences": [
+    "docs/plans/2026-09-06-simc-workbench.md"
+  ],
+  "summary": "Approved implementation; verification in progress."
+}

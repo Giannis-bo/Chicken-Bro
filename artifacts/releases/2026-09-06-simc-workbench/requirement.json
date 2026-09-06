@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "slug": "simc-workbench",
+  "classification": "Standard",
+  "status": "implementation_allowed",
+  "goal": "Create a professional SimC workbench with separate tasks, bounded options, real JSON reports and engine versions.",
+  "userValue": "Understand and reproduce actual cloud simulations from Web while retaining Mini compatibility.",
+  "nonGoals": [
+    "Production cutover",
+    "New dependencies",
+    "Local SimC execution",
+    "Destructive cleanup"
+  ],
+  "currentTruth": {
+    "sources": [
+      "docs/project-state.json",
+      "docs/roadmap.md",
+      "docs/plans/2026-09-06-simc-workbench.md",
+      "docs/verification-matrix.md"
+    ],
+    "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+    "featureIteration": "user_authorized_followup"
+  },
+  "impactMap": {
+    "mustChange": [
+      "server/app/simulation",
+      "server/app/api/routes/simc.py",
+      "packages/domain/src/simc.ts",
+      "packages/api-client/src/simc.ts",
+      "apps/mini-taro/src/web/WebSimcView.tsx"
+    ],
+    "mustNotChange": [
+      "Identity ownership",
+      "Production runtime",
+      "SimulationCraft binary",
+      "Database schema"
+    ],
+    "evidenceRequired": [
+      "Compiler and report tests",
+      "Legacy transport and owner tests",
+      "Web DOM tests",
+      "Desktop and 390px browser",
+      "Cloud structured SimC task",
+      "Test release identity and rollback"
+    ]
+  },
+  "ownership": {
+    "factOwner": "server/app/simulation/application.py",
+    "consumers": [
+      "Mini SimC",
+      "Web SimC",
+      "Chickenbro SimC tools"
+    ]
+  },
+  "engineeringHealth": {
+    "status": "health_safe",
+    "reason": "Dedicated report/runtime modules and Web report component; bounded projections, existing queue and JSON storage, opt-in response extensions."
+  },
+  "acceptanceEvidence": [
+    "npm run test:backend",
+    "npm run test:taro",
+    "npm run test:control",
+    "npm run typecheck",
+    "npm run lint",
+    "npm run build:h5",
+    "npm run build:weapp",
+    "cloud simulation and browser checks"
+  ],
+  "manualAcceptanceContract": {
+    "required": true,
+    "requiredItemIds": [
+      "independent_tasks",
+      "simulation_options",
+      "structured_report",
+      "engine_versions",
+      "legacy_and_errors",
+      "responsive_web",
+      "cross_client_owner"
+    ]
+  },
+  "releaseTrigger": "backend_api",
+  "rollback": [
+    "code_rollback"
+  ],
+  "decisionLog": [
+    {
+      "date": "2026-09-06",
+      "decision": "User approved proposed workbench design and isolated test rollout."
+    }
+  ]
+}

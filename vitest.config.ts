@@ -28,7 +28,7 @@ export default defineConfig({
       'packages/api-client/src/transport.test.ts',
       'packages/api-client/src/web-auth.test.ts',
       'packages/domain/src/chat.test.ts',
-      'packages/domain/src/simc.test.ts',
+      'packages/domain/src/simc*.test.ts',
       'packages/domain/src/web-auth.test.ts',
     ],
     coverage: {

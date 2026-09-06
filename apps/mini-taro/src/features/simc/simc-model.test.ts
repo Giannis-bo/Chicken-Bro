@@ -87,6 +87,7 @@ function success<T>(payload: T): ApiResult<T> {
 }
 
 class FakeSimcClient implements SimcClient {
+  async getRuntime(): Promise<never> { throw new Error('not used by model') }
   readonly calls: Array<{ name: string; auth: ClientAuthContext }> = []
   readonly submitKeys: string[] = []
   jobReads: SimulationJobDetail[] = [queued]

@@ -17,6 +17,7 @@ from server.app.simulation.application import (
     SimulationApplicationError,
     SimulationJobView,
     validated_simulation_result_provenance,
+    public_simulation_report,
 )
 from server.app.simulation.domain import SimulationAttempt, SourceSnapshot
 
@@ -52,13 +53,26 @@ def _bounded_codes(value: object, maximum: int = 64) -> list[str]:
     ]
 
 
-def _snapshot_payload(snapshot: SourceSnapshot) -> dict[str, object]:
+def _character_payload(snapshot: SourceSnapshot | None) -> dict[str, object] | None:
+    raw = snapshot.snapshot.get("character") if snapshot is not None else None
+    if not isinstance(raw, Mapping):
+        return None
+    def text(key):
+        value = raw.get(key)
+        return value[:160] if isinstance(value, str) else ""
+    return {"name": text("name"), "className": text("classKey"),
+            "specialization": text("specKey"), "race": text("raceKey"),
+            "level": raw.get("level") if type(raw.get("level")) is int and 0 < raw["level"] <= 1000 else None}
+
+
+def _snapshot_payload(snapshot: SourceSnapshot, workbench: bool = False) -> dict[str, object]:
     raw_snapshot = snapshot.snapshot if isinstance(snapshot.snapshot, Mapping) else {}
     source_revision = str(snapshot.provenance.get("sourceRevision") or "").strip()
     if len(source_revision) > 160:
         source_revision = ""
     return {
         "id": str(snapshot.id),
+        **({"character": _character_payload(snapshot)} if workbench else {}),
         "provider": snapshot.provider.value,
         "sourceUrl": snapshot.source_url,
         "sourceKey": snapshot.source_key,
@@ -74,7 +88,7 @@ def _snapshot_payload(snapshot: SourceSnapshot) -> dict[str, object]:
     }
 
 
-def _job_summary(view: SimulationJobView) -> dict[str, object]:
+def _job_summary(view: SimulationJobView, workbench: bool = False) -> dict[str, object]:
     validated_simulation_result_provenance(view)
     job = view.job
     public_error = str(job.public_error_code or "")
@@ -82,6 +96,8 @@ def _job_summary(view: SimulationJobView) -> dict[str, object]:
         public_error = "SIMC_FAILED"
     return {
         "id": str(job.id),
+        **({"character": _character_payload(view.snapshot), "scenario": view.scenario,
+            "metric": {"name": view.result.primary_metric_name, "value": view.result.primary_metric_value} if view.result else None} if workbench else {}),
         "snapshotId": str(job.snapshot_id),
         "status": job.status.value,
         "scenarioHash": job.scenario_hash,
@@ -108,7 +124,7 @@ def _attempt_payload(attempt: SimulationAttempt) -> dict[str, object]:
     }
 
 
-def _result_payload(view: SimulationJobView) -> dict[str, object] | None:
+def _result_payload(view: SimulationJobView, workbench: bool = False) -> dict[str, object] | None:
     provenance = validated_simulation_result_provenance(view)
     result = view.result
     if result is None:
@@ -118,6 +134,7 @@ def _result_payload(view: SimulationJobView) -> dict[str, object] | None:
     return {
         "id": str(result.id),
         "profileSha256": result.profile_sha256,
+        **({"report": public_simulation_report(view)} if workbench else {}),
         "metricName": result.primary_metric_name,
         "metricValue": result.primary_metric_value,
         "compilerRevision": result.compiler_revision,
@@ -127,11 +144,11 @@ def _result_payload(view: SimulationJobView) -> dict[str, object] | None:
     }
 
 
-def _job_detail(view: SimulationJobView) -> dict[str, object]:
+def _job_detail(view: SimulationJobView, workbench: bool = False) -> dict[str, object]:
     return {
-        **_job_summary(view),
+        **_job_summary(view, workbench),
         "attempts": [_attempt_payload(attempt) for attempt in view.attempts[:20]],
-        "result": _result_payload(view),
+        "result": _result_payload(view, workbench),
     }
 
 
@@ -155,14 +172,23 @@ def _raise_simulation_error(error: SimulationApplicationError) -> None:
     raise ApiProblem(status_code=status_code, code=error.code, message=error.message) from error
 
 
+@router.get("/runtime")
+def runtime_info(
+    principal: Principal = Depends(require_principal),
+    application: SimulationApplication = Depends(simulation_application),
+) -> dict[str, object]:
+    return application.runtime_info(principal)
+
+
 @router.post("/snapshots", status_code=201)
 def create_snapshot(
     body: SourceSnapshotCreateBody,
+    view: str | None = None,
     principal: Principal = Depends(require_mutating_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _snapshot_payload(application.resolve_source(principal, body.source_url))
+        return _snapshot_payload(application.resolve_source(principal, body.source_url), view == "workbench")
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
@@ -170,11 +196,12 @@ def create_snapshot(
 @router.get("/snapshots/{snapshot_id}")
 def get_snapshot(
     snapshot_id: UUID,
+    view: str | None = None,
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _snapshot_payload(application.read_snapshot(principal, snapshot_id))
+        return _snapshot_payload(application.read_snapshot(principal, snapshot_id), view == "workbench")
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
@@ -183,13 +210,14 @@ def get_snapshot(
 def list_jobs(
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
+    view: str | None = None,
     cursor: str | None = None,
     limit: int = 20,
 ) -> dict[str, object]:
     try:
         page = application.list_jobs(principal, cursor, limit)
         return {
-            "items": [_job_summary(view) for view in page.items],
+            "items": [_job_summary(item, view == "workbench") for item in page.items],
             "nextCursor": page.next_cursor,
         }
     except (SimulationApplicationError, TypeError, ValueError) as error:
@@ -205,6 +233,7 @@ def list_jobs(
 @router.post("/jobs", status_code=202)
 def create_job(
     body: SimulationCreateBody,
+    view: str | None = None,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_mutating_principal),
     application: SimulationApplication = Depends(simulation_application),
@@ -216,7 +245,7 @@ def create_job(
             body.scenario,
             idempotency_key or "",
         )
-        return _job_detail(application.read_job(principal, job.id))
+        return _job_detail(application.read_job(principal, job.id), view == "workbench")
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
@@ -224,11 +253,12 @@ def create_job(
 @router.get("/jobs/{job_id}")
 def get_job(
     job_id: UUID,
+    view: str | None = None,
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _job_detail(application.read_job(principal, job_id))
+        return _job_detail(application.read_job(principal, job_id), view == "workbench")
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 

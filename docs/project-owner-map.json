@@ -95,7 +95,13 @@
         "tests/chickenbro-simc-runtime-update.test.js",
         "packages/api-client/src/simc.test.ts",
         "packages/domain/src/simc.test.ts",
-        "tests/app_chickenbro_simulation_tools_test.py"
+        "tests/app_chickenbro_simulation_tools_test.py",
+        "tests/app_simc_workbench_test.py",
+        "tests/app_simc_workbench_api_test.py",
+        "tests/app_simulation_report_test.py",
+        "tests/app_simulation_runtime_info_test.py",
+        "packages/domain/src/simc-workbench.test.ts",
+        "apps/mini-taro/src/web/web-simc-workbench.test.tsx"
       ],
       "changedPathPatterns": [
         "server/app/simulation/**",

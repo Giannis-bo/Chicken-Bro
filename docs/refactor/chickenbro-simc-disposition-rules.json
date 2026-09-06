@@ -2,6 +2,31 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-workbench",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "simc",
+      "reason": "User-approved SimC workbench implementation and task-scoped verification.",
+      "paths": [
+        "apps/mini-taro/src/web/WebSimc.module.scss",
+        "apps/mini-taro/src/web/WebSimcReport.tsx",
+        "apps/mini-taro/src/web/simc-presentation.ts",
+        "apps/mini-taro/src/web/web-simc-workbench.test.tsx",
+        "docs/plans/2026-09-06-simc-workbench.md",
+        "packages/domain/src/simc-workbench.test.ts",
+        "packages/domain/src/simc-workbench.ts",
+        "server/app/simulation/report.py",
+        "server/app/simulation/runtime.py",
+        "tests/app_simc_workbench_api_test.py",
+        "tests/app_simc_workbench_test.py",
+        "tests/app_simulation_report_test.py",
+        "tests/app_simulation_runtime_info_test.py"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-06-simc-workbench/"
+      ]
+    },
+    {
       "id": "chickenbro-simc-tools",
       "disposition": "keep",
       "category": "current-control-plane",

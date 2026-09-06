@@ -1,3 +1,5 @@
+import { isSimulationCharacter, isSimulationReport, isSimulationScenario, type SimulationCharacter, type SimulationReport, type SimulationScenario } from './simc-workbench'
+
 export type SourceProvider = 'raiderio' | 'warcraftlogs'
 export type SourceReadiness =
   | 'INVALID_LINK'
@@ -16,6 +18,7 @@ export interface SourceSnapshotProvenance {
 }
 
 export interface SourceSnapshotView {
+  character?: SimulationCharacter | null
   id: string
   provider: SourceProvider
   sourceUrl: string
@@ -29,6 +32,9 @@ export interface SourceSnapshotView {
 }
 
 export interface SimulationJobSummary {
+  character?: SimulationCharacter | null
+  scenario?: SimulationScenario | null
+  metric?: { name: SimulationMetricName; value: number } | null
   id: string
   snapshotId: string
   status: SimulationJobStatus
@@ -59,6 +65,7 @@ export interface SimulationResultProvenance {
 }
 
 export interface SimulationResultView {
+  report?: SimulationReport | null
   id: string
   profileSha256: string
   metricName: SimulationMetricName
@@ -84,9 +91,16 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+function exactKeys(value: Record<string, unknown>, keys: readonly string[], optional: readonly string[] = []): boolean {
   const actual = Object.keys(value)
-  return actual.length === keys.length && actual.every((key) => keys.includes(key))
+  return keys.every(key => actual.includes(key)) && actual.every((key) => keys.includes(key) || optional.includes(key))
+}
+
+function workbenchSummary(value: Record<string, unknown>): boolean {
+  const metric = value['metric']
+  return (!('character' in value) || value['character'] === null || isSimulationCharacter(value['character']))
+    && (!('scenario' in value) || value['scenario'] === null || isSimulationScenario(value['scenario']))
+    && (!('metric' in value) || metric === null || (record(metric) && exactKeys(metric, ['name', 'value']) && (metric['name'] === 'dps' || metric['name'] === 'hps') && typeof metric['value'] === 'number' && Number.isFinite(metric['value']) && metric['value'] > 0))
 }
 
 function boundedString(value: unknown, maximum = 160): value is string {
@@ -136,9 +150,10 @@ export function isSourceSnapshotView(value: unknown): value is SourceSnapshotVie
     'blockers',
     'fetchedAt',
     'provenance',
-  ])) return false
+  ], ['character'])) return false
   const readiness = value['readiness']
-  return uuid(value['id'])
+  return (!('character' in value) || value['character'] === null || isSimulationCharacter(value['character']))
+    && uuid(value['id'])
     && (value['provider'] === 'raiderio' || value['provider'] === 'warcraftlogs')
     && boundedString(value['sourceUrl'], 2048)
     && /^https:\/\//u.test(value['sourceUrl'])
@@ -169,9 +184,9 @@ function isSimulationJobSummaryRecord(value: unknown): value is SimulationJobSum
     'errorCode',
     'createdAt',
     'updatedAt',
-  ])) return false
+  ], ['character', 'scenario', 'metric'])) return false
   const status = value['status']
-  return uuid(value['id'])
+  return workbenchSummary(value) && uuid(value['id'])
     && uuid(value['snapshotId'])
     && (
       status === 'queued'
@@ -232,8 +247,9 @@ function isSimulationResultView(value: unknown): value is SimulationResultView {
     'runtimeRevision',
     'provenance',
     'createdAt',
-  ])) return false
-  return uuid(value['id'])
+  ], ['report'])) return false
+  return (!('report' in value) || value['report'] === null || (isSimulationReport(value['report']) && value['report'].metric.name === value['metricName'] && value['report'].metric.value === value['metricValue']))
+    && uuid(value['id'])
     && sha256(value['profileSha256'])
     && (value['metricName'] === 'dps' || value['metricName'] === 'hps')
     && typeof value['metricValue'] === 'number'
@@ -266,7 +282,8 @@ export function isSimulationJobDetail(value: unknown): value is SimulationJobDet
     'updatedAt',
     'attempts',
     'result',
-  ])) return false
+  ], ['character', 'scenario', 'metric'])) return false
+  if (!workbenchSummary(value)) return false
   const summary: Record<string, unknown> = {
     id: value['id'],
     snapshotId: value['snapshotId'],

@@ -1,8 +1,9 @@
 import math
 import os
 import re
-import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol
@@ -10,7 +11,11 @@ from uuid import UUID, uuid4
 
 from server.app.simulation.compiler import SimcCompileError, SimcProfileCompiler
 from server.app.simulation.domain import SimulationJobStatus, SimulationResult
-from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
+from server.app.simulation.readiness import (
+    ManagedSimcRuntimeError, SimcReadinessValidator, SimcRuntimeCapabilities,
+    inspect_managed_simc_runtime, runtime_revision_matches_identity,
+)
+from server.app.simulation.report import MAX_REPORT_BYTES, SimulationReportError, normalize_simc_report
 from server.app.worker.handlers import RetryableJobError
 from server.app.worker.leases import JobLease, LostLeaseError
 
@@ -29,6 +34,8 @@ class RawSimulationExecution:
     stderr: str
     runtime_revision: str
     timed_out: bool = False
+    report_json: str | bytes | None = None
+    requires_json: bool = False
 
 
 class SimulationCraftPort(Protocol):
@@ -55,22 +62,45 @@ class LocalSimulationCraftPort:
     def run(self, compiled_input: Any, runtime_revision: str) -> RawSimulationExecution:
         if not runtime_revision or not self._runtime_revision or runtime_revision != self._runtime_revision:
             raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
-        binary = self._binary
-        if not (os.path.isfile(binary) and os.access(binary, os.X_OK)):
-            binary = shutil.which(binary) or ""
-        if not binary:
-            raise SimulationWorkerError("SIMC_UNAVAILABLE", retryable=True)
         try:
-            completed = self._runner(
-                [binary, "-"],
-                input=compiled_input.profile,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                capture_output=True,
-                timeout=self._timeout_seconds,
-                check=False,
-            )
+            identity = inspect_managed_simc_runtime({"WOW_SIMC_BIN": self._binary})
+        except ManagedSimcRuntimeError as error:
+            raise SimulationWorkerError(error.code, retryable=error.code == "SIMC_UNAVAILABLE") from None
+        if not runtime_revision_matches_identity(runtime_revision, identity):
+            raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
+        # Pin the verified release target instead of following a movable current link.
+        binary = str(identity.binary_path)
+        try:
+            with tempfile.TemporaryDirectory(prefix="chickenbro-simc-") as private_dir:
+                output = Path(private_dir) / "report.json"
+                completed = self._runner(
+                    [binary, "-", f"json={output},full_states=0", "report_details=1"],
+                    input=compiled_input.profile,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    capture_output=True,
+                    timeout=self._timeout_seconds,
+                    check=False,
+                    cwd=private_dir,
+                )
+                try:
+                    after_identity = inspect_managed_simc_runtime({"WOW_SIMC_BIN": self._binary})
+                except ManagedSimcRuntimeError:
+                    raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE") from None
+                if after_identity != identity:
+                    raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
+                report_json = None
+                if int(completed.returncode) == 0:
+                    try:
+                        if output.is_symlink() or not output.is_file() or output.stat().st_size > MAX_REPORT_BYTES:
+                            raise SimulationWorkerError("SIMC_REPORT_INVALID")
+                        with output.open("rb") as report_file:
+                            report_json = report_file.read(MAX_REPORT_BYTES + 1)
+                        if len(report_json) > MAX_REPORT_BYTES:
+                            raise SimulationWorkerError("SIMC_REPORT_INVALID")
+                    except OSError:
+                        raise SimulationWorkerError("SIMC_REPORT_INVALID") from None
         except subprocess.TimeoutExpired:
             raise SimulationWorkerError("SIMC_TIMEOUT", retryable=True) from None
         except OSError:
@@ -80,6 +110,8 @@ class LocalSimulationCraftPort:
             stdout=str(completed.stdout or "")[:12000],
             stderr=str(completed.stderr or "")[:4000],
             runtime_revision=runtime_revision,
+            report_json=report_json,
+            requires_json=True,
         )
 
 
@@ -89,6 +121,7 @@ class SemanticSimulationMetric:
     value: float
     error: float | None = None
     error_pct: float | None = None
+    report: dict | None = None
 
 
 class SimulationResultParser:
@@ -120,6 +153,21 @@ class SimulationResultParser:
         combined_diagnostics = "\n".join((execution.stdout or "", execution.stderr or ""))
         if self._FATAL_DIAGNOSTIC.search(combined_diagnostics):
             raise SimulationWorkerError("SIMC_FATAL_DIAGNOSTIC")
+        if execution.requires_json or execution.report_json is not None:
+            try:
+                report = normalize_simc_report(execution.report_json, expected_actor=expected_actor)
+            except SimulationReportError as error:
+                raise SimulationWorkerError(error.code) from None
+            metric = report["metric"]
+            error = metric["error"]
+            error_pct = error / metric["value"] * 100 if error is not None else None
+            if error_pct is not None and not math.isfinite(error_pct):
+                raise SimulationWorkerError("SIMC_REPORT_INVALID")
+            return SemanticSimulationMetric(
+                name=metric["name"], value=metric["value"], error=error,
+                error_pct=error_pct,
+                report=report,
+            )
         actor_matches = list(self._ACTOR_PATTERN.finditer(execution.stdout or ""))
         actors = [match.group(1).strip() for match in actor_matches]
         normalized_expected_actor = str(expected_actor or "").strip().casefold()
@@ -280,6 +328,7 @@ class SimulationWorker:
             result={
                 "metricName": metric.name,
                 "metricValue": metric.value,
+                **({"report": metric.report} if metric.report is not None else {}),
                 **({"metricError": metric.error, "metricErrorPct": metric.error_pct} if metric.error is not None else {}),
                 "provenance": {
                     **provenance,
@@ -344,12 +393,15 @@ class SimulationWorker:
         compiler = self._compiler
         if (
             type(compiler) is SimcProfileCompiler
-            and job.compiler_revision == "chickenbro-simc-compiler-v1"
-            and self._runtime_capabilities.compiler_revision == "chickenbro-simc-compiler-v2"
+            and (job.compiler_revision, self._runtime_capabilities.compiler_revision) in {
+                ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2"),
+                ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v3"),
+                ("chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3"),
+            }
             and job.runtime_revision == self._runtime_capabilities.runtime_revision
         ):
             compiler = SimcProfileCompiler(capabilities=replace(
-                self._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v1"
+                self._runtime_capabilities, compiler_revision=job.compiler_revision
             ))
         compiled = compiler.compile(snapshot, scenario)
         if compiled.compiler_revision != job.compiler_revision or compiled.runtime_revision != job.runtime_revision:

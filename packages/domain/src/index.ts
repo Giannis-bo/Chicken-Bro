@@ -1,3 +1,4 @@
+export * from './simc-workbench'
 export {
   isChatEventEnvelope,
   isConversationDetail,

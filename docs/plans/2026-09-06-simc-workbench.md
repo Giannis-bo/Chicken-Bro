@@ -20,9 +20,9 @@ Web 提供新建模拟、独立任务列表、完整结果报告。配置按角�
 
 ## 实施与验证
 
-- [ ] 1. 参数与 API：先写编译参数/拒绝非法类型/哈希差异测试；扩展 compiler、application 和 route；旧端字段保持不变；domain guards、API client、model 同步。主要文件 server/app/simulation/compiler.py、application.py、api/routes/simc.py、packages/domain/src/simc*.ts、packages/api-client/src/simc.ts。
-- [ ] 2. 报告与版本：先写 JSON 语义、非有限值、actor 不匹配、旧文本兼容、临时输出和版本读取测试；实现 report.py、runtime.py、worker.py；使用真实云端 JSON 核对字段。
-- [ ] 3. Web 工作台：拆分 WebSimcView、WebSimcReport 和专用 SCSS；新增配置控件、任务筛选、报告、版本和异常路径；DOM 测试验证提交参数、视图导航和报告降级；真实桌面与 390px 截图检查。
+- [x] 1. 参数与 API：先写编译参数/拒绝非法类型/哈希差异测试；扩展 compiler、application 和 route；旧端字段保持不变；domain guards、API client、model 同步。主要文件 server/app/simulation/compiler.py、application.py、api/routes/simc.py、packages/domain/src/simc*.ts、packages/api-client/src/simc.ts。
+- [x] 2. 报告与版本：先写 JSON 语义、非有限值、actor 不匹配、旧文本兼容、临时输出和版本读取测试；实现 report.py、runtime.py、worker.py；使用真实云端 JSON 核对字段。
+- [x] 3. Web 工作台：拆分 WebSimcView、WebSimcReport 和专用 SCSS；新增配置控件、任务筛选、报告、版本和异常路径；DOM 测试验证提交参数、视图导航和报告降级；真实桌面与 390px 截图检查。
 - [ ] 4. 集成：定向后端、全前端、控制面、typecheck、lint、H5/Mini 构建、git diff --check；本地 CR；隔离测试发布和云端语义模拟；记录 commit/build/runtime/数据库身份与回滚。用户体验验收单独等待。
 
 ## 验收与回滚
@@ -33,3 +33,7 @@ Web 提供新建模拟、独立任务列表、完整结果报告。配置按角�
 
 - 基线 3be4e6cb，隔离目录 `.worktrees/simc-workbench`，分支 `codex/simc-workbench`；原工作区干净且保留。
 - 接口采用 opt-in 扩展，避免已发布 Mini 严格 response guard 拒绝新增字段。
+
+- 合并当前测试运行基线 5e4e7322，保留鸡哥研究与 SimC 工具更新；本轮扩展使用 compiler-v3，旧 v1/v2 队列可按原编译身份重放。
+- 本地 CR 修正：时长整数校验、引擎信息失败重试、百分比统一单位与中文标签；审查复核通过。
+- 参数/报告实现完成；178 前端、62 控制面通过。最终构建和测试运行态验证进行中。

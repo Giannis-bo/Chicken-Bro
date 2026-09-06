@@ -28,6 +28,7 @@ export interface SimcModelDependencies {
   requestId?: () => string
   sleep?: (delayMs: number) => Promise<void>
   maxPolls?: number
+  workbench?: boolean
 }
 
 export interface SimulationPollOptions {
@@ -66,6 +67,12 @@ function submissionIdentity(snapshotId: string, scenario: SimulationScenarioRequ
     fightStyle: scenario.fightStyle ?? null,
     desiredTargets: scenario.desiredTargets ?? null,
     iterations: scenario.iterations ?? null,
+    maxTime: scenario.maxTime ?? null,
+    varyCombatLength: scenario.varyCombatLength ?? null,
+    targetError: scenario.targetError ?? null,
+    raidBuffs: scenario.raidBuffs ?? null,
+    bloodlust: scenario.bloodlust ?? null,
+    gemOverrides: scenario.gemOverrides ?? null,
   })
 }
 
@@ -146,6 +153,7 @@ export class SimcModel {
   private readonly requestId: () => string
   private readonly sleep: (delayMs: number) => Promise<void>
   private readonly maxPolls: number
+  private readonly workbench: boolean
   private pendingSubmission: { identity: string; idempotencyKey: string } | null = null
   private submitInFlight: Promise<SimulationJobDetail | null> | null = null
   private sourceGeneration = 0
@@ -158,6 +166,7 @@ export class SimcModel {
     private readonly authProvider: () => ClientAuthContext,
     dependencies: SimcModelDependencies = {},
   ) {
+    this.workbench = dependencies.workbench ?? false
     this.requestId = dependencies.requestId ?? defaultRequestId
     this.sleep = dependencies.sleep ?? defaultSleep
     this.maxPolls = Math.min(Math.max(dependencies.maxPolls ?? 8, 1), 20)
@@ -201,7 +210,7 @@ export class SimcModel {
     })
     let result: ApiResult<SourceSnapshotView>
     try {
-      result = await this.client.createSnapshot({ sourceUrl }, { auth })
+      result = await this.client.createSnapshot({ sourceUrl }, { auth, ...(this.workbench ? { workbench: true } : {}) })
     } catch (error) {
       if (
         generation === this.sourceGeneration
@@ -240,7 +249,7 @@ export class SimcModel {
       return
     }
     this.update({ phase: 'loading', errorCode: '', errorMessage: '', retryable: false })
-    const result = await this.client.listJobs({ ...(cursor ? { cursor } : {}), limit: 20 }, { auth })
+    const result = await this.client.listJobs({ ...(cursor ? { cursor } : {}), limit: 20 }, { auth, ...(this.workbench ? { workbench: true } : {}) })
     if (generation !== this.jobsGeneration) return
     if (result.fromFallback) {
       if (operationGeneration === this.operationGeneration) {
@@ -296,7 +305,7 @@ export class SimcModel {
     try {
       result = await this.client.createJob(
         { snapshotId: snapshot.id, scenario },
-        { auth, idempotencyKey: pending.idempotencyKey },
+        { auth, ...(this.workbench ? { workbench: true } : {}), idempotencyKey: pending.idempotencyKey },
       )
     } catch (error) {
       if (
@@ -354,7 +363,7 @@ export class SimcModel {
       this.authFailure(error)
       return null
     }
-    const result = await this.client.getJob(jobId, { auth })
+    const result = await this.client.getJob(jobId, { auth, ...(this.workbench ? { workbench: true } : {}) })
     if (generation !== this.activeJobGeneration || cancelled?.()) return null
     if (result.fromFallback) {
       if (operationGeneration === this.operationGeneration) {
