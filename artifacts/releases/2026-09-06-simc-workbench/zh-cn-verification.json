@@ -1,0 +1,32 @@
+{
+  "status": "pass",
+  "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
+  "backendSourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+  "frontendTests": 193,
+  "controlTests": 62,
+  "typecheck": "pass",
+  "lint": "pass",
+  "h5Build": "pass",
+  "miniBuild": "pass",
+  "codeReview": "pass",
+  "browser": {
+    "status": "pass",
+    "jobId": "b5ec0ee3-8ed1-4569-bcba-e1eadf399778",
+    "englishSkillResourceGearLabels": [],
+    "englishBuffLabels": false,
+    "uncollectedLabels": 0,
+    "metricValue": 179648.2931503579,
+    "metricValueDisplay": "179,648.29",
+    "viewport": 390,
+    "documentWidth": 375,
+    "viewportRestored": true
+  },
+  "catalog": {
+    "directNames": 58,
+    "derivedNames": 6,
+    "currentReportsUncovered": 0,
+    "source": "zh-cn-terms.json"
+  },
+  "contract": "Display-only labels; server data, profile/scenario values and runtime unchanged. Unknown future terms use numbered Chinese placeholders, never inferred translations.",
+  "manualAcceptance": "pending"
+}

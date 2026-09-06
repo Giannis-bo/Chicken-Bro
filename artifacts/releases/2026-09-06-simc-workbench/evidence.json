@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+  "commit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+      "value": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
     },
     "verification": {
       "status": "bound_at_check",
@@ -121,17 +121,60 @@
       "status": "pass",
       "result": "Independent review of ownership, reports, percentages, old payloads and historical errors passed",
       "sourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
+    },
+    {
+      "command": "npm run test:taro",
+      "status": "pass",
+      "result": "193 tests including terminology, contextual resources and Chinese diagnostics",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run test:control",
+      "status": "pass",
+      "result": "62 tests",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Test site built; existing bundle warnings",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "npm run build:weapp",
+      "status": "pass",
+      "result": "42 files atomically promoted; existing bundle warning",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
+    },
+    {
+      "command": "local source review",
+      "status": "pass",
+      "result": "Terminology catalog matches source evidence; protocol and numeric behavior unchanged",
+      "sourceCommit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
-    "buildIdentity": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+    "commit": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
+    "buildIdentity": "98cdb259cc7d1cb5320c719d1c657cb7edc9fa7c",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "5e4e7322cd51ffc9c0719a93bc3ed0af7ce350da"
+    "rollbackRelease": "18b6597eddcfb10a9e3a8672c9c38013c84167dd",
+    "backendSourceCommit": "18b6597eddcfb10a9e3a8672c9c38013c84167dd"
   },
   "runtimeEvidence": [
     {
@@ -143,6 +186,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\browser.json",
       "result": "Real Web session: create, tasks, results, historical fallback; desktop and 390px responsive checks."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-verification.json",
+      "result": "Chinese terminology verified on the actual cloud report and at390px; report metrics unchanged."
     }
   ],
   "risks": [
@@ -161,7 +209,10 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\runtime.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\browser.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\backend-tests.log"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\backend-tests.log",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\zh-cn-terms.json"
   ],
-  "summary": "Implemented and verified on the isolated test site. Production, main integration and user acceptance remain separate and pending."
+  "summary": "Isolated test site updated with verified mainland Chinese game terms. User acceptance, main integration and production cutover remain pending."
 }

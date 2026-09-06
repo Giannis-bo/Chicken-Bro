@@ -1,0 +1,307 @@
+
+> wow-mini-program-workspace@0.1.0 build:h5
+> npm --workspace @wow-mini/mini-taro run build:h5
+
+
+> @wow-mini/mini-taro@0.1.0 build:h5
+> taro build --type h5
+
+👽 Taro v4.2.0
+
+Tips:
+1. 建议开启持久化缓存功能，能有效提升二次编译速度，详情请参考: https://docs.taro.zone/docs/config-detail#cache。
+
+
+
+
+● Webpack █████████████████████████  (0%)  
+ 
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 1/1 dependencie
+s 0/1 modules 1 active 
+ babel-loader › src\app.config.ts
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%)  
+ ..\..\node_modules\babel-loader\lib\index.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 2/17 dependenci
+es 0/2 modules 2 active 
+ babel-loader › src\app.tsx
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 8/24 dependenci
+es 0/8 modules 8 active 
+ babel-loader › ..\..\..\..\node_modules\@tarojs\router\dist\index.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 60/96 dependenc
+ies 0/24 modules 24 active 
+ ...js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%)  
+ ..\..\node_modules\resolve-url-loader\index.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 95/120 dependen
+cies 1/35 modules 31 active 
+ ...pt\esm|G:\Codex\wow\node_modules\@babel\runtime\helpers\esm\asyncToGenerat
+or.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 168/182 depende
+ncies 3/73 modules 66 active 
+ ...l-loader › ..\..\..\..\node_modules\@tarojs\components\dist\components\ind
+ex.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 169/183 depende
+ncies 3/74 modules 71 active 
+ ...r › resolve-url-loader › sass-loader › src\features\auth\test-login.module
+.scss
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 199/268 depende
+ncies 5/80 modules 70 active 
+ ...s
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 374/428 depende
+ncies 16/224 modules 65 active 
+ babel-loader › ..\..\..\..\node_modules\@tarojs\router\dist\router\index.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 478/669 depende
+ncies 32/260 modules 114 active 
+ ...\..\node_modules\@tarojs\components\dist\components\taro-custom-wrapper-co
+re.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 722/788 depende
+ncies 37/290 modules 110 active 
+ ...\..\node_modules\@tarojs\components\dist\components\taro-checkbox-group-co
+re.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 1046/1136 depen
+dencies 37/299 modules 167 active 
+ ....\..\node_modules\@tarojs\components\dist\components\taro-share-element-co
+re.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (10%) 0/1 entries 1194/1363 depen
+dencies 46/301 modules 249 active 
+ javascript\esm|G:\Codex\wow\node_modules\tslib\tslib.es6.mjs
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 1593/1645 depen
+dencies 101/443 modules 213 active 
+ javascript\esm|G:\Codex\wow\node_modules\@babel\runtime\helpers\esm\set.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 1829/1908 depen
+dencies 126/493 modules 272 active 
+ ...s
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 1901/1950 depen
+dencies 126/524 modules 342 active 
+ ...der › ..\..\..\..\node_modules\@tarojs\taro-h5\dist\api\ui\animation\workl
+et.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 1933/1978 depen
+dencies 126/526 modules 352 active 
+ babel-loader › ..\..\..\..\node_modules\@tarojs\shared\dist\constants.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 1981/2034 depen
+dencies 135/527 modules 357 active 
+ ...der › ..\..\..\..\node_modules\@tarojs\taro-h5\dist\api\canvas\CanvasConte
+xt.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (11%) 0/1 entries 2065/2111 depen
+dencies 162/549 modules 341 active 
+ javascript\esm|G:\Codex\wow\node_modules\swiper\modules\controller.mjs
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (12%) 0/1 entries 2088/2136 depen
+dencies 199/552 modules 334 active 
+ javascript\esm|G:\Codex\wow\node_modules\lodash-es\isSymbol.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (12%) 0/1 entries 2172/2224 depen
+dencies 219/560 modules 338 active 
+ javascript\esm|G:\Codex\wow\node_modules\swiper\shared\effect-init.mjs
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (12%) 0/1 entries 2213/2245 depen
+dencies 229/580 modules 342 active 
+ javascript\esm|G:\Codex\wow\node_modules\lodash-es\_Map.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (14%) 0/1 entries 2344/2361 depen
+dencies 421/642 modules 218 active 
+ ..\..\..\..\node_modules\is-mobile\index.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (15%) 0/1 entries 2376/2381 depen
+dencies 464/658 modules 194 active 
+ javascript\esm|G:\Codex\wow\node_modules\lodash-es\_nativeCreate.js
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (16%) 0/1 entries 2419/2422 depen
+dencies 628/685 modules 57 active 
+ ...ript\dynamic|G:\Codex\wow\node_modules\runes2\dist\index.cjs.production.mi
+n.cjs
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (17%) 0/1 entries 2436/2436 depen
+dencies 649/693 modules 41 active 
+ ...ex\wow\.worktrees\simc-workbench\apps\mini-taro\src\web\assets\gu-gu-masco
+t.png
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ building (17%) 0/1 entries 2455/2455 depen
+dencies 676/700 modules 24 active 
+ ...olve-url-loader › sass-loader › src\features\auth\test-login.module.scss|0
+|||}}
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (70%) finish module graph 
+ InnerGraphPlugin
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (87%)  
+ code generation
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (88%)  
+ runtime requirements
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (92%) asset processing 
+ CssMinimizerPlugin
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (92%) asset processing 
+ HtmlWebpackPlugin
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+● Webpack █████████████████████████ sealing (92%) asset processing 
+ RealContentHashPlugin
+
+- 即将开始启动编译，请稍等~
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G
+√ Webpack
+  Compiled successfully in 7.19s
+
+- 即将开始启动编译，请稍等~
+⚠️ Warnings: 
+
+AssetsOverSizeLimitWarning: asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  static/images/web/assets/horde-bg-v2-clean.png (816 KiB)
+  static/images/web/assets/gu-gu-pet-v1.png (754 KiB)
+  js/app.js (387 KiB)
+
+EntrypointsOverSizeLimitWarning: entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (594 KiB)
+      js/296.js
+      css/app.css
+      js/app.js
+
+⚠️  编译警告. 2026/9/6 13:26:05
+
+AssetsOverSizeLimitWarning: asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  static/images/web/assets/horde-bg-v2-clean.png (816 KiB)
+  static/images/web/assets/gu-gu-pet-v1.png (754 KiB)
+  js/app.js (387 KiB)
+
+EntrypointsOverSizeLimitWarning: entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (594 KiB)
+      js/296.js
+      css/app.css
+      js/app.js
+
+assets by path [1m[32mcss/*.css[39m[22m 72 KiB
+  asset [1m[32mcss/app.css[39m[22m 58.8 KiB [1m[32m[emitted][39m[22m [1m[32m[minimized][39m[22m (name: app)
+  asset [1m[32mcss/628.css[39m[22m 3.45 KiB [1m[32m[emitted][39m[22m [1m[32m[minimized][39m[22m
+  + 4 assets
+assets by path [1m[32mchunk/*.js[39m[22m 54.7 KiB
+  asset [1m[32mchunk/164.js[39m[22m 12 KiB [1m[32m[emitted][39m[22m [1m[32m[minimized][39m[22m
+  asset [1m[32mchunk/628.js[39m[22m 11.5 KiB [1m[32m[emitted][39m[22m [1m[32m[minimized][39m[22m
+  + 4 assets
+assets by status [1m[33m2.43 MiB[39m[22m [1m[33m[big][39m[22m
+  asset [1m[33mstatic/images/web/assets/horde-bg-v2-clean.png[39m[22m [1m[33m816 KiB[39m[22m [1m[32m[emitted][39m[22m [from: src/web/assets/horde-bg-v2-clean.png] [1m[33m[big][39m[22m (auxiliary name: app)
+  asset [1m[33mstatic/images/web/assets/gu-gu-pet-v1.png[39m[22m [1m[33m754 KiB[39m[22m [1m[32m[emitted][39m[22m [from: src/web/assets/gu-gu-pet-v1.png] [1m[33m[big][39m[22m (auxiliary name: app)
+  + 2 assets
+asset [1m[32mjs/296.js[39m[22m 149 KiB [1m[32m[emitted][39m[22m [1m[32m[minimized][39m[22m (id hint: taro) 1 related asset
+asset [1m[32mstatic/images/web/assets/horde-clouds-v2-clean.png[39m[22m 133 KiB [1m[32m[emitted][39m[22m [from: src/web/assets/horde-clouds-v2-clean.png] (auxiliary name: app)
+asset [1m[32mindex.html[39m[22m 1.07 KiB [1m[32m[emitted][39m[22m
+Entrypoint [1mapp[39m[22m [1m[33m[big][39m[22m 594 KiB (2.18 MiB) = [1m[32mjs/296.js[39m[22m 149 KiB [1m[32mcss/app.css[39m[22m 58.8 KiB [1m[32mjs/app.js[39m[22m 387 KiB 4 auxiliary assets
+
+[1m[33mWARNING[39m[22m in [1masset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  static/images/web/assets/horde-bg-v2-clean.png (816 KiB)
+  static/images/web/assets/gu-gu-pet-v1.png (754 KiB)
+  js/app.js (387 KiB)[39m[22m
+
+[1m[33mWARNING[39m[22m in [1mentrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (594 KiB)
+      js/296.js
+      css/app.css
+      js/app.js
+[39m[22m
+
+webpack 5.91.0 compiled with [1m[33m2 warnings[39m[22m in 7195 ms
+
