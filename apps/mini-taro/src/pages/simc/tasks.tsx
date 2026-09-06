@@ -1,3 +1,5 @@
+import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
+import { simcStatuses } from '../../features/simc/simc-terms'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useDidShow } from '@tarojs/taro'
@@ -51,8 +53,8 @@ function SimcTasksPage() {
     <View className={styles['page'] ?? ''} data-simc-phase={state.phase}>
       <View className={styles['header'] ?? ''}>
         <View>
-          <Text className={styles['eyebrow'] ?? ''}>SERVER HISTORY</Text>
-          <Text className={styles['title'] ?? ''}>SimC 任务记录</Text>
+          <Text className={styles['eyebrow'] ?? ''}>云端任务记录</Text>
+          <Text className={styles['title'] ?? ''}>模拟任务记录</Text>
         </View>
         <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void Taro.navigateBack()}>
           返回
@@ -70,16 +72,16 @@ function SimcTasksPage() {
             })}
           >
             <View className={styles['jobTopline'] ?? ''}>
-              <Text className={styles['jobStatus'] ?? ''}>{job.status}</Text>
+              <Text className={styles['jobStatus'] ?? ''}>{simcStatuses[job.status]}</Text>
               <Text className={styles['jobTime'] ?? ''}>{job.updatedAt}</Text>
             </View>
             <Text className={styles['jobId'] ?? ''}>{job.id}</Text>
             <Text className={styles['jobMeta'] ?? ''}>{job.runtimeRevision}</Text>
-            {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{job.errorCode}</Text> : null}
+            {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </Button>
         ))}
         {state.jobs.length === 0 && state.phase === 'ready' ? (
-          <View className={styles['empty'] ?? ''}><Text>当前账户还没有 SimC 任务。</Text></View>
+          <View className={styles['empty'] ?? ''}><Text>当前账户还没有模拟任务。</Text></View>
         ) : null}
       </ScrollView>
 
@@ -90,7 +92,7 @@ function SimcTasksPage() {
       ) : null}
       {state.phase === 'blocked' || state.phase === 'signed_out' ? (
         <View className={styles['errorCard'] ?? ''}>
-          <Text>{state.errorMessage}</Text>
+          <Text>{simcDiagnosticMessage(state.errorCode, state.errorMessage)}</Text>
           <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void loginAndLoad()}>
             {state.phase === 'signed_out' ? '重新登录' : '重试'}
           </Button>

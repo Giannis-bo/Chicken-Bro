@@ -1,3 +1,4 @@
+import { simcDiagnosticMessage, simcRequiredFieldLabel, simcReadinessLabel } from '../../features/simc/simc-messages'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useDidShow } from '@tarojs/taro'
@@ -75,8 +76,8 @@ function SimcPage() {
     <View className={styles['page'] ?? ''} data-simc-phase={state.phase}>
       <View className={styles['header'] ?? ''}>
         <View>
-          <Text className={styles['eyebrow'] ?? ''}>SIMULATIONCRAFT</Text>
-          <Text className={styles['title'] ?? ''}>SimC 模拟</Text>
+          <Text className={styles['eyebrow'] ?? ''}>云端战斗模拟</Text>
+          <Text className={styles['title'] ?? ''}>战斗模拟</Text>
         </View>
         <Button
           className={styles['secondaryButton'] ?? ''}
@@ -89,10 +90,10 @@ function SimcPage() {
 
       <View className={styles['card'] ?? ''}>
         <Text className={styles['cardTitle'] ?? ''}>1. 读取角色来源</Text>
-        <Text className={styles['hint'] ?? ''}>仅接受 Raider.IO 或 Warcraft Logs 的 HTTPS 角色链接。</Text>
+        <Text className={styles['hint'] ?? ''}>支持角色评分网站和战斗日志网站的安全角色链接。</Text>
         <Input
           className={styles['input'] ?? ''}
-          placeholder="粘贴 Raider.IO / WCL 链接"
+          placeholder="粘贴角色评分或战斗日志链接"
           value={sourceUrl}
           onInput={(event) => setSourceUrl(event.detail.value)}
         />
@@ -108,11 +109,11 @@ function SimcPage() {
 
       {snapshot ? (
         <View className={styles['card'] ?? ''} data-readiness={snapshot.readiness}>
-          <Text className={styles['cardTitle'] ?? ''}>快照状态：{snapshot.readiness}</Text>
-          <Text className={styles['meta'] ?? ''}>{snapshot.provider} · revision {snapshot.revision}</Text>
+          <Text className={styles['cardTitle'] ?? ''}>快照状态：{simcReadinessLabel(snapshot.readiness)}</Text>
+          <Text className={styles['meta'] ?? ''}>{snapshot.provider === 'raiderio' ? '角色评分网站' : '战斗日志网站'} · 资料版本 {snapshot.revision}</Text>
           <Text className={styles['meta'] ?? ''}>来源版本：{snapshot.provenance.sourceRevision || '未提供'}</Text>
-          {snapshot.missingFields.map((field) => <Text key={field} className={styles['blocker'] ?? ''}>{field}</Text>)}
-          {snapshot.blockers.map((blocker) => <Text key={blocker} className={styles['blocker'] ?? ''}>{blocker}</Text>)}
+          {snapshot.missingFields.map((field) => <Text key={field} className={styles['blocker'] ?? ''}>{simcRequiredFieldLabel(field)}</Text>)}
+          {snapshot.blockers.map((blocker) => <Text key={blocker} className={styles['blocker'] ?? ''}>{simcDiagnosticMessage(blocker)}</Text>)}
         </View>
       ) : null}
 
@@ -128,20 +129,20 @@ function SimcPage() {
             <Input className={styles['input'] ?? ''} type="number" value={iterations} onInput={(event) => setIterations(event.detail.value)} />
           </View>
         </View>
-        <Text className={styles['hint'] ?? ''}>场景固定为 Patchwerk；结果只发布有效 DPS/HPS 与完整运行身份。</Text>
+        <Text className={styles['hint'] ?? ''}>使用站桩战斗场景；结果展示有效的每秒伤害或每秒治疗量，以及完整运行记录。</Text>
         <Button
           className={styles['primaryButton'] ?? ''}
           disabled={snapshot?.readiness !== 'READY_FOR_SIMC' || state.phase === 'submitting'}
           loading={state.phase === 'submitting'}
           onClick={() => void submit()}
         >
-          创建 SimC 任务
+          创建模拟任务
         </Button>
       </View>
 
       {state.phase === 'blocked' || state.phase === 'signed_out' ? (
         <View className={styles['errorCard'] ?? ''} data-error-code={state.errorCode}>
-          <Text>{state.errorMessage || 'SimC 暂不可用'}</Text>
+          <Text>{simcDiagnosticMessage(state.errorCode, state.errorMessage)}</Text>
           <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={state.phase === 'signed_out' ? relogin : resolveSource}>
             {state.phase === 'signed_out' ? '重新登录' : '重试'}
           </Button>

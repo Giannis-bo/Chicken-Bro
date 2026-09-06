@@ -1,0 +1,538 @@
+{
+  "sourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "gameBuild": "12.1.0.69299",
+  "retrievedAt": "2026-09-06T05:19:39.490402+00:00",
+  "records": [
+    {
+      "token": "arc_discharge",
+      "spellId": 470532,
+      "zhCN": "弧形放电",
+      "source": "https://nether.wowhead.com/tooltip/spell/470532?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "arcanoweave_insight",
+      "spellId": 1229746,
+      "zhCN": "奥纹洞察",
+      "source": "https://nether.wowhead.com/tooltip/spell/1229746?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "ascendance",
+      "spellId": 114051,
+      "zhCN": "升腾",
+      "source": "https://nether.wowhead.com/tooltip/spell/114051?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "blood_fury",
+      "spellId": 33697,
+      "zhCN": "血性狂怒",
+      "source": "https://nether.wowhead.com/tooltip/spell/33697?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "converging_storms",
+      "spellId": 198300,
+      "zhCN": "汇聚风暴",
+      "source": "https://nether.wowhead.com/tooltip/spell/198300?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "crackling_surge",
+      "spellId": 224127,
+      "zhCN": "爆裂涌动",
+      "source": "https://nether.wowhead.com/tooltip/spell/224127?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "crash_lightning",
+      "spellId": 187874,
+      "zhCN": "毁灭闪电",
+      "source": "https://nether.wowhead.com/tooltip/spell/187874?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "critical_ritual",
+      "spellId": 1295899,
+      "zhCN": "爆击仪式",
+      "source": "https://nether.wowhead.com/tooltip/spell/1295899?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "devoured_strength",
+      "spellId": 1305376,
+      "zhCN": "噬灭之力",
+      "source": "https://nether.wowhead.com/tooltip/spell/1305376?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "doom_winds",
+      "spellId": 466772,
+      "zhCN": "毁灭之风",
+      "source": "https://nether.wowhead.com/tooltip/spell/466772?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "echoing_roar",
+      "spellId": 1254331,
+      "zhCN": "回响咆哮",
+      "source": "https://nether.wowhead.com/tooltip/spell/1254331?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "flurry",
+      "spellId": 382889,
+      "zhCN": "乱舞",
+      "source": "https://nether.wowhead.com/tooltip/spell/382889?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "hasty_ritual",
+      "spellId": 1295900,
+      "zhCN": "仓促仪式",
+      "source": "https://nether.wowhead.com/tooltip/spell/1295900?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "lightning_strikes",
+      "spellId": 384451,
+      "zhCN": "闪电打击",
+      "source": "https://nether.wowhead.com/tooltip/spell/384451?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "maelstrom_weapon",
+      "spellId": 344179,
+      "zhCN": "漩涡武器",
+      "source": "https://nether.wowhead.com/tooltip/spell/344179?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "masterful_ritual",
+      "spellId": 1295901,
+      "zhCN": "精通仪式",
+      "source": "https://nether.wowhead.com/tooltip/spell/1295901?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "potion_of_recklessness",
+      "spellId": 1236994,
+      "zhCN": "鲁莽药水",
+      "source": "https://nether.wowhead.com/tooltip/spell/1236994?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "short_circuit",
+      "spellId": 1299991,
+      "zhCN": "电涌熔断",
+      "source": "https://nether.wowhead.com/tooltip/spell/1299991?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "static_accumulation",
+      "spellId": 384437,
+      "zhCN": "静电积聚",
+      "source": "https://nether.wowhead.com/tooltip/spell/384437?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "storm_unleashed",
+      "spellId": 1262830,
+      "zhCN": "风暴释放",
+      "source": "https://nether.wowhead.com/tooltip/spell/1262830?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "stormblast",
+      "spellId": 470466,
+      "zhCN": "风暴轰击",
+      "source": "https://nether.wowhead.com/tooltip/spell/470466?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "stormsurge",
+      "spellId": 201846,
+      "zhCN": "风暴喷涌",
+      "source": "https://nether.wowhead.com/tooltip/spell/201846?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "tempest",
+      "spellId": 454015,
+      "zhCN": "狂风怒号",
+      "source": "https://nether.wowhead.com/tooltip/spell/454015?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "unlimited_power",
+      "spellId": 454394,
+      "zhCN": "无穷力量",
+      "source": "https://nether.wowhead.com/tooltip/spell/454394?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "venomcursed_mastery",
+      "spellId": 1307922,
+      "zhCN": "毒咒精通",
+      "source": "https://nether.wowhead.com/tooltip/spell/1307922?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "versatile_ritual",
+      "spellId": 1295898,
+      "zhCN": "全能仪式",
+      "source": "https://nether.wowhead.com/tooltip/spell/1295898?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "voracious_heart_of_ulatek",
+      "spellId": 1297761,
+      "zhCN": "乌拉特克贪婪之心",
+      "source": "https://nether.wowhead.com/tooltip/spell/1297761?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "xathuuxs_last_roar",
+      "spellId": 1254180,
+      "zhCN": "萨祖克斯的最后咆哮",
+      "source": "https://nether.wowhead.com/tooltip/spell/1254180?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "arcane_intellect",
+      "spellId": 1459,
+      "zhCN": "奥术智慧",
+      "source": "https://nether.wowhead.com/tooltip/spell/1459?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "battle_shout",
+      "spellId": 6673,
+      "zhCN": "战斗怒吼",
+      "source": "https://nether.wowhead.com/tooltip/spell/6673?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "blessing_of_the_bronze",
+      "spellId": 381748,
+      "zhCN": "青铜龙的祝福",
+      "source": "https://nether.wowhead.com/tooltip/spell/381748?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "flask_of_the_blood_knights",
+      "spellId": 1235110,
+      "zhCN": "血骑士合剂",
+      "source": "https://nether.wowhead.com/tooltip/spell/1235110?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "lightning_shield",
+      "spellId": 192106,
+      "zhCN": "闪电之盾",
+      "source": "https://nether.wowhead.com/tooltip/spell/192106?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "mark_of_the_wild",
+      "spellId": 1126,
+      "zhCN": "野性印记",
+      "source": "https://nether.wowhead.com/tooltip/spell/1126?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "power_word_fortitude",
+      "spellId": 21562,
+      "zhCN": "真言术：韧",
+      "source": "https://nether.wowhead.com/tooltip/spell/21562?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "skyfury",
+      "spellId": 462854,
+      "zhCN": "天怒",
+      "source": "https://nether.wowhead.com/tooltip/spell/462854?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "voidtouched",
+      "spellId": 1264426,
+      "zhCN": "虚触",
+      "source": "https://nether.wowhead.com/tooltip/spell/1264426?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "well_fed",
+      "spellId": 1233407,
+      "zhCN": "进食充分",
+      "source": "https://nether.wowhead.com/tooltip/spell/1233407?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "windfury_weapon",
+      "spellId": 33757,
+      "zhCN": "风怒武器",
+      "source": "https://nether.wowhead.com/tooltip/spell/33757?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "thorims_invocation",
+      "spellId": 384444,
+      "zhCN": "托里姆的祈咒",
+      "source": "https://nether.wowhead.com/tooltip/spell/384444?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "fire_nova",
+      "spellId": 333977,
+      "zhCN": "火焰新星",
+      "source": "https://nether.wowhead.com/tooltip/spell/333977?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "ride_the_lightning",
+      "spellId": 263821,
+      "zhCN": "驾驭雷电",
+      "source": "https://nether.wowhead.com/tooltip/spell/263821?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "windstrike",
+      "spellId": 115356,
+      "zhCN": "风切",
+      "source": "https://nether.wowhead.com/tooltip/spell/115356?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "stormstrike",
+      "spellId": 17364,
+      "zhCN": "风暴打击",
+      "source": "https://nether.wowhead.com/tooltip/spell/17364?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "lightning_bolt",
+      "spellId": 188196,
+      "zhCN": "闪电箭",
+      "source": "https://nether.wowhead.com/tooltip/spell/188196?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "windfury_attack",
+      "spellId": 25504,
+      "zhCN": "风怒攻击",
+      "source": "https://nether.wowhead.com/tooltip/spell/25504?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "voltaic_blaze",
+      "spellId": 470057,
+      "zhCN": "流电炽焰",
+      "source": "https://nether.wowhead.com/tooltip/spell/470057?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "lightning_rod",
+      "spellId": 197568,
+      "zhCN": "引雷针",
+      "source": "https://nether.wowhead.com/tooltip/spell/197568?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "flametongue_attack",
+      "spellId": 10444,
+      "zhCN": "火舌攻击",
+      "source": "https://nether.wowhead.com/tooltip/spell/10444?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "windlash",
+      "spellId": 114089,
+      "zhCN": "狂风鞭笞",
+      "source": "https://nether.wowhead.com/tooltip/spell/114089?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "devour_morsel",
+      "spellId": 1305374,
+      "zhCN": "吞噬残块",
+      "source": "https://nether.wowhead.com/tooltip/spell/1305374?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "flame_shock",
+      "spellId": 188389,
+      "zhCN": "烈焰震击",
+      "source": "https://nether.wowhead.com/tooltip/spell/188389?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "lava_lash",
+      "spellId": 60103,
+      "zhCN": "熔岩猛击",
+      "source": "https://nether.wowhead.com/tooltip/spell/60103?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "venomfang",
+      "spellId": 1306635,
+      "zhCN": "毒牙",
+      "source": "https://nether.wowhead.com/tooltip/spell/1306635?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "chain_lightning",
+      "spellId": 188443,
+      "zhCN": "闪电链",
+      "source": "https://nether.wowhead.com/tooltip/spell/188443?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "doom_winds_damage",
+      "spellId": 469270,
+      "zhCN": "毁灭之风",
+      "source": "https://nether.wowhead.com/tooltip/spell/469270?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "windlash_offhand",
+      "spellId": 114093,
+      "zhCN": "副手狂风鞭笞",
+      "source": "https://nether.wowhead.com/tooltip/spell/114093?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    },
+    {
+      "token": "bloodlust",
+      "spellId": 2825,
+      "zhCN": "嗜血",
+      "source": "https://nether.wowhead.com/tooltip/spell/2825?dataEnv=1&locale=4",
+      "verifiedChinese": true
+    }
+  ],
+  "derivedRecords": [
+    {
+      "token": "main_hand",
+      "zhCN": "主手自动攻击",
+      "componentSource": "https://nether.wowhead.com/tooltip/spell/6603?dataEnv=1&locale=4",
+      "note": "SimC main hand auto-attack reporting label; hand qualifier is UI terminology."
+    },
+    {
+      "token": "offhand",
+      "zhCN": "副手自动攻击",
+      "componentSource": "https://nether.wowhead.com/tooltip/spell/6603?dataEnv=1&locale=4"
+    },
+    {
+      "token": "lightning_wolf: melee",
+      "zhCN": "幽灵狼：自动攻击",
+      "npcId": 100820,
+      "npcSource": "https://nether.wowhead.com/tooltip/npc/100820?dataEnv=1&locale=4",
+      "sourceBinding": "sc_shaman.cpp:3956-3962",
+      "actionSource": "https://nether.wowhead.com/tooltip/spell/6603?dataEnv=1&locale=4"
+    },
+    {
+      "token": "potion_of_recklessness_Crit",
+      "zhCN": "鲁莽药水（爆击）",
+      "spellId": 1236994,
+      "sourceBinding": "unique_gear_midnight.cpp:183-218; positive highest secondary stat buff"
+    },
+    {
+      "token": "potion_of_recklessness_penalty_Vers",
+      "zhCN": "鲁莽药水（全能降低）",
+      "spellId": 1236994,
+      "sourceBinding": "unique_gear_midnight.cpp:183-218; negative lowest secondary stat buff"
+    },
+    {
+      "token": "movement",
+      "zhCN": "移动",
+      "note": "Simulation movement state, not a spell name."
+    }
+  ],
+  "coverage": {
+    "checkedAt": "2026-09-06T05:23:01.170770+00:00",
+    "database": "chickenbro_test",
+    "reports": [
+      {
+        "jobId": "b5ec0ee3-8ed1-4569-bcba-e1eadf399778",
+        "abilityRows": 25,
+        "buffRows": 40,
+        "uniqueNames": 60,
+        "uncovered": []
+      },
+      {
+        "jobId": "602a14d1-fed5-48f2-9b7d-3e71bf63e112",
+        "abilityRows": 25,
+        "buffRows": 35,
+        "uniqueNames": 55,
+        "uncovered": []
+      }
+    ]
+  },
+  "attributeEvidence": [
+    {
+      "spellId": 309528,
+      "source": "https://nether.wowhead.com/tooltip/spell/309528?dataEnv=1&locale=4",
+      "name": "强化速度",
+      "text": "     强化速度   2​秒 施法时间       需要 斗篷  工具:   符文附魔棒  施法材料:   圣洁碎片 &nbsp;(2),  灵魂之尘 &nbsp;(4)  永久性地为一件披风附魔，使你的耐力提高3点，加速提高5。不能对物品等级低于10的物品使用。   Profession:  Shadowlands Enchanting (25)  Trainer:  Imbuer Au'vresh  Zone:  Oribos  Cost:   1    "
+    },
+    {
+      "spellId": 309530,
+      "source": "https://nether.wowhead.com/tooltip/spell/309530?dataEnv=1&locale=4",
+      "name": "强化闪避",
+      "text": "     强化闪避   2​秒 施法时间       需要 斗篷  工具:   符文附魔棒  施法材料:   圣洁碎片 &nbsp;(2),  灵魂之尘 &nbsp;(4)  永久性地为一件披风附魔，使你的耐力提高3点，闪避提高5。不能对物品等级低于10的物品使用。   Profession:  Shadowlands Enchanting (25)  Trainer:  Imbuer Au'vresh  Zone:  Oribos  Cost:   1    "
+    },
+    {
+      "spellId": 143924,
+      "source": "https://nether.wowhead.com/tooltip/spell/143924?dataEnv=1&locale=4",
+      "name": "吸血",
+      "text": "     吸血   瞬发       生命值被汲取。    "
+    },
+    {
+      "spellId": 190019,
+      "source": "https://nether.wowhead.com/tooltip/spell/190019?dataEnv=1&locale=4",
+      "name": "闪避",
+      "text": "     闪避    需要等级 1         使你召唤的恶魔因范围伤害攻击受到的伤害降低90%。    "
+    }
+  ],
+  "attributeTerminology": {
+    "criticalStrike": {
+      "zhCN": "爆击",
+      "source": "https://wow.blizzard.cn/news/24244455/index.html",
+      "note": "Mainland official patch notes consistently use 爆击; Wowhead item-stat boilerplate uses 暴击, so prefer official usage for interface labels."
+    },
+    "haste": {
+      "zhCN": "急速",
+      "source": "https://wow.blizzard.cn/news/24244455/index.html"
+    },
+    "speed": {
+      "zhCN": "加速",
+      "source": "https://nether.wowhead.com/tooltip/spell/309528?dataEnv=1&locale=4"
+    },
+    "avoidance": {
+      "zhCN": "闪避",
+      "source": "https://nether.wowhead.com/tooltip/spell/309530?dataEnv=1&locale=4"
+    },
+    "leech": {
+      "zhCN": "吸血",
+      "source": "https://nether.wowhead.com/tooltip/spell/143924?dataEnv=1&locale=4"
+    }
+  },
+  "idBindingSources": [
+    "https://raw.githubusercontent.com/simulationcraft/simc/f50a2121bf894570146507496f3e113bff68e445/engine/dbc/generated/sc_spell_data.inc",
+    "https://raw.githubusercontent.com/simulationcraft/simc/f50a2121bf894570146507496f3e113bff68e445/engine/class_modules/sc_shaman.cpp",
+    "https://raw.githubusercontent.com/simulationcraft/simc/f50a2121bf894570146507496f3e113bff68e445/engine/player/unique_gear_midnight.cpp"
+  ],
+  "localeCanary": {
+    "spellId": 187874,
+    "zhCN": "毁灭闪电",
+    "page": "https://www.wowhead.com/cn/spell=187874",
+    "tooltip": "https://nether.wowhead.com/tooltip/spell/187874?dataEnv=1&locale=4",
+    "mainlandOfficialCrosscheck": "https://wow.blizzard.cn/news/24244455/index.html"
+  },
+  "limitations": [
+    "Localized names were retrieved from the Wowhead client-data database in locale 4 and cross-checked with mainland official terminology; they were not returned by the Blizzard OAuth API.",
+    "Current Blizzard OAuth credentials are not configured in the inspected source/api environment files.",
+    "The two persisted reports do not retain spell IDs; historical name bindings are anchored to the deployed SimC source commit.",
+    "Derived display labels combine verified game names with report context, and are not single game spell names."
+  ]
+}

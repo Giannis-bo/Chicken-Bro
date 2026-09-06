@@ -1,3 +1,5 @@
+import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
+import { simcMetricName, simcStatuses } from '../../features/simc/simc-terms'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useLoad } from '@tarojs/taro'
@@ -59,8 +61,8 @@ function SimcTaskDetailPage() {
     <View className={styles['page'] ?? ''} data-simc-phase={state.phase} data-job-status={job?.status ?? 'unknown'}>
       <View className={styles['header'] ?? ''}>
         <View>
-          <Text className={styles['eyebrow'] ?? ''}>SEMANTIC RESULT</Text>
-          <Text className={styles['title'] ?? ''}>SimC 任务详情</Text>
+          <Text className={styles['eyebrow'] ?? ''}>模拟结果</Text>
+          <Text className={styles['title'] ?? ''}>模拟任务详情</Text>
         </View>
         <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void Taro.navigateBack()}>
           返回
@@ -70,32 +72,32 @@ function SimcTaskDetailPage() {
       {job ? (
         <ScrollView className={styles['content'] ?? ''} scrollY>
           <View className={styles['card'] ?? ''}>
-            <Text className={styles['cardTitle'] ?? ''}>状态：{job.status}</Text>
+            <Text className={styles['cardTitle'] ?? ''}>状态：{simcStatuses[job.status]}</Text>
             <Text className={styles['meta'] ?? ''}>任务：{job.id}</Text>
-            <Text className={styles['meta'] ?? ''}>Compiler：{job.compilerRevision}</Text>
-            <Text className={styles['meta'] ?? ''}>Runtime：{job.runtimeRevision}</Text>
-            <Text className={styles['meta'] ?? ''}>Scenario：{job.scenarioHash}</Text>
-            {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{job.errorCode}</Text> : null}
+            <Text className={styles['meta'] ?? ''}>编译器：{job.compilerRevision}</Text>
+            <Text className={styles['meta'] ?? ''}>运行引擎：{job.runtimeRevision}</Text>
+            <Text className={styles['meta'] ?? ''}>场景校验：{job.scenarioHash}</Text>
+            {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </View>
 
           <View className={styles['card'] ?? ''}>
             <Text className={styles['cardTitle'] ?? ''}>执行尝试</Text>
             {job.attempts.map((attempt) => (
               <View key={`${attempt.attemptNumber}-${attempt.startedAt}`} className={styles['attempt'] ?? ''}>
-                <Text>第 {attempt.attemptNumber} 次 · {attempt.diagnosticCode || 'RUNNING'}</Text>
+                <Text>第 {attempt.attemptNumber} 次 · {simcDiagnosticMessage(attempt.diagnosticCode || (attempt.finishedAt ? '执行已结束' : 'RUNNING'))}</Text>
                 <Text>{attempt.finishedAt || attempt.startedAt}</Text>
               </View>
             ))}
-            {job.attempts.length === 0 ? <Text className={styles['hint'] ?? ''}>尚未开始 Worker 尝试。</Text> : null}
+            {job.attempts.length === 0 ? <Text className={styles['hint'] ?? ''}>尚未开始云端执行。</Text> : null}
           </View>
 
           {result ? (
             <View className={styles['resultCard'] ?? ''}>
-              <Text className={styles['resultMetric'] ?? ''}>{result.metricValue.toLocaleString()} {result.metricName.toUpperCase()}</Text>
-              <Text className={styles['meta'] ?? ''}>profileSha256：{result.profileSha256}</Text>
-              <Text className={styles['meta'] ?? ''}>runtimeRevision：{result.runtimeRevision}</Text>
-              <Text className={styles['meta'] ?? ''}>sourceRevision：{result.provenance.sourceRevision}</Text>
-              <Text className={styles['meta'] ?? ''}>scenarioHash：{result.provenance.scenarioHash}</Text>
+              <Text className={styles['resultMetric'] ?? ''}>{result.metricValue.toLocaleString()} {simcMetricName(result.metricName)}</Text>
+              <Text className={styles['meta'] ?? ''}>角色配置校验：{result.profileSha256}</Text>
+              <Text className={styles['meta'] ?? ''}>运行版本：{result.runtimeRevision}</Text>
+              <Text className={styles['meta'] ?? ''}>来源版本：{result.provenance.sourceRevision}</Text>
+              <Text className={styles['meta'] ?? ''}>场景校验：{result.provenance.scenarioHash}</Text>
             </View>
           ) : null}
         </ScrollView>

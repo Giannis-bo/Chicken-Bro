@@ -20,7 +20,11 @@
         "tests/app_simc_workbench_api_test.py",
         "tests/app_simc_workbench_test.py",
         "tests/app_simulation_report_test.py",
-        "tests/app_simulation_runtime_info_test.py"
+        "tests/app_simulation_runtime_info_test.py",
+        "apps/mini-taro/src/features/simc/simc-terms.ts",
+        "apps/mini-taro/src/features/simc/simc-terms.test.ts",
+        "apps/mini-taro/src/features/simc/simc-messages.ts",
+        "apps/mini-taro/src/features/simc/simc-messages.test.ts"
       ],
       "prefixes": [
         "artifacts/releases/2026-09-06-simc-workbench/"

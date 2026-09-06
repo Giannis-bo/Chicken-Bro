@@ -136,8 +136,32 @@ describe('Web SimC workbench', () => {
 
   it('shows real report sections, uncertainty and task engine without fabricated missing data', async () => {
     await openReport()
-    for (const copy of ['125,432.6', '54.2', '技能贡献', 'Lightning Bolt', 'Buff 覆盖', '13.3%',
+    for (const copy of ['125,432.6', '54.2', '技能贡献', '闪电箭', '增益覆盖', '13.3%',
       '资源', '900', '属性', '7,000', '装备与天赋', '12345', 'CgQAAAA-test-talents']) expect(container.textContent).toContain(copy)
+  })
+
+  it('uses mainland Chinese game labels without exposing engine tokens', async () => {
+    expect(Array.from(container.querySelectorAll('option')).map(option => option.textContent)).toEqual(['站桩战斗', '多目标顺劈', '少量移动', '频繁移动'])
+    expect(container.textContent).toContain('标准团队增益')
+    await openReport()
+    expect(container.textContent).toContain('每秒伤害')
+    expect(container.textContent).toContain('闪电箭')
+    expect(container.textContent).toContain('嗜血')
+    for (const english of ['Lightning Bolt', 'Bloodlust', 'Buff', 'DPS', 'HPS', 'Patchwerk']) expect(container.textContent).not.toContain(english)
+  })
+
+  it('keeps unknown spell rows distinct without guessing Chinese translations', async () => {
+    api.getJob.mockResolvedValue(success({ ...job, result: { ...job.result, report: { ...report,
+      abilities: [{ ...report.abilities[0], name: 'future_spell_alpha' }, { ...report.abilities[0], name: 'future_spell_beta' }],
+      buffs: [{ name: 'future_buff', uptime: 12 }], attributes: [{ name: 'speed_rating', value: 61 }],
+    } } }))
+    await openReport()
+    expect(container.textContent).toContain('名称待收录的技能（1）')
+    expect(container.textContent).toContain('名称待收录的技能（2）')
+    expect(container.textContent).toContain('名称待收录的增益（1）')
+    expect(container.textContent).toContain('加速等级')
+    expect(container.textContent).not.toContain('future_')
+    expect(container.textContent).not.toContain('speed_rating')
   })
 
   it('honestly downgrades historical results with no structured report', async () => {
@@ -173,7 +197,8 @@ describe('Web SimC workbench', () => {
     api.getJob.mockResolvedValue(success(failed))
     await act(async () => container.querySelector<HTMLButtonElement>('[data-job-id="job-failed"]')!.click())
     expect(container.textContent).toContain('模拟未完成')
-    expect(container.textContent).toContain('SIMC_TIMEOUT')
+    expect(container.textContent).toContain('云端模拟超时')
+    expect(container.querySelector('[data-error-code="SIMC_TIMEOUT"]')).not.toBeNull()
     expect(container.textContent).not.toContain('125,432.6')
   })
 
@@ -195,7 +220,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-03', gameVersion: '12.0.1',
       build: '66100', sourceCommit: 'abc', runtimeRevision: 'runtime-current' }))
     await click('重试引擎')
-    expect(container.textContent).toContain('SimulationCraft 1200-03')
+    expect(container.textContent).toContain('模拟引擎 1200-03')
     expect(button('开始模拟').disabled).toBe(false)
   })
 
@@ -204,7 +229,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-04', gameVersion: '12.0.1',
       build: '66200', sourceCommit: 'abc', runtimeRevision: 'runtime-next' }))
     await click('新建模拟')
-    expect(container.textContent).toContain('SimulationCraft 1200-04')
+    expect(container.textContent).toContain('模拟引擎 1200-04')
   })
 
   it('refreshes server task status when returning from a report', async () => {
@@ -249,7 +274,7 @@ describe('Web SimC workbench', () => {
       ...report, abilities: [], buffs: [], resources: [], attributes: [], gear: [], actor: { ...actor, talents: null },
     } } }))
     await openReport()
-    for (const copy of ['未记录技能贡献', '未记录 Buff 覆盖', '未记录资源收支', '未记录角色属性', '未记录装备', '未记录天赋']) expect(container.textContent).toContain(copy)
+    for (const copy of ['未记录技能贡献', '未记录增益覆盖', '未记录资源收支', '未记录角色属性', '未记录装备', '未记录天赋']) expect(container.textContent).toContain(copy)
   })
 
   it('formats normalized combat percentages and ratings with Chinese stat labels', async () => {
@@ -261,7 +286,7 @@ describe('Web SimC workbench', () => {
       ],
     } } }))
     await openReport()
-    for (const copy of ['暴击25.37%', '急速18.2%', '精通55.6%', '全能12.4%', '闪避3%', '吸血2%', '暴击等级1,600', '每秒法力恢复125']) expect(container.textContent).toContain(copy)
+    for (const copy of ['爆击25.37%', '急速18.2%', '精通55.6%', '全能12.4%', '闪避3%', '吸血2%', '爆击等级1,600', '每秒法力恢复125']) expect(container.textContent).toContain(copy)
     expect(container.textContent).not.toContain('2,537%')
   })
 
