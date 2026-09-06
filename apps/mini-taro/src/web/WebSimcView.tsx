@@ -166,7 +166,13 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
               <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="粘贴角色或战斗报告的安全链接" onChange={(event) => setSourceUrl(event.target.value)} />
                 <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
-            <p className={styles['hint']}>支持角色评分网站或战斗日志链接，可在日志链接中指定战斗和角色。</p>
+            <div className={styles['sourceExamples']} aria-label="合法链接格式示例">
+              <p className={styles['hint']}>合法链接示例 · Giannis－白银之手</p>
+              <div><span className={styles['exampleLabel']}>角色评分（Raider.IO）</span>
+                <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
+              <div><span className={styles['exampleLabel']}>战斗日志（WCL，已指定战斗和角色）</span>
+                <a className={styles['exampleLink']} href="https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4" target="_blank" rel="noreferrer">https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&amp;source=4</a></div>
+            </div>
             {snapshotCurrent ? <div className={styles['snapshot']} data-readiness={snapshot.readiness}>
               <strong>{sourceReady ? '角色已就绪' : simcReadinessLabel(snapshot.readiness)}{actor ? ` · ${actor.name}` : ''}</strong>
               {actor ? <p>{simcLabel(actor.specialization)} {simcLabel(actor.className)}{actor.level == null ? '' : ` · 等级 ${actor.level}`}</p> : null}
