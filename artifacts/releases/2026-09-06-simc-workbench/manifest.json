@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "project_harness_manifest_ready",
-  "generatedAt": "2026-09-06T09:00:42.037Z",
+  "generatedAt": "2026-09-06T09:10:54.521Z",
   "release": {
     "date": "2026-09-06",
     "slug": "simc-workbench"
@@ -348,7 +348,7 @@
   "evidencePacket": {
     "status": "ready",
     "path": "artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-    "sizeBytes": 16228,
+    "sizeBytes": 17389,
     "requiredFields": [
       "schemaVersion",
       "slug",
@@ -392,7 +392,7 @@
     "missingFields": [],
     "declaredStatus": "runtime_verified",
     "highestEvidenceLevel": "runtime_verified",
-    "summary": "Removed user-marked brand and history subtitles from test Web. Existing SimC import and execution behavior unchanged."
+    "summary": "Test Web source placeholder uses the exact requested copy and the redundant completeness explanation is removed."
   },
   "evidence": {
     "localTests": {
@@ -450,8 +450,8 @@
       "changedFileCount": 3,
       "changedFiles": [
         " M artifacts/releases/2026-09-06-simc-workbench/evidence.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/web-small-text-deployment.json",
-        "?? artifacts/releases/2026-09-06-simc-workbench/web-small-text-verification.json"
+        "?? artifacts/releases/2026-09-06-simc-workbench/source-copy-deployment.json",
+        "?? artifacts/releases/2026-09-06-simc-workbench/source-copy-verification.json"
       ]
     }
   },

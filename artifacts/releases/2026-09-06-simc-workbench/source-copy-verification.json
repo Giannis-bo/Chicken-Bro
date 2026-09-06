@@ -1,0 +1,7 @@
+{
+  "commit": "5536b553f4beecccddf4038c02b7d885107cc676",
+  "placeholder": "仅接收 Raider.IO 或者 WCL 的合法链接，请参考示例",
+  "completenessExplanationRemoved": true,
+  "exampleCount": 2,
+  "verification": "Actual test Web DOM after reload"
+}

@@ -5,12 +5,12 @@
   "status": "runtime_verified",
   "highestEvidenceLevel": "runtime_verified",
   "branch": "codex/simc-workbench",
-  "commit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
+  "commit": "5536b553f4beecccddf4038c02b7d885107cc676",
   "identities": {
     "runtime": {
       "status": "bound",
       "kind": "git_commit",
-      "value": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
+      "value": "5536b553f4beecccddf4038c02b7d885107cc676"
     },
     "verification": {
       "status": "bound_at_check",
@@ -329,17 +329,41 @@
       "status": "pass",
       "result": "Pass; existing bundle warnings",
       "sourceCommit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653"
+    },
+    {
+      "command": "Web workbench tests",
+      "status": "pass",
+      "result": "22 tests pass",
+      "sourceCommit": "5536b553f4beecccddf4038c02b7d885107cc676"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "5536b553f4beecccddf4038c02b7d885107cc676"
+    },
+    {
+      "command": "npm run lint",
+      "status": "pass",
+      "result": "No errors",
+      "sourceCommit": "5536b553f4beecccddf4038c02b7d885107cc676"
+    },
+    {
+      "command": "npm run build:h5",
+      "status": "pass",
+      "result": "Pass; existing bundle warnings",
+      "sourceCommit": "5536b553f4beecccddf4038c02b7d885107cc676"
     }
   ],
   "candidateDeployment": {
     "status": "preview_verified",
-    "commit": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
-    "buildIdentity": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
+    "commit": "5536b553f4beecccddf4038c02b7d885107cc676",
+    "buildIdentity": "5536b553f4beecccddf4038c02b7d885107cc676",
     "database": "chickenbro_test",
     "url": "https://www.chickenbro.cloud/test/",
-    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-deployment.json",
+    "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-deployment.json",
     "productionUnchanged": true,
-    "rollbackRelease": "72db568c0dc361ae831196a97eec28dcaf6aeacb",
+    "rollbackRelease": "369bc876de2e2ad1ec3cb7596bfa4d6e3b5ce653",
     "backendSourceCommit": "c78761b867b18e1e067888172111cfde42e160c3"
   },
   "runtimeEvidence": [
@@ -382,6 +406,11 @@
       "status": "pass",
       "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json",
       "result": "Live test Web brand displays only its Chinese name; history heading displays only history title and new-conversation action. Both requested small subtitles absent."
+    },
+    {
+      "status": "pass",
+      "evidence": "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json",
+      "result": "Actual Web placeholder matches user wording exactly; defensive explanation removed; both example links remain visible."
     }
   ],
   "risks": [
@@ -418,7 +447,9 @@
     "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-deployment.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\invalid-link-verification.json",
     "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-deployment.json",
-    "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json"
+    "artifacts\\releases\\2026-09-06-simc-workbench\\web-small-text-verification.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-deployment.json",
+    "artifacts\\releases\\2026-09-06-simc-workbench\\source-copy-verification.json"
   ],
-  "summary": "Removed user-marked brand and history subtitles from test Web. Existing SimC import and execution behavior unchanged."
+  "summary": "Test Web source placeholder uses the exact requested copy and the redundant completeness explanation is removed."
 }
