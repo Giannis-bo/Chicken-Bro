@@ -167,7 +167,8 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
                 <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
             <div className={styles['sourceExamples']} aria-label="合法链接格式示例">
-              <p className={styles['hint']}>合法链接示例 · Giannis－白银之手</p>
+              <p className={styles['hint']}>链接有效不代表资料完整。网站未提供等级、种族、装备或天赋时，仍无法开始模拟；读取后会列出具体缺项。</p>
+              <p className={styles['hint']}>链接格式示例 · Giannis－白银之手</p>
               <div><span className={styles['exampleLabel']}>角色评分（Raider.IO）</span>
                 <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
               <div><span className={styles['exampleLabel']}>战斗日志（WCL，已指定战斗和角色）</span>

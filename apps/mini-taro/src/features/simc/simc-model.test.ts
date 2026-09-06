@@ -137,6 +137,27 @@ class FakeSimcClient implements SimcClient {
 const auth: ClientAuthContext = { kind: 'mini', accessToken: 'mini-token' }
 
 describe('SimcModel', () => {
+  it.each(['#', '?'])('sends a mainland WCL report with %s parameters to the source API', async (separator) => {
+    const client = new FakeSimcClient()
+    const model = new SimcModel(client, () => auth)
+    const url = `https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1${separator}fight=1&source=4`
+    await model.resolveSource(url)
+    expect(client.calls.map((call) => call.name)).toEqual(['snapshot'])
+    expect(model.get().errorCode).not.toBe('INVALID_LINK')
+  })
+
+  it.each([
+    'https://cn.warcraftlogs.com.evil.test/reports/CPGWvnJ2t9QMRrA1',
+    'https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#source=-4',
+    'https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#source=4&source=5',
+  ])('rejects unsafe or ambiguous mainland WCL URL %s', async (url) => {
+    const client = new FakeSimcClient()
+    const model = new SimcModel(client, () => auth)
+    await model.resolveSource(url)
+    expect(client.calls).toEqual([])
+    expect(model.get().errorCode).toBe('INVALID_LINK')
+  })
+
   it('rejects arbitrary HTTPS URLs before the provider client is called', async () => {
     const client = new FakeSimcClient()
     const model = new SimcModel(client, () => auth, { requestId: () => 'simc-request-0001' })

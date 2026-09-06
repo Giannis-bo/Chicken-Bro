@@ -124,7 +124,7 @@ export function isSupportedCharacterSourceUrl(value: string): boolean {
         && !parsed.search
         && !parsed.hash
     }
-    if (host === 'warcraftlogs.com' || host === 'www.warcraftlogs.com') {
+    if (host === 'warcraftlogs.com' || host === 'www.warcraftlogs.com' || host === 'cn.warcraftlogs.com') {
       if (
         path.length < 2
         || path.length > 3
