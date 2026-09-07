@@ -1,0 +1,93 @@
+{
+  "date": "2026-09-07",
+  "status": "local_verified",
+  "baseCommit": "e59cd1ccb699d79cab59c8cb2db6e4b3ca2ff019",
+  "sourceState": "uncommitted working tree, prior favicon and avatar work preserved",
+  "artwork": {
+    "path": "apps/mini-taro/src/web/assets/mini-program-promo.png",
+    "sha256": "32ddca80ca1279b34f337eda5ff864bb236d75ee7f37aa32c3ca9ca66a1d0d4a",
+    "dimensions": [
+      2172,
+      800
+    ],
+    "bytes": 253878,
+    "conversion": "User attachment contained BMP data despite .png suffix; losslessly converted to PNG. Exact decoded RGBA pixels verified equal."
+  },
+  "checks": {
+    "typecheck": "passed",
+    "targetedEslint": "passed",
+    "targetedTests": {
+      "files": 3,
+      "passed": 23,
+      "failed": 0
+    },
+    "h5Build": "passed, two asset/entrypoint size warnings",
+    "browser": {
+      "preview": "Actual WebShell/Chat/Promo components and styles with local fixture API and native DOM wrappers for Taro hosts; no production login or business requests.",
+      "desktopViewport": [
+        879,
+        708
+      ],
+      "bannerBottom": 694,
+      "bannerHeight": 91.73,
+      "artworkLoaded": true,
+      "modalOpenAndEscape": "passed",
+      "focusRestored": "passed",
+      "mobileViewport": [
+        390,
+        844
+      ],
+      "mobilePromoHidden": true,
+      "horizontalOverflow": false
+    },
+    "localReview": "Original artwork preserved without cropping or regeneration. Promo is a non-shrinking footer outside the scroll list; dialog uses native modal semantics and restores focus; changes do not affect owner/auth or streaming.",
+    "controlTests": {
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0
+    },
+    "retainedPaths": "Registered exact new release evidence, avatar design and favicon public asset directories in existing retention rules."
+  },
+  "screenshots": [
+    "desktop.png",
+    "expanded.png"
+  ],
+  "productionPublished": false,
+  "miniProgramScanAcceptance": "not_run",
+  "userAcceptance": "User confirmed OK，非常好 and authorized unified production release on 2026-09-07",
+  "closeIconFix": {
+    "reason": "Text multiplication glyph used font baseline and normal line height; replaced with symmetric SVG matching existing Web dialogs.",
+    "buttonCssSize": [
+      36,
+      36
+    ],
+    "svgCssSize": [
+      18,
+      18
+    ],
+    "measuredCenterOffsetPx": [
+      0,
+      0
+    ],
+    "targetedTestsPassed": 10,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5Build": "passed",
+    "browserCloseAndFocusRestore": "passed",
+    "screenshot": "close-centered.png",
+    "productionPublished": false
+  },
+  "releaseValidation": {
+    "frontend": 250,
+    "backend": 399,
+    "migration": 64,
+    "migrationSkipped": 0,
+    "control": 62,
+    "opsNode": 101,
+    "opsPython": 14,
+    "typecheck": "passed",
+    "lint": "passed",
+    "publishFailureTests": 3,
+    "independentSourceReview": "passed; deployment script review fixes applied"
+  }
+}

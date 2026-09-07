@@ -53,6 +53,12 @@ export default defineConfig<'webpack5'>({
   },
   sourceRoot: 'src',
   outputRoot,
+  copy: {
+    patterns: target === 'h5'
+      ? [{ from: 'public/brand', to: path.join(outputRoot, 'brand') }]
+      : [],
+    options: {},
+  },
   framework: 'react',
   compiler: {
     type: 'webpack5',

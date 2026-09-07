@@ -8,6 +8,7 @@ import styles from './WebApp.module.scss'
 import WebMessage from './WebMessage'
 import WebReplyStatus from './WebReplyStatus'
 import WebConversationHistory from './WebConversationHistory'
+import WebMiniProgramPromo from './WebMiniProgramPromo'
 import { useChatAutoScroll } from './use-chat-auto-scroll'
 
 
@@ -83,7 +84,7 @@ export default function WebChatView({ auth }: WebChatViewProps) {
               <Text className={styles['emptyCopy'] ?? ''}>还没有服务端会话。</Text>
             ) : null}
           </ScrollView>
-
+          <WebMiniProgramPromo />
         </View>
 
         <View className={styles['chatPane'] ?? ''}>

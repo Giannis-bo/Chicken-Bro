@@ -110,6 +110,8 @@
       "prefixes": [
         "artifacts/releases/2026-09-05-test-account-login/",
         "artifacts/releases/2026-09-07-web-sidebar-simplification/",
+        "artifacts/releases/2026-09-07-web-favicon/",
+        "artifacts/releases/2026-09-07-web-mini-promo/",
         "artifacts/releases/2026-09-07-mini-mobile-interaction/",
         "artifacts/releases/2026-09-07-shared-account-avatar/",
         "artifacts/releases/2026-09-07-web-login-home/"
@@ -122,7 +124,8 @@
       "owner": "dual_client",
       "reason": "Existing main Web design reference is retained as reference only, without product runtime or execution authority.",
       "prefixes": [
-        "research/ui-style-web-demo-workspace/"
+        "research/ui-style-web-demo-workspace/",
+        "artifacts/design/2026-09-07-mini-avatar/"
       ]
     },
     {
@@ -310,6 +313,7 @@
         "apps/mini-taro/tsconfig.json"
       ],
       "prefixes": [
+        "apps/mini-taro/public/brand/",
         "apps/mini-taro/src/components/",
         "apps/mini-taro/src/custom-tab-bar/",
         "apps/mini-taro/src/platform/"

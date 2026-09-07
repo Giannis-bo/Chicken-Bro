@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-07",
+  "status": "local_verified",
+  "baseCommit": "e59cd1ccb699d79cab59c8cb2db6e4b3ca2ff019",
+  "sourceState": "uncommitted working tree",
+  "assets": [
+    {
+      "path": "apps/mini-taro/public/brand/gugu-v1-16.png",
+      "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998",
+      "bytes": 915
+    },
+    {
+      "path": "apps/mini-taro/public/brand/gugu-v1-32.png",
+      "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5",
+      "bytes": 2840
+    },
+    {
+      "path": "apps/mini-taro/public/brand/gugu-v1.ico",
+      "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d",
+      "bytes": 87395
+    }
+  ],
+  "checks": {
+    "typecheck": "passed",
+    "configEslint": "passed",
+    "controlTests": {
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0
+    },
+    "h5Builds": [
+      "root passed",
+      "preview subpath passed"
+    ],
+    "browser": "Built app loaded at root and /favicon-preview/; browser requested corresponding ICO and server served 200; PNG/ICO visual previews checked on light and dark tab backgrounds.",
+    "assetFormatsAndBuildByteParity": "passed",
+    "localReview": "Only favicon assets, H5-only copy configuration, HTML icon links, roadmap and evidence changed; no business/auth/session behavior changes."
+  },
+  "limitations": [
+    "Two webpack asset/entrypoint size warnings.",
+    "Local static server does not provide QR login/API; business acceptance was outside this visual change."
+  ],
+  "productionPublished": false,
+  "userAcceptance": "pending"
+}
