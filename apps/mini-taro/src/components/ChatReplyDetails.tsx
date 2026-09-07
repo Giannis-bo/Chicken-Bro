@@ -18,8 +18,10 @@ export default function ChatReplyDetails({ text, status, completedAt, durationMs
   const timestamp = validDate
     ? `${validDate.getFullYear()}-${pad(validDate.getMonth() + 1)}-${pad(validDate.getDate())} ${pad(validDate.getHours())}:${pad(validDate.getMinutes())}`
     : ''
-  const duration = typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0
-    ? `用时 ${Math.round(durationMs / 100) / 10} 秒` : ''
+  const totalSeconds = typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0
+    ? Math.round(durationMs / 1000) : null
+  const duration = totalSeconds !== null
+    ? `用时 ${Math.floor(totalSeconds / 60)} 分 ${totalSeconds % 60} 秒` : ''
   return <View className={styles['details'] ?? ''}>
     {text ? <View className={styles['process'] ?? ''}>
       <Button className={styles['toggle'] ?? ''} aria-expanded={expanded}

@@ -75,7 +75,7 @@ describe('Web chat composer interactions', () => {
     } })
     await act(async () => onEvent({ ...base, sequence: 4, type: 'completed', text: '技能覆盖不足',
       completedAt: '2026-09-07T06:32:00Z', durationMs: 18000 }))
-    expect(container.textContent).toContain('用时 18 秒')
+    expect(container.textContent).toContain('用时 0 分 18 秒')
     expect(container.textContent).not.toContain('正在核对日志')
     const toggle = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('思考摘要'))!
     await act(async () => toggle.click())

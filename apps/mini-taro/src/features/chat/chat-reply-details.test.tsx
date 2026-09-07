@@ -37,7 +37,7 @@ it('shares Mini/Web progressive expansion, manual control and failed-history res
   await render('核对日志与技能', 'failed')
   expect(container.textContent).toContain('未完成')
   expect(container.textContent).toContain('2026-09-07')
-  expect(container.textContent).toContain('用时 18.5 秒')
+  expect(container.textContent).toContain('用时 0 分 19 秒')
   expect(container.querySelector('button')?.getAttribute('aria-expanded')).toBe('false')
   await act(async () => container.querySelector('button')!.click())
   expect(container.textContent).toContain('核对日志与技能')
@@ -49,4 +49,18 @@ it('does not invent a duration for older replies or a summary when none was prov
   expect(container.textContent).toContain('2026-09-07')
   expect(container.textContent).not.toContain('用时')
   expect(container.querySelector('button')).toBeNull()
+})
+
+it.each([
+  [0, '用时 0 分 0 秒'],
+  [59000, '用时 0 分 59 秒'],
+  [59999, '用时 1 分 0 秒'],
+  [60000, '用时 1 分 0 秒'],
+  [125000, '用时 2 分 5 秒'],
+  [3600000, '用时 60 分 0 秒'],
+])('formats %i ms as minutes and whole seconds', async (durationMs, expected) => {
+  await act(async () => root.render(createElement(ChatReplyDetails, {
+    text: '', status: 'completed', durationMs,
+  })))
+  expect(container.textContent).toBe(expected)
 })
