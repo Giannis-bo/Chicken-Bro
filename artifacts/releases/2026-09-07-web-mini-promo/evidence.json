@@ -1,6 +1,6 @@
 {
   "date": "2026-09-07",
-  "status": "local_verified",
+  "status": "web_live_verified",
   "baseCommit": "e59cd1ccb699d79cab59c8cb2db6e4b3ca2ff019",
   "sourceState": "uncommitted working tree, prior favicon and avatar work preserved",
   "artwork": {
@@ -52,7 +52,7 @@
     "desktop.png",
     "expanded.png"
   ],
-  "productionPublished": false,
+  "productionPublished": true,
   "miniProgramScanAcceptance": "not_run",
   "userAcceptance": "User confirmed OK，非常好 and authorized unified production release on 2026-09-07",
   "closeIconFix": {
@@ -75,7 +75,7 @@
     "h5Build": "passed",
     "browserCloseAndFocusRestore": "passed",
     "screenshot": "close-centered.png",
-    "productionPublished": false
+    "productionPublished": true
   },
   "releaseValidation": {
     "frontend": 250,
@@ -89,5 +89,14 @@
     "lint": "passed",
     "publishFailureTests": 3,
     "independentSourceReview": "passed; deployment script review fixes applied"
+  },
+  "releaseRecord": "release.json",
+  "productionGlobalResetFix": {
+    "reason": "Taro global reset sets dialog margin to zero; explicitly use margin:auto",
+    "commit": "8a047efdaecb14b56590c4f8f72902192b173f48",
+    "realBrowserCenterOffsetPx": [
+      -0.00390625,
+      0
+    ]
   }
 }

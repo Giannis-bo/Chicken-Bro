@@ -40,6 +40,7 @@
     "Two webpack asset/entrypoint size warnings.",
     "Local static server does not provide QR login/API; business acceptance was outside this visual change."
   ],
-  "productionPublished": false,
-  "userAcceptance": "pending"
+  "productionPublished": true,
+  "userAcceptance": "pending",
+  "releaseRecord": "../2026-09-07-web-mini-promo/release.json"
 }

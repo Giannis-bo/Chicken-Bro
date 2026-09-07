@@ -1,0 +1,99 @@
+{
+  "recordedAt": "2026-09-07T12:16:13.226595+00:00",
+  "status": "web_api_worker_published_mini_uploaded_platform_release_pending",
+  "userAuthorization": "OK，非常好，都统一发布到线上",
+  "sourceReleaseCommit": "95fedba9c5fbc8088a652a887b70dad144164313",
+  "webCommit": "8a047efdaecb14b56590c4f8f72902192b173f48",
+  "promotion": {
+    "status": "published",
+    "commit": "95fedba9c5fbc8088a652a887b70dad144164313",
+    "codeRoot": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313",
+    "webRoot": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313/web",
+    "rollbackCode": "/opt/chickenbro-releases/1862e167fafa0469888c3b2b489a8799ae19a799",
+    "rollbackWeb": "/var/www/chickenbro-web/releases/home-credit-20260907-ce49e8b603d1",
+    "preservedAvatarOverride": true,
+    "newDropins": [
+      "/etc/systemd/system/chickenbro-api.service.d/99-brand-release-20260907.conf",
+      "/etc/systemd/system/chickenbro-worker.service.d/99-brand-release-20260907.conf"
+    ]
+  },
+  "webCenteringFollowup": {
+    "status": "published",
+    "webCommit": "8a047efdaecb14b56590c4f8f72902192b173f48",
+    "webRoot": "/var/www/chickenbro-web/releases/brand-centered-8a047efdaecb14b56590c4f8f72902192b173f48",
+    "rollbackWeb": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313/web",
+    "cssHashVerified": true,
+    "apiWorkerMiniCommit": "95fedba9c5fbc8088a652a887b70dad144164313"
+  },
+  "manifestSha256": "f96d0987cc193df41bf17b85a0342b5c039409bfed497bf2703c7a3e5f68bd16",
+  "webManifestSha256": "157909351b27da3e68934bde08c6947101043bea711caec83f4563c79b102230",
+  "validation": {
+    "frontend": 250,
+    "backend": 399,
+    "migration": 64,
+    "migrationSkipped": 0,
+    "control": 62,
+    "opsNode": 101,
+    "opsPython": 14,
+    "releaseFailureTests": 3,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed; existing size warnings",
+    "weapp": "passed; existing asset size warning",
+    "centeringFollowupTests": 10,
+    "independentReview": "source and deployment review passed; execute-bit and rollback findings fixed, final one-line Web CSS followup approved"
+  },
+  "liveBrowser": {
+    "origin": "https://www.chickenbro.cloud",
+    "authentication": "existing user session restored; no new QR acceptance",
+    "history": "existing conversation and messages loaded",
+    "promoArtworkLoaded": true,
+    "dialogCenterOffsetPx": [
+      -0.00390625,
+      0
+    ],
+    "closeIconCenterOffsetPx": [
+      0,
+      0
+    ],
+    "escapeCloseAndFocusRestore": true,
+    "closeButtonAndFocusRestore": true,
+    "simcRuntimeVersion": "1210-01",
+    "simcJobList": "loaded current owner empty state (0); no new job submitted",
+    "newChatOrSimcWriteAcceptance": "not_run"
+  },
+  "mini": {
+    "version": "2026.09.07-brand",
+    "uploadStatus": "success",
+    "packageBytes": 1031691,
+    "gitHead": "95fedba9c5fbc8088a652a887b70dad144164313",
+    "sourceHash": "sha256:8a23b0e10ebaf150d3ffb7d4cfd01b55386959453512f6f49c2fdecc1756fc86",
+    "devtoolsRuntimeOpened": true,
+    "platformReviewAndPublish": "not_performed_site_safety_policy_denied",
+    "avatarAsset": "artifacts/design/2026-09-07-mini-avatar/gugu-mini-avatar-144.png",
+    "avatarBytes": 25445,
+    "avatarDimensions": [
+      144,
+      144
+    ],
+    "platformAvatarSetting": "not_changed_by_agent"
+  },
+  "dataAndRollback": {
+    "migrationsAlreadyApplied": [
+      "0001_chickenbro_simc_core",
+      "0002_chat_idempotent_replay",
+      "0003_account_avatar"
+    ],
+    "databaseMigrationAppliedThisRelease": false,
+    "oldDirectoriesAndAvatarDropinPreserved": true,
+    "previewLinkPreserved": true,
+    "destructiveCleanup": false
+  },
+  "retainedWork": {
+    "localFakeDataBranch": "codex/local-web-test-mode",
+    "stashCount": 4,
+    "featureBranch": "codex/mini-web-ui-refinement",
+    "reason": "Mini platform publication remains pending; no worktree removed"
+  },
+  "versionNote": "Web followup differs from API/Worker/Mini source only by explicit dialog margin:auto. Final documentation commit does not change runtime sources."
+}

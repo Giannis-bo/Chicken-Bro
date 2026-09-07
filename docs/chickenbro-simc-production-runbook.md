@@ -519,3 +519,11 @@ Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenb
 2026-09-07 确认页视觉更新：已上传 `2026.09.07-avatar3`（1006698 bytes），Web鸡哥Logo与暖白风格，头像选择保留用户点击、已保存头像自动恢复。实际开发者工具渲染和保存头像恢复通过；真实手机新样式与设为体验版待用户完成。原头像API及正式Web不变。见 [构建与上传记录](../artifacts/releases/2026-09-07-shared-account-avatar/mini-upload-avatar3.json)。
 
 2026-09-07 扫码确认后自动进入：已上传 `2026.09.07-login4`（1007387 bytes），MiniSessionStore保存本次Mini会话后，显式Web确认成功自动进入对话Tab；跳转失败可单独重试导航。正式API/Web未改，未同步Cookie/凭据，未提交微信审核/发布。待用户后台设为体验版和真机验证。见 [构建与验证](../artifacts/releases/2026-09-07-shared-account-avatar/mini-upload-login4.json)。
+
+## 品牌与双端统一发布（2026-09-07）
+
+当前 API/Worker 由 `99-brand-release-20260907.conf` 将 WorkingDirectory 与 PYTHONPATH 绑定 `/opt/chickenbro`，该链接指向 `/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313`。Web current 指向 `/var/www/chickenbro-web/releases/brand-centered-8a047efdaecb14b56590c4f8f72902192b173f48`；Web 相比前者仅补充弹窗居中样式。两个公网域名 readiness 正常，29 个 Web 文件哈希验证通过，真实用户既有会话与推广弹窗读取/交互通过。
+
+小程序上传版本 `2026.09.07-brand` 为源码 `95fedba9c`，尚未代操作微信后台审核/正式发布，继续保留此前体验版 QR 配置。三条 migration 已提前应用，本轮无数据库变更。
+
+回滚时先核对 [精确发布清单](../artifacts/releases/2026-09-07-web-mini-promo/release.json)：单独撤销居中补丁可将 Web current 原子恢复到 `/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313/web`。整批恢复须停止入口并排空工作，将 code/web 链接恢复为清单中原始 `rollbackCode`/`rollbackWeb`，仅移除本次新增的两个 `99-brand-release-20260907.conf`，保留旧 `99-avatar-preview-20260907.conf`，daemon-reload 后分别启动 API/Worker，再核对有效目录与业务页面。旧目录和配置全部保留；未经核验不要重放发布脚本或清理旧数据。

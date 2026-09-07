@@ -1,0 +1,204 @@
+{
+  "commit": "95fedba9c5fbc8088a652a887b70dad144164313",
+  "runtime": {
+    "chickenbro-api.service": {
+      "status": "active",
+      "actualCwd": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313",
+      "pythonPath": "/opt/chickenbro"
+    },
+    "chickenbro-worker.service": {
+      "status": "active",
+      "actualCwd": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313",
+      "pythonPath": "/opt/chickenbro"
+    }
+  },
+  "public": {
+    "www.chickenbro.cloud": {
+      "status": "ready",
+      "requestId": "715ef995-c426-47fb-ab07-cab35e87e8c2",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    "api.chickenbro.cloud": {
+      "status": "ready",
+      "requestId": "077c1bef-649f-4d84-898e-322b01252834",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    }
+  },
+  "webAssetHashes": {
+    "brand/gugu-v1-16.png": {
+      "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998",
+      "cacheControl": null
+    },
+    "brand/gugu-v1-32.png": {
+      "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5",
+      "cacheControl": null
+    },
+    "brand/gugu-v1.ico": {
+      "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d",
+      "cacheControl": null
+    },
+    "chunk/322.js": {
+      "sha256": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+      "cacheControl": "no-cache"
+    },
+    "chunk/322.js.LICENSE.txt": {
+      "sha256": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+      "cacheControl": null
+    },
+    "chunk/67.js": {
+      "sha256": "2689ebf9dabc57f4c8adcd3711d46eda4b8936e7ba6a73bef46d9cc90448c584",
+      "cacheControl": "no-cache"
+    },
+    "chunk/67.js.LICENSE.txt": {
+      "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "cacheControl": null
+    },
+    "chunk/74.js": {
+      "sha256": "45b02357e5bfd6107412819b94d0381e51c66f6ffd10112513189f4ec8cc67cc",
+      "cacheControl": "no-cache"
+    },
+    "chunk/837.js": {
+      "sha256": "97617e75d5dc31894f9add9d37beea6a246216d8f92e5215addc129f79c557b6",
+      "cacheControl": "no-cache"
+    },
+    "chunk/837.js.LICENSE.txt": {
+      "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "cacheControl": null
+    },
+    "chunk/856.js": {
+      "sha256": "ff5953dd7c25719a2c136a5c0299d5f02ff40d0ab2d511a259e7b55237eb831c",
+      "cacheControl": "no-cache"
+    },
+    "chunk/856.js.LICENSE.txt": {
+      "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "cacheControl": null
+    },
+    "chunk/882.js": {
+      "sha256": "dc636f0b79d92a1fbbb7009ea16203a03f514a720bd97849e0f7ffc15540b41c",
+      "cacheControl": "no-cache"
+    },
+    "chunk/882.js.LICENSE.txt": {
+      "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "cacheControl": null
+    },
+    "css/67.css": {
+      "sha256": "e2fc24bff91a09d3cc99c1b859cfd3bf0cfa3f8b190b204754ae5cce76b40b20",
+      "cacheControl": "no-cache"
+    },
+    "css/74.css": {
+      "sha256": "9b071ed0527e7f561e840acb720ef31525464cc700b2f4248e84138e527c1dac",
+      "cacheControl": "no-cache"
+    },
+    "css/837.css": {
+      "sha256": "e1dddec601f57545423e33fbc6d917aa21ff6927a5dd8b6f691c34c37a990d19",
+      "cacheControl": "no-cache"
+    },
+    "css/856.css": {
+      "sha256": "f4c632114a186d39d2451d3bc7b1aab7810abd41530c38bd8e1640d5b87883d4",
+      "cacheControl": "no-cache"
+    },
+    "css/882.css": {
+      "sha256": "56a70715a33323240ae90e1954b713fc6104856872248e21909bef73273721d6",
+      "cacheControl": "no-cache"
+    },
+    "css/app.css": {
+      "sha256": "4c0960b8d8e417bc24acd4686e7e018b29425c1c798127186d59d501f92f6c20",
+      "cacheControl": "no-cache"
+    },
+    "index.html": {
+      "sha256": "e197ae41c884bf6599a9a6cd0927f2a5f3b00e01ef6ee366b9d38cbac44c115c",
+      "cacheControl": "no-cache"
+    },
+    "js/519.js": {
+      "sha256": "1a082c2969da6e961530eab13566c3fc09962e514d31987c573cff45f539dc61",
+      "cacheControl": "no-cache"
+    },
+    "js/519.js.LICENSE.txt": {
+      "sha256": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+      "cacheControl": null
+    },
+    "js/app.js": {
+      "sha256": "2847b06dd78b1084745a36eb0fdd3eabb816689d1c2189ad4f5849ecf4f33051",
+      "cacheControl": "no-cache"
+    },
+    "js/app.js.LICENSE.txt": {
+      "sha256": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+      "cacheControl": null
+    },
+    "static/images/web/assets/gu-gu-mascot.png": {
+      "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+      "cacheControl": null
+    },
+    "static/images/web/assets/horde-bg-v2-clean.png": {
+      "sha256": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+      "cacheControl": null
+    },
+    "static/images/web/assets/horde-clouds-v2-clean.png": {
+      "sha256": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368",
+      "cacheControl": null
+    },
+    "static/images/web/assets/mini-program-promo.png": {
+      "sha256": "32ddca80ca1279b34f337eda5ff864bb236d75ee7f37aa32c3ca9ca66a1d0d4a",
+      "cacheControl": null
+    }
+  },
+  "previewLinkPreserved": true
+}
