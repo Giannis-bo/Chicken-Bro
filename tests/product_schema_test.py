@@ -311,8 +311,15 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                 (
                     "0001_chickenbro_simc_core",
                     "0002_chat_idempotent_replay",
+                    "0003_account_avatar",
                 ),
             )
+            avatar_column = connection.execute(
+                "SELECT data_type, is_nullable FROM information_schema.columns "
+                "WHERE table_schema = 'identity' AND table_name = 'users' "
+                "AND column_name = 'avatar_data_url'",
+            ).fetchone()
+            self.assertEqual(avatar_column, ("text", "YES"))
             actual = connection.execute(
                 "SELECT table_schema, table_name FROM information_schema.tables "
                 "WHERE table_schema = ANY(%s)",
