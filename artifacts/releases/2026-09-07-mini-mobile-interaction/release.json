@@ -1,0 +1,80 @@
+{
+  "recordedAt": "2026-09-07T05:24:16.816295+00:00",
+  "status": "web_backend_live_verified_mini_uploaded_pending_platform_release",
+  "sourceCommit": "1862e167fafa0469888c3b2b489a8799ae19a799",
+  "sourceHash": "sha256:6798856f709b1d088df9edadba724c97f684dfab109ca312bc26ec831422c9af",
+  "gitIntegration": "fast_forward_main_pushed",
+  "review": "independent local review; three P2 findings fixed; user waived CodeRabbit installation",
+  "verification": {
+    "frontend": 223,
+    "backend": 391,
+    "control": 62,
+    "opsNode": 101,
+    "opsPython": 14,
+    "promotionRollback": 7,
+    "typecheck": "passed",
+    "lint": "passed",
+    "migration": {
+      "run": 64,
+      "skipped": 1
+    },
+    "weappBuild": "passed",
+    "h5Build": "passed_with_existing_asset_size_warnings"
+  },
+  "production": {
+    "url": "https://www.chickenbro.cloud/",
+    "codeRoot": "/opt/chickenbro-releases/1862e167fafa0469888c3b2b489a8799ae19a799",
+    "database": "chickenbro_prod",
+    "schemaMigrations": [
+      "0001_chickenbro_simc_core",
+      "0002_chat_idempotent_replay"
+    ],
+    "compilerRevision": "chickenbro-simc-compiler-v3",
+    "supportedSpecs": [
+      "shaman:elemental",
+      "shaman:enhancement"
+    ],
+    "runtime": "simc managed f50a2121bf894570146507496f3e113bff68e445",
+    "readiness": "all seven components ready from both public domains; isolated test remains ready",
+    "servedAssetHashes": "index.html, js/app.js, css/app.css matched release",
+    "businessSmoke": "production-smoke.json",
+    "smokeMetrics": [
+      {
+        "name": "dps",
+        "value": 173207.17681510228
+      },
+      {
+        "name": "dps",
+        "value": 182919.26629498787
+      }
+    ],
+    "testLogin": "disabled"
+  },
+  "mini": {
+    "version": "2026.09.07",
+    "upload": "succeeded",
+    "packageBytes": 459416,
+    "preview": "production API build refreshed",
+    "platformReviewAndPublication": "not_run",
+    "reason": "Browser site-safety policy blocks mp.weixin.qq.com; no workaround attempted",
+    "realPhoneAndQrLogin": "not_run"
+  },
+  "rollback": {
+    "code": "/opt/chickenbro-before-1862e167fafa0469888c3b2b489a8799ae19a799",
+    "web": "/var/www/chickenbro-web/releases/bb3ee9c61784bdc294911529d78ea7fe3cc55abddb4a2c4b37e9d31d87b62fca",
+    "verifiedOldCodeHash": "66d2a12f508514f5938d04ac1212fc576389b5fe5827fc44b946b486de263525",
+    "configFilesAdded": [
+      "/etc/chickenbro-release-20260907.env",
+      "/etc/systemd/system/chickenbro-api.service.d/90-release-20260907.conf",
+      "/etc/systemd/system/chickenbro-worker.service.d/90-release-20260907.conf"
+    ]
+  },
+  "branches": {
+    "main": "retained; release merged",
+    "codex/release-mini-web-20260907": "remove after documentation commit is merged",
+    "codex/local-web-test-mode": "retained with unmerged fake-data-preview commit",
+    "origin/codex/archive-local-stash-20260904": "retained historical WIP archive"
+  },
+  "stashes": "4 entries preserved",
+  "evidenceCommitNote": "A documentation-only follow-up records these observations; deployed source and uploaded build remain bound to sourceCommit, verified by file hashes."
+}

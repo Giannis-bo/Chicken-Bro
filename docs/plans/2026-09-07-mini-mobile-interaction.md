@@ -52,3 +52,11 @@
 分支处理：main 保留；本次 release 分支待整合验证后再清理；local-web-test-mode 有一笔独有假数据预览提交，不并入正式；远端 archive-local-stash-20260904 和四笔 stash 均保留。详见 [发布准备记录](../../artifacts/releases/2026-09-07-mini-mobile-interaction/release-readiness.json)。
 
 用户随后明确“不需要再安装 CodeRabbit”，本次采用已通过的独立本地审查继续整合发布。生产 SimC 支持集同步为已在测试环境验证的元素/增强，编译 revision 为 v3。
+
+## 发布结果
+
+源提交 `1862e167fafa0469888c3b2b489a8799ae19a799` 已合入 main 并推送；正式 Web/API/Worker 切换成功，两个公开域名 readiness 与发布文件 SHA 匹配。双向 Chat/SimC、幂等重放、owner 隔离和独立退出自动业务 smoke 通过，SimC v3 有正数指标及来源核对。旧 acceptance core 固定 v1，本轮 wrapper 显式绑定预期 v3（非从响应推导），其余身份/语义断言保持原样；第一次旧门禁失败已如实记录，不作为业务成功。
+
+小程序版本 `2026.09.07` 上传成功，开发者工具正式预览已刷新；微信平台审核/发布未执行，原因是浏览器站点安全策略拦截 mp.weixin.qq.com。需用户最后在平台操作，本轮没有新的真实微信扫码或真机键盘验收。
+
+发布 manifest、回滚路径、业务结果及分支记录见 [release.json](../../artifacts/releases/2026-09-07-mini-mobile-interaction/release.json)。源与构建身份绑定 `1862e167f`；后续仅证据文档提交不会改写已部署代码的来源身份。
