@@ -1,0 +1,84 @@
+{
+  "recordedAt": "2026-09-07T12:57:08.394316+00:00",
+  "status": "web_api_worker_published_mini_uploaded_preview_ready_user_acceptance_pending",
+  "sourceCommit": "c8faf06322a98dc6f754ae8dbf96cfc8ba72c665",
+  "branch": "codex/chat-progress-timing",
+  "mainMerged": false,
+  "pushed": false,
+  "userAuthorization": "部署到双端，我要验证一下。",
+  "manifestSha256": "8e9e08476b58b50b2198319aa1309c6d97ae72f8454ba876d8115b6bb5a51c6e",
+  "codeRoot": "/opt/chickenbro-releases/c8faf06322a98dc6f754ae8dbf96cfc8ba72c665",
+  "webRoot": "/opt/chickenbro-releases/c8faf06322a98dc6f754ae8dbf96cfc8ba72c665/web",
+  "rollbackCode": "/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/brand-centered-8a047efdaecb14b56590c4f8f72902192b173f48",
+  "newDropins": [
+    "/etc/systemd/system/chickenbro-api.service.d/99-chat-progress-release-20260907.conf",
+    "/etc/systemd/system/chickenbro-worker.service.d/99-chat-progress-release-20260907.conf"
+  ],
+  "migration": {
+    "id": "0004_chat_public_progress",
+    "appliedTo": [
+      "chickenbro_test",
+      "chickenbro_prod"
+    ],
+    "destructiveChanges": false,
+    "rollback": "Retain public_progress column and records; restore previous code and web links, remove only this release dropins, daemon-reload and restart API/Worker."
+  },
+  "candidate": {
+    "nativeCodexReply": "completed",
+    "durationMs": 13825,
+    "answerChars": 141,
+    "publicSummaryChars": 0,
+    "eventCounts": {
+      "started": 1,
+      "delta": 115,
+      "completed": 1
+    },
+    "persistence": "passed",
+    "secondUserIsolation": "passed",
+    "realWechatLogin": "not_run"
+  },
+  "live": {
+    "wwwReadiness": "ready",
+    "apiReadiness": "ready",
+    "webFilesHashVerified": 29,
+    "browser": "Existing Web session restored, saved conversation timestamp and 18.7s duration visible",
+    "miniDevtools": "Same saved conversation timestamp and 18.7s duration visible",
+    "newProductionChatWrite": "not_run",
+    "publicSummaryLiveSample": "No summary returned for the short candidate prompt; renderer and protocol covered by automated tests",
+    "realPhoneAcceptance": "pending"
+  },
+  "mini": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "c8faf06322a98dc6f754ae8dbf96cfc8ba72c665",
+    "sourceHash": "sha256:a69a563b4ee546eca3aad0377626b8c0a513a1aea40297db89408300dd6280ed",
+    "builtAt": "2026-09-07T12:52:49.594Z",
+    "version": "2026.09.07-chat",
+    "upload": "success",
+    "packageBytes": 1036862,
+    "preview": "success",
+    "previewQr": "mini-preview.png",
+    "apiOrigin": "https://api.chickenbro.cloud",
+    "testLoginUI": false,
+    "differencesFromStagedMini": [
+      "wow-build.json builtAt only"
+    ],
+    "setAsTrialVersion": "not_performed",
+    "platformReviewAndPublish": "not_performed"
+  },
+  "verification": {
+    "frontend": 257,
+    "backend": 403,
+    "migration": 65,
+    "migrationSkipped": 0,
+    "control": 62,
+    "opsNode": 101,
+    "opsPython": 14,
+    "releaseFailureTests": 3,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed",
+    "weapp": "passed",
+    "independentCodeReview": "passed after three regression fixes"
+  }
+}

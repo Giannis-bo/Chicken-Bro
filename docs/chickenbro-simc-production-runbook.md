@@ -527,3 +527,12 @@ Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenb
 小程序上传版本 `2026.09.07-brand` 为源码 `95fedba9c`，尚未代操作微信后台审核/正式发布，继续保留此前体验版 QR 配置。三条 migration 已提前应用，本轮无数据库变更。
 
 回滚时先核对 [精确发布清单](../artifacts/releases/2026-09-07-web-mini-promo/release.json)：单独撤销居中补丁可将 Web current 原子恢复到 `/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313/web`。整批恢复须停止入口并排空工作，将 code/web 链接恢复为清单中原始 `rollbackCode`/`rollbackWeb`，仅移除本次新增的两个 `99-brand-release-20260907.conf`，保留旧 `99-avatar-preview-20260907.conf`，daemon-reload 后分别启动 API/Worker，再核对有效目录与业务页面。旧目录和配置全部保留；未经核验不要重放发布脚本或清理旧数据。
+
+
+## 双端聊天摘要与回复时间验证部署（2026-09-07）
+
+源码 `c8faf06322a98dc6f754ae8dbf96cfc8ba72c665` 已部署，`/opt/chickenbro` 指向对应 `/opt/chickenbro-releases/<commit>`，Web current 指向该目录的 `web`。API/Worker 新增 `99-chat-progress-release-20260907.conf` 保持 WorkingDirectory/PYTHONPATH 绑定 `/opt/chickenbro`；旧 dropin 全部保留。测试/正式库均已应用 additive `0004_chat_public_progress`；旧客户端不启用 includeProgress 时继续接收旧协议。
+
+29 个线上 Web 文件哈希通过，两个公网域名 ready。小程序 `2026.09.07-chat`（1,036,862 bytes）上传成功，正式 API，开发预览二维码已提供；尚未设为固定体验版或提交微信审核/发布。隔离库真实 Codex 回复与耗时保存通过，摘要存储另经自动化测试验证；该短问题未返回公开摘要，真实手机体验仍待用户验收。见 [发布记录](../artifacts/releases/2026-09-07-chat-progress-timing/release.json)。
+
+回滚前排空当前聊天/模拟任务，停止 API/Worker，把 code 指回 `/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313`，Web 指回 `/var/www/chickenbro-web/releases/brand-centered-8a047efdaecb14b56590c4f8f72902192b173f48`；仅移除本次两个 `99-chat-progress-release-20260907.conf`，daemon-reload 后启动服务并核对 readiness。保留新增列、已存摘要以及旧品牌/头像配置；不执行破坏性反向迁移。源码分支保留，尚未合并 main 或推送。

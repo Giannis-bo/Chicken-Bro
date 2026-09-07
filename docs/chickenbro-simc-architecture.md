@@ -170,7 +170,7 @@ Chat 的服务端事实流是：
 4. 完整且合法的 assistant 文本先持久化，再把 AgentRun 置为 `succeeded`。
 5. Codex 不可用、超时、输出非法或持久化失败时，用户消息保留，AgentRun 进入明确失败；不切换普通 LLM，不写模板答案。
 
-2026-09-07 本地新增公开摘要与回复时间契约（尚未部署）：新客户端在 Chat GET/stream 使用 `includeProgress=true`，接收独立 `progress` 事件、终态 `completedAt`/`durationMs` 与历史消息的 `progress` 对象。公开摘要仅来自 Codex `item/reasoning/summaryTextDelta`；最多 16000 个 Unicode code point，先保存至 owner-scoped AgentRun 后发送。超限仅截断摘要，不终止正文。原始思维链、commentary 和工具 payload 仍不公开。耗时从服务端 `started_at`/`finished_at` 计算，失败展示由 AgentRun 投影，不伪造 assistant 正文。旧客户端不显式启用时继续接收原事件、连续序号和历史字段。
+2026-09-07 新增公开摘要与回复时间契约（API/Web 已部署，小程序已上传验证版，用户验收待完成）：新客户端在 Chat GET/stream 使用 `includeProgress=true`，接收独立 `progress` 事件、终态 `completedAt`/`durationMs` 与历史消息的 `progress` 对象。公开摘要仅来自 Codex `item/reasoning/summaryTextDelta`；最多 16000 个 Unicode code point，先保存至 owner-scoped AgentRun 后发送。超限仅截断摘要，不终止正文。原始思维链、commentary 和工具 payload 仍不公开。耗时从服务端 `started_at`/`finished_at` 计算，失败展示由 AgentRun 投影，不伪造 assistant 正文。旧客户端不显式启用时继续接收原事件、连续序号和历史字段。
 
 列表按 `(updated_at, id)` 使用稳定游标。重连从持久化消息/AgentRun 恢复，不能再次调用模型伪造相同 run。第二个用户访问第一个用户的 ID 时对外返回 404，避免枚举。
 
