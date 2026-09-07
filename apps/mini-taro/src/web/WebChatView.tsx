@@ -1,3 +1,4 @@
+import ChatReplyDetails from '../components/ChatReplyDetails'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -32,8 +33,8 @@ export default function WebChatView({ auth }: WebChatViewProps) {
   const sending = state.phase === 'sending'
   const messageList = useRef<HTMLDivElement>(null)
   const messageContent = useRef<HTMLDivElement>(null)
-  const scrollRevision = useMemo(() => ({ text: state.streamText, messages: state.activeConversation?.messages }),
-    [state.streamText, state.activeConversation?.messages])
+  const scrollRevision = useMemo(() => ({ text: state.streamText, progress: state.streamProgress, messages: state.activeConversation?.messages }),
+    [state.streamText, state.streamProgress, state.activeConversation?.messages])
   const { paused, jumpToLatest } = useChatAutoScroll(messageList, messageContent,
     state.activeConversation?.id ?? '', sending, scrollRevision)
   const canSend = Boolean(draft.trim() && state.activeConversation)
@@ -98,6 +99,9 @@ export default function WebChatView({ auth }: WebChatViewProps) {
                 data-persisted="true"
               >
                 <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '你' : '鸡哥'}</Text>
+                {message.role === 'assistant' ? <ChatReplyDetails text={message.progress?.text ?? ''}
+                  status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
+                  durationMs={message.progress?.durationMs ?? null} /> : null}
                 <WebMessage content={message.content} markdown={message.role !== 'user'} />
               </View>
             ))}
@@ -107,10 +111,12 @@ export default function WebChatView({ auth }: WebChatViewProps) {
                 <WebMessage content={state.pendingUserContent} />
               </View>
             ) : null}
-            {sending && !state.streamText ? <WebReplyStatus /> : null}
-            {state.streamText ? (
+            {sending && !state.streamText && !state.streamProgress ? <WebReplyStatus /> : null}
+            {state.streamText || state.streamProgress || state.streamCompletedAt ? (
               <View className={styles['webAssistantMessage'] ?? ''} data-persisted="false">
-                <Text className={styles['messageRole'] ?? ''}>鸡哥 · 生成中</Text>
+                <Text className={styles['messageRole'] ?? ''}>鸡哥</Text>
+                <ChatReplyDetails text={state.streamProgress} status={state.streamProgressStatus}
+                  completedAt={state.streamCompletedAt} durationMs={state.streamDurationMs} />
                 <WebMessage content={state.streamText} markdown />
               </View>
             ) : null}

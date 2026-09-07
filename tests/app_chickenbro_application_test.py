@@ -59,6 +59,17 @@ class MemoryChatRepository:
             if item["user_id"] == user_id and item["conversation_id"] == conversation_id
         ]
 
+    def append_public_progress(self, user_id, run_id, text):
+        run = self.runs[run_id]
+        self.assert_owner(run, user_id)
+        if run['status'] != AgentRunStatus.STREAMING:
+            raise RuntimeError('run not streaming')
+        run['public_progress'] = run.get('public_progress', '') + text
+
+    def list_run_presentations(self, user_id, conversation_id):
+        return [dict(run) for run in self.runs.values()
+                if run['user_id'] == user_id and run['conversation_id'] == conversation_id]
+
     def get_message_by_client_id(self, user_id, client_message_id):
         return next(
             (
@@ -299,6 +310,33 @@ class ClosingCodex(FakeCodex):
 
 
 class ChatApplicationTest(unittest.TestCase):
+    def test_progress_is_separate_persistent_and_survives_failure(self):
+        for failed in (False, True):
+            with self.subTest(failed=failed):
+                repository = MemoryChatRepository()
+                clock = [self.now]
+                class ProgressCodex(FakeCodex):
+                    def stream(inner, **kwargs):
+                        yield {'type': 'progress', 'text': '正在核对日志'}
+                        clock[0] += timedelta(seconds=18)
+                        yield {'type': 'failed' if failed else 'completed', 'text': '最终结论'}
+                app = ChatApplication(repository=repository, codex=ProgressCodex(), clock=lambda: clock[0])
+                conversation = app.create_conversation(self.principal, idempotency_key='progress-conversation')
+                events = list(app.stream_message(self.principal, conversation['id'], '分析日志',
+                    client_message_id='progress-message', idempotency_key='progress-request'))
+                self.assertEqual(events[1].public_payload()['type'], 'progress')
+                detail = app.load_conversation(self.principal, conversation['id'])
+                reply = detail['messages'][-1]
+                self.assertEqual(reply['progress_text'], '正在核对日志')
+                self.assertEqual(reply['duration_ms'], 18000)
+                self.assertEqual(reply['reply_status'], 'failed' if failed else 'completed')
+                self.assertNotIn('正在核对日志', reply['content'])
+                self.assertEqual(events[-1].public_payload()['durationMs'], 18000)
+                replay = list(app.stream_message(self.principal, conversation['id'], '分析日志',
+                    client_message_id='progress-message', idempotency_key='progress-request'))
+                self.assertEqual(replay[1].public_payload()['text'], '正在核对日志')
+                self.assertEqual(replay[-1].public_payload()['durationMs'], 18000)
+
     def test_scoped_codex_receives_persisted_run_and_authenticated_owner(self):
         captured = {}
         class ScopedCodex(FakeCodex):

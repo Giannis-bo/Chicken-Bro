@@ -312,6 +312,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0001_chickenbro_simc_core",
                     "0002_chat_idempotent_replay",
                     "0003_account_avatar",
+                    "0004_chat_public_progress",
                 ),
             )
             avatar_column = connection.execute(

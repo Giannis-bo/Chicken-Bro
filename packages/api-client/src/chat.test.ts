@@ -66,7 +66,7 @@ describe('formal Chat client', () => {
     expect(transport.requests.map((call) => call.path)).toEqual([
       '/api/v2/chat/conversations?limit=20',
       '/api/v2/chat/conversations',
-      '/api/v2/chat/conversations/conversation%2Fone',
+      '/api/v2/chat/conversations/conversation%2Fone?includeProgress=true',
     ])
     for (const call of transport.requests) {
       expect(call.path).not.toContain('/prototype/')
@@ -135,7 +135,7 @@ describe('formal Chat client', () => {
     )
 
     const stream = transport.streams[0]
-    expect(stream?.path).toBe('/api/v2/chat/conversations/conversation-one/messages/stream')
+    expect(stream?.path).toBe('/api/v2/chat/conversations/conversation-one/messages/stream?includeProgress=true')
     expect(stream?.options).toMatchObject({
       method: 'POST',
       data: { content: '问题', clientMessageId: 'client-one' },

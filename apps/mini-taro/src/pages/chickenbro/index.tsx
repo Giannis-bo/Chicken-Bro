@@ -1,3 +1,4 @@
+import ChatReplyDetails from '../../components/ChatReplyDetails'
 import { MiniHelpActions } from '../../components/MiniHelp'
 import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
@@ -62,7 +63,7 @@ function ChickenbroPage() {
       scrollTimer.current = null
       setEndAnchor((value) => value === 'chat-end-0' ? 'chat-end-1' : 'chat-end-0')
     }, 100)
-  }, [following, state.activeConversation, state.streamText, state.pendingUserContent])
+  }, [following, state.activeConversation, state.streamText, state.streamProgress, state.pendingUserContent])
   useEffect(() => () => { if (scrollTimer.current) clearTimeout(scrollTimer.current) }, [])
   useEffect(() => {
     setElapsed(0)
@@ -140,17 +141,22 @@ function ChickenbroPage() {
             {message.role !== 'user' ? <Image className={styles['replyMascot'] ?? ''} src={mascot} mode="aspectFit" /> : null}
             <Text>{message.role === 'user' ? '我' : '鸡哥'}</Text>
           </View>
+          {message.role === 'assistant' ? <ChatReplyDetails text={message.progress?.text ?? ''}
+            status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
+            durationMs={message.progress?.durationMs ?? null} /> : null}
           <MiniMessage content={message.content} markdown={message.role !== 'user'} />
         </View>)}
         {state.pendingUserContent ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
           <Text className={styles['messageRole'] ?? ''}>我</Text><MiniMessage content={state.pendingUserContent} />
         </View> : null}
-        {state.phase === 'sending' ? <View className={styles['assistantMessage'] ?? ''} data-persisted="false">
+        {state.phase === 'sending' || state.streamProgress || state.streamText || state.streamCompletedAt ? <View className={styles['assistantMessage'] ?? ''} data-persisted="false">
           <View className={styles['messageRole'] ?? ''}>
             <Image className={styles['replyMascot'] ?? ''} src={mascot} mode="aspectFit" />
-            <Text>鸡哥 · {state.streamText ? '正在回复' : `正在思考${elapsed >= 10 ? ` · ${elapsed} 秒` : '…'}`}</Text>
+            <Text>鸡哥 · {state.streamProgressStatus === 'failed' ? '未完成' : state.streamCompletedAt ? '已回复' : state.streamText ? '正在回复' : `正在思考${elapsed >= 10 ? ` · ${elapsed} 秒` : '…'}`}</Text>
           </View>
-          {state.streamText ? <MiniMessage content={state.streamText} markdown /> : <Text className={styles['hint'] ?? ''}>正在整理你的问题，查询日志或模拟可能需要一些时间。</Text>}
+          <ChatReplyDetails text={state.streamProgress} status={state.streamProgressStatus}
+            completedAt={state.streamCompletedAt} durationMs={state.streamDurationMs} />
+          {state.streamText ? <MiniMessage content={state.streamText} markdown /> : !state.streamProgress ? <Text className={styles['hint'] ?? ''}>正在整理你的问题，查询日志或模拟可能需要一些时间。</Text> : null}
         </View> : null}
         {state.phase === 'loading' ? <Text className={styles['hint'] ?? ''}>正在读取对话…</Text> : null}
         {(!state.activeConversation || state.activeConversation.messages.length === 0) && state.phase === 'ready' ? <View className={styles['empty'] ?? ''}>

@@ -183,6 +183,30 @@ class FormalChatApiTest(unittest.TestCase):
         self.assertEqual(missing_csrf.status_code, 403)
         self.assertEqual(missing_csrf.json()["error"]["code"], "CSRF_REJECTED")
 
+    def test_progress_opt_in_keeps_old_clients_compatible_and_new_history_shared(self):
+        self.codex.events.insert(0, {'type': 'progress', 'text': '正在核对日志'})
+        created = self.client.post('/api/v2/chat/conversations',
+            headers={**mini_headers(), 'Idempotency-Key': 'progress-create'}, json={}).json()
+        path = f"/api/v2/chat/conversations/{created['id']}"
+        old = self.client.post(path + '/messages/stream',
+            headers={**mini_headers(), 'Idempotency-Key': 'progress-send'},
+            json={'content': '分析', 'clientMessageId': 'progress-client'})
+        old_events = [json.loads(frame.split('data: ', 1)[1]) for frame in old.text.split('\n\n') if frame]
+        self.assertEqual([event['sequence'] for event in old_events], [1, 2, 3])
+        self.assertNotIn('progress', [event['type'] for event in old_events])
+        self.assertNotIn('durationMs', old_events[-1])
+        self.assertNotIn('progress', self.client.get(path, headers=mini_headers()).json()['messages'][-1])
+        mini = self.client.get(path + '?includeProgress=true', headers=mini_headers()).json()
+        web = self.client.get(path + '?includeProgress=true', cookies=web_cookies()).json()
+        self.assertEqual(mini, web)
+        self.assertEqual(web['messages'][-1]['progress']['text'], '正在核对日志')
+        new = self.client.post(path + '/messages/stream?includeProgress=true',
+            headers={**mini_headers(), 'Idempotency-Key': 'progress-send'},
+            json={'content': '分析', 'clientMessageId': 'progress-client'})
+        self.assertIn('event: progress', new.text)
+        self.assertIn('durationMs', new.text)
+        self.assertEqual(self.client.get(path + '?includeProgress=true', headers=mini_headers(other=True)).status_code, 404)
+
     def test_stream_is_no_store_unbuffered_and_contains_only_public_events(self):
         created = self.client.post(
             "/api/v2/chat/conversations",

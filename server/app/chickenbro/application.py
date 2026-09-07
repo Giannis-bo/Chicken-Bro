@@ -2,7 +2,7 @@ import base64
 import json
 import re
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4, uuid5
@@ -166,10 +166,34 @@ class ChatApplication:
         conversation = self._repository.get_conversation(principal.user_id, conversation_id)
         if conversation is None:
             raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
-        return {
-            "conversation": conversation,
-            "messages": self._repository.list_messages(principal.user_id, conversation_id),
-        }
+        messages = [dict(row) if isinstance(row, dict) else asdict(row)
+                    for row in self._repository.list_messages(principal.user_id, conversation_id)]
+        by_id = {str(row["id"]): row for row in messages}
+        for run in self._repository.list_run_presentations(principal.user_id, conversation_id):
+            status = _value(run, "status")
+            if status not in {"succeeded", "failed"}:
+                continue
+            reply = by_id.get(str(_value(run, "assistant_message_id")))
+            finished = _value(run, "finished_at")
+            if reply is None and status == "failed" and finished is not None:
+                reply = {"id": _value(run, "id"), "role": "assistant", "content": "",
+                         "created_at": finished}
+                messages.append(reply)
+            if reply is not None:
+                reply.update(progress_text=_value(run, "public_progress", ""),
+                             reply_status="completed" if status == "succeeded" else "failed",
+                             completed_at=finished,
+                             duration_ms=self._timing(run, finished).get("duration_ms"))
+        messages.sort(key=lambda row: row["created_at"])
+        return {"conversation": conversation, "messages": messages}
+
+    @staticmethod
+    def _timing(run: Any, finished: datetime | None) -> dict[str, Any]:
+        started = _value(run, "started_at")
+        if not isinstance(started, datetime) or not isinstance(finished, datetime):
+            return {}
+        return {"completed_at": finished.isoformat(),
+                "duration_ms": max(0, int((finished - started).total_seconds() * 1000))}
 
     def _find_idempotent_run(
         self,
@@ -322,6 +346,7 @@ class ChatApplication:
             self._cancel_run(principal, run)
             raise
 
+        progress_chars = 0
         answer_parts: list[str] = []
         completed = False
         terminal_persisted = False
@@ -337,7 +362,20 @@ class ChatApplication:
             try:
                 for raw_event in codex_events:
                     event_type = str(_value(raw_event, "type", "")).strip().lower()
-                    if event_type in {"delta", "item.delta", "message.delta"}:
+                    if event_type == "progress":
+                        text = _value(raw_event, "text", "")
+                        if not isinstance(text, str):
+                            raise CodexStreamError("CODEX_OUTPUT_INVALID")
+                        text = text[:max(0, 16000 - progress_chars)]
+                        for offset in range(0, len(text), 8000):
+                            chunk = text[offset:offset + 8000]
+                            self._repository.append_public_progress(principal.user_id,
+                                _as_uuid(_value(run, "id")), chunk)
+                            progress_chars += len(chunk)
+                            sequence += 1
+                            yield ChatEvent("progress", request_id, str(conversation_id), sequence,
+                                            run_id=run_id, text=chunk)
+                    elif event_type in {"delta", "item.delta", "message.delta"}:
                         delta = str(_value(raw_event, "text", "") or _value(raw_event, "delta", ""))
                         if not delta:
                             continue
@@ -373,13 +411,14 @@ class ChatApplication:
             if not completed or not "".join(answer_parts).strip():
                 raise CodexStreamError("CODEX_OUTPUT_INVALID")
             answer = "".join(answer_parts).strip()
+            finished = _utc(self._clock)
             try:
                 self._repository.complete_run_with_assistant(
                     principal.user_id,
                     conversation_id,
                     _as_uuid(_value(run, "id")),
                     answer,
-                    _utc(self._clock),
+                    finished,
                 )
             except Exception:
                 yield from self._fail_run(
@@ -400,6 +439,7 @@ class ChatApplication:
                 sequence,
                 run_id=run_id,
                 text=answer,
+                **self._timing(run, finished),
             )
         except GeneratorExit:
             if not terminal_persisted:
@@ -474,13 +514,14 @@ class ChatApplication:
         sequence: int,
         error: CodexStreamError,
     ) -> Iterator[ChatEvent]:
+        finished = _utc(self._clock)
         self._repository.finish_agent_run(
             principal.user_id,
             _as_uuid(_value(run, "id")),
             AgentRunStatus.FAILED,
             None,
             error.code,
-            _utc(self._clock),
+            finished,
         )
         yield ChatEvent(
             "failed",
@@ -490,6 +531,7 @@ class ChatApplication:
             run_id=str(_as_uuid(_value(run, "id"))),
             error_code=error.code,
             retryable=error.code in {"CODEX_UNAVAILABLE", "CODEX_TIMEOUT", "CODEX_EXECUTION_FAILED"},
+            **self._timing(run, finished),
         )
 
     def _replay_agent_run(
@@ -511,14 +553,24 @@ class ChatApplication:
             1,
             run_id=run_id,
         )
+        sequence = 1
+        presentations = self._repository.list_run_presentations(principal.user_id, _as_uuid(conversation_id))
+        presentation = next((row for row in presentations if str(_value(row, "id")) == run_id), run)
+        progress = _value(presentation, "public_progress", "")
+        for offset in range(0, len(progress), 8000):
+            sequence += 1
+            yield ChatEvent("progress", request_id, conversation_id, sequence,
+                            run_id=run_id, text=progress[offset:offset + 8000])
+        timing = self._timing(run, _value(run, "finished_at"))
         if status_value == AgentRunStatus.FAILED.value:
             error_code = str(_value(run, "public_error_code", "") or "CODEX_OUTPUT_INVALID")
             yield ChatEvent(
                 "failed",
                 request_id,
                 conversation_id,
-                2,
+                sequence + 1,
                 run_id=run_id,
+                **timing,
                 error_code=error_code,
                 retryable=error_code in {"CODEX_UNAVAILABLE", "CODEX_TIMEOUT", "CODEX_EXECUTION_FAILED"},
             )
@@ -547,9 +599,10 @@ class ChatApplication:
             "completed",
             request_id,
             conversation_id,
-            2,
+            sequence + 1,
             run_id=run_id,
             text=str(_value(assistant, "content", "")),
+            **timing,
         )
 
     @staticmethod

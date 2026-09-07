@@ -20,6 +20,8 @@ class ChatEvent:
     text: str = ""
     error_code: str = ""
     retryable: bool = False
+    completed_at: str = ""
+    duration_ms: int | None = None
 
     def public_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -35,6 +37,10 @@ class ChatEvent:
         if self.error_code:
             payload["errorCode"] = self.error_code
             payload["retryable"] = self.retryable
+        if self.completed_at:
+            payload["completedAt"] = self.completed_at
+        if self.duration_ms is not None:
+            payload["durationMs"] = self.duration_ms
         return payload
 
 

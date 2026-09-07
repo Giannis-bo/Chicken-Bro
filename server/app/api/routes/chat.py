@@ -1,7 +1,8 @@
 from collections.abc import Iterator
+from dataclasses import replace
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -60,15 +61,25 @@ def _conversation_payload(conversation: object) -> dict[str, object]:
 
 def _message_payload(message: object) -> dict[str, object]:
     role = _value(message, "role", "")
-    return {
+    payload = {
         "id": str(_value(message, "id", "")),
         "role": str(getattr(role, "value", role)),
         "content": str(_value(message, "content", "")),
         "createdAt": _iso(_value(message, "created_at", "")),
     }
 
+    status = _value(message, "reply_status")
+    if status in {"completed", "failed"}:
+        payload["progress"] = {
+            "text": str(_value(message, "progress_text", "")),
+            "status": status,
+            "completedAt": _iso(_value(message, "completed_at")),
+            "durationMs": _value(message, "duration_ms"),
+        }
+    return payload
 
-def _detail_payload(view: object) -> dict[str, object]:
+
+def _detail_payload(view: object, include_progress: bool = False) -> dict[str, object]:
     if not isinstance(view, dict):
         raise ChatApplicationError(
             "CHAT_PERSISTENCE_FAILED",
@@ -83,7 +94,11 @@ def _detail_payload(view: object) -> dict[str, object]:
         )
     return {
         **_conversation_payload(conversation),
-        "messages": [_message_payload(message) for message in messages],
+        "messages": [
+            (_message_payload(message) if include_progress else
+             {key: value for key, value in _message_payload(message).items() if key != "progress"})
+            for message in messages if include_progress or _value(message, "reply_status") != "failed"
+        ],
     }
 
 
@@ -152,20 +167,34 @@ def create_conversation(
 @router.get("/conversations/{conversation_id}")
 def get_conversation(
     conversation_id: UUID,
+    include_progress: bool = Query(default=False, alias="includeProgress"),
     principal: Principal = Depends(require_principal),
     application: ChatApplication = Depends(chat_application),
 ) -> dict[str, object]:
     try:
         view = application.load_conversation(principal, conversation_id)
-        return _detail_payload(view)
+        return _detail_payload(view, include_progress)
     except ChatApplicationError as error:
         _raise_chat_error(error)
+
+
+def _client_events(events: Iterator[ChatEvent], include_progress: bool) -> Iterator[ChatEvent]:
+    sequence = 0
+    try:
+        for event in events:
+            if not include_progress and event.event_type == "progress":
+                continue
+            sequence += 1
+            yield event if include_progress else replace(event, sequence=sequence, completed_at="", duration_ms=None)
+    finally:
+        events.close()
 
 
 @router.post("/conversations/{conversation_id}/messages/stream")
 def stream_message(
     conversation_id: UUID,
     body: ChatMessageBody,
+    include_progress: bool = Query(default=False, alias="includeProgress"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_mutating_principal),
     application: ChatApplication = Depends(chat_application),
@@ -177,6 +206,7 @@ def stream_message(
         client_message_id=body.client_message_id,
         idempotency_key=idempotency_key or "",
     )
+    events = _client_events(events, include_progress)
     try:
         first = next(events)
     except ChatApplicationError as error:

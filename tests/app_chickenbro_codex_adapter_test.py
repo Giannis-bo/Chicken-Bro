@@ -118,6 +118,34 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
                 "submit_simulation": {"approval_mode": "approve"},
             })
 
+    def test_streams_public_summary_separately_and_rejects_wrong_turn(self):
+        summary = note('item/reasoning/summaryTextDelta', threadId='thread', turnId='turn',
+                       itemId='thought', summaryIndex=0, delta='正在核对技能覆盖率')
+        body = [item('item/started', identity='thought', kind='reasoning'), summary,
+                note('item/reasoning/textDelta', delta='private raw reasoning'),
+                item('item/completed', identity='thought', kind='reasoning'),
+                item('item/started'), delta('answer'), item('item/completed', 'answer')]
+        result, _ = self.run_stream(transcript(*body))
+        self.assertEqual(result[0], dict(type='progress', text='正在核对技能覆盖率'))
+        self.assertEqual(result[-1], dict(type='completed', text='answer'))
+        self.assertNotIn('private raw', json.dumps(result))
+        summary['params']['turnId'] = 'other'
+        with self.assertRaises(CodexStreamError):
+            self.run_stream(transcript(*body))
+
+    def test_oversized_public_summary_is_capped_without_losing_final_answer(self):
+        result, _ = self.run_stream(transcript(
+            item('item/started', identity='thought', kind='reasoning'),
+            note('item/reasoning/summaryTextDelta', threadId='thread', turnId='turn',
+                 itemId='thought', summaryIndex=0, delta='🐔' * 16001),
+            note('item/reasoning/summaryTextDelta', threadId='thread', turnId='turn',
+                 itemId='thought', summaryIndex=0, delta='more'),
+            item('item/completed', identity='thought', kind='reasoning'),
+            item('item/started'), delta('answer'), item('item/completed', 'answer')))
+        self.assertEqual(len(result[0]['text']), 16000)
+        self.assertEqual(result[-1], dict(type='completed', text='answer'))
+        self.assertEqual(len(result), 3)
+
     def test_uses_native_app_server_transport(self):
         def popen(command, **kwargs):
             self.assertIn('app-server', command)
@@ -142,6 +170,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertEqual(sent[2]['params']['sandbox'], 'read-only')
         self.assertTrue(sent[2]['params']['ephemeral'])
         self.assertEqual(sent[3]['params']['input'], [dict(type='text', text='hello')])
+        self.assertEqual(sent[3]['params'].get('summary'), 'auto')
 
     def test_commentary_reasoning_tools_and_unknown_methods_never_exposed(self):
         events = transcript(item('item/started', phase='commentary', identity='comment'), delta('secret', 'comment'),

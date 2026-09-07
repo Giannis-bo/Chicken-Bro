@@ -123,6 +123,29 @@ class PostgresChatRepository:
                 rows = cursor.fetchall()
         return [self._message_from_row(row) for row in rows]
 
+    def append_public_progress(self, user_id: UUID, run_id: UUID, text: str) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE chat.agent_runs SET public_progress = public_progress || %s
+                       WHERE user_id = %s AND id = %s AND status = 'streaming'""",
+                    (text, user_id, run_id),
+                )
+                if cursor.rowcount != 1:
+                    raise RuntimeError("agent run was not streaming for progress")
+
+    def list_run_presentations(self, user_id: UUID, conversation_id: UUID) -> list[dict[str, Any]]:
+        keys = ("id", "assistant_message_id", "status", "started_at", "finished_at", "public_progress")
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT id, assistant_message_id, status, started_at, finished_at, public_progress
+                       FROM chat.agent_runs WHERE user_id = %s AND conversation_id = %s
+                       ORDER BY started_at, id""", (user_id, conversation_id),
+                )
+                return [{key: _row_value(row, key, index) for index, key in enumerate(keys)}
+                        for row in cursor.fetchall()]
+
     def get_message_by_client_id(
         self,
         user_id: UUID,

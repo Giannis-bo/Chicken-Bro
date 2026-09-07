@@ -1,0 +1,19 @@
+.details { margin: 8px 0 12px; }
+.process { border-left: 2px solid #ddcfc3; padding-left: 12px; }
+.toggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #78695e;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  &::after { border: 0; }
+}
+.summary { display: block; padding: 6px 0; color: #78695e; font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.meta { display: block; margin-top: 6px; color: #8a7b70; font-size: 11px; line-height: 1.6; }

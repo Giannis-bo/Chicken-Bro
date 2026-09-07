@@ -20,6 +20,10 @@ export interface ChatModelState {
   activeConversation: ConversationDetail | null
   pendingUserContent: string
   streamText: string
+  streamProgress: string
+  streamProgressStatus: 'thinking' | 'completed' | 'failed'
+  streamCompletedAt: string
+  streamDurationMs: number | null
   errorCode: string
   errorMessage: string
   retryable: boolean
@@ -38,6 +42,10 @@ const initialState: ChatModelState = {
   activeConversation: null,
   pendingUserContent: '',
   streamText: '',
+  streamProgress: '',
+  streamProgressStatus: 'thinking',
+  streamCompletedAt: '',
+  streamDurationMs: null,
   errorCode: '',
   errorMessage: '',
   retryable: false,
@@ -68,6 +76,7 @@ export class ChatModel {
   private readonly listeners = new Set<ChatListener>()
   private readonly requestId: () => string
   private activeStream: ApiStreamTask | null = null
+  private streamSucceeded = false
   private streamSequence = 0
   private streamRequestId = ''
   private streamRunId = ''
@@ -123,6 +132,10 @@ export class ChatModel {
       activeConversation: null,
       pendingUserContent: '',
       streamText: '',
+      streamProgress: '',
+      streamProgressStatus: 'thinking',
+      streamCompletedAt: '',
+      streamDurationMs: null,
       errorCode: '',
       errorMessage: '',
       retryable: false,
@@ -165,7 +178,7 @@ export class ChatModel {
 
   async open(conversationId: string): Promise<void> {
     const generation = this.beginViewRequest()
-    this.update({ phase: 'loading', pendingUserContent: '', streamText: '' })
+    this.update({ phase: 'loading', pendingUserContent: '', streamText: '', streamProgress: '', streamProgressStatus: 'thinking', streamCompletedAt: '', streamDurationMs: null, })
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -251,6 +264,7 @@ export class ChatModel {
     }
     const generation = this.streamGeneration + 1
     this.streamGeneration = generation
+    this.streamSucceeded = false
     this.streamSequence = 0
     this.streamRequestId = ''
     this.streamRunId = ''
@@ -258,6 +272,10 @@ export class ChatModel {
       phase: 'sending',
       pendingUserContent: normalized,
       streamText: '',
+      streamProgress: '',
+      streamProgressStatus: 'thinking',
+      streamCompletedAt: '',
+      streamDurationMs: null,
       errorCode: '',
       errorMessage: '',
       retryable: false,
@@ -306,6 +324,7 @@ export class ChatModel {
   }
 
   private beginViewRequest(): number {
+    this.streamSucceeded = false
     const activeStream = this.activeStream
     this.activeStream = null
     this.streamGeneration += 1
@@ -330,17 +349,25 @@ export class ChatModel {
     this.streamSequence = event.sequence
     this.streamRequestId ||= event.requestId
     this.streamRunId ||= event.runId
+    if (event.type === 'progress') {
+      this.update({ streamProgress: Array.from(this.state.streamProgress + event.text).slice(0, 16000).join(''),
+        streamProgressStatus: 'thinking' })
+      return
+    }
     if (event.type === 'delta') {
-      this.update({ streamText: this.state.streamText + event.text })
+      this.update({ streamText: this.state.streamText + event.text, streamProgressStatus: 'completed' })
       return
     }
     if (event.type === 'completed') {
+      this.streamSucceeded = true
       this.activeStream = null
-      this.update({ streamText: event.text })
+      this.update({ streamText: event.text, streamProgressStatus: 'completed',
+        streamCompletedAt: event.completedAt ?? '', streamDurationMs: event.durationMs ?? null })
       void this.refreshAfterStream(conversationId, false, generation)
       return
     }
     if (event.type === 'failed') {
+      this.update({ streamCompletedAt: event.completedAt ?? '', streamDurationMs: event.durationMs ?? null })
       this.activeStream = null
       this.fail(event.errorCode, '本次回答未完成，用户消息已保留', event.retryable)
       void this.refreshAfterStream(conversationId, true, generation)
@@ -383,6 +410,10 @@ export class ChatModel {
       activeConversation: result.payload,
       pendingUserContent: '',
       streamText: '',
+      streamProgress: '',
+      streamProgressStatus: 'thinking',
+      streamCompletedAt: '',
+      streamDurationMs: null,
       ...(preserveFailure
         ? failure
         : { errorCode: '', errorMessage: '', retryable: false }),
@@ -418,7 +449,7 @@ export class ChatModel {
       errorCode: code,
       errorMessage: message,
       retryable,
-      streamText: '',
+      ...(this.streamSucceeded ? {} : { streamText: '', streamProgressStatus: 'failed' as const }),
     })
   }
 

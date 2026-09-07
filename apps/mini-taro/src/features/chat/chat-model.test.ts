@@ -385,3 +385,37 @@ describe('ChatModel', () => {
     })
   })
 })
+
+it('keeps streamed progress separate from the answer and ends thinking before history returns', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  model.send('分析日志')
+  const base = { conversationId: conversation.id, requestId: 'req', runId: 'run' }
+  client.emit({ ...base, type: 'started', sequence: 1 })
+  client.emit({ ...base, type: 'progress', sequence: 2, text: '正在核对日志' })
+  expect(model.get().streamProgress).toBe('正在核对日志')
+  expect(model.get().streamText).toBe('')
+  client.emit({ ...base, type: 'delta', sequence: 3, text: '结论' })
+  expect(model.get().streamProgressStatus).toBe('completed')
+  expect(model.get().streamText).toBe('结论')
+  model.dispose()
+})
+
+it('does not relabel a completed reply when its history refresh fails', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  model.send('问题')
+  client.get = async () => ({ payload: client.detail, fromFallback: true, error: 'history unavailable' })
+  const base = { conversationId: conversation.id, requestId: 'req', runId: 'run' }
+  client.emit({ ...base, type: 'started', sequence: 1 })
+  client.emit({ ...base, type: 'progress', sequence: 2, text: '核对日志' })
+  client.emit({ ...base, type: 'completed', sequence: 3, text: '已完成的答案',
+    completedAt: now, durationMs: 18000 })
+  await Promise.resolve()
+  expect(model.get().streamText).toBe('已完成的答案')
+  expect(model.get().streamProgressStatus).toBe('completed')
+  expect(model.get().streamDurationMs).toBe(18000)
+  model.dispose()
+})

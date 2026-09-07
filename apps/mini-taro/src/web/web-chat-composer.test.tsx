@@ -55,6 +55,33 @@ describe('Web chat composer interactions', () => {
     return event
   }
 
+  it('streams an expandable summary, collapses at the answer, and restores server timing', async () => {
+    await draft('分析日志')
+    await enter()
+    const onEvent = api.streamMessage.mock.calls[0]?.[2].onEvent
+    const base = { requestId: 'request', runId: 'run', conversationId: 'chat-one' }
+    await act(async () => {
+      onEvent({ ...base, sequence: 1, type: 'started' })
+      onEvent({ ...base, sequence: 2, type: 'progress', text: '正在核对日志' })
+    })
+    expect(container.textContent).toContain('正在核对日志')
+    await act(async () => onEvent({ ...base, sequence: 3, type: 'delta', text: '技能覆盖不足' }))
+    expect(container.textContent).not.toContain('正在核对日志')
+    expect(container.textContent).toContain('技能覆盖不足')
+    api.get.mockResolvedValue({ fromFallback: false, error: '', payload: {
+      id: 'chat-one', messages: [{ id: 'reply', role: 'assistant', content: '技能覆盖不足',
+        createdAt: '2026-09-07T06:32:00Z', progress: { text: '正在核对日志', status: 'completed',
+          completedAt: '2026-09-07T06:32:00Z', durationMs: 18000 } }],
+    } })
+    await act(async () => onEvent({ ...base, sequence: 4, type: 'completed', text: '技能覆盖不足',
+      completedAt: '2026-09-07T06:32:00Z', durationMs: 18000 }))
+    expect(container.textContent).toContain('用时 18 秒')
+    expect(container.textContent).not.toContain('正在核对日志')
+    const toggle = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('思考摘要'))!
+    await act(async () => toggle.click())
+    expect(container.textContent).toContain('正在核对日志')
+  })
+
   it('sends once on Enter and keeps the next draft while a reply is pending', async () => {
     await draft('你好')
     expect((await enter()).defaultPrevented).toBe(true)

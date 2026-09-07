@@ -127,3 +127,23 @@ describe('formal Chat domain guards', () => {
     expect(isChatEventEnvelope({ ...base, type: 'completed', sequence: 2 })).toBe(false)
   })
 })
+
+it('accepts bounded public progress and terminal timing without accepting raw reasoning fields', () => {
+  const base = { requestId: 'req', conversationId, runId, sequence: 2 }
+  expect(isChatEventEnvelope({ ...base, type: 'progress', text: '核对日志' })).toBe(true)
+  expect(isChatEventEnvelope({ ...base, type: 'progress', text: '核对日志', reasoning: 'private' })).toBe(false)
+  const terminal = { ...base, type: 'completed', text: '结论', completedAt: timestamp, durationMs: 18000 }
+  expect(isChatEventEnvelope(terminal)).toBe(true)
+  expect(isChatEventEnvelope({ ...terminal, durationMs: -1 })).toBe(false)
+  expect(isChatEventEnvelope({ ...terminal, durationMs: Infinity })).toBe(false)
+})
+
+it('accepts emoji progress using the same Unicode character limit as PostgreSQL', () => {
+  expect(isChatEventEnvelope({ requestId: 'req', conversationId, runId, sequence: 2,
+    type: 'progress', text: '🐔'.repeat(8000) })).toBe(true)
+  expect(isConversationDetail({ id: conversationId, title: '日志', status: 'active',
+    createdAt: timestamp, updatedAt: timestamp, messages: [{ id: messageId,
+      role: 'assistant', content: '结论', createdAt: timestamp,
+      progress: { text: '🐔'.repeat(16000), status: 'completed', completedAt: timestamp, durationMs: 0 },
+    }] })).toBe(true)
+})

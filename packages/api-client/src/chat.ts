@@ -143,7 +143,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     get(conversationId, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       return request(
-        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}`),
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}?includeProgress=true`),
         undefined,
         options,
         {
@@ -180,7 +180,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       let rejected = false
       let terminalSeen = false
       return requestSse(
-        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/stream`),
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/stream?includeProgress=true`),
         {
           method: 'POST',
           data: {

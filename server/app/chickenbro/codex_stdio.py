@@ -10,7 +10,7 @@ from server.app.chickenbro.stream import CodexStreamError
 
 _MAX_LINE_BYTES = 1024 * 1024
 _MAX_TEXT_CHARS = 262144
-_BODY_METHODS = {"item/started", "item/completed", "item/agentMessage/delta", "turn/completed"}
+_BODY_METHODS = {"item/started", "item/completed", "item/agentMessage/delta", "item/reasoning/summaryTextDelta", "turn/completed"}
 _APPROVAL_METHODS = {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}
 
 
@@ -133,7 +133,7 @@ class CodexStdioSession:
             })
             self.thread_id = self._id(result.get("thread", {}).get("id"))
             result = self.request(3, "turn/start", {
-                "threadId": self.thread_id, "input": [{"type": "text", "text": prompt}],
+                "threadId": self.thread_id, "summary": "auto", "input": [{"type": "text", "text": prompt}],
             })
             self.turn_id = self._id(result.get("turn", {}).get("id"))
             while True:
@@ -171,6 +171,16 @@ class CodexStdioSession:
         return value
 
     def _item_event(self, method, params):
+        # Only the explicitly public summary channel is forwarded. Raw reasoning,
+        # commentary, commands, tool arguments and tool results stay private.
+        if method == "item/reasoning/summaryTextDelta":
+            state = self.items.get(self._id(params.get("itemId")))
+            text = params.get("delta")
+            if state is None or state["done"] or state["phase"] != "public_summary" or not isinstance(text, str):
+                raise invalid()
+            text = text[:max(0, 16000 - len(state["text"]))]
+            state["text"] += text
+            return {"type": "progress", "text": text} if text else None
         if method == "item/agentMessage/delta":
             identity = self._id(params.get("itemId"))
             state = self.items.get(identity)
@@ -186,6 +196,18 @@ class CodexStdioSession:
         item = params.get("item")
         if not isinstance(item, dict):
             raise invalid()
+        if item.get("type") == "reasoning":
+            identity = self._id(item.get("id"))
+            if method == "item/started":
+                if identity in self.items or len(self.items) >= 256:
+                    raise invalid()
+                self.items[identity] = {"phase": "public_summary", "text": "", "done": False}
+            else:
+                state = self.items.get(identity)
+                if state is None or state["done"]:
+                    raise invalid()
+                state["done"] = True
+            return None
         if item.get("type") != "agentMessage":
             return None
         identity = self._id(item.get("id"))

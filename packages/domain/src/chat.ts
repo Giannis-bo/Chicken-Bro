@@ -9,7 +9,15 @@ export interface ConversationSummary {
   updatedAt: string
 }
 
+export interface ChatProgress {
+  text: string
+  status: 'completed' | 'failed'
+  completedAt: string
+  durationMs: number | null
+}
+
 export interface ChatMessage {
+  progress?: ChatProgress
   id: string
   role: ChatMessageRole
   content: string
@@ -34,9 +42,9 @@ interface ChatEventBase {
 
 export type ChatEventEnvelope =
   | (ChatEventBase & { type: 'started' })
-  | (ChatEventBase & { type: 'delta'; text: string })
-  | (ChatEventBase & { type: 'completed'; text: string })
-  | (ChatEventBase & { type: 'failed'; errorCode: string; retryable: boolean })
+  | (ChatEventBase & { type: 'delta' | 'progress'; text: string })
+  | (ChatEventBase & { type: 'completed'; text: string; completedAt?: string; durationMs?: number })
+  | (ChatEventBase & { type: 'failed'; errorCode: string; retryable: boolean; completedAt?: string; durationMs?: number })
 
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -73,11 +81,30 @@ function isConversationSummaryRecord(value: unknown): value is ConversationSumma
     && isoDate(value['updatedAt'])
 }
 
+function nonnegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function boundedCodePoints(value: unknown, maximum: number): value is string {
+  return typeof value === 'string' && value.length <= maximum * 2 && Array.from(value).length <= maximum
+}
+
+function isProgress(value: unknown): value is ChatProgress {
+  return record(value) && exactKeys(value, ['text', 'status', 'completedAt', 'durationMs'])
+    && boundedCodePoints(value['text'], 16000)
+    && (value['status'] === 'completed' || value['status'] === 'failed')
+    && isoDate(value['completedAt'])
+    && (value['durationMs'] === null || nonnegativeInteger(value['durationMs']))
+}
+
 function isChatMessage(value: unknown): value is ChatMessage {
-  if (!record(value) || !exactKeys(value, ['id', 'role', 'content', 'createdAt'])) return false
+  if (!record(value) || !exactKeys(value, ['id', 'role', 'content', 'createdAt',
+    ...('progress' in value ? ['progress'] : [])])) return false
+  if ('progress' in value && (value['role'] !== 'assistant' || !isProgress(value['progress']))) return false
   return nonEmptyString(value['id'], 128)
     && (value['role'] === 'user' || value['role'] === 'assistant')
-    && nonEmptyString(value['content'], 100000)
+    && (nonEmptyString(value['content'], 100000)
+      || (value['content'] === '' && isProgress(value['progress']) && value['progress'].status === 'failed'))
     && isoDate(value['createdAt'])
 }
 
@@ -119,14 +146,20 @@ export function isChatEventEnvelope(value: unknown): value is ChatEventEnvelope 
   if (value['type'] === 'started') {
     return exactKeys(value, ['type', 'requestId', 'conversationId', 'runId', 'sequence'])
   }
-  if (value['type'] === 'delta' || value['type'] === 'completed') {
-    return exactKeys(value, ['type', 'requestId', 'conversationId', 'runId', 'sequence', 'text'])
-      && nonEmptyString(value['text'], 8000)
+  const timingKeys = ['completedAt', 'durationMs'].filter((key) => key in value)
+  if (timingKeys.length && (timingKeys.length !== 2
+    || !['completed', 'failed'].includes(String(value['type']))
+    || !isoDate(value['completedAt']) || !nonnegativeInteger(value['durationMs']))) return false
+  if (value['type'] === 'delta' || value['type'] === 'progress' || value['type'] === 'completed') {
+    return exactKeys(value, ['type', 'requestId', 'conversationId', 'runId', 'sequence', 'text', ...timingKeys])
+      && (value['type'] === 'progress'
+        ? boundedCodePoints(value['text'], 8000) && value['text'].length > 0
+        : nonEmptyString(value['text'], 8000))
   }
   return value['type'] === 'failed'
     && exactKeys(
       value,
-      ['type', 'requestId', 'conversationId', 'runId', 'sequence', 'errorCode', 'retryable'],
+      ['type', 'requestId', 'conversationId', 'runId', 'sequence', 'errorCode', 'retryable', ...timingKeys],
     )
     && nonEmptyString(value['errorCode'], 128)
     && typeof value['retryable'] === 'boolean'
