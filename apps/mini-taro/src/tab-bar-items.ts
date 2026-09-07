@@ -7,12 +7,12 @@ export interface CoreTabItem {
 export const tabBarItems: readonly CoreTabItem[] = [
   {
     pagePath: 'pages/chickenbro/index',
-    label: '队长',
+    label: '聊天',
     glyph: '聊',
   },
   {
     pagePath: 'pages/simc/index',
-    label: 'SimC',
+    label: 'Simc模拟',
     glyph: 'S',
   },
 ]

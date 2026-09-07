@@ -1,0 +1,115 @@
+{
+  "status": "local_verified",
+  "scope": "Mini names and full existing Web SimC feature parity with mobile interaction",
+  "sourceState": "uncommitted_existing_dirty_detached_head",
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+    "sourceHash": "sha256:82511b600c3abf9ab2a849995afb36cf36fbeb978ffe8880a760b8f5c13eafbc",
+    "builtAt": "2026-09-07T09:07:39.025Z"
+  },
+  "checks": {
+    "frontendTests": 247,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "weappBuild": "passed",
+    "h5BuildBeforeFinalChevronOnlyPolish": "passed",
+    "diffCheck": "passed",
+    "webSourceFilesUnchanged": 38,
+    "sourceReview": "Mini owner/auth transport and existing shared model/API unchanged; extended workbench and localized report opt-ins only"
+  },
+  "tdd": {
+    "before": "4 new tests failed on missing engine/options/task summaries/report metrics",
+    "after": "All four scenarios pass; existing regression suite passes"
+  },
+  "devtools": [
+    "chat_title_and_two_tab_names",
+    "setup_runtime_1210-01_game_12.1.0.69299",
+    "mobile_advanced_fields_and_switches",
+    "task_empty_state_no_jobs_in_current_account"
+  ],
+  "reportVerification": "Automated controlled report payloads including full schema, sorted localized labels, legacy summary and missing fields; current account has no existing jobs for live detail inspection",
+  "pending": [
+    "real_device_keyboard_and_safe_area",
+    "user_acceptance",
+    "real_mini_job_submission_and_cross_client_verification"
+  ],
+  "operations": {
+    "committed": false,
+    "pushed": false,
+    "uploaded": false,
+    "deployed": false,
+    "createdCloudSimulation": false
+  },
+  "changedFiles": {
+    "apps/mini-taro/src/tab-bar-items.ts": {
+      "before": "57fcbdb6b08fb986abf2d4d845bb992cb26587ff3def476940a4f081928d34b8",
+      "after": "9d30f70d0d2c7b52f0e034c2357f173f4cfbcc2f2204303d00769dd464387ed7"
+    },
+    "apps/mini-taro/src/app.config.ts": {
+      "before": "10e20a686e05abdd87e5dbb585fd448e641c6265a7181292d6f089106645bb08",
+      "after": "90b41579031aa65fb71037e0ccdc4e36aae3f953dca6829bc545a929fd8e9a05"
+    },
+    "apps/mini-taro/src/tab-bar-items.test.ts": {
+      "before": "48199f3e5deb2c69fd1a13a697fb904aec6c9e0337bb4aadecb87f15ade4da24",
+      "after": "a2920ff1e551acc9fc083f2f3bb0736cedec780c92c9e5c4a7d4e0cd677aed63"
+    },
+    "apps/mini-taro/src/components/MiniSimcReport.module.scss": {
+      "before": null,
+      "after": "17cd2519510d19ea2061b4bd8cb9b0bb2aa13aedd8ac32d75f37052d4886c75c"
+    },
+    "apps/mini-taro/src/components/MiniSimcReport.tsx": {
+      "before": null,
+      "after": "60482978d1103f171508610bba1f77d985fe1a04812f876d0da77107144044c8"
+    },
+    "apps/mini-taro/src/pages/auth/web-login-confirm.config.ts": {
+      "before": "a14819fd3f5f8f5a136cf137f406c5f574836dc2cc9479420a62c3245feb2b12",
+      "after": "253e446156e00ed51b4ed21695cb8a72eae475a2f0f82bb68701a826ef68b756"
+    },
+    "apps/mini-taro/src/pages/simc/index.tsx": {
+      "before": "e2ed716e8af1987c4f20a7f12edc7ac672bc08301ebd82f19253d773fdd15fac",
+      "after": "02d5ef57ce81859fa23d889372a926af3e946c685dbfb9b5c21ec424e4c96b93"
+    },
+    "apps/mini-taro/src/pages/simc/index.config.ts": {
+      "before": "7ca3f5d2f994c2b84a7077057696606d595b14978c09f075d582e4d14bff8252",
+      "after": "6d748c61041e0137e6a4ffd82348924445ecb679124244497007e7f33a8f3bf5"
+    },
+    "apps/mini-taro/src/pages/simc/tasks.module.scss": {
+      "before": "2faf4507e70f85318c84e062014fe3514f4efc47a5f892a501e1a5e5a8e93ab3",
+      "after": "a13ed1d0f39a5b76d1f30be17fdea80d4c5afc7fd8ac03b92abaa33d3f319ded"
+    },
+    "apps/mini-taro/src/pages/simc/task-detail.test.ts": {
+      "before": "bb7e103d002e81f5e8c90a046776a3ab467a37cbf8d762e0e25f1cf5d0a67544",
+      "after": "9a2cc3835da0fce0374311224fc3ef923963ed67bd65cb1b89b244de20fcd024"
+    },
+    "apps/mini-taro/src/pages/simc/task-detail.config.ts": {
+      "before": "b45e0b05351d657b43549d6c6c2f5994fee3b681f50755e3c9818d7481f8e92a",
+      "after": "7724563555bb5fd9ed21d3e2e2f68a43d03f41bd63a8a943d4074284213cb5ed"
+    },
+    "apps/mini-taro/src/pages/simc/tasks.tsx": {
+      "before": "ac950fbb7bb9b801231e87617a31fb4ae92c11d53b113fb4f34d7fb236ffd4dc",
+      "after": "58d15007e30487ffe993922d2f50292f3d8c6b1945c6065ed6539ee6c85c188d"
+    },
+    "apps/mini-taro/src/pages/simc/tasks.config.ts": {
+      "before": "07249749af96ef23bb86f214b0c86d5a9f14ef89104f062a19af10552f5c3a54",
+      "after": "7724563555bb5fd9ed21d3e2e2f68a43d03f41bd63a8a943d4074284213cb5ed"
+    },
+    "apps/mini-taro/src/pages/simc/index.module.scss": {
+      "before": "82093bd452a0f81dec511acf5104550a380e15a0f4733974fdd22cc9d6d4249c",
+      "after": "97c6341402c85d98ed81da8467632ac2554e5e13d9272a562d0607354f6b0a97"
+    },
+    "apps/mini-taro/src/pages/simc/task-detail.tsx": {
+      "before": "8b4d43ac6ffeeffefd43e79f73a8418f92f02dbb4a08d7ebf6841fa2224509f7",
+      "after": "8a31394abf93fb98908659c71ec9ea0a593701a3e8748c652c074d6744fe405f"
+    },
+    "apps/mini-taro/src/pages/chickenbro/index.config.ts": {
+      "before": "ff5918349c61b78abdbceae8d6003ad6f9a50f489c8482b47b5d9a625812202a",
+      "after": "8f25f9550fb4c3dc858216b9318b65309146b3071d403623ef453dd828c20e39"
+    },
+    "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx": {
+      "before": "28c99cea73e3e7c784c26e86fa93d63a04bb5d889ed0c3a3be508bb1fe5a3562",
+      "after": "649b67e5cd9c39583e0bbfa94d61d129a1d8e20a42bbf1662f726decf5e97685"
+    }
+  }
+}

@@ -3,8 +3,8 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), streamMessage: vi.fn() }))
-vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api } }))
+const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), streamMessage: vi.fn(), avatar: vi.fn() }))
+vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api, avatar: { get: api.avatar } } }))
 vi.mock('./WebServiceHealth', () => ({ default: () => null }))
 vi.mock('./WebSimcView', () => ({ default: () => createElement('input', { 'aria-label': '模拟草稿' }) }))
 vi.mock('@tarojs/components', async () => {
@@ -48,6 +48,7 @@ describe('Web business tabs during a chat reply', () => {
     vi.clearAllMocks()
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     window.history.replaceState(null, '', '/')
+    api.avatar.mockResolvedValue(success({ avatarDataUrl: null }))
     api.list.mockResolvedValue(success({ items: [conversation], nextCursor: null }))
     api.get.mockResolvedValue(success({ ...conversation, messages: [] }))
     api.streamMessage.mockReturnValue({ abort })
@@ -76,6 +77,22 @@ describe('Web business tabs during a chat reply', () => {
     await click('发送消息')
     return api.streamMessage.mock.calls[0]![2].onEvent
   }
+
+  it('refreshes the shared avatar on focus and keeps the menu usable after image failure', async () => {
+    const image = 'data:image/png;base64,iVBORw0KGgoAAA=='
+    expect(container.querySelector('button[aria-label="账户菜单"] svg')).not.toBeNull()
+    api.avatar.mockResolvedValue(success({ avatarDataUrl: image }))
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    const avatar = container.querySelector<HTMLImageElement>('button[aria-label="账户菜单"] img')!
+    expect(avatar.src).toBe(image)
+    await act(async () => avatar.dispatchEvent(new Event('error')))
+    expect(container.querySelector('button[aria-label="账户菜单"] svg')).not.toBeNull()
+    await click('账户菜单')
+    expect(container.textContent).not.toContain('在小程序中设置或更换头像')
+    expect(api.avatar).toHaveBeenCalledTimes(3)
+    await click('退出登录')
+    expect(onLogout).toHaveBeenCalledOnce()
+  })
 
   it.each(['waiting', 'streaming'])('keeps a %s reply alive through repeated switches and completes while hidden', async (phase) => {
     const onEvent = await send()

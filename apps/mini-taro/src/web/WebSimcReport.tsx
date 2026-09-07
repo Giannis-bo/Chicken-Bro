@@ -27,7 +27,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
       <span className={styles['status']} data-status={job.status}>{simcStatuses[job.status]}</span>
     </div>
     <div className={styles['reportMeta']}>
-      <span>{report?.engine.version ? `运行引擎 ${report.engine.version}` : '运行版本未记录'}</span>
+      <span>{report?.engine.version ? `Simc版本：${report.engine.version}` : 'Simc版本：未记录'}</span>
       {report?.engine.gameVersion ? <span>游戏 {report.engine.gameVersion}</span> : null}
       {report?.engine.build ? <span>游戏构建版本 {report.engine.build}</span> : null}
     </div>

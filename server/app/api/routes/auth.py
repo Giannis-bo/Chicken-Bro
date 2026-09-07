@@ -54,6 +54,8 @@ class MiniConfirmBody(BaseModel):
 
 def _status_for_code(code: str) -> int:
     return {
+        "AVATAR_INVALID": 422,
+        "AVATAR_MINI_REQUIRED": 403,
         "AUTH_REQUIRED": 401,
         "TEST_LOGIN_DISABLED": 404,
         "ORIGIN_REJECTED": 403,
@@ -257,3 +259,35 @@ def me(
         "displayName": view.display_name,
         "requestId": _request_id(request),
     }
+
+
+class AvatarBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    avatarDataUrl: str = Field(min_length=1, max_length=349551)
+
+
+@router.get("/api/v2/me/avatar")
+def get_avatar(
+    request: Request,
+    response: Response,
+    principal: Principal = Depends(require_principal),
+    application: WebAuthApplication = Depends(web_auth_application),
+) -> dict[str, object]:
+    response.headers["Cache-Control"] = "private, no-store"
+    return {"avatarDataUrl": application.avatar(principal), "requestId": _request_id(request)}
+
+
+@router.put("/api/v2/me/avatar")
+def set_avatar(
+    body: AvatarBody,
+    request: Request,
+    response: Response,
+    principal: Principal = Depends(require_mini_principal),
+    application: WebAuthApplication = Depends(web_auth_application),
+) -> dict[str, object]:
+    try:
+        avatar = application.set_avatar(principal, body.avatarDataUrl)
+    except AuthApplicationError as error:
+        _raise_application_error(error)
+    response.headers["Cache-Control"] = "private, no-store"
+    return {"avatarDataUrl": avatar, "requestId": _request_id(request)}

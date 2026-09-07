@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'SimC',
+  navigationBarTitleText: 'Simc模拟',
   navigationStyle: 'default',
 })

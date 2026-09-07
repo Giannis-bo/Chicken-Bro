@@ -1,6 +1,5 @@
 import TestLoginForm from '../features/auth/TestLoginForm'
 import { isTestLoginEnabled } from '../features/auth/test-login-mode'
-import { Button, Image, Text, View } from '@tarojs/components'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
@@ -13,6 +12,7 @@ import { wowApi } from '@wow-mini/api-client'
 import { isMeResponse, type MeResponse } from '@wow-mini/domain'
 
 import WebShell from './WebShell'
+import WebLoginHome from './WebLoginHome'
 import {
   getOrCreateBrowserVerifier,
   initialWebAuthState,
@@ -24,7 +24,7 @@ import {
   type WebAuthState,
   type WebAuthStateEvent,
 } from './web-auth-model'
-import styles from './WebApp.module.scss'
+import styles from './WebLoginCard.module.scss'
 
 
 export interface WebAppProps {
@@ -54,7 +54,7 @@ function publicProblem(result: ApiResult<unknown>, fallback: string): { code: st
   const code = result.problemCode ?? ''
   return {
     code: code || 'AUTH_REQUEST_FAILED',
-    message: problemCopy[code] ?? (result.error || fallback),
+    message: problemCopy[code] ?? fallback,
   }
 }
 
@@ -72,15 +72,6 @@ function statusFailureEvent(result: ApiResult<unknown>): WebAuthStateEvent {
   return { type: 'blocked', ...publicProblem(result, '登录状态暂不可用，请重试') }
 }
 
-function phaseLabel(phase: WebAuthState['phase']): string {
-  if (phase === 'checking') return '正在检查 Web 会话'
-  if (phase === 'signed_out') return '等待连接微信账户'
-  if (phase === 'qr_pending') return '等待小程序扫码'
-  if (phase === 'qr_confirmed') return '小程序已确认'
-  if (phase === 'authenticated') return 'Web 会话已连接'
-  return '登录暂不可用'
-}
-
 function remainingSeconds(expiresAt: string, now: number): number {
   if (!expiresAt) return 0
   return Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 1000))
@@ -92,6 +83,8 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const [account, setAccount] = useState<MeResponse | null>(null)
   const [authContext, setAuthContext] = useState<WebClientAuth | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [generating, setGenerating] = useState(false)
+  const automaticLoginStarted = useRef(false)
   const stateRef = useRef(state)
   const verifierRef = useRef('')
   const exchangeStartedRef = useRef(false)
@@ -208,7 +201,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     [now, state.expiresAt],
   )
 
-  const createSession = async (replaceActive = false) => {
+  const createSession = useCallback(async (replaceActive = false) => {
     if (createInFlightRef.current) return
     if (
       !replaceActive
@@ -220,6 +213,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     setAuthContext(null)
     dispatch({ type: 'signed_out' })
     createInFlightRef.current = true
+    setGenerating(true)
     try {
       const browserVerifier = getOrCreateBrowserVerifier()
       verifierRef.current = browserVerifier
@@ -246,6 +240,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
         return
       }
       if (createAttemptRef.current === attempt) createAttemptRef.current = null
+      setNow(Date.now())
       dispatch({ type: 'created', payload: result.payload })
     } catch (error) {
       if (!authIntentRef.current.isCurrent(intent)) return
@@ -257,8 +252,15 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
       })
     } finally {
       createInFlightRef.current = false
+      setGenerating(false)
     }
-  }
+  }, [dispatch, webAuth])
+
+  useEffect(() => {
+    if (state.phase !== 'signed_out' || isTestLoginEnabled() || automaticLoginStarted.current) return
+    automaticLoginStarted.current = true
+    void createSession()
+  }, [createSession, state.phase])
 
   const cancelSession = async () => {
     if (
@@ -279,6 +281,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   const logout = async () => {
     const intent = authIntentRef.current.begin()
     if (!authContext) {
+      automaticLoginStarted.current = false
       dispatch({ type: 'logout' })
       return
     }
@@ -291,6 +294,7 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
     setAccount(null)
     setAuthContext(null)
     exchangeStartedRef.current = false
+    automaticLoginStarted.current = false
     dispatch({ type: 'logout' })
   }
 
@@ -315,93 +319,41 @@ export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
   }
 
   const activeQr = state.phase === 'qr_pending' || state.phase === 'qr_confirmed'
+  const expired = state.phase === 'qr_pending' && remaining === 0
+  const confirmed = state.phase === 'qr_confirmed'
+  const waiting = state.phase === 'checking' || generating
 
   return (
-    <View className={styles['page'] ?? ''} data-auth-phase={state.phase} data-auth-transport="credentials-include">
-      <View className={styles['loginShell'] ?? ''}>
-        <View className={styles['brand'] ?? ''}>
-          <View className={styles['brandMascotFrame'] ?? ''}>
-            <View className={styles['brandMascot'] ?? ''} />
-          </View>
-          <View className={styles['brandCopy'] ?? ''}>
-            <Text className={styles['brandName'] ?? ''}>炸鸡队长来啦</Text>
-          </View>
-        </View>
-
-        <View className={styles['loginCard'] ?? ''}>
-          <Text className={styles['cardKicker'] ?? ''}>{phaseLabel(state.phase)}</Text>
-
-          {state.phase === 'checking' ? (
-            <View className={styles['statePanel'] ?? ''}>
-              <Text className={styles['cardTitle'] ?? ''}>正在检查 Web 会话</Text>
-              <Text className={styles['cardDescription'] ?? ''}>已登录时会直接恢复你的服务端会话与 SimC 历史。</Text>
-            </View>
+    <WebLoginHome>
+      <div className={styles['card']} data-auth-phase={state.phase} data-auth-transport="credentials-include">
+        <div className={styles['qrFrame']} aria-busy={waiting}>
+          {activeQr && !expired ? (
+            <img className={styles['qrImage']} src={state.qrDataUrl} alt="微信扫码登录二维码" width="216" height="216" />
+          ) : (
+            <div className={styles['placeholder']}>
+              {waiting ? <span className={styles['spinner']} aria-hidden="true" /> : <span className={styles['qrSymbol']} aria-hidden="true">⌗</span>}
+              <span>{waiting ? '正在准备二维码…' : expired || state.errorCode === 'WEB_LOGIN_EXPIRED' ? '二维码已过期' : '扫码入口暂未就绪'}</span>
+            </div>
+          )}
+        </div>
+        <div className={styles['status']} role="status" aria-live="polite">
+          {waiting ? '稍等一下，马上就好' : activeQr && !expired
+            ? confirmed ? '已确认，正在登录…' : '微信扫一扫，在小程序中确认登录'
+            : state.phase === 'blocked' ? state.errorMessage || problemCopy[state.errorCode] : '点击下方按钮，生成登录二维码'}
+        </div>
+        {activeQr && !expired ? <p className={styles['countdown']}>有效期 {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}</p> : null}
+        <div className={styles['actions']}>
+          {activeQr && !expired ? (
+            <button type="button" className={styles['quietButton']} disabled={confirmed} onClick={() => void cancelSession()}>取消登录</button>
+          ) : !waiting ? (
+            <button type="button" className={styles['primaryButton']} onClick={() => void (
+              expired || state.errorCode === 'WEB_LOGIN_EXPIRED' ? createSession(true) : createSession()
+            )}>
+              {expired || state.errorCode === 'WEB_LOGIN_EXPIRED' ? '刷新二维码' : '重新扫码'}
+            </button>
           ) : null}
-
-          {state.phase === 'signed_out' ? (
-            <View className={styles['statePanel'] ?? ''}>
-              <View className={styles['wechatGlyph'] ?? ''}>微</View>
-              <Text className={styles['cardTitle'] ?? ''}>使用微信小程序登录</Text>
-              <Text className={styles['cardDescription'] ?? ''}>
-                Web 不读取小程序 token。扫码后请在小程序中明确使用小程序确认，浏览器只获得独立的安全 Cookie。
-              </Text>
-              {state.errorMessage ? <Text className={styles['notice'] ?? ''}>{state.errorMessage}</Text> : null}
-              <Button className={styles['primaryButton'] ?? ''} onClick={() => void createSession()}>
-                使用微信小程序登录
-              </Button>
-              <Text className={styles['smallPrint'] ?? ''}>请使用电脑或另一台设备展示二维码</Text>
-            </View>
-          ) : null}
-
-          {activeQr ? (
-            <View className={styles['statePanel'] ?? ''}>
-              <View className={styles['qrFrame'] ?? ''}>
-                <Image className={styles['qrImage'] ?? ''} src={state.qrDataUrl} mode="aspectFit" />
-              </View>
-              <Text className={styles['cardTitle'] ?? ''}>
-                {state.phase === 'qr_confirmed'
-                  ? '登录已确认，正在建立 Web 会话'
-                  : '请用微信小程序扫描二维码'}
-              </Text>
-              <Text className={styles['cardDescription'] ?? ''}>
-                扫码后回到小程序核对本次操作，并明确使用小程序确认。
-              </Text>
-              <Text className={styles['countdown'] ?? ''}>
-                {remaining > 0 ? `二维码剩余 ${remaining} 秒` : '二维码已过期'}
-              </Text>
-              <View className={styles['actionRow'] ?? ''}>
-                <Button className={styles['secondaryButton'] ?? ''} onClick={() => void cancelSession()}>
-                  取消登录
-                </Button>
-                {remaining === 0 ? (
-                  <Button className={styles['primaryButton'] ?? ''} onClick={() => void createSession(true)}>
-                    重新生成
-                  </Button>
-                ) : null}
-              </View>
-            </View>
-          ) : null}
-
-          {state.phase === 'blocked' ? (
-            <View className={styles['statePanel'] ?? ''} data-error-code={state.errorCode}>
-              <Text className={styles['cardTitle'] ?? ''}>登录暂不可用</Text>
-              <Text className={styles['notice'] ?? ''}>{state.errorMessage || problemCopy[state.errorCode]}</Text>
-              <View className={styles['actionRow'] ?? ''}>
-                <Button className={styles['secondaryButton'] ?? ''} onClick={() => void loadAccount()}>
-                  重新检查
-                </Button>
-                <Button className={styles['primaryButton'] ?? ''} onClick={() => void createSession()}>
-                  重新扫码
-                </Button>
-              </View>
-            </View>
-          ) : null}
-        </View>
-
-        <Text className={styles['trustNote'] ?? ''}>
-          Web Cookie 与 Mini Bearer 相互独立；共享的只有同一内部用户及其服务端 Chat / SimC 历史。
-        </Text>
-      </View>
-    </View>
+        </div>
+      </div>
+    </WebLoginHome>
   )
 }

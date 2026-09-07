@@ -1,0 +1,58 @@
+{
+  "observedAt": "2026-09-07T08:04:48.931135+00:00",
+  "status": "formal_web_live_verified_user_acceptance_pending",
+  "currentRoot": "/var/www/chickenbro-web/releases/home-credit-20260907-ce49e8b603d1",
+  "previousRoot": "/var/www/chickenbro-web/releases/fixed-home-20260907-649f647d696a",
+  "baseCommit": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+  "sourceUncommitted": true,
+  "build": {
+    "files": {
+      "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+      "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+      "chunk/491.js": "ac0847a2a78b61b002ba99e2aa7250d5622a6bd05e0f1ccbfba599e6068f194c",
+      "chunk/491.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/74.js": "50b5d032926bf117ab50299adc0e9e52686fa23309176a050ab8652ab066aff9",
+      "chunk/765.js": "694269eed3cf3f3de1cf1a8fb0e2dc304667be0d6069e932db594d48a8704d4d",
+      "chunk/765.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/856.js": "efc929a2d5012d9a2ee3b9b72d68f7471cda422177fa1bdcc24b5b2b6df49a27",
+      "chunk/856.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/882.js": "c079f21ab944920ea8e25d44c0f4b7f707d854a2d23a77aa9d7487ef3a37dca5",
+      "chunk/882.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "css/491.css": "84a50804256a16231a2380468b5b18c227b1155a85adf42d7b33265476d9416c",
+      "css/74.css": "d9d4c61894337c8bfaf2dc210543dcdb14f9b3cecc18535e0ce53392f025c528",
+      "css/765.css": "ec4ebdb241c6469bd60e0d2699e32993f34b1d1616124f3add510418422125c0",
+      "css/856.css": "594e86106b631cb9edeca18b428a17fb9a872269b529ee86dcfaeead42a40c83",
+      "css/882.css": "c25c2b2317d6596083a40ce04bf70453cf2e05f984bc39e3e47c504f1e108b82",
+      "css/app.css": "b2e432446b92809d82f77719dd432c52ab88faf55f49b564265d3c8ac9cf9a93",
+      "index.html": "bfa7dc17f11630a41b854fe9a4d18b8f96b84382d5f47c6b77a510e283ac214f",
+      "js/444.js": "658e409d0f68cd994dcf903ce1ddd33cc936d289d6254ee0de8cb7c4c6043d59",
+      "js/444.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+      "js/app.js": "68284238d1fc68f5df9d8e11c009a5e46d649cbe9de4572946973979a9e2ae7d",
+      "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+      "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+      "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+      "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368"
+    },
+    "buildSha256": "ce49e8b603d13a7eb50bad669dd5e31934ee867ddbbd483e2774af3e6dbda1b7"
+  },
+  "all25RemoteFileHashesMatched": true,
+  "apiOrMiniChanged": false,
+  "previewPreserved": true,
+  "checks": {
+    "targetedHomeTests": 10,
+    "h5": "passed with two existing size warnings",
+    "formalBrowser": "Right header copy absent; exact credit visible; real QR complete",
+    "desktop": [
+      1512,
+      711
+    ],
+    "shortViewport": [
+      568,
+      320
+    ],
+    "shortCardBottom": 283.98,
+    "shortFooterTop": 296,
+    "documentMatchesViewport": true
+  },
+  "rollback": "Atomically repoint current to previousRoot; old release retained."
+}

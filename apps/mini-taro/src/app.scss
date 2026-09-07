@@ -80,6 +80,16 @@ body.web-runtime-scroll #app .taro-tabbar__panel > .taro_page.taro_tabbar_page {
   display: none !important;
 }
 
+/* The standalone Web client owns its header. Taro's Mini navigation shell
+ * must not insert a second title bar or reserve space above the public home. */
+body.web-runtime-scroll .taro-navigation-bar-show {
+  display: none !important;
+}
+
+body.web-runtime-scroll .taro_navigation_page {
+  top: 0 !important;
+}
+
 @media (min-width: 480PX) {
   html {
     font-size: 20.8PX !important;
@@ -101,4 +111,12 @@ input,
 picker,
 textarea {
   box-sizing: border-box;
+}
+
+/* Only the signed-out home owns a fixed viewport. Restore workspace scrolling
+ * when WebLoginHome unmounts after authentication. */
+html.web-runtime-scroll.web-login-fixed,
+body.web-runtime-scroll.web-login-fixed {
+  height: 100% !important;
+  overflow: hidden !important;
 }

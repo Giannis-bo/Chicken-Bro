@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-09-07T08:16:23.944589+00:00",
+  "status": "uploaded_trial_selection_and_real_phone_acceptance_pending",
+  "rootCauses": [
+    "Previous avatar work generated a developer preview but did not replace uploaded trial",
+    "Avatar chooser rendered only after login confirmation"
+  ],
+  "changes": [
+    "Optional chooser now appears as soon as Mini authentication succeeds, before Web confirmation",
+    "Chooser stays mounted during and after confirmation; avatar remains optional"
+  ],
+  "mini": {
+    "version": "2026.09.07-avatar2",
+    "upload": "cli reported upload success",
+    "uploadBytes": 465491,
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+      "sourceHash": "sha256:fa521facd9ed76cde7236bf7c8a31f607bd91e09ef6f80a017260e7bff0f8d88",
+      "builtAt": "2026-09-07T08:15:10.539Z"
+    },
+    "backend": "https://api.chickenbro.cloud",
+    "testLoginEnabled": false,
+    "selectedAsTrial": "not_verified_requires_user",
+    "publicRelease": false
+  },
+  "checks": {
+    "frontend": 240,
+    "newPreConfirmationAvatarRegression": "passed after failing on previous implementation",
+    "typecheck": "passed",
+    "lint": "passed",
+    "weapp": "passed",
+    "sourceIdentity": "verified before upload"
+  },
+  "webOrApiChangedThisStep": false,
+  "userAction": "In WeChat platform version management select uploaded 2026.09.07-avatar2 as trial, then rescan fresh Web QR, choose/save avatar, confirm and refresh Web.",
+  "platformAccessBlock": "Browser site-safety policy blocks mp.weixin.qq.com version management; no alternate access attempted.",
+  "realPhoneAvatarSaveAndWebDisplay": "not_run"
+}

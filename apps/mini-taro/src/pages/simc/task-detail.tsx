@@ -1,5 +1,6 @@
+import MiniSimcReport from '../../components/MiniSimcReport'
 import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
-import { simcMetricName, simcStatuses, simcReportName, simcNameStatus } from '../../features/simc/simc-terms'
+import { simcStatuses, simcNameStatus } from '../../features/simc/simc-terms'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import Taro, { useLoad } from '@tarojs/taro'
@@ -63,45 +64,29 @@ function SimcTaskDetailPage() {
     <View className={styles['page'] ?? ''} data-simc-phase={state.phase} data-job-status={job?.status ?? 'unknown'}>
       <View className={styles['header'] ?? ''}>
         <View>
-          <Text className={styles['eyebrow'] ?? ''}>模拟结果</Text>
-          <Text className={styles['title'] ?? ''}>模拟任务详情</Text>
+          <Text className={styles['eyebrow'] ?? ''}>Simc模拟</Text>
+          <Text className={styles['title'] ?? ''}>模拟报告</Text>
         </View>
-        <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void Taro.navigateBack()}>
-          返回
-        </Button>
+        <View className={styles['headerActions'] ?? ''}>
+          <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void Taro.navigateBack()}>
+            返回
+          </Button>
+        </View>
       </View>
 
       {job ? (
         <ScrollView className={styles['content'] ?? ''} scrollY>
           <View className={styles['card'] ?? ''}>
             <Text className={styles['cardTitle'] ?? ''}>{simcStatuses[job.status]}</Text>
-            <Text className={styles['hint'] ?? ''}>{job.status === 'queued' ? '任务已排队，轮到后会自动开始。可以返回，稍后从记录继续查看。' : job.status === 'running' ? '云端正在模拟，进度会自动更新。离开此页不会中断任务。' : job.status === 'succeeded' ? '模拟已完成，下方查看结果。' : '本次模拟未完成，可返回检查角色资料后重新提交。'}</Text>
+            <Text className={styles['hint'] ?? ''}>{job.status === 'queued' ? '任务已排队，轮到后会自动开始。可以返回，稍后从记录继续查看。' : job.status === 'running' ? '云端正在模拟，进度会自动更新。离开此页不会中断任务。' : job.status === 'succeeded' ? '模拟已完成，下方查看结果。' : job.status === 'cancelled' ? '任务已取消，未生成结果。' : '本次模拟未完成，可返回检查角色资料后重新提交。'}</Text>
             {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </View>
-          {result ? (
-            <View className={styles['resultCard'] ?? ''}>
-              <Text className={styles['resultMetric'] ?? ''}>{result.metricValue.toLocaleString()} {simcMetricName(result.metricName)}</Text>
-            </View>
-          ) : null}
-          {report ? <>
-            <View className={styles['card'] ?? ''}>
-              <Text className={styles['cardTitle'] ?? ''}>技能贡献</Text>
-              {report.localization && report.localization.status !== 'complete' ? <Text className={styles['hint'] ?? ''}>{simcNameStatus(report)}</Text> : null}
-              {report.abilities.map((ability, index) => <View key={`${ability.name}-${index}`} className={styles['attempt'] ?? ''}>
-                <Text>{simcReportName(report, 'abilities', index)}</Text>
-                <Text>{ability.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}{ability.portion == null ? '' : ` · ${ability.portion.toFixed(2)}%`}</Text>
-              </View>)}
-            </View>
-            <View className={styles['card'] ?? ''}>
-              <Text className={styles['cardTitle'] ?? ''}>增益覆盖</Text>
-              {report.buffs.map((buff, index) => <View key={`${buff.name}-${index}`} className={styles['attempt'] ?? ''}>
-                <Text>{simcReportName(report, 'buffs', index)}</Text><Text>{buff.uptime.toFixed(2)}%</Text>
-              </View>)}
-            </View>
-          </> : null}
+          <MiniSimcReport key={job.id} job={job} />
+          <Button className={styles['secondaryButton'] ?? ''} onClick={() => void loginAndPoll()}>刷新状态</Button>
           <Button className={styles['secondaryButton'] ?? ''} onClick={() => setDetailsOpen(!detailsOpen)}>{detailsOpen ? '收起运行详情' : '查看运行详情'}</Button>
           {detailsOpen ? <>
           <View className={styles['card'] ?? ''}>
+            {report?.localization ? <Text className={styles['meta'] ?? ''}>{simcNameStatus(report)} · 名称数据校验 {report.localization.catalogRevision || '不可用'}</Text> : null}
             <Text className={styles['meta'] ?? ''}>任务：{job.id}</Text>
             <Text className={styles['meta'] ?? ''}>编译器：{job.compilerRevision}</Text>
             <Text className={styles['meta'] ?? ''}>运行引擎：{job.runtimeRevision}</Text>

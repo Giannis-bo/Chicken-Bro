@@ -41,7 +41,6 @@ export function CoreTabBar({ currentPath, items, onSelect }: CoreTabBarProps) {
               role="button"
               onClick={() => onSelect(item.pagePath)}
             >
-              <Text className={styles['glyph'] ?? ''} aria-hidden>{item.glyph}</Text>
               <Text className={styles['label'] ?? ''}>{item.label}</Text>
             </View>
           )

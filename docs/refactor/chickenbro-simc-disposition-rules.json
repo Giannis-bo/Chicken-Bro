@@ -98,6 +98,8 @@
       "paths": [
         "docs/plans/2026-09-05-test-account-login.md",
         "docs/plans/2026-09-07-mini-mobile-interaction.md",
+        "docs/plans/2026-09-07-shared-account-avatar.md",
+        "docs/plans/2026-09-07-web-login-home.md",
         "docs/test-account-login.md",
         "scripts/configure-test-login.py",
         "server/deploy_test_login.py",
@@ -108,7 +110,9 @@
       "prefixes": [
         "artifacts/releases/2026-09-05-test-account-login/",
         "artifacts/releases/2026-09-07-web-sidebar-simplification/",
-        "artifacts/releases/2026-09-07-mini-mobile-interaction/"
+        "artifacts/releases/2026-09-07-mini-mobile-interaction/",
+        "artifacts/releases/2026-09-07-shared-account-avatar/",
+        "artifacts/releases/2026-09-07-web-login-home/"
       ]
     },
     {

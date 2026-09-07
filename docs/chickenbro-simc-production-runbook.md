@@ -286,6 +286,14 @@ Chat SSE 的每个事件都必须有从 1 开始连续递增的整数 `sequence`
 
 完整 `ready` 还要求候选 Worker 已成功访问候选队列并持续刷新 `candidate-worker-heartbeat.json`，Codex revision 与本机 binary SHA-256 一致，WCL v2 OAuth client credentials 完整，Raider.IO dependency 可加载，以及 `/opt/wow-simc/current` 的 content-addressed release metadata 与实际 binary hash、compiler/spec 配置一致。Worker unit 启动前会移除旧环境心跳；心跳缺失、跨环境、格式非法、未来时间或超过 45 秒均失败关闭。以上是无外部请求的配置与本地 liveness 证据，不替代随后真实 Codex、WCL/Raider.IO、SimC 和微信链路 smoke。
 
+### 体验版扫码验证（2026-09-07）
+
+用户明确授权正式 Web 使用小程序体验版验证真实微信登录。正式 API 原配置为 `WOW_WECHAT_ENV_VERSION=release`、`WOW_WECHAT_CHECK_PATH=1`；微信取 token 成功，但二维码请求返回 `41030 invalid page`。现在通过独立配置 `/etc/chickenbro-wechat-trial-20260907.env` 设置 `WOW_WECHAT_ENV_VERSION=trial`、`WOW_WECHAT_CHECK_PATH=0`，由 `/etc/systemd/system/chickenbro-api.service.d/95-wechat-trial-20260907.conf` 最后加载。未修改原 release 配置、身份映射、会话安全或测试账号开关；部署源码仍为 `1862e167fafa0469888c3b2b489a8799ae19a799`。
+
+已重启正式 API 并检查实际进程配置；`api` 与 `www` 两域名的七项 readiness 全部 ready，正式 Web 真实创建登录请求成功并显示等待扫码，返回完整 430 × 430 JPEG 小程序码。页面显示存在裁切，已单独提供原图用于本次扫码，布局问题待修复。扫码者需有体验权限，体验版需包含 `pages/auth/web-login-confirm` 并连接正式 API；平台体验版设置、手机扫码确认及跨端用户验收仍待完成，不将二维码生成成功记为登录成功。
+
+恢复正式版二维码时，只移除上述两个本次新增配置文件，执行 `systemctl daemon-reload` 并重启 `chickenbro-api.service`，验证实际配置恢复为 `release` / `1`、两域名 readiness 和新二维码。恢复前应先确认微信正式版已包含登录确认页，否则将再次出现原错误。
+
 ### 真实用户验收
 
 必须使用 apply 证据中相同的 commit、H5 identity 和 WeApp identity，并确认测试版确实包含 `pages/auth/web-login-confirm`。本轮已由用户授权跳过测试版二维码登录；因此使用 `loginMode=user_authorized_skipped` 的双端 transport 验收，不把它描述成扫码成功。若未来恢复真实扫码，流程固定为：
@@ -480,3 +488,34 @@ WCL 工具支持 `options.dataType/startTime/endTime/limit`；时间为报告相
 规则增量 `91fb8ed167c2065c048ff9fb1f59d3e9821686ae` 已原子同步至正式/测试 AGENTS.md；规则身份以两处 `RESPONSE_STYLE_PATCH.json` 优先。无需重启，新 Chat 请求读取新规则。仅在影响当前建议时解释不确定性，去掉例行版本/免责声明、工具过程汇报、自我表态和装饰性引用。
 
 两组真实 Astra/high 样例验证：直接操作建议无无关尾注，无法量化收益时仍说明必要缺失；[样例](../artifacts/releases/2026-09-05-chickenbro-agent-rules/concise-samples.json) 是给定事实的规则测试，不是新的完整 WCL 复盘。正式/测试文件 SHA 一致、健康 ready。回滚按 [清单](../artifacts/releases/2026-09-05-chickenbro-agent-rules/concise-deployment.json) 核对当前规则 SHA 后，分别原子恢复 `/var/lib/chickenbro/response-style-backups/91fb8ed167c2065c048ff9fb1f59d3e9821686ae/` 内 production/test-AGENTS.md；历史对话不改写。
+
+
+### 账号头像预览（2026-09-07）
+
+隔离 `chickenbro_test` 已通过实际 PostgreSQL / wow_app 保存、同 owner Mini/Web 读取、第二用户隔离及事务回滚验证。正式库新增 `0003_account_avatar` 可空字段，旧 API 仍兼容。生产 API 通过 `/etc/systemd/system/chickenbro-api.service.d/99-avatar-preview-20260907.conf` 指定 WorkingDirectory `/opt/chickenbro-releases/avatar-preview-5b925e99c4eb1547`；它以 `1862e167f` 运行目录为基础，只叠加六个头像相关服务端/迁移文件，具体 SHA 见 [证据](../artifacts/releases/2026-09-07-shared-account-avatar/verification.json)。此为源码哈希绑定的未提交预览，不冒充新的 Git 发布提交。Worker 与原 `/opt/chickenbro` 指针保留，扫码仍使用先前授权的 trial 配置。
+
+Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenbro-web/previews/login-home-20260907-avatar-a613d6385820`。小程序仅生成开发预览，既有上传体验版未替换；真实手机头像选择待用户完成。
+
+回滚：仅移除 `99-avatar-preview-20260907.conf`，执行 daemon-reload 并重启 `chickenbro-api.service`，再核对 readiness。保留头像列和用户保存的数据，不做反向破坏性迁移。Web 链接可原子指回 `/var/www/chickenbro-web/previews/login-home-20260907-v2`。不要移除同目录中 `90-release-20260907.conf` 或 `95-wechat-trial-20260907.conf`。
+
+
+### 正式 Web 默认标题栏修复（2026-09-07）
+
+用户要求移除遮挡导航的黑色 Taro 标题栏。`/var/www/chickenbro-web/current` 当前指向 `/var/www/chickenbro-web/releases/formal-nav-fix-20260907`，以原 `1862e167f` Web 为基础，仅在 `css/app.css` 加入已有 Web 专属标题栏隐藏/占位修复，并在 index 样式链接加 `?nav=20260907`。原 Web 目录和预览 symlink 保留，API/Mini 不变。回滚只需原子指回原 Web 目录。详见 [哈希及页面验证](../artifacts/releases/2026-09-07-web-login-home/formal-nav-fix.json)。
+
+
+### 完整新版首页发布正式根路径（2026-09-07）
+
+用户反馈退出后显示旧首页，已纠正此前只上线预览/标题栏样式的发布遗漏。`/var/www/chickenbro-web/current` 现指向 `/var/www/chickenbro-web/releases/formal-home-20260907-a53072694a0a`，包含完整新版首页及头像客户端。API/Mini 本步骤不变，原独立预览 symlink 保留；入口资源加 `v=home20260907`，index/JS/CSS 均 no-cache。25 个文件 SHA 与正式浏览器二维码/文案检查见 [发布记录](../artifacts/releases/2026-09-07-web-login-home/formal-home-release.json)。回滚可原子指回 `/var/www/chickenbro-web/releases/formal-nav-fix-20260907`，但该旧包未包含新版未登录首页，回滚时必须明确告知这一用户可见差异。
+
+### 2026-09-07 正式首页固定一屏布局
+
+`/var/www/chickenbro-web/current` 现指向 `/var/www/chickenbro-web/releases/fixed-home-20260907-649f647d696a`，入口版本 `v=fixedhome20260907`。登录首页固定视口，清理下方说明并缩小卡片；登录后解除滚动锁。25个文件哈希匹配，正式真实二维码及4组视口布局验证通过。API/Mini与独立预览未变。回滚原子指回 `/var/www/chickenbro-web/releases/formal-home-20260907-a53072694a0a`，旧目录保留。见 [发布记录](../artifacts/releases/2026-09-07-web-login-home/fixed-layout-release.json)。
+
+2026-09-07 首页署名补充：当前 Web root 为 `/var/www/chickenbro-web/releases/home-credit-20260907-ce49e8b603d1`，入口 `v=credit20260907`，回滚点为上节 fixed-home 目录。移除右上文案并增加底部署名，25文件哈希匹配，API/Mini未变。见 [发布记录](../artifacts/releases/2026-09-07-web-login-home/credit-release.json)。
+
+2026-09-07 小程序头像入口补充：开发者工具已上传 `2026.09.07-avatar2`，465491 bytes，正式 API、关闭测试账号入口。头像选择提前到确认前且可跳过。微信后台版本管理被浏览器安全策略阻止，**未验证设为体验版**；需用户选择此版本后才能用正式 Web 的 trial 二维码验证。未提交微信审核/发布，本步骤 API/Web 不变。见 [上传证据](../artifacts/releases/2026-09-07-shared-account-avatar/mini-upload-avatar2.json)。
+
+2026-09-07 确认页视觉更新：已上传 `2026.09.07-avatar3`（1006698 bytes），Web鸡哥Logo与暖白风格，头像选择保留用户点击、已保存头像自动恢复。实际开发者工具渲染和保存头像恢复通过；真实手机新样式与设为体验版待用户完成。原头像API及正式Web不变。见 [构建与上传记录](../artifacts/releases/2026-09-07-shared-account-avatar/mini-upload-avatar3.json)。
+
+2026-09-07 扫码确认后自动进入：已上传 `2026.09.07-login4`（1007387 bytes），MiniSessionStore保存本次Mini会话后，显式Web确认成功自动进入对话Tab；跳转失败可单独重试导航。正式API/Web未改，未同步Cookie/凭据，未提交微信审核/发布。待用户后台设为体验版和真机验证。见 [构建与验证](../artifacts/releases/2026-09-07-shared-account-avatar/mini-upload-login4.json)。

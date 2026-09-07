@@ -10,8 +10,8 @@ const sourcePath = resolve(process.cwd(), 'apps/mini-taro/src/pages/auth/web-log
 describe('mini-program Web login confirmation page', () => {
   it('uses Taro login and requires an explicit confirmation action', () => {
     const source = readFileSync(sourcePath, 'utf8')
-    expect(source).toContain('Taro.login')
-    expect(source).toContain('exchangeMiniCode')
+    expect(source).toContain('MiniSessionStore')
+    expect(source).toContain('sessions.login()')
     expect(source).toContain('confirmMiniWebLogin')
     expect(source).toContain('确认登录')
     expect(source).toContain('WEB_LOGIN_ALREADY_CONSUMED')

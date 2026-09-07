@@ -1,5 +1,8 @@
 export default definePageConfig({
-  disableScroll: true,
-  navigationBarTitleText: '确认 Web 登录',
+  disableScroll: false,
+  navigationBarTitleText: '炸鸡队长来啦',
+  navigationBarBackgroundColor: '#faf8f3',
+  navigationBarTextStyle: 'black',
+  backgroundColor: '#faf8f3',
   navigationStyle: 'default',
 })

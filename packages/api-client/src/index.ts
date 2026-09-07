@@ -47,3 +47,6 @@ export type {
 } from './transport'
 export { createWebAuthClient, readWebCsrfCookie } from './web-auth'
 export type { WebAuthClient } from './web-auth'
+
+export { createAvatarClient } from './avatar'
+export type { AvatarClient } from './avatar'

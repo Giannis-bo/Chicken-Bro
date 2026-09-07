@@ -3,13 +3,16 @@ import { useEffect, useId, useRef, useState } from 'react'
 import WebHelpDialog from './WebHelpDialog'
 import styles from './WebHeaderActions.module.scss'
 
-export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq }: {
+export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar }: {
+  avatarDataUrl?: string | null
+  onRefreshAvatar?: () => void
   accountLabel: string
   onLogout: () => void
   faqActive: boolean
   faqHref: string
   onFaq: () => void
 }) {
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
@@ -51,12 +54,13 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
         }}>
         <button ref={avatarRef} type="button" className={styles['avatar']} aria-label="账户菜单"
           title={accountLabel} aria-expanded={accountOpen} aria-controls={accountOpen ? panelId : undefined}
-          onClick={() => setAccountOpen(value => !value)}>
+          onClick={() => { if (!accountOpen) onRefreshAvatar?.(); setAccountOpen(value => !value) }}>
+          {avatarDataUrl && avatarDataUrl !== failedAvatar ? <img className={styles['avatarImage']} src={avatarDataUrl} alt="" onError={() => setFailedAvatar(avatarDataUrl)} /> : (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
             <circle cx="12" cy="8" r="3.5" />
             <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
-          </svg>
+          </svg>)}
           <span className={styles['onlineDot']} />
         </button>
         {accountOpen ? (

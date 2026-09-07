@@ -425,6 +425,22 @@ class PostgresIdentityRepository:
                 row = cursor.fetchone()
         return self._web_login_session_from_row(row) if row is not None else None
 
+    def get_avatar(self, user_id: UUID) -> str | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT avatar_data_url FROM identity.users WHERE id = %s AND status = 'active'", (user_id,))
+                row = cursor.fetchone()
+        return _row_value(row, "avatar_data_url", 0) if row is not None else None
+
+    def set_avatar(self, user_id: UUID, avatar: str, *, now: datetime) -> bool:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE identity.users SET avatar_data_url = %s, updated_at = %s WHERE id = %s AND status = 'active' RETURNING id",
+                    (avatar, now, user_id),
+                )
+                return cursor.fetchone() is not None
+
     def get_public_user(self, user_id: UUID) -> PublicUser | None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:

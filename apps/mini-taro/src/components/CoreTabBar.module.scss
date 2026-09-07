@@ -1,6 +1,5 @@
-.root { position: fixed; z-index: 40; right: 0; bottom: 0; left: 0; box-sizing: border-box; height: calc(104rpx + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #181c16; border-top: 1rpx solid #343b2d; }
+.root { position: fixed; z-index: 40; right: 0; bottom: 0; left: 0; box-sizing: border-box; height: calc(88rpx + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #faf8f5; border-top: 1rpx solid #e8e3de; }
 .list { display: flex; width: 100%; }
-.item { flex: 1; display: flex; height: 103rpx; align-items: center; justify-content: center; gap: 14rpx; color: #9da48f; }
-.selected { color: #eed088; background: #272c20; }
-.glyph { font-size: 32rpx; font-weight: 700; line-height: 40rpx; }
+.item { flex: 1; display: flex; height: 87rpx; align-items: center; justify-content: center; gap: 14rpx; color: #82796f; }
+.selected { color: #9e5145; font-weight: 600; }
 .label { font-size: 25rpx; line-height: 36rpx; }

@@ -20,8 +20,8 @@ describe('resolveActiveTabRoute', () => {
 
   it('contains exactly the two approved product tabs', () => {
     expect(tabBarItems.map(({ pagePath, label }) => ({ pagePath, label }))).toEqual([
-      { pagePath: 'pages/chickenbro/index', label: '队长' },
-      { pagePath: 'pages/simc/index', label: 'SimC' },
+      { pagePath: 'pages/chickenbro/index', label: '聊天' },
+      { pagePath: 'pages/simc/index', label: 'Simc模拟' },
     ])
   })
 })

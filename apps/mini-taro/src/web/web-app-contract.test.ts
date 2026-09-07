@@ -48,14 +48,6 @@ describe('Chickenbro Web shell contract', () => {
   it('makes formal QR login the only Web entry and keeps credentials separated', () => {
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
 
-    for (const copy of [
-      '使用微信小程序登录',
-      '请使用电脑或另一台设备展示二维码',
-      '使用小程序确认',
-      '登录已确认，正在建立 Web 会话',
-    ]) {
-      expect(webSource).toContain(copy)
-    }
     expect(webSource).toContain('credentials')
     expect(webSource).toContain('WEB_LOGIN_ALREADY_CONSUMED')
     expect(webSource).not.toContain('WEB_LOGIN_ALREADY_EXCHANGED')
@@ -67,10 +59,15 @@ describe('Chickenbro Web shell contract', () => {
     expect(webSource).not.toMatch(/PrototypePanel|prototypeClient|formalLoginVisible|返回 Web 原型|demo owner/iu)
   })
 
-  it('pins the H5 QR image content to the full QR frame', () => {
-    const webStyle = read('apps/mini-taro/src/web/WebApp.module.scss')
+  it('renders the QR directly without the Taro image positioning wrapper', () => {
+    const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
+    const webStyle = read('apps/mini-taro/src/web/WebLoginCard.module.scss')
 
-    expect(webStyle).toMatch(/\.qrImage\s*>\s*img\s*\{[\s\S]*position:\s*absolute[\s\S]*top:\s*0[\s\S]*right:\s*0[\s\S]*bottom:\s*0[\s\S]*left:\s*0[\s\S]*object-fit:\s*contain/u)
+    expect(webSource).toContain('alt="微信扫码登录二维码"')
+    expect(webSource).not.toContain('<Image')
+    expect(webStyle).toContain('position: static')
+    expect(webStyle).toContain('object-fit: contain')
+    expect(webStyle).toContain('transform: none')
   })
 
   it('uses only the formal same-origin /api development proxy', () => {

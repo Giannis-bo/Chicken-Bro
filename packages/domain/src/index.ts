@@ -55,3 +55,6 @@ export type {
   WebLoginSessionStatus,
   WebLoginStatusResponse,
 } from './web-auth'
+
+export { isAvatarResponse } from './web-auth'
+export type { AvatarResponse } from './web-auth'

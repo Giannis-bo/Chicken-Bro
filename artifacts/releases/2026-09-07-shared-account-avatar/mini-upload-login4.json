@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-07T08:38:36.599115+00:00",
+  "status": "uploaded_trial_selection_and_phone_acceptance_pending",
+  "version": "2026.09.07-login4",
+  "upload": "CLI success",
+  "uploadBytes": 1007387,
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+    "sourceHash": "sha256:9ee119ccd7e2c2d4bf3e0879fa6dbd09849bd7f9c2f2626c9263f2a965c26eea",
+    "builtAt": "2026-09-07T08:37:36.120Z"
+  },
+  "changes": [
+    "Confirmation page uses MiniSessionStore.login to validate and persist real Mini Bearer session",
+    "Successful explicit Web confirmation automatically switches to Chickenbro chat tab",
+    "Failed confirmation stays on page; failed navigation offers manual entry without consuming ticket again"
+  ],
+  "transportBoundary": "Mini session remains independent of Web HttpOnly session; same server mapped identity",
+  "checks": {
+    "frontend": 243,
+    "typecheck": "passed",
+    "lint": "passed",
+    "weapp": "passed",
+    "sourceIdentity": "verified before upload",
+    "persistedSessionReusableByMiniChat": "passed in regression",
+    "failedConfirmationDoesNotNavigate": "passed",
+    "failedNavigationRetryDoesNotReconfirm": "passed"
+  },
+  "apiOrWebChanged": false,
+  "trialSelection": "requires_user_due_known_site_safety_block",
+  "realPhoneAutoEntry": "not_run",
+  "publicWechatRelease": false
+}

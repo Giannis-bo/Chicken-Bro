@@ -126,6 +126,8 @@ Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`�
 
 Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完成 verifier、code 与 scene 的长度和字符边界校验。双端 response guard 只接受每个端点约定的精确字段集合和可选 `requestId`；任何额外的 `userId`、OpenID、token 或其他身份字段都按非法响应失败关闭。
 
+账号头像是可选的 Identity 展示字段，不是登录条件。小程序通过 `chooseAvatar` 获取用户主动选择的图片，压缩后上传；服务端只接受有界 PNG/JPEG 数据，剥离元数据并按 Principal 更新 `identity.users.avatar_data_url`。两端通过独立认证读取，响应禁止缓存；不返回公共图片 URL，也不根据昵称或图片推断身份。原 `/me` 合同保持兼容。
+
 公开展示名与 `identity.users.display_name` 共用 256 字符上限；正式迁移、API 和双端 response guard 必须接受完整的合法持久化范围，不能因客户端采用更窄的历史边界而阻断已迁移用户登录。客户端只展示该字段，不把它当作账号合并或授权依据。
 
 二维码确认、取消和过期必须使用带当前状态、verifier 与 deadline 条件的原子 UPDATE；`confirmed -> consumed` 与 Web Session 签发必须在同一个 PostgreSQL 语句/事务中完成。读取后关闭连接的 `FOR UPDATE` 不构成状态锁，禁止作为防重放依据。会话解析还必须联查 `identity.users.status='active'`，禁用账号不能继续使用旧 token。
@@ -222,6 +224,8 @@ Worker active 只证明进程活着。业务成功还需要 job/result/attempt �
 | POST | `/api/v2/auth/wechat/web/login-sessions/{id}/exchange` | exact Origin + verifier | 单次换取 Web Cookie |
 | POST | `/api/v2/auth/wechat/web/login-sessions/{id}/cancel` | exact Origin + verifier | 取消票据 |
 | GET | `/api/v2/me` | Mini Bearer 或 Web Cookie | 读取当前内部账号摘要 |
+| GET | `/api/v2/me/avatar` | Mini Bearer 或 Web Cookie | 读取当前账号已选择的头像，仅本人可读 |
+| PUT | `/api/v2/me/avatar` | Mini Bearer | 保存用户主动选择的 PNG/JPEG 头像 |
 | POST | `/api/v2/auth/logout` | 当前客户端会话 | 只撤销当前会话 |
 
 ### 正式 Chat API

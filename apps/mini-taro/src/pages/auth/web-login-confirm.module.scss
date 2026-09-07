@@ -1,123 +1,31 @@
 .page {
-  display: flex;
-  height: 100vh;
+  min-height: 100vh;
   box-sizing: border-box;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(217, 171, 66, 0.14), transparent 42%),
-    var(--wow-bg-void);
-  color: var(--wow-fg);
+  gap: 28px;
+  padding: 32px 24px max(32px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 30%, #f0e7da80, transparent 65%), #faf8f3;
+  color: #302c29;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
-
-.panel {
-  width: 100%;
-  max-width: 420px;
-  padding: 28px 22px 24px;
-  border: 1px solid var(--wow-line-panel);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(27, 30, 35, 0.98), rgba(12, 14, 18, 0.98));
-  box-shadow: var(--shadow-float), var(--inner-bevel);
-}
-
-.kicker,
-.privacyNote {
-  display: block;
-  color: var(--wow-accent-gold);
-  font-family: var(--wow-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-}
-
-.title {
-  display: block;
-  margin-top: 16px;
-  color: var(--wow-fg-strong);
-  font-family: var(--wow-font-display);
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.description {
-  display: block;
-  margin-top: 12px;
-  color: var(--wow-fg-muted);
-  font-size: 13px;
-  line-height: 1.8;
-}
-
-.statusCard,
-.successCard {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 24px;
-  padding: 14px;
-  border: 1px solid var(--wow-line-subtle);
-  border-radius: 10px;
-  color: var(--wow-fg-muted);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--wow-status-partial);
-}
-
-.statusDot[data-status='confirmed'] {
-  background: var(--wow-status-ready);
-  box-shadow: 0 0 12px rgba(134, 201, 93, 0.65);
-}
-
-.statusDot[data-status='error'] {
-  background: var(--wow-status-blocked);
-}
-
-.statusText {
-  flex: 1;
-}
-
-.confirmAction {
-  width: 100%;
-  margin-top: 18px;
-  border: 1px solid var(--wow-line-brass);
-  border-radius: 8px;
-  background: linear-gradient(180deg, #d9ab42, #91630b);
-  color: #111317;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.confirmAction::after {
-  border: 0;
-}
-
-.successCard {
-  display: block;
-  border-color: rgba(134, 201, 93, 0.38);
-  color: var(--wow-status-ready);
-}
-
-.successCard > text {
-  display: block;
-}
-
-.successCard > text + text {
-  margin-top: 4px;
-}
-
-.privacyNote {
-  margin-top: 20px;
-  color: var(--wow-fg-dim);
-  font-family: var(--wow-font-body);
-  font-size: 10px;
-  letter-spacing: 0;
-  line-height: 1.7;
-  text-align: center;
+.brand { display: flex; flex-direction: column; align-items: center; }
+.mascot { display: block; width: 112px; height: 128px; }
+.brandName { display: block; margin-top: 12px; font-size: 22px; font-weight: 600; letter-spacing: 1px; }
+.brandNote { display: block; margin-top: 8px; color: #948c83; font-size: 10px; letter-spacing: 3px; }
+.panel { box-sizing: border-box; width: 100%; max-width: 340px; padding: 28px 24px; border: 1px solid #e2dacf; border-radius: 24px; background: #fffefa; box-shadow: 0 12px 40px #56412a08; text-align: center; }
+.title { display: block; margin-top: 22px; color: #302c29; font-size: 24px; font-weight: 600; }
+.status { display: block; margin-top: 12px; color: #857b70; font-size: 13px; line-height: 1.7; }
+.error { color: #a4513f; }
+.confirmAction { width: 100%; margin-top: 26px; border: 0; border-radius: 12px; background: #a4513f; color: #fffefa; font-size: 16px; font-weight: 600; line-height: 48px; }
+.confirmAction::after { border: 0; }
+.confirmAction[disabled] { background: #c28d7c; color: #fffefa; }
+.success { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin: 24px auto 0; border-radius: 50%; background: #ecf0e5; color: #74866a; font-size: 24px; }
+@media (max-height: 650px) {
+  .page { padding-top: 20px; padding-bottom: 20px; gap: 20px; }
+  .mascot { width: 80px; height: 92px; }
+  .brandName { margin-top: 8px; font-size: 20px; }
+  .panel { padding: 22px 20px; }
 }

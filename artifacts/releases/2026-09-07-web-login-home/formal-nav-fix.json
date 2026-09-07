@@ -1,0 +1,27 @@
+{
+  "status": "live_verified_user_acceptance_pending",
+  "url": "https://www.chickenbro.cloud/",
+  "cause": "Formal Web still served old CSS; existing navigation fix was only in the isolated preview.",
+  "source": "apps/mini-taro/src/app.scss",
+  "previousRoot": "/opt/chickenbro-releases/1862e167fafa0469888c3b2b489a8799ae19a799/web",
+  "currentRoot": "/var/www/chickenbro-web/releases/formal-nav-fix-20260907",
+  "changedFiles": [
+    "index.html",
+    "css/app.css"
+  ],
+  "sha256": {
+    "index.html": "75c762d2a585d8fc81381f89f9067f27d68d8865c36cf5c0d685f9d928ac2fa8",
+    "css/app.css": "33d218a1f27bd2d663f154a572c0e7f110c88a9eaa25b1ac7f52e7b0806625f6"
+  },
+  "browserVerification": {
+    "titleBarDisplay": "none",
+    "titleBarHeight": 0,
+    "pageOffset": "0px",
+    "authenticatedAccountMenu": true,
+    "existingConversationRestored": true,
+    "stylesheet": "/css/app.css?nav=20260907"
+  },
+  "previewLinkPreserved": "/var/www/chickenbro-web/previews/login-home-20260907-avatar-a613d6385820",
+  "rollback": "Atomically point /var/www/chickenbro-web/current to previousRoot; old files retained.",
+  "backendOrMiniChanged": false
+}

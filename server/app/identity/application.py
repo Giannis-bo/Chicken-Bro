@@ -384,6 +384,22 @@ class WebAuthApplication:
             display_name=user.display_name or "已连接微信账号",
         )
 
+    def avatar(self, principal: Principal) -> str | None:
+        return self._repository.get_avatar(principal.user_id)
+
+    def set_avatar(self, principal: Principal, data_url: str) -> str:
+        from server.app.identity.avatar import normalize_avatar
+
+        if principal.session_kind != "mini_bearer":
+            raise AuthApplicationError("AVATAR_MINI_REQUIRED", "choose your avatar in the Mini Program")
+        try:
+            avatar = normalize_avatar(data_url)
+        except ValueError as error:
+            raise AuthApplicationError("AVATAR_INVALID", "choose a PNG or JPEG avatar up to 256 KB and 1024 pixels") from error
+        if not self._repository.set_avatar(principal.user_id, avatar, now=self._now()):
+            raise AuthApplicationError("AUTH_REQUIRED", "authenticated user is unavailable")
+        return avatar
+
     def logout(self, principal: Principal, raw_credential: str | None) -> None:
         if raw_credential:
             self._repository.revoke_auth_session(

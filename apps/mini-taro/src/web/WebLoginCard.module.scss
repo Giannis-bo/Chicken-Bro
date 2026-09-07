@@ -1,0 +1,31 @@
+.card { margin-top: 16px; text-align: center; }
+.qrFrame { display: grid; width: 204px; height: 204px; max-width: 100%; margin: 0 auto; padding: 9px; place-items: center; background: white; border: 1px solid #e8dfd2; border-radius: 14px; box-sizing: border-box; }
+.qrImage { display: block; position: static; width: 100%; height: auto; max-width: 184px; max-height: 184px; aspect-ratio: 1; margin: 0; object-fit: contain; transform: none; }
+.placeholder { display: flex; min-height: 184px; flex-direction: column; align-items: center; justify-content: center; gap: 17px; color: #928573; font-size: 12px; }
+.qrSymbol { font-size: 58px; line-height: 1; color: #c4b69f; }
+.spinner { width: 29px; height: 29px; border: 2px solid #eae0d3; border-top-color: #a4513f; border-radius: 50%; animation: turn 1s linear infinite; }
+.status { min-height: 36px; margin-top: 12px; color: #655e54; font-size: 12px; line-height: 1.6; }
+.countdown { color: #a19482; font-size: 10px; line-height: 1.8; font-variant-numeric: tabular-nums; }
+.actions { display: flex; min-height: 37px; margin-top: 4px; align-items: center; justify-content: center; }
+.quietButton { padding: 6px 14px; border: 0; border-radius: 6px; background: transparent; color: #91816f; font-size: 11px !important; }
+.quietButton:hover { background: #f5f0e8; color: #6c5848; }
+.quietButton:disabled { opacity: 0.5; }
+.primaryButton { padding: 9px 25px; border: 1px solid #a4513f; border-radius: 8px; background: #a4513f; color: #fff; font-size: 12px !important; }
+.primaryButton:hover { background: #8f4434; }
+@keyframes turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+@media (max-height: 540px) {
+  .card { margin-top: 8px; }
+  .qrFrame { width: 154px; height: 154px; padding: 7px; }
+  .qrImage { max-width: 138px; max-height: 138px; }
+  .placeholder { min-height: 138px; gap: 8px; }
+  .status { margin-top: 8px; min-height: 28px; font-size: 11px; }
+  .actions { min-height: 30px; margin-top: 0; }
+}
+
+@media (max-height: 380px) {
+  .qrFrame { width: 122px; height: 122px; }
+  .qrImage { max-width: 106px; max-height: 106px; }
+  .placeholder { min-height: 106px; }
+}

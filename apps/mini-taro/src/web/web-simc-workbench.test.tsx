@@ -118,12 +118,12 @@ describe('Web SimC workbench', () => {
   it('separates setup, tasks and the report while retaining the current engine version', async () => {
     expect(button('新建模拟').getAttribute('aria-current')).toBe('page')
     expect(container.querySelector('[data-job-id]')).toBeNull()
-    expect(container.textContent).toContain('1200-02')
+    expect(container.textContent).toContain('Simc版本：1200-02')
     await openReport()
     expect(container.querySelector('[name="sourceUrl"]')).toBeNull()
     expect(container.querySelector('[data-job-id]')).toBeNull()
     expect(container.textContent).toContain('模拟报告')
-    expect(container.textContent).toContain('1200-02')
+    expect(container.textContent).toContain('Simc版本：1200-02')
     expect(container.textContent).toContain('1200-01')
     await click('返回模拟任务')
     expect(container.querySelector('[data-job-id]')).not.toBeNull()
@@ -199,7 +199,7 @@ describe('Web SimC workbench', () => {
     api.getJob.mockResolvedValue(success({ ...job, scenario: null, character: null, result: { ...job.result, report: null } }))
     await openReport()
     expect(container.textContent).toContain('该历史任务仅保存了结果摘要')
-    expect(container.textContent).toContain('运行版本未记录')
+    expect(container.textContent).toContain('Simc版本：未记录')
     expect(container.textContent).toContain('125,432.6')
     expect(container.textContent).not.toContain('Lightning Bolt')
   })
@@ -237,7 +237,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'unavailable', version: null, gameVersion: null, build: null,
       sourceCommit: null, runtimeRevision: 'runtime-only-hash' }))
     await act(async () => root.render(createElement(WebSimcView, { auth: { kind: 'web', csrfToken: 'other' } })))
-    expect(container.textContent).toContain('SIMC 暂不可用')
+    expect(container.textContent).toContain('Simc版本：暂不可用')
     expect(container.textContent).not.toContain('runtime-only-hash')
   })
 
@@ -251,7 +251,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-03', gameVersion: '12.0.1',
       build: '66100', sourceCommit: 'abc', runtimeRevision: 'runtime-current' }))
     await click('重试引擎')
-    expect(container.textContent).toContain('SIMC 1200-03')
+    expect(container.textContent).toContain('Simc版本：1200-03')
     expect(button('开始模拟').disabled).toBe(false)
   })
 
@@ -260,7 +260,7 @@ describe('Web SimC workbench', () => {
     api.getRuntime.mockResolvedValue(success({ status: 'available', version: '1200-04', gameVersion: '12.0.1',
       build: '66200', sourceCommit: 'abc', runtimeRevision: 'runtime-next' }))
     await click('新建模拟')
-    expect(container.textContent).toContain('SIMC 1200-04')
+    expect(container.textContent).toContain('Simc版本：1200-04')
   })
 
   it('refreshes server task status when returning from a report', async () => {

@@ -1,7 +1,7 @@
 import { Button, Text, View } from '@tarojs/components'
 import { useEffect, useRef, useState } from 'react'
 
-import type { ClientAuthContext } from '@wow-mini/api-client'
+import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
@@ -39,6 +39,30 @@ export interface WebShellProps {
 }
 
 export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps) {
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const refreshAvatar = useRef<() => void>(() => undefined)
+  useEffect(() => {
+    let alive = true
+    let generation = 0
+    const refresh = async () => {
+      const current = ++generation
+      try {
+        const result = await wowApi.avatar.get(auth)
+        if (alive && current === generation && !result.fromFallback) setAvatar(result.payload.avatarDataUrl)
+      } catch { /* Avatar availability does not affect the authenticated workspace. */ }
+    }
+    const visible = () => { if (document.visibilityState === 'visible') void refresh() }
+    refreshAvatar.current = () => { void refresh() }
+    void refresh()
+    window.addEventListener('focus', visible)
+    document.addEventListener('visibilitychange', visible)
+    return () => {
+      alive = false
+      refreshAvatar.current = () => undefined
+      window.removeEventListener('focus', visible)
+      document.removeEventListener('visibilitychange', visible)
+    }
+  }, [auth])
   const [activeView, setActiveView] = useState<WebView>(readView)
   const [simcVisited, setSimcVisited] = useState(() => readView() === 'simc')
   const lastBusinessView = useRef<BusinessView>(activeView === 'simc' ? 'simc' : 'chat')
@@ -95,7 +119,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
           ))}
         </View>
 
-        <WebHeaderActions accountLabel={accountLabel} onLogout={onLogout}
+        <WebHeaderActions avatarDataUrl={avatar} onRefreshAvatar={() => refreshAvatar.current()} accountLabel={accountLabel} onLogout={onLogout}
           faqActive={activeView === 'faq'} faqHref={viewHref('faq')} onFaq={() => navigate('faq')} />
       </View>
 

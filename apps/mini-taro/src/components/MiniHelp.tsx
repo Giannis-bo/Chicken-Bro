@@ -1,3 +1,5 @@
+import { createContext, useContext } from 'react'
+import Taro from '@tarojs/taro'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { isTestLoginEnabled } from '../features/auth/test-login-mode'
 import styles from './MiniHelp.module.scss'
@@ -49,12 +51,17 @@ const releases = [
   ] },
 ]
 
-export function MiniHelpActions({ active, onOpen }: { active: MiniHelpView | null; onOpen: (view: MiniHelpView) => void }) {
-  return <View className={styles['actions'] ?? ''}>
-    <Text className={styles['caption'] ?? ''}>使用帮助</Text>
-    <Button className={`${styles['link']} ${active === 'faq' ? styles['selected'] : ''}`} size="mini" onClick={() => onOpen('faq')}>FAQ</Button>
-    <Button className={`${styles['link']} ${active === 'changelog' ? styles['selected'] : ''}`} size="mini" onClick={() => onOpen('changelog')}>更新日志</Button>
-  </View>
+export const MiniHelpContext = createContext<(view: MiniHelpView) => void>(() => undefined)
+
+export function MiniHelpActions() {
+  const onOpen = useContext(MiniHelpContext)
+  const openMenu = async () => {
+    try {
+      const { tapIndex } = await Taro.showActionSheet({ itemList: ['FAQ · 常见问题', '更新日志'] })
+      if (tapIndex === 0 || tapIndex === 1) onOpen(tapIndex === 0 ? 'faq' : 'changelog')
+    } catch { /* Dismissing the native menu leaves the current page untouched. */ }
+  }
+  return <Button className={styles['more'] ?? ''} aria-label="更多：帮助与更新" onClick={() => void openMenu()}>更多</Button>
 }
 
 export function MiniHelpPanel({ view, onClose }: { view: MiniHelpView; onClose: () => void }) {

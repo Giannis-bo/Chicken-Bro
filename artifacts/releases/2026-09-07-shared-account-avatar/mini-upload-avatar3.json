@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-07T08:31:46.479535+00:00",
+  "status": "uploaded_trial_selection_and_new_style_phone_acceptance_pending",
+  "priorAvatarAcceptance": "User screenshots confirm avatar visible on Web and Mini after saving",
+  "version": "2026.09.07-avatar3",
+  "uploadBytes": 1006698,
+  "upload": "CLI success",
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+    "sourceHash": "sha256:f32cbc40c823a21c8d3fe2239973219024f447c2b4966abca56273af63653eef",
+    "builtAt": "2026-09-07T08:30:09.529Z"
+  },
+  "changes": [
+    "Warm white native navigation and confirmation card using existing Web mascot",
+    "Removed cross-device explanation, privacy footnote, avatar setup captions and redundant success block",
+    "Icon-only optional chooseAvatar with accessible label and failure toast",
+    "Existing saved avatar loads automatically; no automatic authorization dialog or auto-confirm"
+  ],
+  "checks": {
+    "frontend": 241,
+    "typecheck": "passed",
+    "lint": "passed",
+    "weapp": "passed",
+    "sourceIdentity": "verified before upload",
+    "actualMiniRender": "DevTools native render inspected; saved user avatar restored before confirmation, mascot present, button visible, no removed copy",
+    "actualWebConfirmationInVisualCheck": false
+  },
+  "selectedAsTrial": "requires_user_due_known_browser_site_safety_block",
+  "publicWechatRelease": false,
+  "apiOrWebChanged": false,
+  "newStylePhoneAcceptance": "not_run"
+}

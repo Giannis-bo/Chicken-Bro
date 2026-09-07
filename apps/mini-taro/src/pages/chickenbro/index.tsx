@@ -1,13 +1,15 @@
+import { MiniHelpActions } from '../../components/MiniHelp'
 import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
-import { Button, ScrollView, Text, Textarea, View } from '@tarojs/components'
+import { Button, Image, ScrollView, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
 import { MiniSessionStore } from '../../features/auth/mini-session'
 import { ChatModel, type ChatModelState } from '../../features/chat/chat-model'
 import MiniMessage from '../../components/MiniMessage'
+import mascot from '../../web/assets/gu-gu-mascot.png'
 import styles from './index.module.scss'
 
 function ChickenbroPage() {
@@ -110,6 +112,7 @@ function ChickenbroPage() {
         {historyOpen ? '收起历史 ▴' : '历史对话 ▾'}
       </Button>
       <Button className={styles['secondaryButton'] ?? ''} disabled={busy} onClick={() => void startNew()}>＋ 新对话</Button>
+      <MiniHelpActions />
     </View>
     {historyOpen ? <ScrollView className={styles['history'] ?? ''} scrollY>
       {state.conversations.map((conversation, index) => <Button key={conversation.id}
@@ -133,18 +136,25 @@ function ChickenbroPage() {
       <View className={styles['messageList'] ?? ''}>
         {state.activeConversation?.messages.map((message) => <View key={message.id}
           className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''} data-persisted="true">
-          <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '我' : '鸡哥'}</Text>
+          <View className={styles['messageRole'] ?? ''}>
+            {message.role !== 'user' ? <Image className={styles['replyMascot'] ?? ''} src={mascot} mode="aspectFit" /> : null}
+            <Text>{message.role === 'user' ? '我' : '鸡哥'}</Text>
+          </View>
           <MiniMessage content={message.content} markdown={message.role !== 'user'} />
         </View>)}
         {state.pendingUserContent ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
           <Text className={styles['messageRole'] ?? ''}>我</Text><MiniMessage content={state.pendingUserContent} />
         </View> : null}
         {state.phase === 'sending' ? <View className={styles['assistantMessage'] ?? ''} data-persisted="false">
-          <Text className={styles['messageRole'] ?? ''}>鸡哥 · {state.streamText ? '正在回复' : `正在思考${elapsed >= 10 ? ` · ${elapsed} 秒` : '…'}`}</Text>
+          <View className={styles['messageRole'] ?? ''}>
+            <Image className={styles['replyMascot'] ?? ''} src={mascot} mode="aspectFit" />
+            <Text>鸡哥 · {state.streamText ? '正在回复' : `正在思考${elapsed >= 10 ? ` · ${elapsed} 秒` : '…'}`}</Text>
+          </View>
           {state.streamText ? <MiniMessage content={state.streamText} markdown /> : <Text className={styles['hint'] ?? ''}>正在整理你的问题，查询日志或模拟可能需要一些时间。</Text>}
         </View> : null}
         {state.phase === 'loading' ? <Text className={styles['hint'] ?? ''}>正在读取对话…</Text> : null}
         {(!state.activeConversation || state.activeConversation.messages.length === 0) && state.phase === 'ready' ? <View className={styles['empty'] ?? ''}>
+          <Image className={styles['emptyMascot'] ?? ''} src={mascot} mode="aspectFit" />
           <Text className={styles['emptyTitle'] ?? ''}>今天想和鸡哥聊什么？</Text>
           <Text className={styles['hint'] ?? ''}>贴一段战斗日志，或聊聊手法、配装和模拟。</Text>
           {['帮我分析这场战斗', '我想优化角色配装'].map((prompt) => <Button key={prompt} className={styles['suggestion'] ?? ''} onClick={() => setDraft(prompt)}>{prompt} ↗</Button>)}
@@ -164,7 +174,7 @@ function ChickenbroPage() {
       <Button className={styles['sendButton'] ?? ''} disabled={busy || !draft.trim() || state.phase !== 'ready'}
         loading={busy && state.phase === 'sending'} onClick={() => void send()}>{state.phase === 'sending' ? '回复中' : '发送'}</Button>
     </View>
-    <Text className={styles['composerHint'] ?? ''}>{draft.length > 3600 ? `${draft.length}/4000` : '长按文字可复制 · 点击来源链接可复制地址'}</Text>
+    {draft.length > 3600 ? <Text className={styles['composerHint'] ?? ''}>{draft.length}/4000</Text> : null}
   </View>
 }
 export default withMiniTestLogin(ChickenbroPage)

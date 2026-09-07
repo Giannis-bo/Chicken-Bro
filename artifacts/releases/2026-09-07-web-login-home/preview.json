@@ -1,0 +1,82 @@
+{
+  "recordedAt": "2026-09-07T07:03:34.897322+00:00",
+  "status": "preview_verified_user_acceptance_pending",
+  "baseCommit": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+  "sourceState": "local uncommitted task changes; earlier trial-login documentation changes preserved",
+  "sourceFiles": {
+    "apps/mini-taro/src/app.scss": "14a505abbd0eac83a4975a5016c47d2ff057960eea3670b1fb50db753162bd35",
+    "apps/mini-taro/src/env.d.ts": "eca14a6ace2eaea4097292aeabcbdf9bd8cf534df36f81fda72d56682b63ce2e",
+    "apps/mini-taro/src/web/WebApp.tsx": "53eb711f52af321a77c902f0c787dbe2bd68df396baa0b3b3abd3838deff3aac",
+    "apps/mini-taro/src/web/WebLoginHome.tsx": "31e961f78c2db4b602537afe8423e71081767b09dfb697f40d4ab8738fece410",
+    "apps/mini-taro/src/web/WebLoginHome.module.scss": "ea47e678514b3334cf41bf0a20354e5578487545e41269a368f69307d25dde63",
+    "apps/mini-taro/src/web/WebLoginCard.module.scss": "610bdd79a0d67f230e4aff04a70f3b42778f1a56eea709ba02d61ab810c23836",
+    "apps/mini-taro/src/web/web-login-home.test.tsx": "af2b989b50ba01dc2caef94254da39fe822c2c63e108675da2bc84af18a524d8",
+    "apps/mini-taro/src/web/web-app-contract.test.ts": "ef44f2d3601ac8f774fad189c0c284612e4644e2bafb11b44190eb55f1f34781"
+  },
+  "sourceHash": "c87b8ecd8fe6a458f2987cad5fcd81720b056f4397f0eb7dbd8e833dbb98d158",
+  "previewUrl": "https://www.chickenbro.cloud/previews/login-home-20260907/",
+  "previewRoot": "/var/www/chickenbro-web/previews/login-home-20260907-v2",
+  "buildFiles": {
+    "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+    "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/491.js": "6929f1f0439a494b5cf9c04d09004cfecb0096e833b11f444386c2ac9348a5e7",
+    "chunk/491.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+    "chunk/74.js": "8ac2d0fef22ae5747ff0f2d01a07f6ff41a3b6eda74abf5ecdb5648a01fd6250",
+    "chunk/765.js": "ac43fc12d258162c9557b4711af9d899f32b84c2ac199ef6c6a54e925f2cb1e8",
+    "chunk/765.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+    "chunk/856.js": "b7584e891a0dfcdd2a8bdeb27b6e5ac9c320beb995c805d19663ed4c97134cef",
+    "chunk/856.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+    "chunk/882.js": "a170f5c7ff54bbd2d075e0d766a1278e36c2c1d5be4f7d73b764d7074e17c200",
+    "chunk/882.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+    "css/491.css": "d1c24ba94ca46e55829174e4891e9bb22b28ce5a58a3c8dc34fece013b2614e6",
+    "css/74.css": "9529095e5410ae1d8863496c36916c1356da6805e4859a29a4c29d3eb1f59abd",
+    "css/765.css": "d4af5869890d91b29b965ca87f6641e5eb194ec2dd8e2ecfd14ad59468b5ad53",
+    "css/856.css": "f4c89207701f71748fc7fe793b9c72bd2f2085c7689640dcf70ca3b1a1f40718",
+    "css/882.css": "02b30c4071806c205b98db061e36b85c6f41f10a9f0558b026c2502ff66321c8",
+    "css/app.css": "484cd677056163606fe01addd4f9da84b323fee91b722c05c998514af84ffb32",
+    "index.html": "930d93710fddeae5c50302438beb4f26f51cc9cdc42e51a837b4abc24662e5c2",
+    "js/545.js": "b63079028172b8951fe2b168ed7bce1e019ac4d692ae3bca83edc7d5358d94c5",
+    "js/545.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "js/app.js": "8cb64d9e67386a2ddfaf75275de792ce03cfcf559977bc1c00ffd4fc9583df90",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+    "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+    "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368"
+  },
+  "remoteFileHashes": "25/25 matched before atomic preview symlink switch",
+  "verification": {
+    "frontendTests": 231,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "buildH5": "passed; existing asset-size warnings",
+    "viewports": [
+      1512,
+      1024,
+      390
+    ],
+    "qrImage": {
+      "naturalSize": [
+        430,
+        430
+      ],
+      "displaySize": [
+        216,
+        216
+      ],
+      "objectFit": "contain",
+      "transform": "none"
+    },
+    "horizontalOverflow": false,
+    "taroBannerDisplay": "none",
+    "technicalFooterRemoved": true,
+    "loginAnchorFocus": "wechat-login; router hash unchanged",
+    "liveQrCreate": "passed with trial Mini and formal API",
+    "liveCancel": "passed; no automatic recreation",
+    "realPhoneConfirmation": "pending",
+    "liveRegenerate": "passed on final preview build"
+  },
+  "defaultHomepageReplaced": false,
+  "apiChangedInThisTask": false,
+  "rollback": "Remove only /var/www/chickenbro-web/current/previews/login-home-20260907 symlink to retire preview; prior preview files are retained."
+}

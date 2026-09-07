@@ -1,0 +1,115 @@
+{
+  "observedAt": "2026-09-07T07:33:57.918542+00:00",
+  "status": "api_live_web_preview_mini_preview_ready_user_acceptance_pending",
+  "sourceBaseCommit": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+  "sourceUncommitted": true,
+  "sourceFiles": {
+    "server/app/identity/application.py": "25e16e25d1f2637b661f921cb675bada92e65d019219a46c24977c049afd204c",
+    "server/app/identity/ports.py": "6bf0854d65f0b90ffde95039dd31916132dc192765a061633b747133eeb0416a",
+    "server/app/identity/repository.py": "2fb1022c49eec25b39d170411db95b3a920c28e9ea3d4c46281ac15a1b45e4f5",
+    "server/app/identity/avatar.py": "3a79363aee914c1fc6833a86f5e3c19a795152e258a9d0417fc399e1346c7e73",
+    "server/app/api/routes/auth.py": "752a8be1a54d90970c6b829022aea415bb93dd09b65e3b8a6508d9ee12729236",
+    "server/migrations/product/0003_account_avatar.sql": "6f8b1ff99eda981ad3987dbcb3b5811bec85e672d21ff5e2552b63ab444dffe3"
+  },
+  "candidate": {
+    "database": "chickenbro_test",
+    "sourceRoot": "/opt/chickenbro-test/avatar-preview-5b925e99c4eb1547",
+    "postgresRole": "wow_app",
+    "miniSaveWebReadSameAvatar": "passed",
+    "ownerIsolation": "passed",
+    "webWriteRejected": "passed",
+    "previousMeCompatible": "passed",
+    "smokeUserRowsRolledBack": true,
+    "existingTestApiWorkerUnchanged": true,
+    "migration": "0003_account_avatar",
+    "boundaryCorrection": "Before production, candidate constraint adjusted from 349550 to 349551 to include a full 256 KiB JPEG. Exact bound retested."
+  },
+  "api": {
+    "database": "chickenbro_prod",
+    "workingDirectory": "/opt/chickenbro-releases/avatar-preview-5b925e99c4eb1547",
+    "baseRelease": "/opt/chickenbro-releases/1862e167fafa0469888c3b2b489a8799ae19a799",
+    "sourceSha256": "5b925e99c4eb154758f6f8108dd30bfe68aa1393832bf363b4c35ddaa298f8d2",
+    "dropIn": "/etc/systemd/system/chickenbro-api.service.d/99-avatar-preview-20260907.conf",
+    "migrationApplied": "0003_account_avatar",
+    "activeChatAndSimcBeforeRestart": [
+      0,
+      0
+    ],
+    "workerRestarted": false,
+    "bothDomainsSevenReadinessComponents": "ready",
+    "authenticatedAvatarGet": "200 after activation",
+    "wechatEnvironment": "trial; existing configuration retained"
+  },
+  "web": {
+    "url": "https://www.chickenbro.cloud/previews/login-home-20260907/",
+    "root": "/var/www/chickenbro-web/previews/login-home-20260907-avatar-a613d6385820",
+    "previousRoot": "/var/www/chickenbro-web/previews/login-home-20260907-v2",
+    "fileCount": 25,
+    "allRemoteFileHashesMatched": true,
+    "files": {
+      "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+      "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+      "chunk/491.js": "ac0847a2a78b61b002ba99e2aa7250d5622a6bd05e0f1ccbfba599e6068f194c",
+      "chunk/491.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/74.js": "50b5d032926bf117ab50299adc0e9e52686fa23309176a050ab8652ab066aff9",
+      "chunk/765.js": "694269eed3cf3f3de1cf1a8fb0e2dc304667be0d6069e932db594d48a8704d4d",
+      "chunk/765.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/856.js": "efc929a2d5012d9a2ee3b9b72d68f7471cda422177fa1bdcc24b5b2b6df49a27",
+      "chunk/856.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "chunk/882.js": "c079f21ab944920ea8e25d44c0f4b7f707d854a2d23a77aa9d7487ef3a37dca5",
+      "chunk/882.js.LICENSE.txt": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819",
+      "css/491.css": "84a50804256a16231a2380468b5b18c227b1155a85adf42d7b33265476d9416c",
+      "css/74.css": "d9d4c61894337c8bfaf2dc210543dcdb14f9b3cecc18535e0ce53392f025c528",
+      "css/765.css": "ec4ebdb241c6469bd60e0d2699e32993f34b1d1616124f3add510418422125c0",
+      "css/856.css": "594e86106b631cb9edeca18b428a17fb9a872269b529ee86dcfaeead42a40c83",
+      "css/882.css": "c25c2b2317d6596083a40ce04bf70453cf2e05f984bc39e3e47c504f1e108b82",
+      "css/app.css": "3e4641b9c6c1f199f197483e7e6cac97f0c6b4abd35e75194b24abf6897a42ed",
+      "index.html": "f27e01cc3e985db11b33e8290e9c5e5cbf223a98c2705ebacde146c9a21a2cbd",
+      "js/444.js": "658e409d0f68cd994dcf903ce1ddd33cc936d289d6254ee0de8cb7c4c6043d59",
+      "js/444.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+      "js/app.js": "bb993b76f904468faecd43b5cf189caa60f960cbe43da8c5c69f3cac9019a324",
+      "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+      "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+      "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+      "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368"
+    },
+    "buildSha256": "a613d6385820c9e02acb0efb4c7bac5a6302d75291a3f246481601a8af49b3c4",
+    "existingSessionAndChatRestored": true,
+    "accountMenuAndDefaultAvatar": "browser_verified",
+    "defaultHomepageReplaced": false
+  },
+  "mini": {
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+      "sourceHash": "sha256:e631aae3a2476fcc4b457b02ee8df8749489eb28307438e22c27db95e2946e1f",
+      "builtAt": "2026-09-07T07:28:07.849Z"
+    },
+    "previewSize": 464600,
+    "previewGenerated": true,
+    "localDeveloperToolsEntry": "visible",
+    "publicWechatRelease": false,
+    "trialVersionUploaded": false
+  },
+  "checks": {
+    "frontend": 237,
+    "backend": 399,
+    "avatarFinalBoundaryRetest": 8,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed with existing size warnings",
+    "weapp": "passed",
+    "schema": "20 passed, one dedicated-new-database fixture skipped; actual candidate additive migration and runtime role exercised"
+  },
+  "acceptance": {
+    "realPhoneAvatarSelection": "not_run",
+    "realUserMiniWebAvatarComparison": "not_run",
+    "userAccepted": false
+  },
+  "rollback": {
+    "api": "Remove only 99-avatar-preview-20260907.conf; daemon-reload and restart chickenbro-api.service. Retain additive column and saved avatars. Prior API remains compatible.",
+    "web": "Atomically repoint current/previews/login-home-20260907 to previousRoot.",
+    "mini": "Use the previous uploaded trial; this task generated a developer preview only."
+  }
+}

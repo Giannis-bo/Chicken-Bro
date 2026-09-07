@@ -118,6 +118,12 @@ class IdentityRepository(Protocol):
     ) -> WebLoginSession | None:
         raise NotImplementedError
 
+    def get_avatar(self, user_id: UUID) -> str | None:
+        ...
+
+    def set_avatar(self, user_id: UUID, avatar: str, *, now: datetime) -> bool:
+        ...
+
     def get_public_user(self, user_id: UUID) -> PublicUser | None:
         raise NotImplementedError
 

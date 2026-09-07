@@ -1,0 +1,131 @@
+{
+  "status": "local_verified",
+  "sourceState": "uncommitted_on_existing_dirty_detached_head",
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "cffae00c6664806688e8d3bc70465b06ae84f9df",
+    "sourceHash": "sha256:1e75fcd38dfd34a57ce7b72f8b633b5336fa6a7af7cbba347c8731d2ffe46197",
+    "builtAt": "2026-09-07T08:50:43.584Z"
+  },
+  "verification": {
+    "frontendTests": 243,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "weappBuild": "passed",
+    "buildIdentity": "passed",
+    "diffCheck": "passed",
+    "webSourceFilesUnchanged": 38,
+    "devtools": [
+      "current_chat_light_layout_and_reply_mascot",
+      "native_more_menu",
+      "faq_open_close",
+      "changelog_open_close",
+      "simc_navigation_and_form_light_layout"
+    ],
+    "automatedInteractions": [
+      "help_return_preserves_chat_and_simc_drafts",
+      "native_menu_cancel_preserves_draft",
+      "web_login_confirm_without_avatar_and_session_persistence"
+    ]
+  },
+  "limitations": [
+    "real_device_keyboard_and_safe_area_not_run",
+    "user_visual_acceptance_pending",
+    "empty_chat_illustration_rendered_in_automated_test_not_opened_in_devtools",
+    "existing_mascot_asset_528_KiB_build_warning"
+  ],
+  "operations": {
+    "commit": false,
+    "push": false,
+    "deploy": false,
+    "wechatUpload": false,
+    "newChatOrSimcCreated": false
+  },
+  "changedFiles": {
+    "apps/mini-taro/src/app.config.ts": {
+      "before": "54cd392c5fa4e71df35ccbc66a43b77c17a5772f1eea767ed7c971f8820c8f25",
+      "after": "10e20a686e05abdd87e5dbb585fd448e641c6265a7181292d6f089106645bb08"
+    },
+    "apps/mini-taro/src/components/MiniHelp.module.scss": {
+      "before": "533898a2658194fdba0e62ef31885501a580ee47654c454597eaa64a0a1b3b58",
+      "after": "b0c16413d1baa4c2e8bc5638b3c09056be1df8ffb46a02f94afce559aa40264b"
+    },
+    "apps/mini-taro/src/components/CoreTabBar.module.scss": {
+      "before": "829b0d5ae44c6027b7e95cc1ceb433a1147675905a9b975b3d9ae443050b665d",
+      "after": "67f72561586c48f5f5caedeff4b49ddc11baf066e58a148dadf7931b2e9b758e"
+    },
+    "apps/mini-taro/src/components/CoreTabBar.tsx": {
+      "before": "0dfd542ec2b3f4dc6ca2e63e3160b91d3df82427192465ab456e310555afced6",
+      "after": "c9c2746615efb439809ca3105f4027306dd7fbeac2b59568e4df55e521f73254"
+    },
+    "apps/mini-taro/src/components/MiniMessage.module.scss": {
+      "before": "be3fb3d5cc68c43618b1684d9f71d8e2c3ab1d13efb287b580a0f0b6dc7d5115",
+      "after": "e5967f12845c93db6ed7475a61d5cdecc4082f3388d4188bb992f2f1ce3d0d00"
+    },
+    "apps/mini-taro/src/components/MiniHelp.tsx": {
+      "before": "9f5ac9ff83db549991c568bc2dfc23be054c1912fcdac0a194ce98a0b24ffbde",
+      "after": "b694a14e975b1bc7542ae8e080f87dcdac32e842b8b4ff409d7bea6a2669b976"
+    },
+    "apps/mini-taro/src/pages/auth/web-login-confirm.tsx": {
+      "before": "45672e7658c5901095cc9074a9610719eabe375ae82924bcbab30abcc01fb586",
+      "after": "1f6abb356fe6edecac394d19bdacf355a9ec376bbb9e097121d2e721e2473b4d"
+    },
+    "apps/mini-taro/src/pages/auth/web-login-avatar.test.tsx": {
+      "before": "b5307b5c57a18b38eb470aafab2c894c5756e6445cd966050390186eae7ceb2c",
+      "after": "78be04d8399a270569076612d4beeb9275b9d44dfefd4a125b27063ac1450b3c"
+    },
+    "apps/mini-taro/src/pages/simc/index.tsx": {
+      "before": "e9daaa8365e39ffd3b066cc5fed8cb530ee8155943bd904ba228465152551288",
+      "after": "e2ed716e8af1987c4f20a7f12edc7ac672bc08301ebd82f19253d773fdd15fac"
+    },
+    "apps/mini-taro/src/pages/simc/tasks.module.scss": {
+      "before": "c89d24347d1dd8e4378702fff1f0382afc40bfb480e67aa84525b62a48536a75",
+      "after": "2faf4507e70f85318c84e062014fe3514f4efc47a5f892a501e1a5e5a8e93ab3"
+    },
+    "apps/mini-taro/src/pages/simc/tasks.tsx": {
+      "before": "2ecd0fdadfb37a7d2e056a93c0040fc0d6d91b4074ffeecfccf32ac6893901b6",
+      "after": "ac950fbb7bb9b801231e87617a31fb4ae92c11d53b113fb4f34d7fb236ffd4dc"
+    },
+    "apps/mini-taro/src/pages/simc/index.module.scss": {
+      "before": "f688550c8e882ea4b34ccb8a7a985c3fe50ce075f38d7f265bf86e5d0df44ae8",
+      "after": "82093bd452a0f81dec511acf5104550a380e15a0f4733974fdd22cc9d6d4249c"
+    },
+    "apps/mini-taro/src/pages/simc/task-detail.tsx": {
+      "before": "7ddf686931844fc0e4669a701329eb1efc07ca459770e142b3b909c7b9088590",
+      "after": "8b4d43ac6ffeeffefd43e79f73a8418f92f02dbb4a08d7ebf6841fa2224509f7"
+    },
+    "apps/mini-taro/src/pages/simc/task-detail.module.scss": {
+      "before": "ed83f01143487e766fe4b6c6bf5b859bdb2ac92f17e4a97b1c720209265a694e",
+      "after": "1b30bf112430c0b512c9613a58490691ecfe8b76dce22722054c10df0248d429"
+    },
+    "apps/mini-taro/src/pages/chickenbro/index.tsx": {
+      "before": "4a004e4b343b7ed41e8931ad51675e552423cd8c860fbb4cf70a321fc4d11c7f",
+      "after": "f6e060b9c02d7d97b0f8e42dc4fb57270705e89cc6cea3ddfb7a69fe1e2a4b94"
+    },
+    "apps/mini-taro/src/pages/chickenbro/index.module.scss": {
+      "before": "d82b559a88dcf3bf5967c56bd44ede5829f11515973b97b77c68c6b354c2296a",
+      "after": "cfd3bc01c69f6c55b7f223c4ef64a68cbe47bff36850f3c7d0d4c7eb0cdefa35"
+    },
+    "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx": {
+      "before": "1d65884ccef6cd559001e3570f0f456f45b1d076fba5caf72e375ea927101844",
+      "after": "28c99cea73e3e7c784c26e86fa93d63a04bb5d889ed0c3a3be508bb1fe5a3562"
+    },
+    "apps/mini-taro/src/features/auth/test-login.module.scss": {
+      "before": "9e235f78e4dfaf489e41dfd55794529f3ec9439d89eca02c1ef19518e9e5e4cd",
+      "after": "890fbe0559c0585653e97f769d139484ef8455abd29e2907d316ed15c8be8cc4"
+    },
+    "apps/mini-taro/src/features/auth/with-mini-test-login.tsx": {
+      "before": "dcbc7875efc37e6aa75c747abb9a9aa06f81541af527469194e37ceeeb423775",
+      "after": "555cd0f5a1c95aa3f0867d62c710ec61242a2667cfdde2e37fe9e0466ed14350"
+    },
+    "docs/roadmap.md": {
+      "before": "3026c48edc11c5fe52900ac77a78959c881cf226e0303a1485bc29d23785eac4",
+      "after": "dc8b6ba37e6e2c868baeabc983861b34f10ac0ae7643a257c291cf7a070d8fe2"
+    },
+    "docs/plans/2026-09-07-mini-mobile-interaction.md": {
+      "before": "095cb5eedfc73ee49ca0a90db7aa0c70d7c5b1dd634bfcb72c7a61e37d303be4",
+      "after": "7b04a40c87624f182a6ecea3704510250774c6436888ed7fcc9d4d387b28e8a4"
+    }
+  }
+}

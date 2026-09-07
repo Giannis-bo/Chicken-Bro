@@ -1,10 +1,12 @@
 import Taro, { useLoad } from '@tarojs/taro'
-import { Button, Text, View } from '@tarojs/components'
-import { useRef, useState } from 'react'
+import { Button, Image, Text, View } from '@tarojs/components'
+import { useMemo, useRef, useState } from 'react'
 
 import { wowApi } from '@wow-mini/api-client'
 
 import styles from './web-login-confirm.module.scss'
+import mascot from '../../web/assets/gu-gu-mascot.png'
+import { MiniSessionStore } from '../../features/auth/mini-session'
 
 type ConfirmPagePhase = 'loading' | 'ready' | 'confirming' | 'confirmed' | 'error'
 
@@ -17,7 +19,7 @@ interface ConfirmPageState {
 const initialState: ConfirmPageState = {
   phase: 'loading',
   code: '',
-  message: '正在准备安全登录…',
+  message: '正在准备登录…',
 }
 
 const errorCopy: Record<string, string> = {
@@ -41,6 +43,10 @@ function resultError(result: { problemCode?: string; error: string }, fallback: 
 }
 
 export default function WebLoginConfirmPage() {
+  const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
+  const confirmingRef = useRef(false)
+  const navigatingRef = useRef(false)
+  const [navigationFailed, setNavigationFailed] = useState(false)
   const sceneRef = useRef('')
   const accessTokenRef = useRef('')
   const [state, setState] = useState<ConfirmPageState>(initialState)
@@ -50,22 +56,14 @@ export default function WebLoginConfirmPage() {
       setState({ phase: 'error', code: 'WEB_LOGIN_SCENE_MISSING', message: errorCopy['WEB_LOGIN_SCENE_MISSING'] ?? '链接缺少登录场景。' })
       return
     }
-    setState({ phase: 'loading', code: '', message: '正在准备安全登录…' })
+    setState({ phase: 'loading', code: '', message: '正在准备登录…' })
     try {
-      const login = await Taro.login()
-      if (!login.code) {
-        setState({ phase: 'error', code: 'MINI_LOGIN_CODE_MISSING', message: '小程序登录未完成，请重试。' })
-        return
-      }
-      const result = await wowApi.webAuth.exchangeMiniCode(login.code)
-      if (result.fromFallback || !result.payload.accessToken) {
-        setState(resultError(result, '小程序登录未完成，请重试。'))
-        return
-      }
-      accessTokenRef.current = result.payload.accessToken
-      setState({ phase: 'ready', code: '', message: '请核对本次 Web 登录，并明确确认。' })
-    } catch {
-      setState({ phase: 'error', code: 'MINI_LOGIN_FAILED', message: '小程序登录未完成，请重试。' })
+      const session = await sessions.login()
+      accessTokenRef.current = session.accessToken
+      setState({ phase: 'ready', code: '', message: '鸡哥已就位，等你开聊。' })
+    } catch (error) {
+      const code = error instanceof Error ? error.message : 'MINI_LOGIN_FAILED'
+      setState({ phase: 'error', code, message: errorCopy[code] ?? '小程序登录未完成，请重试。' })
     }
   }
 
@@ -75,18 +73,36 @@ export default function WebLoginConfirmPage() {
     void prepareLogin(scene)
   })
 
+  const enterMini = async () => {
+    if (navigatingRef.current) return
+    navigatingRef.current = true
+    setNavigationFailed(false)
+    try {
+      await Taro.switchTab({ url: '/pages/chickenbro/index' })
+    } catch {
+      setNavigationFailed(true)
+      setState({ phase: 'confirmed', code: '', message: '登录成功，点击进入小程序。' })
+    } finally {
+      navigatingRef.current = false
+    }
+  }
+
   const confirmLogin = async () => {
-    if (state.phase !== 'ready' || !sceneRef.current || !accessTokenRef.current) return
-    setState({ phase: 'confirming', code: '', message: '正在把确认结果交给 Web 页面…' })
+    if (confirmingRef.current || state.phase !== 'ready' || !sceneRef.current || !accessTokenRef.current) return
+    confirmingRef.current = true
+    setState({ phase: 'confirming', code: '', message: '正在登录…' })
     try {
       const result = await wowApi.webAuth.confirmMiniWebLogin(sceneRef.current, accessTokenRef.current)
       if (result.fromFallback) {
         setState(resultError(result, '确认登录失败，请重试。'))
         return
       }
-      setState({ phase: 'confirmed', code: '', message: '已确认登录，可以回到 Web 页面继续。' })
+      setState({ phase: 'confirmed', code: '', message: '正在进入小程序…' })
+      await enterMini()
     } catch {
       setState({ phase: 'error', code: 'WEB_LOGIN_CONFIRM_FAILED', message: '确认登录失败，请重试。' })
+    } finally {
+      confirmingRef.current = false
     }
   }
 
@@ -99,43 +115,27 @@ export default function WebLoginConfirmPage() {
 
   return (
     <View className={styles['page'] ?? ''} data-auth-phase={state.phase}>
+      <View className={styles['brand'] ?? ''}>
+        <Image className={styles['mascot'] ?? ''} src={mascot} mode="aspectFit" />
+        <Text className={styles['brandName'] ?? ''}>炸鸡队长来啦</Text>
+        <Text className={styles['brandNote'] ?? ''}>CHICKENBRO</Text>
+      </View>
       <View className={styles['panel'] ?? ''}>
-        <Text className={styles['kicker'] ?? ''}>CHICKENBRO · WEB BRIDGE</Text>
-        <Text className={styles['title'] ?? ''}>确认 Web 登录</Text>
-        <Text className={styles['description'] ?? ''}>
-          这是一次明确的跨设备登录确认。请确认你刚刚在 Web 页面发起了这次操作。
-        </Text>
-
-        <View className={styles['statusCard'] ?? ''}>
-          <View className={styles['statusDot'] ?? ''} data-status={state.phase} />
-          <Text className={styles['statusText'] ?? ''}>{state.message}</Text>
-        </View>
-
+        <Text className={styles['title'] ?? ''}>{state.phase === 'confirmed' ? '登录成功' : '登录网页版'}</Text>
+        <Text className={`${styles['status'] ?? ''} ${state.phase === 'error' ? styles['error'] ?? '' : ''}`}>{state.message}</Text>
         {state.phase === 'ready' || state.phase === 'confirming' ? (
-          <Button
-            className={styles['confirmAction'] ?? ''}
-            disabled={isBusy}
-            loading={state.phase === 'confirming'}
-            onClick={() => void confirmLogin()}
-          >
+          <Button className={styles['confirmAction'] ?? ''} disabled={isBusy}
+            loading={state.phase === 'confirming'} onClick={() => void confirmLogin()}>
             确认登录
           </Button>
         ) : null}
-
-        {state.phase === 'confirmed' ? (
-          <View className={styles['successCard'] ?? ''}>
-            <Text>Web 页面正在等待确认结果。</Text>
-            <Text>你可以安全返回刚才的 Web 页面。</Text>
-          </View>
+        {state.phase === 'confirmed' && navigationFailed ? (
+          <Button className={styles['confirmAction'] ?? ''} onClick={() => void enterMini()}>进入小程序</Button>
         ) : null}
-
+        {state.phase === 'confirmed' ? <View className={styles['success'] ?? ''}>✓</View> : null}
         {state.phase === 'error' ? (
-          <Button className={styles['confirmAction'] ?? ''} onClick={retry}>
-            重新尝试
-          </Button>
+          <Button className={styles['confirmAction'] ?? ''} onClick={retry}>重新尝试</Button>
         ) : null}
-
-        <Text className={styles['privacyNote'] ?? ''}>本页不会展示账户凭据，也不会自动替你确认登录。</Text>
       </View>
     </View>
   )

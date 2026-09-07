@@ -141,3 +141,16 @@ export function isLogoutResponse(value: unknown): value is LogoutResponse {
     && value['loggedOut'] === true
     && isRequestId(value['requestId'])
 }
+
+
+export interface AvatarResponse {
+  avatarDataUrl: string | null
+  requestId?: string
+}
+
+export function isAvatarResponse(value: unknown): value is AvatarResponse {
+  if (!isRecord(value) || !hasExactResponseKeys(value, ['avatarDataUrl'])) return false
+  const avatar = value['avatarDataUrl']
+  return (avatar === null || (typeof avatar === 'string' && avatar.length <= 349551 && QR_DATA_URL_PATTERN.test(avatar)))
+    && isRequestId(value['requestId'])
+}

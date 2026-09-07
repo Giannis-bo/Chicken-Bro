@@ -137,7 +137,7 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
       <div><h1>SIMC</h1></div>
       <div className={styles['engine']} data-runtime-status={runtime?.status ?? 'unknown'}>
         <span className={styles['engineDot']} aria-hidden="true" />
-        <div><strong>{runtimeLoading ? '正在读取 SIMC 版本…' : runtime?.status === 'available' && runtime.version ? `SIMC ${runtime.version}` : runtime?.status === 'unavailable' ? 'SIMC 暂不可用' : 'SIMC 版本暂不可用'}</strong>
+        <div><strong>{runtimeLoading ? 'Simc版本：读取中…' : runtime?.status === 'available' && runtime.version ? `Simc版本：${runtime.version}` : runtime?.status === 'unavailable' ? 'Simc版本：暂不可用' : 'Simc版本：暂不可用'}</strong>
           {runtime?.gameVersion ? <small>游戏 {runtime.gameVersion}</small> : null}</div>
         {!runtimeLoading && runtime?.status !== 'available' ? <button data-simc-button="" className={styles['textButton']} onClick={() => void refreshRuntime()}>重试引擎</button> : null}
       </div>

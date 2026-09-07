@@ -10,7 +10,7 @@ describe('formal SimC task detail', () => {
       'apps/mini-taro/src/pages/simc/task-detail.tsx',
     ), 'utf8')
     expect(page).toContain('.pollJob(')
-    expect(page).toContain('metricValue')
+    expect(readFileSync(resolve(process.cwd(), 'apps/mini-taro/src/components/MiniSimcReport.tsx'), 'utf8')).toContain('metricValue')
     expect(page).toContain('runtimeRevision')
     expect(page).toContain('profileSha256')
     expect(page).not.toContain('stdout')
