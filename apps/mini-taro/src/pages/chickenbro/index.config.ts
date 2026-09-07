@@ -1,5 +1,5 @@
 export default definePageConfig({
   navigationBarTitleText: '炸鸡队长',
-  navigationStyle: 'custom',
+  navigationStyle: 'default',
   disableScroll: true,
 })

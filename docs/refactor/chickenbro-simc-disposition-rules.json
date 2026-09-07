@@ -97,6 +97,7 @@
       "reason": "User-approved test login followup, operational controls and verification.",
       "paths": [
         "docs/plans/2026-09-05-test-account-login.md",
+        "docs/plans/2026-09-07-mini-mobile-interaction.md",
         "docs/test-account-login.md",
         "scripts/configure-test-login.py",
         "server/deploy_test_login.py",
@@ -105,7 +106,9 @@
         "tests/test_login_runtime_test.py"
       ],
       "prefixes": [
-        "artifacts/releases/2026-09-05-test-account-login/"
+        "artifacts/releases/2026-09-05-test-account-login/",
+        "artifacts/releases/2026-09-07-web-sidebar-simplification/",
+        "artifacts/releases/2026-09-07-mini-mobile-interaction/"
       ]
     },
     {

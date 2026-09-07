@@ -1,16 +1,31 @@
 import { Button, Text, View } from '@tarojs/components'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { ClientAuthContext } from '@wow-mini/api-client'
 
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
 import WebServiceHealth from './WebServiceHealth'
+import WebHeaderActions from './WebHeaderActions'
+import WebFaqPage from './WebFaqPage'
 import styles from './WebApp.module.scss'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 type BusinessView = 'chat' | 'simc'
+type WebView = BusinessView | 'faq'
+
+function readView(): WebView {
+  const view = new URLSearchParams(window.location.search).get('view')
+  return view === 'faq' || view === 'simc' ? view : 'chat'
+}
+
+function viewHref(view: WebView): string {
+  const url = new URL(window.location.href)
+  if (view === 'chat') url.searchParams.delete('view')
+  else url.searchParams.set('view', view)
+  return url.pathname + url.search + url.hash
+}
 
 const modes: Array<{ id: BusinessView; number: string; label: string }> = [
   { id: 'chat', number: '01', label: '对话' },
@@ -24,15 +39,35 @@ export interface WebShellProps {
 }
 
 export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps) {
-  const [activeView, setActiveView] = useState<BusinessView>('chat')
-  const [simcVisited, setSimcVisited] = useState(false)
-  const [isHordeSkin, setIsHordeSkin] = useState(true)
+  const [activeView, setActiveView] = useState<WebView>(readView)
+  const [simcVisited, setSimcVisited] = useState(() => readView() === 'simc')
+  const lastBusinessView = useRef<BusinessView>(activeView === 'simc' ? 'simc' : 'chat')
+
+  const showView = (view: WebView) => {
+    if (view === 'simc') setSimcVisited(true)
+    if (view !== 'faq') lastBusinessView.current = view
+    setActiveView(view)
+  }
+  const navigate = (view: WebView) => {
+    if (view !== activeView) window.history.pushState(window.history.state, '', viewHref(view))
+    showView(view)
+  }
+  useEffect(() => {
+    const restore = () => {
+      const view = readView()
+      if (view === 'simc') setSimcVisited(true)
+      if (view !== 'faq') lastBusinessView.current = view
+      setActiveView(view)
+    }
+    window.addEventListener('popstate', restore)
+    return () => window.removeEventListener('popstate', restore)
+  }, [])
 
   return (
     <View
       className={styles['workspace'] ?? ''}
       data-business-view={activeView}
-      data-skin={isHordeSkin ? 'horde' : 'clean'}
+      data-skin="horde"
     >
       <View className={styles['workspaceTopbar'] ?? ''}>
         <View className={styles['brand'] ?? ''}>
@@ -52,10 +87,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
               className={styles['navButton'] ?? ''}
               data-active={activeView === mode.id ? 'true' : 'false'}
               aria-label={mode.id === 'simc' ? 'SimC 模拟' : '队长对话'}
-              onClick={() => {
-                if (mode.id === 'simc') setSimcVisited(true)
-                setActiveView(mode.id)
-              }}
+              onClick={() => navigate(mode.id)}
             >
               <Text className={styles['modeSwitchNumber'] ?? ''}>{mode.number}</Text>
               <Text>{mode.label}</Text>
@@ -63,30 +95,13 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
           ))}
         </View>
 
-        <View className={styles['headerActions'] ?? ''}>
-          <Button
-            className={styles['skinToggle'] ?? ''}
-            data-active={isHordeSkin ? 'true' : 'false'}
-            aria-pressed={isHordeSkin}
-            onClick={() => setIsHordeSkin((current) => !current)}
-          >
-            <View className={styles['skinToggleDot'] ?? ''} />
-            <Text className={styles['skinToggleLabel'] ?? ''}>
-              {isHordeSkin ? '为了部落！' : '开启主题'}
-            </Text>
-          </Button>
-          <View className={styles['accountBlock'] ?? ''}>
-            <Text className={styles['accountLabel'] ?? ''}>{accountLabel}</Text>
-            <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={onLogout}>
-              退出
-            </Button>
-          </View>
-        </View>
+        <WebHeaderActions accountLabel={accountLabel} onLogout={onLogout}
+          faqActive={activeView === 'faq'} faqHref={viewHref('faq')} onFaq={() => navigate('faq')} />
       </View>
 
       <View className={styles['workspaceBody'] ?? ''}>
         <View className={styles['workspaceMain'] ?? ''}>
-          {activeView === 'chat' && isHordeSkin ? (
+          {activeView === 'chat' ? (
             <View className={styles['workspaceArt'] ?? ''} data-decorative="true">
               <View className={styles['chatArtCrop'] ?? ''}>
                 <View className={styles['chatScene'] ?? ''} />
@@ -97,9 +112,13 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
             </View>
           ) : null}
 
+          {activeView === 'faq' ? <WebFaqPage
+            returnLabel={lastBusinessView.current === 'simc' ? '返回模拟' : '返回对话'}
+            onReturn={() => navigate(lastBusinessView.current)} /> : null}
+
           {/* A tab change must not dispose the chat model and abort its active stream. */}
           <div className={styles['businessPane']} hidden={activeView !== 'chat'}>
-            <WebChatView auth={auth} showHordeSkin={isHordeSkin} />
+            <WebChatView auth={auth} />
           </div>
           {simcVisited ? (
             <div className={styles['businessPane']} hidden={activeView !== 'simc'}>

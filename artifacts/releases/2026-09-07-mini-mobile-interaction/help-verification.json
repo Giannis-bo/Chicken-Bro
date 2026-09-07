@@ -1,0 +1,26 @@
+{
+  "status": "local_verified",
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+    "sourceHash": "sha256:2c12dc3c7bb46021c2c608aa39c6d5e18133438c8d259e8bcca814c4fddbef34",
+    "builtAt": "2026-09-07T03:59:11.505Z"
+  },
+  "scope": "Mini FAQ and changelog entrypoints",
+  "tests": {
+    "frontend": 221,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "draftPreservation": "passed"
+  },
+  "devtools": [
+    "FAQ and changelog visible in common header",
+    "FAQ opened",
+    "changelog platform labels inspected",
+    "long changelog scrolled with close button visible"
+  ],
+  "webFilesUnchanged": 34,
+  "userAcceptance": "pending",
+  "productionDeployment": "not_performed"
+}

@@ -1,0 +1,18 @@
+.actions { flex: none; display: flex; align-items: center; gap: 12rpx; padding: 0 24rpx; background: #181d16; border-bottom: 1rpx solid #30382a; }
+.caption { flex: 1; color: #969e89; font-size: 22rpx; }
+.link, .close { width: auto !important; margin: 0 !important; padding: 12rpx 14rpx; min-height: 64rpx; color: #d7c393; background: transparent; font-size: 24rpx; line-height: 40rpx; border-radius: 10rpx; }
+.link::after, .close::after { border: 0; }
+.selected { color: #f5d185; font-weight: 700; }
+.panel { flex: 1; height: 0; min-height: 0; display: flex; flex-direction: column; color: #e9eadf; background: #121611; }
+.header { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16rpx; padding: 20rpx 24rpx; border-bottom: 1rpx solid #30382a; }
+.title { min-width: 0; font-size: 34rpx; font-weight: 700; }
+.close { flex: none; background: #2a3022; }
+.scroll { flex: 1; height: 0; min-height: 0; width: 100%; }
+.content { padding: 24rpx; }
+.note { display: block; margin-bottom: 28rpx; padding: 20rpx; background: #262a1f; border-radius: 14rpx; color: #bfc6ae; font-size: 25rpx; line-height: 1.7; }
+.group { margin-bottom: 30rpx; }
+.groupTitle { display: block; margin-bottom: 16rpx; color: #e0c27d; font-size: 30rpx; font-weight: 700; }
+.item { margin-bottom: 20rpx; padding: 22rpx; background: #1b2118; border: 1rpx solid #323c2b; border-radius: 16rpx; }
+.question { display: block; margin-bottom: 12rpx; color: #edf0e5; font-size: 28rpx; line-height: 1.6; font-weight: 700; }
+.answer { display: block; margin-top: 10rpx; font-size: 27rpx; line-height: 1.8; color: #bfc6b3; overflow-wrap: anywhere; word-break: break-word; }
+.meta { display: block; color: #bcad81; font-size: 23rpx; line-height: 1.6; margin-bottom: 14rpx; }

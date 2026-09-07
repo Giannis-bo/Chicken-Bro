@@ -1,97 +1,37 @@
-.page {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 32rpx) 28rpx calc(env(safe-area-inset-bottom) + 150rpx);
-  color: #f5eddc;
-  background: radial-gradient(circle at 90% 0%, #3b2c16 0, #11100d 38%, #080807 100%);
-}
+.page { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; padding: 16rpx 24rpx 8rpx; color: #f5eddc; background: #121411; }
+.header { flex: none; display: flex; align-items: center; justify-content: space-between; padding-bottom: 16rpx; border-bottom: 1rpx solid #30332c; }
+.historyButton, .secondaryButton, .sendButton, .suggestion, .backToLatest { margin: 0; padding: 18rpx 22rpx; min-height: 76rpx; color: #e8d6ae; background: #26271f; border-radius: 14rpx; font-size: 25rpx; line-height: 1.5; }
+.historyButton::after, .secondaryButton::after, .sendButton::after, .suggestion::after, .backToLatest::after, .conversationButton::after { border: 0; }
+.historyButton { width: auto; background: transparent; padding-left: 0; }
+.history { flex: none; height: 380rpx; border-bottom: 1rpx solid #373c31; }
+.conversationButton { width: 100%; margin: 0; padding: 18rpx; text-align: left; color: #d6d7cc; background: transparent; border-radius: 10rpx; line-height: 1.5; }
+.activeConversation { background: #353224; color: #f0cb79; }
+.conversationTitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27rpx; }
+.conversationTime { display: block; font-size: 21rpx; color: #949b89; }
+.messages { flex: 1; height: 0; min-height: 0; width: 100%; }
+.messageList { padding: 24rpx 0 8rpx; }
+.userMessage, .assistantMessage { min-width: 0; margin-bottom: 30rpx; }
+.userMessage { max-width: 92%; margin-left: auto; padding: 18rpx 22rpx; background: #343020; border: 1rpx solid #554a2d; border-radius: 20rpx 20rpx 4rpx 20rpx; }
+.assistantMessage { width: 100%; padding: 0 4rpx; }
+.messageRole { display: block; margin-bottom: 12rpx; font-size: 22rpx; color: #c3aa70; }
+.empty { padding: 56rpx 12rpx; }
+.emptyTitle { display: block; font-size: 36rpx; font-weight: 700; margin-bottom: 20rpx; }
+.hint { display: block; font-size: 25rpx; line-height: 1.65; color: #a7ac9c; }
+.suggestion { margin-top: 20rpx; text-align: left; font-weight: 400; }
+.anchor { height: 1rpx; }
+.backToLatest { align-self: center; flex: none; padding: 10rpx 22rpx; min-height: 64rpx; margin-bottom: 10rpx; }
+.errorCard { flex: none; padding: 16rpx; margin-bottom: 12rpx; color: #ffd4c8; background: #321a16; border-radius: 14rpx; font-size: 24rpx; line-height: 1.5; }
+.errorCard .secondaryButton { margin-top: 12rpx; }
+.composer { flex: none; display: flex; align-items: flex-end; gap: 14rpx; padding: 14rpx; background: #23261f; border: 1rpx solid #565e47; border-radius: 20rpx; }
+.textarea { flex: 1; min-width: 0; width: 0; min-height: 58rpx; max-height: 180rpx; padding: 8rpx 6rpx; color: #f5eddc; font-size: 29rpx; line-height: 1.5; }
+.sendButton { width: auto; flex: none; min-width: 100rpx; min-height: 72rpx; padding: 14rpx 18rpx; color: #211b0d; background: #e2bc67; font-weight: 700; }
+.sendButton[disabled] { color: #929887; background: #383e30; }
+.composerHint { flex: none; display: block; text-align: center; padding-top: 8rpx; color: #888f7d; font-size: 20rpx; line-height: 1.6; }
 
-.header,
-.conversationRow,
-.composer,
-.errorCard {
-  display: flex;
-  align-items: center;
-}
+.header .secondaryButton { width: auto; }
+/* Override WeChat style v2's native button width and auto margins. */
+.conversationButton { width: 100% !important; margin: 0 !important; }
+.header .secondaryButton, .historyButton, .backToLatest { width: auto !important; }
+.sendButton { width: 110rpx !important; margin: 0 !important; }
 
-.header {
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-
-.eyebrow,
-.title,
-.messageRole,
-.messageContent {
-  display: block;
-}
-
-.eyebrow { color: #d6a94e; font-size: 20rpx; letter-spacing: 5rpx; }
-.title { margin-top: 8rpx; font-size: 44rpx; font-weight: 800; }
-
-.secondaryButton,
-.retryButton,
-.conversationButton,
-.sendButton {
-  margin: 0;
-  color: #f5eddc;
-  background: #211c14;
-  border: 1rpx solid #5b4b31;
-  border-radius: 16rpx;
-  font-size: 24rpx;
-  line-height: 1.2;
-}
-
-.secondaryButton,
-.retryButton { padding: 18rpx 24rpx; }
-.conversationRail { flex: none; width: 100%; margin-bottom: 22rpx; white-space: nowrap; }
-.conversationRow { gap: 14rpx; }
-.conversationButton { flex: none; max-width: 320rpx; padding: 18rpx 24rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.conversationButton[data-active='true'] { color: #19140c; background: #e2b85d; border-color: #f1cf82; }
-
-.messages {
-  flex: 1;
-  min-height: 0;
-  padding: 8rpx 0 24rpx;
-}
-
-.userMessage,
-.assistantMessage,
-.pendingMessage,
-.streamMessage,
-.empty {
-  box-sizing: border-box;
-  width: 88%;
-  margin-bottom: 18rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 20rpx;
-}
-
-.userMessage,
-.pendingMessage { margin-left: auto; background: #4a3519; border: 1rpx solid #7e5e2d; }
-.assistantMessage,
-.streamMessage { margin-right: auto; background: #181a18; border: 1rpx solid #343936; }
-.pendingMessage,
-.streamMessage { opacity: .72; border-style: dashed; }
-.empty { width: 100%; color: #a99f8d; text-align: center; }
-.messageRole { margin-bottom: 10rpx; color: #d9af5a; font-size: 21rpx; }
-.messageContent { color: #f5eddc; font-size: 28rpx; line-height: 1.65; white-space: pre-wrap; }
-
-.errorCard {
-  justify-content: space-between;
-  gap: 20rpx;
-  margin: 14rpx 0;
-  padding: 18rpx 20rpx;
-  color: #ffd4c8;
-  background: #321a16;
-  border: 1rpx solid #754137;
-  border-radius: 16rpx;
-  font-size: 24rpx;
-}
-
-.composer { gap: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #322b20; }
-.textarea { box-sizing: border-box; flex: 1; height: 112rpx; padding: 18rpx 20rpx; color: #f5eddc; background: #121311; border: 1rpx solid #3b392f; border-radius: 18rpx; font-size: 27rpx; }
-.sendButton { flex: none; padding: 26rpx 30rpx; color: #171108; background: #e2b85d; border-color: #f1cf82; font-weight: 700; }
-.sendButton[disabled] { color: #7e776a; background: #27241f; border-color: #39342c; }
+.header .secondaryButton, .historyButton { margin: 0 !important; }

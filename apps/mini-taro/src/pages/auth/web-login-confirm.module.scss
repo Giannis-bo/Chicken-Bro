@@ -1,6 +1,8 @@
 .page {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
@@ -11,7 +13,8 @@
 }
 
 .panel {
-  width: min(100%, 420px);
+  width: 100%;
+  max-width: 420px;
   padding: 28px 22px 24px;
   border: 1px solid var(--wow-line-panel);
   border-radius: 16px;

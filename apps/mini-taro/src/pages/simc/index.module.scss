@@ -1,7 +1,9 @@
 .page {
   box-sizing: border-box;
-  min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 32rpx) 28rpx calc(env(safe-area-inset-bottom) + 150rpx);
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24rpx;
   color: #eef3ef;
   background: radial-gradient(circle at 12% 0%, #17372f 0, #101512 38%, #080a09 100%);
 }
@@ -13,7 +15,7 @@
   align-items: center;
 }
 
-.header { justify-content: space-between; margin-bottom: 26rpx; }
+.header { flex: none; gap: 18rpx; justify-content: space-between; margin-bottom: 26rpx; }
 .eyebrow,
 .title,
 .cardTitle,
@@ -46,3 +48,11 @@
 .primaryButton[disabled] { color: #69756f; background: #27312d; border-color: #35423d; }
 .secondaryButton { color: #e5eee9; background: #18221e; border: 1rpx solid #3c574d; }
 .errorCard { justify-content: space-between; gap: 20rpx; padding: 20rpx; color: #ffd7c9; background: #351d17; border: 1rpx solid #774738; border-radius: 16rpx; font-size: 24rpx; }
+
+.meta, .hint, .jobMeta, .errorCode { overflow-wrap: anywhere; word-break: break-word; }
+.secondaryButton { flex: none; min-height: 76rpx; }
+.title { font-size: 34rpx; }
+.attempt { flex-wrap: wrap; }
+.primaryButton::after, .secondaryButton::after, .jobCard::after { border: 0; }
+.primaryButton { width: 100% !important; }
+.secondaryButton { width: auto !important; }

@@ -1,0 +1,41 @@
+{
+  "status": "local_verified",
+  "userAcceptance": "pending",
+  "productionDeployment": "not_performed",
+  "gitState": "existing_detached_HEAD_with_preserved_Web_WIP_and_uncommitted_Mini_changes",
+  "build": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+    "sourceHash": "sha256:76e30755b56637e2ef63675a8b3de09a9d776466483649254ca44c33389dc2ff",
+    "builtAt": "2026-09-07T03:34:41.475Z"
+  },
+  "environment": {
+    "target": "weapp",
+    "appEnv": "test",
+    "testLogin": true,
+    "apiBase": "https://api.chickenbro.cloud",
+    "apiPrefix": "/test/api/v2"
+  },
+  "checks": {
+    "frontend": 219,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "diffCheck": "passed",
+    "webFilesChecked": 34,
+    "webChangedFiles": []
+  },
+  "devtools": {
+    "device": "iPhone 12/13 (Pro)",
+    "chat": "native navigation, long history, formatted Markdown, pinned composer and active tab inspected",
+    "simc": "existing history and successful result read; runtime details expanded"
+  },
+  "notVerified": [
+    "physical_device_keyboard",
+    "physical_device_touch_stream_follow",
+    "new_live_chat_send",
+    "new_cloud_simulation_submission",
+    "real_Wechat_login"
+  ],
+  "review": "local source diff checked against dual_client owner; no shared ChatModel, SimcModel, API or server changes"
+}

@@ -21,14 +21,12 @@ const quickPrompts = [
 
 export interface WebChatViewProps {
   auth: WebClientAuth
-  showHordeSkin?: boolean
 }
 
-export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewProps) {
+export default function WebChatView({ auth }: WebChatViewProps) {
   const model = useMemo(() => new ChatModel(wowApi.chat, () => auth), [auth])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
-  const [petRun, setPetRun] = useState(0)
   const composing = useRef(false)
   const sending = state.phase === 'sending'
   const messageList = useRef<HTMLDivElement>(null)
@@ -61,7 +59,6 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
         <View className={styles['historyColumn'] ?? ''}>
           <ScrollView className={styles['sideList'] ?? ''} scrollY>
             <View className={styles['sideListIntro'] ?? ''}>
-              <View className={styles['sideListIntroMascot'] ?? ''} />
               <View>
                 <Text className={styles['sideListIntroTitle'] ?? ''}>历史对话</Text>
               </View>
@@ -87,17 +84,6 @@ export default function WebChatView({ auth, showHordeSkin = true }: WebChatViewP
             ) : null}
           </ScrollView>
 
-          {showHordeSkin ? (
-            <View className={styles['sideListPet'] ?? ''} key={petRun}>
-              <Button
-                className={styles['petButton'] ?? ''}
-                onClick={() => setPetRun((current) => current + 1)}
-              >
-                <View className={styles['petMascot'] ?? ''} />
-              </Button>
-              <Text className={styles['petCaption'] ?? ''}>鸡哥 · 远眺中</Text>
-            </View>
-          ) : null}
         </View>
 
         <View className={styles['chatPane'] ?? ''}>

@@ -1,5 +1,5 @@
 export default definePageConfig({
   navigationBarTitleText: 'SimC 任务详情',
-  navigationStyle: 'custom',
+  navigationStyle: 'default',
   disableScroll: true,
 })

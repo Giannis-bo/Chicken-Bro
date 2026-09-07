@@ -1,0 +1,42 @@
+{
+  "baseCommit": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+  "sourcePatchSha256": "8c921c8937fddbbe2b58fee24404c4059dadb48c0c05e96f352aeaf645b3e871",
+  "sourceFiles": {
+    "apps/mini-taro/src/web/WebApp.module.scss": "58cd1aa432a41f02bee8ba3ec5030d4782b12cb893073863a11ac8fae9cb0d1f",
+    "apps/mini-taro/src/web/WebChatView.tsx": "096a70b70783eb740ccf70732a3180f8eb66428a3691c8cf407e13b9e90a750a",
+    "apps/mini-taro/src/web/WebFaqPage.module.scss": "37857a2e34a8a012787eee968ec4e485bf3d50e614f1046e16e7b8bbf13422b8",
+    "apps/mini-taro/src/web/WebFaqPage.tsx": "17c49e5a08d6776d6882478208ac9d050d076097b6f6beea07dfa82b9a2088cc",
+    "apps/mini-taro/src/web/WebHeaderActions.module.scss": "1409cf36915c750ab35e8d11d070913e0fb0a91d3bd87691871d74c5aac607d2",
+    "apps/mini-taro/src/web/WebHeaderActions.tsx": "7a220b4fd0b7bae69d9b3f372a3c65b823b231bd549aff83a1e7da838cc72a67",
+    "apps/mini-taro/src/web/WebHelpDialog.tsx": "eb5a5ef5cfb2ec3d84b6415235cb2fe37c8b5c1851587d4d7fdd87896ae89d0d",
+    "apps/mini-taro/src/web/WebShell.tsx": "63f4f7a241e03038d82c36e01bdbad1996afb9c18fd1a1fd868d8575e32e218a",
+    "apps/mini-taro/src/web/WebSimc.module.scss": "fbc8dba60b296d20097d610d0a2f19228c8e00dbf29dc72c73effda6812cb675",
+    "apps/mini-taro/src/web/web-chat-composer.test.tsx": "6efac3e5af801f4a3f64fff9db8d807801e23c4aa4005beac21989d28dccc3d2",
+    "apps/mini-taro/src/web/web-shell-stream.test.tsx": "abe0f8090fa599474a743de97fb913495ccbe7c90388c5a614eec9910f401f45"
+  },
+  "scope": "Changelog close button title-row alignment and centered SVG icon; preserves prior Web changes",
+  "files": {
+    "chunk/322.js": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb",
+    "chunk/322.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/491.js": "6f7809aaeb54978de0b1e51c49d463765a4c6593f0c754bfe1b2fe7dc64fa18a",
+    "chunk/716.js": "506e1dae64eb55fe54099ab2274ae65fbf42049a64e22fe7b745a86729522a1c",
+    "chunk/74.js": "60242e56017334b02112902d5d73e2badd76dc4deb8294dac976d5c7245090e4",
+    "chunk/856.js": "5564f101207492f06390f145a464d8a716eded7ef0e7c3b211cb3984dcf1ae95",
+    "chunk/882.js": "44c2a752dca5bba046c11f9ed908f65555832da3cdada5322ef4cdaec2cc9092",
+    "css/491.css": "64a32a0683350f10f4aa1691c4730b0850d06aae1729f4d03f041e4115b9291c",
+    "css/716.css": "9a5a29da08991827fa169e7a5e4c919855ad1c93db3969db0c6240d152f4dbc9",
+    "css/74.css": "6f3d0cf8b317261964e07229de64a01e3fcd2d2cbd29bb59bb8fcf7e0ce09bd0",
+    "css/856.css": "3bf9951ec4daa47812dc5775ea973a1a09a3133a827212769ef96119a9ea9993",
+    "css/882.css": "7b3b2d5d9348c926f87fa71ecb97b81d09470030ef30287951777f9ed2e41573",
+    "css/app.css": "7b9b42d1df4cdb3689b4dbe79c403502759c95ef1dc77bd33cb6729fa8213f40",
+    "index.html": "16efded228a2bde78571ea3f21510abfe103f833b3fcc1f8246b885b005c308c",
+    "js/962.js": "b332bf33e9986e693e42d43bf1a17e2085ff7de3409afb1837b3bcfb3d3e7e58",
+    "js/962.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "js/app.js": "ffcfa9b25aeea8320cb2c7f05eafc5bf7e02c62988cae4cb940ed28dc2fc8dce",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e",
+    "static/images/web/assets/horde-bg-v2-clean.png": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f",
+    "static/images/web/assets/horde-clouds-v2-clean.png": "f6bc388651af6abdb09e535667026e8e31735a6dce019659c0a80d67e6089368"
+  },
+  "buildId": "b6c7878dfa15b466f3f8888663068f73677cc40f1d9a89333ae0461d8b5cfc7e"
+}

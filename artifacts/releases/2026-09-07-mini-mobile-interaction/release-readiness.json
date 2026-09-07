@@ -1,0 +1,113 @@
+{
+  "observedAt": "2026-09-07T04:48:23.466689+00:00",
+  "status": "review_method_authorized_ready_for_integration",
+  "branch": "codex/release-mini-web-20260907",
+  "baseCommit": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+  "userAuthorization": "2026-09-07: 把测试版合入正式，同时看下分支处理",
+  "checks": {
+    "frontend": {
+      "passed": 223
+    },
+    "backend": {
+      "passed": 391,
+      "environment": "isolated source tree on wow-lighthouse; existing production Python runtime; no live service env loaded"
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "opsNode": {
+      "passed": 101
+    },
+    "opsPython": {
+      "passed": 14
+    },
+    "migration": {
+      "run": 64,
+      "skipped": 1,
+      "reason": "local PostgreSQL fixture unavailable"
+    },
+    "independentReview": "two P2 findings fixed and re-reviewed; no remaining P1/P2",
+    "codeRabbit": "user waived reinstallation; independent local review accepted on 2026-09-07",
+    "control": {
+      "passed": 62
+    },
+    "promotionScript": {
+      "passed": 7,
+      "review": "independent reviewer reran seven tests; rollback pending-link P2 fixed"
+    }
+  },
+  "productionPreflight": {
+    "mainRemote": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+    "database": "chickenbro_prod",
+    "schemaMigrations": [
+      "0001_chickenbro_simc_core",
+      "0002_chat_idempotent_replay"
+    ],
+    "activeChatRuns": 0,
+    "queuedOrRunningSimcJobs": 0,
+    "apiWorkerReadiness": "ready",
+    "compilerRevision": "unset; defaults to v1; release needs explicit v3 on both API and worker",
+    "testCompilerRevision": "chickenbro-simc-compiler-v3",
+    "productionChanged": false
+  },
+  "miniBuild": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "29e90700576ba4bbb82f7bfeef259ba2ececc4b5",
+    "sourceHash": "sha256:6798856f709b1d088df9edadba724c97f684dfab109ca312bc26ec831422c9af",
+    "builtAt": "2026-09-07T04:47:01.776Z"
+  },
+  "buildConfiguration": {
+    "WOW_APP_ENV": "production",
+    "WOW_TEST_LOGIN_UI": "0",
+    "apiPrefix": "/api/v2",
+    "webCsrfCookie": "__Host-chickenbro-csrf",
+    "miniApiBase": "https://api.chickenbro.cloud"
+  },
+  "buildLimit": "Built from dirty release branch; final commit-bound builds required before deploy. No WeChat upload/publication.",
+  "sourceFilesSha256": {
+    "apps/mini-taro/src/components/MiniHelp.module.scss": "533898a2658194fdba0e62ef31885501a580ee47654c454597eaa64a0a1b3b58",
+    "apps/mini-taro/src/components/MiniHelp.tsx": "d7cce42d795c5258414a5516136ef0f9f59295a65da3afabdd067dac098278e7",
+    "apps/mini-taro/src/components/MiniMessage.module.scss": "be3fb3d5cc68c43618b1684d9f71d8e2c3ab1d13efb287b580a0f0b6dc7d5115",
+    "apps/mini-taro/src/components/MiniMessage.tsx": "5d601a283af8bce25e67759d0a67c941a3fd3bcc9b2219ba624767085eb065ad",
+    "apps/mini-taro/src/features/chat/mini-markdown.test.ts": "608384670fa7eccef6bdff55bdbdb219cbd91e148171d129a872d210baa68f20",
+    "apps/mini-taro/src/features/chat/mini-markdown.ts": "30ba38a1ab326d53e1256cd5d0be66744325282b0301ef14ea1c82b9bf6384de",
+    "apps/mini-taro/src/web/WebApp.weapp.tsx": "eee19d9141ad3a6a25c641b7a1d260f86b2b0e9f060ed06a03c0cf584bd57522",
+    "apps/mini-taro/src/web/WebFaqPage.module.scss": "37857a2e34a8a012787eee968ec4e485bf3d50e614f1046e16e7b8bbf13422b8",
+    "apps/mini-taro/src/web/WebFaqPage.tsx": "17c49e5a08d6776d6882478208ac9d050d076097b6f6beea07dfa82b9a2088cc",
+    "apps/mini-taro/src/web/WebHeaderActions.module.scss": "1409cf36915c750ab35e8d11d070913e0fb0a91d3bd87691871d74c5aac607d2",
+    "apps/mini-taro/src/web/WebHeaderActions.tsx": "7a220b4fd0b7bae69d9b3f372a3c65b823b231bd549aff83a1e7da838cc72a67",
+    "apps/mini-taro/src/web/WebHelpDialog.tsx": "9cc0b38606498e64e923faad537996b7bbe85d01d59179021f63cec747f1e88c",
+    "apps/mini-taro/src/app.config.ts": "54cd392c5fa4e71df35ccbc66a43b77c17a5772f1eea767ed7c971f8820c8f25",
+    "apps/mini-taro/src/components/CoreTabBar.module.scss": "829b0d5ae44c6027b7e95cc1ceb433a1147675905a9b975b3d9ae443050b665d",
+    "apps/mini-taro/src/components/CoreTabBar.tsx": "0dfd542ec2b3f4dc6ca2e63e3160b91d3df82427192465ab456e310555afced6",
+    "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx": "1d65884ccef6cd559001e3570f0f456f45b1d076fba5caf72e375ea927101844",
+    "apps/mini-taro/src/features/auth/test-login.module.scss": "9e235f78e4dfaf489e41dfd55794529f3ec9439d89eca02c1ef19518e9e5e4cd",
+    "apps/mini-taro/src/features/auth/with-mini-test-login.tsx": "348ac7a671e4edd7e82f6c4715402d627c34a3be0fa46f442c58b869ebba3423",
+    "apps/mini-taro/src/pages/auth/web-login-confirm.config.ts": "6b2258ff280a6560817f4dcad35700f6add05db5cf9d7d696816fd1470eefff2",
+    "apps/mini-taro/src/pages/auth/web-login-confirm.module.scss": "647f69ebc6a9261dcf7f4879b6c5348b8f9d3cb2dadb58e5d3e003985b3d649b",
+    "apps/mini-taro/src/pages/chickenbro/index.config.ts": "ff5918349c61b78abdbceae8d6003ad6f9a50f489c8482b47b5d9a625812202a",
+    "apps/mini-taro/src/pages/chickenbro/index.module.scss": "d82b559a88dcf3bf5967c56bd44ede5829f11515973b97b77c68c6b354c2296a",
+    "apps/mini-taro/src/pages/chickenbro/index.tsx": "4a004e4b343b7ed41e8931ad51675e552423cd8c860fbb4cf70a321fc4d11c7f",
+    "apps/mini-taro/src/pages/simc/index.config.ts": "7ca3f5d2f994c2b84a7077057696606d595b14978c09f075d582e4d14bff8252",
+    "apps/mini-taro/src/pages/simc/index.module.scss": "f688550c8e882ea4b34ccb8a7a985c3fe50ce075f38d7f265bf86e5d0df44ae8",
+    "apps/mini-taro/src/pages/simc/index.tsx": "e9daaa8365e39ffd3b066cc5fed8cb530ee8155943bd904ba228465152551288",
+    "apps/mini-taro/src/pages/simc/task-detail.config.ts": "b45e0b05351d657b43549d6c6c2f5994fee3b681f50755e3c9818d7481f8e92a",
+    "apps/mini-taro/src/pages/simc/task-detail.module.scss": "ed83f01143487e766fe4b6c6bf5b859bdb2ac92f17e4a97b1c720209265a694e",
+    "apps/mini-taro/src/pages/simc/task-detail.tsx": "7ddf686931844fc0e4669a701329eb1efc07ca459770e142b3b909c7b9088590",
+    "apps/mini-taro/src/pages/simc/tasks.config.ts": "07249749af96ef23bb86f214b0c86d5a9f14ef89104f062a19af10552f5c3a54",
+    "apps/mini-taro/src/pages/simc/tasks.module.scss": "c89d24347d1dd8e4378702fff1f0382afc40bfb480e67aa84525b62a48536a75",
+    "apps/mini-taro/src/pages/simc/tasks.tsx": "2ecd0fdadfb37a7d2e056a93c0040fc0d6d91b4074ffeecfccf32ac6893901b6",
+    "apps/mini-taro/src/web/WebApp.module.scss": "58cd1aa432a41f02bee8ba3ec5030d4782b12cb893073863a11ac8fae9cb0d1f",
+    "apps/mini-taro/src/web/WebChatView.tsx": "096a70b70783eb740ccf70732a3180f8eb66428a3691c8cf407e13b9e90a750a",
+    "apps/mini-taro/src/web/WebShell.tsx": "63f4f7a241e03038d82c36e01bdbad1996afb9c18fd1a1fd868d8575e32e218a",
+    "apps/mini-taro/src/web/WebSimc.module.scss": "fbc8dba60b296d20097d610d0a2f19228c8e00dbf29dc72c73effda6812cb675",
+    "apps/mini-taro/src/web/web-chat-composer.test.tsx": "6efac3e5af801f4a3f64fff9db8d807801e23c4aa4005beac21989d28dccc3d2",
+    "apps/mini-taro/src/web/web-shell-stream.test.tsx": "abe0f8090fa599474a743de97fb913495ccbe7c90388c5a614eec9910f401f45"
+  },
+  "branches": {
+    "main": "retain; fast-forward after release review gate",
+    "codex/release-mini-web-20260907": "retain until merged and deployment verified",
+    "codex/local-web-test-mode": "retain; 73 commits behind and 1 unique fake-data-preview commit; do not merge into production",
+    "origin/codex/archive-local-stash-20260904": "retain historical WIP archive"
+  },
+  "stash": "all four entries preserved"
+}

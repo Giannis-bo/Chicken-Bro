@@ -19,6 +19,7 @@ function SimcTaskDetailPage() {
     () => new SimcModel(wowApi.simc, () => sessions.createAuthContext(), { workbench: true, localizedReport: true }),
     [sessions],
   )
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [state, setState] = useState<SimcModelState>(() => model.get())
   const jobId = useRef(Taro.getCurrentInstance().router?.params['id'] ?? '')
   const cancelled = useRef(false)
@@ -73,32 +74,13 @@ function SimcTaskDetailPage() {
       {job ? (
         <ScrollView className={styles['content'] ?? ''} scrollY>
           <View className={styles['card'] ?? ''}>
-            <Text className={styles['cardTitle'] ?? ''}>状态：{simcStatuses[job.status]}</Text>
-            <Text className={styles['meta'] ?? ''}>任务：{job.id}</Text>
-            <Text className={styles['meta'] ?? ''}>编译器：{job.compilerRevision}</Text>
-            <Text className={styles['meta'] ?? ''}>运行引擎：{job.runtimeRevision}</Text>
-            <Text className={styles['meta'] ?? ''}>场景校验：{job.scenarioHash}</Text>
+            <Text className={styles['cardTitle'] ?? ''}>{simcStatuses[job.status]}</Text>
+            <Text className={styles['hint'] ?? ''}>{job.status === 'queued' ? '任务已排队，轮到后会自动开始。可以返回，稍后从记录继续查看。' : job.status === 'running' ? '云端正在模拟，进度会自动更新。离开此页不会中断任务。' : job.status === 'succeeded' ? '模拟已完成，下方查看结果。' : '本次模拟未完成，可返回检查角色资料后重新提交。'}</Text>
             {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </View>
-
-          <View className={styles['card'] ?? ''}>
-            <Text className={styles['cardTitle'] ?? ''}>执行尝试</Text>
-            {job.attempts.map((attempt) => (
-              <View key={`${attempt.attemptNumber}-${attempt.startedAt}`} className={styles['attempt'] ?? ''}>
-                <Text>第 {attempt.attemptNumber} 次 · {simcDiagnosticMessage(attempt.diagnosticCode || (attempt.finishedAt ? '执行已结束' : 'RUNNING'))}</Text>
-                <Text>{attempt.finishedAt || attempt.startedAt}</Text>
-              </View>
-            ))}
-            {job.attempts.length === 0 ? <Text className={styles['hint'] ?? ''}>尚未开始云端执行。</Text> : null}
-          </View>
-
           {result ? (
             <View className={styles['resultCard'] ?? ''}>
               <Text className={styles['resultMetric'] ?? ''}>{result.metricValue.toLocaleString()} {simcMetricName(result.metricName)}</Text>
-              <Text className={styles['meta'] ?? ''}>角色配置校验：{result.profileSha256}</Text>
-              <Text className={styles['meta'] ?? ''}>运行版本：{result.runtimeRevision}</Text>
-              <Text className={styles['meta'] ?? ''}>来源版本：{result.provenance.sourceRevision}</Text>
-              <Text className={styles['meta'] ?? ''}>场景校验：{result.provenance.scenarioHash}</Text>
             </View>
           ) : null}
           {report ? <>
@@ -117,11 +99,39 @@ function SimcTaskDetailPage() {
               </View>)}
             </View>
           </> : null}
+          <Button className={styles['secondaryButton'] ?? ''} onClick={() => setDetailsOpen(!detailsOpen)}>{detailsOpen ? '收起运行详情' : '查看运行详情'}</Button>
+          {detailsOpen ? <>
+          <View className={styles['card'] ?? ''}>
+            <Text className={styles['meta'] ?? ''}>任务：{job.id}</Text>
+            <Text className={styles['meta'] ?? ''}>编译器：{job.compilerRevision}</Text>
+            <Text className={styles['meta'] ?? ''}>运行引擎：{job.runtimeRevision}</Text>
+            <Text className={styles['meta'] ?? ''}>场景校验：{job.scenarioHash}</Text>
+            {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
+          </View>
+
+          <View className={styles['card'] ?? ''}>
+            <Text className={styles['cardTitle'] ?? ''}>执行尝试</Text>
+            {job.attempts.map((attempt) => (
+              <View key={`${attempt.attemptNumber}-${attempt.startedAt}`} className={styles['attempt'] ?? ''}>
+                <Text>第 {attempt.attemptNumber} 次 · {simcDiagnosticMessage(attempt.diagnosticCode || (attempt.finishedAt ? '执行已结束' : 'RUNNING'))}</Text>
+                <Text>{attempt.finishedAt || attempt.startedAt}</Text>
+              </View>
+            ))}
+            {job.attempts.length === 0 ? <Text className={styles['hint'] ?? ''}>尚未开始云端执行。</Text> : null}
+          </View>
+
+          {result ? <View className={styles['card'] ?? ''}>
+              <Text className={styles['meta'] ?? ''}>角色配置校验：{result.profileSha256}</Text>
+              <Text className={styles['meta'] ?? ''}>运行版本：{result.runtimeRevision}</Text>
+              <Text className={styles['meta'] ?? ''}>来源版本：{result.provenance.sourceRevision}</Text>
+              <Text className={styles['meta'] ?? ''}>场景校验：{result.provenance.scenarioHash}</Text>
+          </View> : null}
+          </> : null}
         </ScrollView>
       ) : null}
 
       {!job && state.phase !== 'blocked' && state.phase !== 'signed_out' ? (
-        <View className={styles['loading'] ?? ''}><Text>正在读取任务并等待终态…</Text></View>
+        <View className={styles['loading'] ?? ''}><Text>{jobId.current ? '正在读取任务…' : '缺少任务信息，请返回任务记录重新打开。'}</Text></View>
       ) : null}
       {state.phase === 'blocked' || state.phase === 'signed_out' ? (
         <View className={styles['errorCard'] ?? ''} data-error-code={state.errorCode}>
@@ -135,4 +145,4 @@ function SimcTaskDetailPage() {
   )
 }
 
-export default withMiniTestLogin(SimcTaskDetailPage)
+export default withMiniTestLogin(SimcTaskDetailPage, false)

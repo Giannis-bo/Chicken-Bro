@@ -10,7 +10,8 @@ export default defineAppConfig({
     backgroundColor: '#080908',
     backgroundTextStyle: 'light',
     navigationBarTextStyle: 'white',
-    navigationStyle: 'custom',
+    navigationBarBackgroundColor: '#121411',
+    navigationStyle: 'default',
   },
   tabBar: {
     custom: true,

@@ -176,7 +176,7 @@
 }
 
 @media (max-width: 540px) {
-  .workbench { min-height: calc(100vh - 68px); padding: 22px 15px 36px; }
+  .workbench { min-height: calc(100vh - 100px); padding: 22px 15px 36px; }
   .header { align-items: flex-start; flex-direction: column; gap: 13px; }
   .workbench h1 { font-size: 23px; }
   .engine { padding: 7px 10px; }

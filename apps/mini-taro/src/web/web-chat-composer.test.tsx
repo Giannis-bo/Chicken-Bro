@@ -33,7 +33,7 @@ describe('Web chat composer interactions', () => {
     document.body.append(container)
     root = createRoot(container)
     await act(async () => root.render(createElement(WebChatView, {
-      auth: { kind: 'web', csrfToken: 'test-csrf' }, showHordeSkin: false,
+      auth: { kind: 'web', csrfToken: 'test-csrf' },
     })))
   })
   afterEach(async () => {

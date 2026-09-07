@@ -61,6 +61,7 @@ function SimcTasksPage() {
         </Button>
       </View>
 
+      {state.phase === 'loading' ? <Text className={styles['empty'] ?? ''}>正在读取任务…</Text> : null}
       <ScrollView className={styles['list'] ?? ''} scrollY>
         {state.jobs.map((job) => (
           <Button
@@ -73,15 +74,15 @@ function SimcTasksPage() {
           >
             <View className={styles['jobTopline'] ?? ''}>
               <Text className={styles['jobStatus'] ?? ''}>{simcStatuses[job.status]}</Text>
-              <Text className={styles['jobTime'] ?? ''}>{job.updatedAt}</Text>
+              <Text className={styles['jobTime'] ?? ''}>{new Date(job.updatedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</Text>
             </View>
-            <Text className={styles['jobId'] ?? ''}>{job.id}</Text>
-            <Text className={styles['jobMeta'] ?? ''}>{job.runtimeRevision}</Text>
+            <Text className={styles['jobId'] ?? ''}>模拟任务 · {job.id.slice(0, 8)}</Text>
+            <Text className={styles['jobMeta'] ?? ''}>查看进度与结果 →</Text>
             {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </Button>
         ))}
         {state.jobs.length === 0 && state.phase === 'ready' ? (
-          <View className={styles['empty'] ?? ''}><Text>当前账户还没有模拟任务。</Text></View>
+          <View className={styles['empty'] ?? ''}><Text>还没有模拟记录。返回后读取角色，就能创建第一次模拟。</Text></View>
         ) : null}
       </ScrollView>
 
@@ -102,4 +103,4 @@ function SimcTasksPage() {
   )
 }
 
-export default withMiniTestLogin(SimcTasksPage)
+export default withMiniTestLogin(SimcTasksPage, false)

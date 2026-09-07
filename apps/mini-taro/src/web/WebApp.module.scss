@@ -44,8 +44,6 @@
 
 .brand,
 .brandCopy,
-.accountBlock,
-.headerActions,
 .actionRow {
   display: flex;
   align-items: center;
@@ -91,7 +89,6 @@
 .smallPrint,
 .countdown,
 .trustNote,
-.accountLabel,
 .viewEyebrow,
 .viewTitle,
 .viewSubtitle,
@@ -108,7 +105,6 @@
 .emptyDescription,
 .emptyHint,
 .composerFootnote,
-.petCaption,
 .sideListIntroTitle,
 .sideListIntroMeta {
   display: block;
@@ -229,8 +225,7 @@
 .navButton,
 .sideListButton,
 .jobButton,
-.quickPrompt,
-.petButton {
+.quickPrompt {
   margin: 0;
   border-radius: 10px;
   line-height: normal;
@@ -267,8 +262,7 @@
 .navButton::after,
 .sideListButton::after,
 .jobButton::after,
-.quickPrompt::after,
-.petButton::after {
+.quickPrompt::after {
   border: 0;
 }
 
@@ -404,65 +398,6 @@
   font-family: Arial, sans-serif;
   font-size: 10px;
   letter-spacing: 0.08em;
-}
-
-.headerActions {
-  justify-self: end;
-  min-width: 0;
-  gap: 12px;
-}
-
-.skinToggle {
-  display: inline-flex;
-  align-items: center;
-  max-width: 150px;
-  padding: 8px 10px;
-  gap: 7px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #999995;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 160ms ease, color 160ms ease;
-}
-
-.skinToggle:hover,
-.skinToggle[data-active='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.skinToggleDot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #c9c9c5;
-}
-
-.skinToggle[data-active='true'] .skinToggleDot {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(158, 81, 69, 0.12);
-}
-
-.skinToggleLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.accountBlock {
-  gap: 10px;
-}
-
-.accountLabel {
-  max-width: 126px;
-  overflow: hidden;
-  color: #969692;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .workspaceBody {
@@ -624,7 +559,7 @@
   height: 100%;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 18px 13px 170px;
+  padding: 18px 13px;
   box-sizing: border-box;
 }
 
@@ -633,15 +568,6 @@
   align-items: center;
   gap: 9px;
   margin: 0 8px 20px;
-}
-
-.sideListIntroMascot {
-  width: 31px;
-  height: 31px;
-  flex: 0 0 auto;
-  border: 1px solid #dfdfdc;
-  border-radius: 50%;
-  background: #f2f2ef url('./assets/gu-gu-mascot.png') center 20% / cover no-repeat;
 }
 
 .sideListIntroTitle {
@@ -724,53 +650,6 @@
   font-family: Arial, sans-serif;
   font-size: 9px;
   line-height: 1.55;
-}
-
-.sideListPet {
-  position: absolute;
-  right: 15px;
-  bottom: 14px;
-  left: 15px;
-  z-index: 8;
-  display: flex;
-  align-items: flex-end;
-  gap: 5px;
-  pointer-events: none;
-  animation: petSidebarDrop 1.2s cubic-bezier(0.2, 0.82, 0.25, 1) both;
-}
-
-.petButton {
-  display: block;
-  width: 106px;
-  height: 106px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-  filter: drop-shadow(0 8px 10px rgba(69, 46, 38, 0.16));
-  transition: filter 160ms ease, transform 160ms ease;
-}
-
-.petButton:hover {
-  filter: drop-shadow(0 10px 13px rgba(69, 46, 38, 0.2));
-  transform: translateY(-3px) rotate(-2deg);
-}
-
-.petMascot {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: url('./assets/gu-gu-pet-v1.png') center / contain no-repeat;
-}
-
-.petCaption {
-  margin-bottom: 14px;
-  color: rgba(105, 82, 72, 0.72);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
 }
 
 .emptyCopy {
@@ -1209,23 +1088,6 @@
   font-weight: 700;
 }
 
-@keyframes petSidebarDrop {
-  0% {
-    opacity: 0;
-    transform: translateY(-38px) scale(0.58) rotate(-7deg);
-  }
-
-  65% {
-    opacity: 1;
-    transform: translateY(4px) scale(1.02) rotate(2deg);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1) rotate(0);
-  }
-}
-
 @keyframes cloudDrift {
   0% {
     transform: translate3d(-9px, 0, 0);
@@ -1262,9 +1124,11 @@
   }
 
   .workspaceTopbar {
-    grid-template-columns: auto 1fr auto;
-    height: 68px;
-    padding: 0 13px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 38px 40px;
+    gap: 6px;
+    height: 100px;
+    padding: 8px 13px;
   }
 
   .workspaceTopbar .brandMascotFrame {
@@ -1277,12 +1141,13 @@
     font-size: 13px;
   }
 
-  .workspaceTopbar .brandMeta,
-  .accountLabel {
+  .workspaceTopbar .brandMeta {
     display: none;
   }
 
   .modeSwitch {
+    grid-row: 2;
+    grid-column: 1 / -1;
     justify-self: center;
   }
 
@@ -1297,28 +1162,16 @@
     display: none;
   }
 
-  .headerActions {
-    gap: 3px;
-  }
-
-  .skinToggle {
-    padding: 8px;
-  }
-
-  .skinToggleLabel {
-    display: none;
-  }
-
   .workspaceMain {
-    padding-top: 68px;
+    padding-top: 100px;
   }
 
   .workspaceArt {
-    inset: 68px 0 0;
+    inset: 100px 0 0;
   }
 
   .businessView {
-    min-height: calc(100vh - 68px);
+    min-height: calc(100vh - 100px);
   }
 
   .viewHeader {
@@ -1327,8 +1180,8 @@
   }
 
   .splitView {
-    height: calc(100vh - 68px);
-    height: calc(100dvh - 68px);
+    height: calc(100vh - 100px);
+    height: calc(100dvh - 100px);
     min-height: 0;
     grid-template-columns: 1fr;
     grid-template-rows: 192px minmax(0, 1fr);
@@ -1356,21 +1209,6 @@
     margin-right: 7px;
     padding: 9px 10px;
     vertical-align: top;
-  }
-
-  .sideListPet {
-    right: 12px;
-    bottom: 10px;
-    left: auto;
-  }
-
-  .petButton {
-    width: 88px;
-    height: 88px;
-  }
-
-  .petCaption {
-    display: none;
   }
 
   .chatPane {

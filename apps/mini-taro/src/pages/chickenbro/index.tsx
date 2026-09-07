@@ -1,58 +1,89 @@
+import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
 import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import { Button, ScrollView, Text, Textarea, View } from '@tarojs/components'
-import { useDidShow } from '@tarojs/taro'
-import { useEffect, useMemo, useState } from 'react'
-
+import Taro, { useDidShow } from '@tarojs/taro'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { wowApi } from '@wow-mini/api-client'
-
 import { MiniSessionStore } from '../../features/auth/mini-session'
 import { ChatModel, type ChatModelState } from '../../features/chat/chat-model'
+import MiniMessage from '../../components/MiniMessage'
 import styles from './index.module.scss'
 
-
 function ChickenbroPage() {
+  useTabRootIdentity('pages/chickenbro/index')
   const sessions = useMemo(() => new MiniSessionStore(wowApi.webAuth), [])
-  const model = useMemo(
-    () => new ChatModel(wowApi.chat, () => sessions.createAuthContext()),
-    [sessions],
-  )
+  const model = useMemo(() => new ChatModel(wowApi.chat, () => sessions.createAuthContext()), [sessions])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [following, setFollowing] = useState(true)
+  const [endAnchor, setEndAnchor] = useState('chat-end-0')
+  const [elapsed, setElapsed] = useState(0)
+  const [preparing, setPreparing] = useState(false)
+  const sending = useRef(false)
+  const mounted = useRef(true)
+  const lastScroll = useRef(0)
+  const touching = useRef(false)
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const busy = preparing || state.phase === 'sending' || state.phase === 'loading'
 
   useEffect(() => {
+    mounted.current = true
     const unsubscribe = model.subscribe((next) => {
       setState(next)
       if (isTestLoginEnabled() && next.phase === 'signed_out') sessions.invalidate()
     })
-    return () => {
-      unsubscribe()
-      model.dispose()
-    }
+    return () => { mounted.current = false; unsubscribe(); model.dispose() }
   }, [model, sessions])
 
   const loginAndLoad = async () => {
     try {
       if (!sessions.getValid()) await sessions.login()
-      await model.load()
-    } catch {
-      await model.recover()
-    }
+      if (model.get().phase === 'sending') return
+      if (model.get().activeConversation) await model.recover()
+      else await model.load()
+    } catch { await model.recover() }
   }
+  useEffect(() => { if (isTestLoginEnabled()) void loginAndLoad() }, [model, sessions])
+  useDidShow(() => { void loginAndLoad() })
 
   useEffect(() => {
-    if (isTestLoginEnabled()) void loginAndLoad()
-  }, [model, sessions])
+    if (!following) {
+      if (scrollTimer.current) clearTimeout(scrollTimer.current)
+      scrollTimer.current = null
+      return
+    }
+    // Throttle rather than debounce: continuous deltas must not starve scrolling.
+    if (scrollTimer.current) return
+    scrollTimer.current = setTimeout(() => {
+      scrollTimer.current = null
+      setEndAnchor((value) => value === 'chat-end-0' ? 'chat-end-1' : 'chat-end-0')
+    }, 100)
+  }, [following, state.activeConversation, state.streamText, state.pendingUserContent])
+  useEffect(() => () => { if (scrollTimer.current) clearTimeout(scrollTimer.current) }, [])
+  useEffect(() => {
+    setElapsed(0)
+    if (state.phase !== 'sending') return
+    const started = Date.now()
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [state.phase])
 
-  useDidShow(() => {
-    void loginAndLoad()
-  })
-
-  const send = () => {
-    const task = model.send(draft)
-    if (task) setDraft('')
+  const send = async () => {
+    if (sending.current || busy || !draft.trim() || state.phase !== 'ready') return
+    sending.current = true
+    setPreparing(true)
+    const content = draft.trim()
+    try {
+      if (!model.get().activeConversation) {
+        const created = await model.create(content.slice(0, 32))
+        if (!created || !mounted.current) return
+      }
+      const task = model.send(content)
+      if (task) { setDraft(''); setFollowing(true) }
+    } finally { sending.current = false; if (mounted.current) setPreparing(false) }
   }
-
   const retry = () => {
     if (state.phase === 'signed_out') {
       void sessions.logout().catch(() => undefined).finally(() => loginAndLoad())
@@ -60,105 +91,80 @@ function ChickenbroPage() {
     }
     void model.recover()
   }
+  const startNew = async () => {
+    if (busy) return
+    if (draft.trim()) {
+      const answer = await Taro.showModal({ title: '新建对话', content: '当前还有未发送的内容。新建后将清空输入框。', confirmText: '新建' })
+      if (!answer.confirm || !mounted.current) return
+    }
+    setPreparing(true)
+    try {
+      const created = await model.create()
+      if (created && mounted.current) { setDraft(''); setHistoryOpen(false); setFollowing(true) }
+    } finally { if (mounted.current) setPreparing(false) }
+  }
 
-  return (
-    <View className={styles['page'] ?? ''} data-chat-phase={state.phase}>
-      <View className={styles['header'] ?? ''}>
-        <View>
-          <Text className={styles['eyebrow'] ?? ''}>CHICKENBRO</Text>
-          <Text className={styles['title'] ?? ''}>炸鸡队长</Text>
-        </View>
-        <Button
-          className={styles['secondaryButton'] ?? ''}
-          size="mini"
-          onClick={() => void model.create()}
-        >
-          新会话
-        </Button>
-      </View>
-
-      <ScrollView className={styles['conversationRail'] ?? ''} scrollX>
-        <View className={styles['conversationRow'] ?? ''}>
-          {state.conversations.map((conversation) => (
-            <Button
-              key={conversation.id}
-              className={styles['conversationButton'] ?? ''}
-              data-active={state.activeConversation?.id === conversation.id ? 'true' : 'false'}
-              onClick={() => void model.open(conversation.id)}
-            >
-              {conversation.title || '炸鸡队长对话'}
-            </Button>
-          ))}
-          {state.nextCursor ? (
-            <Button className={styles['conversationButton'] ?? ''} onClick={() => void model.loadMore()}>
-              更多
-            </Button>
-          ) : null}
-        </View>
-      </ScrollView>
-
-      <ScrollView className={styles['messages'] ?? ''} scrollY scrollIntoView="chat-end">
-        {state.activeConversation?.messages.map((message) => (
-          <View
-            key={message.id}
-            className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''}
-            data-persisted="true"
-          >
-            <Text className={styles['messageRole'] ?? ''}>
-              {message.role === 'user' ? '我' : '队长'}
-            </Text>
-            <Text className={styles['messageContent'] ?? ''}>{message.content}</Text>
-          </View>
-        ))}
-
-        {state.pendingUserContent ? (
-          <View className={styles['pendingMessage'] ?? ''} data-persisted="false">
-            <Text className={styles['messageRole'] ?? ''}>发送中</Text>
-            <Text className={styles['messageContent'] ?? ''}>{state.pendingUserContent}</Text>
-          </View>
-        ) : null}
-        {state.streamText ? (
-          <View className={styles['streamMessage'] ?? ''} data-persisted="false">
-            <Text className={styles['messageRole'] ?? ''}>队长 · 生成中</Text>
-            <Text className={styles['messageContent'] ?? ''}>{state.streamText}</Text>
-          </View>
-        ) : null}
-        {!state.activeConversation && state.phase === 'ready' ? (
-          <View className={styles['empty'] ?? ''}>
-            <Text>还没有会话。新建一段对话，队长会把历史保存在服务端。</Text>
-          </View>
-        ) : null}
-        <View id="chat-end" />
-      </ScrollView>
-
-      {state.phase === 'blocked' || state.phase === 'signed_out' ? (
-        <View className={styles['errorCard'] ?? ''} data-error-code={state.errorCode}>
-          <Text>{state.errorMessage || '会话暂不可用'}</Text>
-          <Button className={styles['retryButton'] ?? ''} size="mini" onClick={retry}>
-            {state.phase === 'signed_out' ? '重新登录' : '重新读取历史'}
-          </Button>
-        </View>
-      ) : null}
-
-      <View className={styles['composer'] ?? ''}>
-        <Textarea
-          className={styles['textarea'] ?? ''}
-          maxlength={4000}
-          placeholder="告诉队长你想分析什么…"
-          value={draft}
-          onInput={(event) => setDraft(event.detail.value)}
-        />
-        <Button
-          className={styles['sendButton'] ?? ''}
-          disabled={state.phase === 'sending' || !draft.trim() || !state.activeConversation}
-          loading={state.phase === 'sending'}
-          onClick={send}
-        >
-          发送
-        </Button>
-      </View>
+  return <View className={styles['page'] ?? ''} data-chat-phase={state.phase}>
+    <View className={styles['header'] ?? ''}>
+      <Button className={styles['historyButton'] ?? ''} disabled={busy} onClick={() => setHistoryOpen(!historyOpen)}>
+        {historyOpen ? '收起历史 ▴' : '历史对话 ▾'}
+      </Button>
+      <Button className={styles['secondaryButton'] ?? ''} disabled={busy} onClick={() => void startNew()}>＋ 新对话</Button>
     </View>
-  )
+    {historyOpen ? <ScrollView className={styles['history'] ?? ''} scrollY>
+      {state.conversations.map((conversation, index) => <Button key={conversation.id}
+        className={`${styles['conversationButton']} ${state.activeConversation?.id === conversation.id ? styles['activeConversation'] : ''}`}
+        disabled={busy} onClick={() => {
+          if (draft.trim()) { void Taro.showToast({ title: '请先发送或清空输入内容', icon: 'none' }); return }
+          setHistoryOpen(false); setFollowing(true); void model.open(conversation.id)
+        }}>
+        <Text className={styles['conversationTitle'] ?? ''}>{conversation.title || `对话 ${state.conversations.length - index}`}</Text>
+        <Text className={styles['conversationTime'] ?? ''}>{new Date(conversation.updatedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</Text>
+      </Button>)}
+      {state.nextCursor ? <Button className={styles['secondaryButton'] ?? ''} disabled={busy} onClick={() => void model.loadMore()}>加载更多对话</Button> : null}
+      {!state.conversations.length ? <Text className={styles['hint'] ?? ''}>还没有历史对话</Text> : null}
+    </ScrollView> : null}
+    <ScrollView className={styles['messages'] ?? ''} scrollY scrollIntoView={endAnchor}
+      onTouchStart={() => { touching.current = true }} onTouchEnd={() => { touching.current = false }}
+      onScroll={(event) => {
+        if (touching.current && event.detail.scrollTop < lastScroll.current - 3) setFollowing(false)
+        lastScroll.current = event.detail.scrollTop
+      }}>
+      <View className={styles['messageList'] ?? ''}>
+        {state.activeConversation?.messages.map((message) => <View key={message.id}
+          className={styles[message.role === 'user' ? 'userMessage' : 'assistantMessage'] ?? ''} data-persisted="true">
+          <Text className={styles['messageRole'] ?? ''}>{message.role === 'user' ? '我' : '鸡哥'}</Text>
+          <MiniMessage content={message.content} markdown={message.role !== 'user'} />
+        </View>)}
+        {state.pendingUserContent ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
+          <Text className={styles['messageRole'] ?? ''}>我</Text><MiniMessage content={state.pendingUserContent} />
+        </View> : null}
+        {state.phase === 'sending' ? <View className={styles['assistantMessage'] ?? ''} data-persisted="false">
+          <Text className={styles['messageRole'] ?? ''}>鸡哥 · {state.streamText ? '正在回复' : `正在思考${elapsed >= 10 ? ` · ${elapsed} 秒` : '…'}`}</Text>
+          {state.streamText ? <MiniMessage content={state.streamText} markdown /> : <Text className={styles['hint'] ?? ''}>正在整理你的问题，查询日志或模拟可能需要一些时间。</Text>}
+        </View> : null}
+        {state.phase === 'loading' ? <Text className={styles['hint'] ?? ''}>正在读取对话…</Text> : null}
+        {(!state.activeConversation || state.activeConversation.messages.length === 0) && state.phase === 'ready' ? <View className={styles['empty'] ?? ''}>
+          <Text className={styles['emptyTitle'] ?? ''}>今天想和鸡哥聊什么？</Text>
+          <Text className={styles['hint'] ?? ''}>贴一段战斗日志，或聊聊手法、配装和模拟。</Text>
+          {['帮我分析这场战斗', '我想优化角色配装'].map((prompt) => <Button key={prompt} className={styles['suggestion'] ?? ''} onClick={() => setDraft(prompt)}>{prompt} ↗</Button>)}
+        </View> : null}
+        <View id="chat-end-0" className={styles['anchor'] ?? ''} /><View id="chat-end-1" className={styles['anchor'] ?? ''} />
+      </View>
+    </ScrollView>
+    {!following ? <Button className={styles['backToLatest'] ?? ''} onClick={() => setFollowing(true)}>↓ 回到最新</Button> : null}
+    {state.phase === 'blocked' || state.phase === 'signed_out' ? <View className={styles['errorCard'] ?? ''} data-error-code={state.errorCode}>
+      <Text>{state.errorMessage || '会话暂不可用'}</Text>
+      <Button className={styles['secondaryButton'] ?? ''} onClick={retry}>{state.phase === 'signed_out' ? '重新登录' : '重新读取历史'}</Button>
+    </View> : null}
+    <View className={styles['composer'] ?? ''}>
+      <Textarea className={styles['textarea'] ?? ''} maxlength={4000} placeholder="发消息给鸡哥…" value={draft}
+        autoHeight adjustPosition={false} holdKeyboard confirmType="send" showConfirmBar={false}
+        disabled={preparing} onConfirm={() => void send()} onInput={(event) => setDraft(event.detail.value)} />
+      <Button className={styles['sendButton'] ?? ''} disabled={busy || !draft.trim() || state.phase !== 'ready'}
+        loading={busy && state.phase === 'sending'} onClick={() => void send()}>{state.phase === 'sending' ? '回复中' : '发送'}</Button>
+    </View>
+    <Text className={styles['composerHint'] ?? ''}>{draft.length > 3600 ? `${draft.length}/4000` : '长按文字可复制 · 点击来源链接可复制地址'}</Text>
+  </View>
 }
-
 export default withMiniTestLogin(ChickenbroPage)

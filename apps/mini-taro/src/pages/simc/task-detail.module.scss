@@ -2,8 +2,10 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  padding: calc(env(safe-area-inset-top) + 32rpx) 28rpx calc(env(safe-area-inset-bottom) + 32rpx);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 24rpx;
   color: #edf4f0;
   background: radial-gradient(circle at 90% 0%, #17342c 0, #090c0a 45%);
 }
@@ -11,7 +13,7 @@
 .header,
 .attempt,
 .errorCard { display: flex; align-items: center; justify-content: space-between; }
-.header { margin-bottom: 24rpx; }
+.header { flex: none; gap: 18rpx; margin-bottom: 24rpx; }
 .eyebrow,
 .title,
 .cardTitle,
@@ -21,7 +23,7 @@
 .resultMetric { display: block; }
 .eyebrow { color: #72c5a7; font-size: 19rpx; letter-spacing: 4rpx; }
 .title { margin-top: 8rpx; font-size: 40rpx; font-weight: 800; }
-.content { flex: 1; min-height: 0; }
+.content { height: 0; flex: 1; min-height: 0; }
 .card,
 .resultCard { margin-bottom: 18rpx; padding: 24rpx; background: rgba(18, 25, 22, .94); border: 1rpx solid #30463d; border-radius: 20rpx; }
 .resultCard { border-color: #518f79; background: #12251e; }
@@ -34,3 +36,14 @@
 .loading { padding: 100rpx 20rpx; color: #8d9c95; text-align: center; }
 .secondaryButton { margin: 0; padding: 18rpx 24rpx; color: #e6eeea; background: #18211d; border: 1rpx solid #3a5148; border-radius: 14rpx; font-size: 24rpx; line-height: 1.2; }
 .errorCard { gap: 18rpx; padding: 20rpx; color: #ffd4c4; background: #321b16; border: 1rpx solid #734235; border-radius: 16rpx; font-size: 23rpx; }
+
+.meta, .hint, .jobMeta, .errorCode { overflow-wrap: anywhere; word-break: break-word; }
+.secondaryButton { flex: none; min-height: 76rpx; }
+.title { font-size: 34rpx; }
+.attempt { flex-wrap: wrap; }
+.primaryButton::after, .secondaryButton::after, .jobCard::after { border: 0; }
+.secondaryButton { width: auto !important; margin-bottom: 18rpx; }
+
+.attempt { font-size: 26rpx; line-height: 1.6; }
+.hint { font-size: 25rpx; line-height: 1.65; }
+.attempt text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
