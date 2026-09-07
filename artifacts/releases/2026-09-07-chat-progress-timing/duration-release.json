@@ -1,0 +1,39 @@
+{
+  "status": "deployed_for_user_verification",
+  "webMiniCommit": "2474eb3146c89a87b5cd81fb122e752def35555d",
+  "apiWorkerCommit": "c8faf06322a98dc6f754ae8dbf96cfc8ba72c665",
+  "webRoot": "/var/www/chickenbro-web/releases/chat-duration-2474eb3146c89a87b5cd81fb122e752def35555d",
+  "rollbackWeb": "/opt/chickenbro-releases/c8faf06322a98dc6f754ae8dbf96cfc8ba72c665/web",
+  "miniVersion": "2026.09.07-chat2",
+  "miniBytes": 1036913,
+  "miniBuild": {
+    "schemaRevision": "wow-weapp-build-v1",
+    "gitHead": "2474eb3146c89a87b5cd81fb122e752def35555d",
+    "sourceHash": "sha256:8ceca27680cc791c8a1ef0bbcf1a21944b754ae35aceea1e48aa96ec9138d818",
+    "builtAt": "2026-09-07T13:22:58.717Z"
+  },
+  "uiVerified": {
+    "web": [
+      "用时 0 分 19 秒",
+      "用时 4 分 54 秒"
+    ],
+    "miniDevTools": [
+      "用时 0 分 19 秒",
+      "用时 4 分 54 秒"
+    ]
+  },
+  "tests": {
+    "frontend": 263,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5Build": "passed",
+    "weappBuild": "passed"
+  },
+  "userAcceptance": "pending",
+  "wechatPublication": "not_run",
+  "publicWebFilesVerified": 29,
+  "readiness": {
+    "www.chickenbro.cloud": "ready",
+    "api.chickenbro.cloud": "ready"
+  }
+}
