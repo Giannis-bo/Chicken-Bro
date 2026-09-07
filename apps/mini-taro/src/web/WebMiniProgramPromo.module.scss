@@ -23,6 +23,7 @@
 .artwork { display: block; width: 100%; height: auto; }
 
 .dialog {
+  margin: auto;
   width: min(740px, calc(100vw - 40px));
   max-height: calc(100dvh - 40px);
   padding: 0;
