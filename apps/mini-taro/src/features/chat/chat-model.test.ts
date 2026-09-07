@@ -419,3 +419,87 @@ it('does not relabel a completed reply when its history refresh fails', async ()
   expect(model.get().streamDurationMs).toBe(18000)
   model.dispose()
 })
+
+it('explains account contention and permits a later retry without a phantom message', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  client.streamFailure = 'CHAT_ACCOUNT_BUSY'
+  model.send('另一个问题')
+  await Promise.resolve()
+  expect(model.get()).toMatchObject({ phase: 'blocked', errorCode: 'CHAT_ACCOUNT_BUSY',
+    errorMessage: '鸡哥正在回复你的另一条消息，请等待回复结束后再发送。',
+    activeConversation: { messages: [] } })
+  client.streamFailure = ''
+  expect(model.send('另一个问题')).not.toBeNull()
+  expect(model.get().phase).toBe('sending')
+})
+
+it('keeps a reply running when switching conversations and ignores its events in the new view', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  model.send('A问题')
+  const aStream = client.streamOptions!
+  client.detail = { ...otherConversation, messages: [] }
+  await model.open(otherConversation.id)
+  expect(client.abort).not.toHaveBeenCalled()
+  aStream.onEvent({ type: 'completed', requestId: 'reply-a', conversationId: conversation.id,
+    runId: 'run-a', sequence: 1, text: 'A回答' })
+  await Promise.resolve()
+  expect(model.get()).toMatchObject({ activeConversation: { id: otherConversation.id, messages: [] }, streamText: '' })
+  model.dispose()
+  expect(client.abort).not.toHaveBeenCalled()
+})
+
+it('closes background reply connections when the chat model is disposed', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  model.send('A问题')
+  await model.create('B')
+  expect(client.abort).not.toHaveBeenCalled()
+  model.dispose()
+  expect(client.abort).toHaveBeenCalledOnce()
+})
+
+it('does not let background completion override an in-flight conversation navigation', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  model.send('A问题')
+  const aStream = client.streamOptions!
+  const finishes: Array<(value: ApiResult<ConversationDetail>) => void> = []
+  client.get = vi.fn(() => new Promise<ApiResult<ConversationDetail>>((resolve) => { finishes.push(resolve) }))
+  const navigation = model.open(otherConversation.id)
+  aStream.onEvent({ type: 'completed', requestId: 'reply-a', conversationId: conversation.id,
+    runId: 'run-a', sequence: 1, text: 'A回答' })
+  expect(finishes).toHaveLength(1)
+  finishes[0]!(success({ ...otherConversation, messages: [] }))
+  await navigation
+  expect(model.get().activeConversation?.id).toBe(otherConversation.id)
+})
+
+it('refreshes A after completion arrives while a stale A history response is in flight', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  model.send('A问题')
+  const aStream = client.streamOptions!
+  client.detail = { ...otherConversation, messages: [] }
+  await model.open(otherConversation.id)
+  let finish!: (value: ApiResult<ConversationDetail>) => void
+  const finalDetail: ConversationDetail = { ...conversation, messages: [
+    { id: 'answer-a', role: 'assistant', content: 'A回答', createdAt: now },
+  ] }
+  client.get = vi.fn()
+    .mockImplementationOnce(() => new Promise<ApiResult<ConversationDetail>>((resolve) => { finish = resolve }))
+    .mockResolvedValue(success(finalDetail))
+  const navigation = model.open(conversation.id)
+  aStream.onEvent({ type: 'completed', requestId: 'reply-a', conversationId: conversation.id,
+    runId: 'run-a', sequence: 1, text: 'A回答' })
+  finish(success({ ...conversation, messages: [] }))
+  await navigation
+  await Promise.resolve()
+  expect(model.get().activeConversation?.messages[0]?.content).toBe('A回答')
+})

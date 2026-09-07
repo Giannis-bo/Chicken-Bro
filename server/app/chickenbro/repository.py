@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from server.app.chickenbro.domain import (
     AgentRun,
+    ChatAccountBusy,
     AgentRunStatus,
     Conversation,
     ConversationStatus,
@@ -211,25 +212,25 @@ class PostgresChatRepository:
     def recover_stale_agent_runs(
         self,
         user_id: UUID,
-        conversation_id: UUID,
+        conversation_id: UUID | None,
         stale_before: datetime,
         finished_at: datetime,
     ) -> int:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """
+                    f"""
                     UPDATE chat.agent_runs
                     SET status = 'failed',
                         assistant_message_id = NULL,
                         public_error_code = 'CODEX_EXECUTION_FAILED',
                         finished_at = %s
                     WHERE user_id = %s
-                      AND conversation_id = %s
+                      {"AND conversation_id = %s" if conversation_id is not None else ""}
                       AND status = 'streaming'
                       AND started_at <= %s
                     """,
-                    (finished_at, user_id, conversation_id, stale_before),
+                    (finished_at, user_id, *((conversation_id,) if conversation_id is not None else ()), stale_before),
                 )
                 return int(cursor.rowcount)
 
@@ -257,24 +258,29 @@ class PostgresChatRepository:
                     """,
                     (message_id, conversation_id, user_id, content, client_message_id, now),
                 )
-                cursor.execute(
-                    """
-                    INSERT INTO chat.agent_runs (
-                        id, user_id, conversation_id, user_message_id, status,
-                        runtime_revision, started_at, idempotency_key
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO chat.agent_runs (
+                            id, user_id, conversation_id, user_message_id, status,
+                            runtime_revision, started_at, idempotency_key
+                        )
+                        VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
+                        """,
+                        (
+                            run_id,
+                            user_id,
+                            conversation_id,
+                            message_id,
+                            runtime_revision,
+                            now,
+                            idempotency_key,
+                        ),
                     )
-                    VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
-                    """,
-                    (
-                        run_id,
-                        user_id,
-                        conversation_id,
-                        message_id,
-                        runtime_revision,
-                        now,
-                        idempotency_key,
-                    ),
-                )
+                except Exception as error:
+                    if getattr(getattr(error, "diag", None), "constraint_name", None) == "agent_runs_one_streaming_per_user":
+                        raise ChatAccountBusy("account already has a streaming reply") from error
+                    raise
                 cursor.execute(
                     """
                     UPDATE chat.conversations

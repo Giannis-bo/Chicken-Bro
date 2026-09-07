@@ -4,6 +4,10 @@ from enum import Enum
 from uuid import UUID
 
 
+class ChatAccountBusy(RuntimeError):
+    """An account already owns a streaming reply."""
+
+
 class ConversationStatus(str, Enum):
     ACTIVE = "active"
     ARCHIVED = "archived"

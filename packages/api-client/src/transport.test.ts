@@ -524,3 +524,30 @@ describe('formal Taro transport', () => {
     expect(onEnd).not.toHaveBeenCalled()
   })
 })
+
+it.each(['WEB', 'WEAPP'])('preserves the account-busy problem code for %s streams', async (runtime) => {
+  taro.getEnv.mockReturnValue(runtime)
+  const failures: string[] = []
+  const problem = { error: { code: 'CHAT_ACCOUNT_BUSY', message: '请等待回复结束' } }
+  let receive: ((value: { data: ArrayBuffer }) => void) | undefined
+  if (runtime === 'WEB') {
+    vi.stubGlobal('window', { location: { origin: 'https://www.chickenbro.cloud' } })
+    vi.stubGlobal('document', {})
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409,
+      json: async () => problem }))
+  } else {
+    taro.request.mockReturnValue(Object.assign(Promise.resolve({ statusCode: 409 }), {
+      abort: vi.fn(), onChunkReceived: (listener: typeof receive) => { receive = listener },
+    }))
+  }
+  const transport = createTaroTransport({ storage: new MemoryStorage(),
+    resolveBaseUrl: () => 'https://api.chickenbro.cloud' })
+  transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
+    auth: runtime === 'WEB' ? { kind: 'web', csrfToken: 'csrf-token' } : { kind: 'mini', accessToken: 'mini-token' },
+    onEvent: () => { throw new Error('rejected request must not emit events') },
+    onFailure: (error) => failures.push(error),
+  })
+  receive?.({ data: encoded(JSON.stringify(problem)) })
+  await vi.waitFor(() => expect(failures).toEqual(['CHAT_ACCOUNT_BUSY']))
+  vi.unstubAllGlobals()
+})

@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID, uuid4, uuid5
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
-from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus
+from server.app.chickenbro.domain import ChatAccountBusy, AgentRunStatus, Conversation, ConversationStatus
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
 from server.app.identity.domain import Principal
 
@@ -281,7 +281,7 @@ class ChatApplication:
             client_message_id = str(client_message_id).strip()
             if not client_message_id or len(client_message_id) > 128:
                 raise ChatApplicationError("CLIENT_MESSAGE_ID_INVALID", "client message id is invalid")
-        self._recover_stale_agent_runs(principal, conversation_id)
+        self._recover_stale_agent_runs(principal, None)
         existing_run = self._find_idempotent_run(
             principal,
             conversation_id,
@@ -327,6 +327,11 @@ class ChatApplication:
             if raced_run is not None:
                 yield from self._replay_agent_run(principal, raced_run)
                 return
+            if isinstance(error, ChatAccountBusy):
+                raise ChatApplicationError(
+                    "CHAT_ACCOUNT_BUSY",
+                    "鸡哥正在回复你的另一条消息，请等待回复结束后再发送。",
+                ) from error
             raise ChatApplicationError(
                 "CHAT_PERSISTENCE_FAILED",
                 "user message and agent run could not be persisted",
@@ -473,7 +478,7 @@ class ChatApplication:
     def _recover_stale_agent_runs(
         self,
         principal: Principal,
-        conversation_id: UUID,
+        conversation_id: UUID | None,
     ) -> None:
         now = _utc(self._clock)
         stale_before = now - timedelta(

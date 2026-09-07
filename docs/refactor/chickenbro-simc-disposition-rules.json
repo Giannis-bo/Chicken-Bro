@@ -2,6 +2,18 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "chat-account-limit",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "chickenbro_chat and dual_client",
+      "reason": "User-approved account-wide single streaming reply and cross-client contention feedback.",
+      "paths": [
+        "docs/plans/2026-09-07-chat-account-limit.md",
+        "tests/app_chat_account_limit_postgres_test.py",
+        "server/migrations/product/0005_chat_account_concurrency.sql"
+      ]
+    },
+    {
       "id": "chat-progress-timing",
       "disposition": "keep",
       "category": "target-product-code",

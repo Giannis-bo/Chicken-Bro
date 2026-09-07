@@ -113,6 +113,7 @@ def _raise_chat_error(error: ChatApplicationError) -> None:
         "CLIENT_MESSAGE_ID_INVALID": 422,
         "IDEMPOTENCY_CONFLICT": 409,
         "CHAT_RUN_IN_PROGRESS": 409,
+        "CHAT_ACCOUNT_BUSY": 409,
         "CHAT_RUN_NOT_REPLAYABLE": 409,
         "CODEX_UNAVAILABLE": 503,
     }.get(error.code, 500)

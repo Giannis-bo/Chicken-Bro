@@ -313,6 +313,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0002_chat_idempotent_replay",
                     "0003_account_avatar",
                     "0004_chat_public_progress",
+                    "0005_chat_account_concurrency",
                 ),
             )
             avatar_column = connection.execute(

@@ -251,7 +251,7 @@ class MemoryChatRepository:
         for run in self.runs.values():
             if (
                 run["user_id"] == user_id
-                and run["conversation_id"] == conversation_id
+                and (conversation_id is None or run["conversation_id"] == conversation_id)
                 and run["status"] is AgentRunStatus.STREAMING
                 and run["started_at"] <= stale_before
             ):
