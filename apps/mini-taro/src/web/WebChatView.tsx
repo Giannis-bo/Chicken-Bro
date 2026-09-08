@@ -34,6 +34,8 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
   const [draft, setDraft] = useState('')
   const composing = useRef(false)
   const sending = state.phase === 'sending'
+  const showWelcome = state.phase === 'ready' && !state.activeConversation?.messages.length
+    && !state.pendingUserContent && !state.streamText && !state.streamProgress && !state.streamCompletedAt
   const messageList = useRef<HTMLDivElement>(null)
   const messageContent = useRef<HTMLDivElement>(null)
   const scrollRevision = useMemo(() => ({ text: state.streamText, progress: state.streamProgress, messages: state.activeConversation?.messages }),
@@ -92,7 +94,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
         </View>
 
         <View className={styles['chatPane'] ?? ''}>
-          <div className={styles['chatCanvas']} data-empty={!state.activeConversation && state.phase === 'ready'}>
+          <div className={styles['chatCanvas']} data-empty={showWelcome}>
             <div className={styles['workspaceArt']} aria-hidden="true" data-decorative="true">
               <div className={styles['chatScene']}><WebThemeArt themeId={themeId} /></div>
             </div>
@@ -127,7 +129,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                 <WebMessage content={state.streamText} markdown />
               </View>
             ) : null}
-            {!state.activeConversation && state.phase === 'ready' ? (
+            {showWelcome ? (
               <View className={styles['emptyState'] ?? ''}>
                 <Text className={styles['emptyTitle'] ?? ''}>准备好了，随时开始</Text>
                 <Text className={styles['emptyDescription'] ?? ''}>
@@ -154,7 +156,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
           ) : null}
 
           <View className={styles['webComposer'] ?? ''}>
-            {paused ? <button type="button" className={styles['jumpToLatest'] ?? ''} onClick={jumpToLatest}>
+            {paused && !showWelcome ? <button type="button" className={styles['jumpToLatest'] ?? ''} onClick={jumpToLatest}>
               ↓ 回到最新
             </button> : null}
             <View className={styles['composerRow'] ?? ''}>
@@ -189,7 +191,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                   : <span aria-hidden="true">↑</span>}
               </button>
             </View>
-            {!state.activeConversation && state.phase === 'ready' ? (
+            {showWelcome ? (
               <View className={styles['quickPrompts'] ?? ''}>
                 {quickPrompts.map((prompt) => (
                   <Button
