@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "web-short-urls",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "dual_client",
+      "reason": "User-approved short Web URLs and production release evidence.",
+      "prefixes": [
+        "artifacts/releases/2026-09-08-web-short-urls/"
+      ]
+    },
+    {
       "id": "chat-delete",
       "disposition": "keep",
       "category": "target-product-code",

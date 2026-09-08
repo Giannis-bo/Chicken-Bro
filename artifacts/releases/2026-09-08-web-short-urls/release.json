@@ -1,0 +1,40 @@
+{
+  "status": "live_verified_user_acceptance_pending",
+  "webCommit": "6b2f4bebaadb39c32fac14f2649daaa37dbe4229",
+  "baseProductionCommit": "29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "webRoot": "/var/www/chickenbro-web/releases/short-urls-6b2f4bebaadb39c32fac14f2649daaa37dbe4229",
+  "rollbackWeb": "/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13/web",
+  "publicFilesVerified": 29,
+  "localChecks": {
+    "frontend": 284,
+    "control": 62,
+    "deployment": 9,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5Build": "passed (bundle size warnings)"
+  },
+  "preview": {
+    "url": "https://www.chickenbro.cloud/previews/short-urls-20260908/",
+    "commit": "db7d01c28accd6d45822bd4d92d45b808115ac24",
+    "checks": [
+      "existing authenticated session restored",
+      "chat history visible",
+      "SimC tab and direct refresh passed"
+    ],
+    "isolation": "Web assets only; uses existing production session/API for read-only verification; not full isolated database Candidate"
+  },
+  "liveBrowser": [
+    "legacy simulation link normalizes to /simc",
+    "chat switch returns /",
+    "back/forward updates active business page",
+    "direct /simc and refresh retain destination",
+    "legacy chat fragment in same document normalizes to /",
+    "existing session restored; no new QR login"
+  ],
+  "apiWorkerChanged": false,
+  "miniChanged": false,
+  "testNginxChanged": false,
+  "mainMerge": "not_requested",
+  "push": "not_performed",
+  "themeWip": "preserved and excluded from release"
+}
