@@ -53,11 +53,25 @@
   "publicFilesMatched": 27,
   "productionBrowserCheck": "passed: existing session/history, seven CDN theme URLs, rendered alliance art, refresh persistence",
   "apiWorkerMini": "unchanged",
-  "gitPush": "pending_closure",
+  "gitPush": "main_push_verified",
   "productionUrl": "https://www.chickenbro.cloud/",
   "newChatOrSimcWrites": "not_performed",
   "refreshPersistence": "passed",
   "userAcceptanceText": "\u975e\u5e38\u597d\uff0c\u63d0\u4ea4\uff0c\u5408\u5165\u3002",
   "closureReview": "local source review passed under current AGENTS.md; CodeRabbit executable unavailable, no installation",
-  "closureScope": "merge accepted CDN work, preserve existing main closure and unchanged COS permissions"
+  "closureScope": "merge accepted CDN work, preserve existing main closure and unchanged COS permissions",
+  "mergeCommit": "63758553f22644321a012db8b9a11d2753060473",
+  "closureVerification": {
+    "frontendTests": 321,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "diffCheck": "passed",
+    "cdnFilesVerified": 7,
+    "productionFilesMatched": 27,
+    "remoteMainMatchedMergeCommit": true,
+    "deploymentSourceIsAncestorOfMain": true,
+    "deployment": "accepted b356cd170 retained; no redeployment in closure",
+    "miniPreview": "not_applicable_web_only_change"
+  }
 }
