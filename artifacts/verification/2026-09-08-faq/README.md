@@ -1,6 +1,6 @@
 # Web FAQ 内容与折叠
 
-状态：`local_verified`，未提交、未发布、待用户体验。
+状态：`live_verified`，Web/API/Worker 已部署，待用户体验验收。下方本地阶段记录保留当时状态，以本节发布结果为当前事实。
 
 范围：移除 FAQ 副标题；FAQ 内容区域文本可选；四类依次为认识鸡哥、常见问题、Simc模拟、账号记录。默认展开第一类，各类独立折叠，使用原生 details/summary 支持键盘操作。模型名称按用户要求写为 GPT-Astra。Mini 帮助页不在本次截图页面范围内。
 
@@ -41,3 +41,19 @@
 发布步骤与回滚条件见 `docs/plans/2026-09-06-chickenbro-simc-tools.md` 的任务 ID 后续节。上线需要 API 与 Worker 同时支持编译 v4，并进行真实云端任务验证。替换输入的装等选项按 SimulationCraft 官方 Equipment 文档核验（https://github.com/simulationcraft/simc/wiki/Equipment），未下载文档或安装/运行本地引擎。
 
 最终本地结果：419 项后端、292 项前端、62 项控制面通过；typecheck、lint、H5 构建与 diff 检查通过。H5 保留既有资源体积警告。独立审查补修后复审通过；未提交、推送或部署。
+
+
+## 正式发布结果（2026-09-08）
+
+用户明确授权“是的，部署”。功能提交 15b6c5e6c，旧客户端兼容补修 f2932f8b6eb68ea7627ca428e14f460a57ab4ad4；均在本地 codex/faq-simc-task-rerun，未推送/合入 main。
+
+- 正式 Web 为 f2932f8b6 完整生产构建；index 为 JS/CSS 加入同提交缓存版本。
+- 正式 API/Worker 为原 wcl-8a1a893b1 发布根的七文件精确覆盖，manifest.json 记录旧/新 SHA。不是全量后端与 main 同步。原数据库 chickenbro_prod、迁移及 SimC 二进制保持不变；通过追加专用 EnvironmentFile 同步启用 compiler v4。
+- Candidate 使用 chickenbro_test 与真实 Chat/SimC；原配置和饰品互换两项均成功，装备报告匹配、原任务未变、同 owner 双端可见、其他 owner 404。Candidate 仅后端真实运行验证，Web 在本地实际组件和生产页面验证。测试站当前根与服务已恢复原 d94646b6e，临时 dropin 已移除；测试库补齐既有第五项并发迁移，候选发布根保留。
+- 正式验证使用专用临时验证会话，结束即撤销。真实鸡哥按基线任务 8000e8b5-d0a3-4b51-85a4-6a9efc70bbeb 创建 e30fbab5-73ef-4b2f-a24a-de1a52aba1f7；DPS 228678.27 / 226853.58，100 次迭代只证明执行链路与装备一致性，不作为装备收益结论。原场景保留、实际报告装备、跨端可见与其他账号隔离通过。
+- 正式浏览器原用户登录态恢复，既有 Giannis 任务显示完整 ID，点击后系统剪贴板与完整 ID 完全一致；FAQ 四类/五案例/换装示例与 GPT-Astra 可见，折叠交互和 text 选择样式通过，无横向溢出。此前本地鼠标拖选已验证。
+- 新客户端通过 scenarioVersion=2 获取完整装备覆盖；旧小程序工作台响应保持原场景字段，报告仍含实际装备。12 项后端合同/跨端回归、6 项客户端回归、类型/lint、生产 H5 重新通过；线上旧版列表/详情与新客户端字段核对通过。
+- 生产回滚点及七文件清单见 production-publish.json / manifest.json。恢复旧编译前先停 API 新写并排空 v4 任务，再恢复旧代码/Web 指针、移除本轮两项 dropin 与非秘密 compiler env，reload/restart。无删除旧根、无数据库回滚或清理。
+- 本轮未重新扫码、未上传/发布小程序、未宣称用户验收。裸域 chickenbro.cloud 的附加检查遇到证书主机名不匹配，既有 TLS 配置未改；正式入口使用 https://www.chickenbro.cloud/。
+
+正式 www 入口 readiness 为 ready，34 项公网静态文件 SHA 与发布 manifest 一致；最终 62 项控制面通过。见 public-verification.json。

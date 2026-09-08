@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "f2932f8b6eb68ea7627ca428e14f460a57ab4ad4",
+  "compatibilityBackendTests": 12,
+  "apiClientTests": 6,
+  "controlTests": 62,
+  "typecheck": "passed",
+  "lint": "passed",
+  "productionH5": "passed",
+  "previousFeatureRegression": {
+    "backend": 419,
+    "frontend": 292
+  },
+  "staticPublicFilesMatched": 34,
+  "userAcceptance": "pending",
+  "gitPush": "not_run"
+}

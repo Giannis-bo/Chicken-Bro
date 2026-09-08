@@ -1,0 +1,6 @@
+{
+  "publicStaticFilesMatched": 34,
+  "wwwReadiness": "ready",
+  "sourceCommit": "f2932f8b6eb68ea7627ca428e14f460a57ab4ad4",
+  "bareDomainCheck": "certificate_hostname_mismatch_existing_tls_config_unchanged"
+}

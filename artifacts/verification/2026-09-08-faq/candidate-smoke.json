@@ -1,0 +1,53 @@
+{
+  "mode": "candidate",
+  "commit": "f2932f8b6eb68ea7627ca428e14f460a57ab4ad4",
+  "database": "chickenbro_test",
+  "login": "dedicated_short_lived_verification_sessions",
+  "realWechatLogin": "not_run",
+  "status": "passed",
+  "conversationId": "a4b61aae-aa5a-549f-8537-66a808d973de",
+  "baselineJobId": "33bd5bd0-10ba-4b1f-9a48-fc2c78e79652",
+  "variantJobId": "26a7c108-2b69-4f07-90b6-86fec8c5c8c0",
+  "baselineDps": 226352.32742342053,
+  "variantDps": 225441.38767540286,
+  "snapshotId": "5f861ee3-0887-4904-b9bb-7172720424dc",
+  "equipmentOverrides": {
+    "trinket1": {
+      "itemId": 270167,
+      "itemLevel": 308,
+      "bonusIds": [
+        6652,
+        13333,
+        12838
+      ],
+      "gems": [],
+      "enchant": null
+    },
+    "trinket2": {
+      "itemId": 273796,
+      "itemLevel": 321,
+      "bonusIds": [
+        13440,
+        6652,
+        12699,
+        12846
+      ],
+      "gems": [],
+      "enchant": null
+    }
+  },
+  "originalScenarioPreserved": true,
+  "sameOwnerMiniWebVisible": true,
+  "otherOwnerDenied": true,
+  "actualReportEquipmentMatched": true,
+  "variantProvenance": {
+    "snapshotId": "5f861ee3-0887-4904-b9bb-7172720424dc",
+    "sourceRevision": "6",
+    "sourceRawSha256": "f6571cb57c36531b5b73cf9991f7e762191aa91d757d79e37593ed8eefc75f8b",
+    "profileSha256": "55de8ac9c9b7255c24161a880acef18e9733eb2783d2c2e5f71ca276797be468",
+    "compilerRevision": "chickenbro-simc-compiler-v4",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "scenarioHash": "1d9f5da8a33532925f73c8597ff11a37313e81f5fbefbfb6453b8a8cef33c2ee"
+  },
+  "chatEvents": 337
+}

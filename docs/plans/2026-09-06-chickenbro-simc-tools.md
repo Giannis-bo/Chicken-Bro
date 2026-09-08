@@ -36,11 +36,13 @@
 - Web 列表显示完整 ID，独立复制按钮不触发报告导航；成功反馈，失败保留可选文本供手动复制。
 - `submit_simulation` 接受 `snapshotId` 或 `baseJobId` 二选一。基于任务重跑时经原 application 的 Principal 校验归属；复用不可变快照与已存场景，合并明确变更，并由原幂等/预算/队列流程创建新任务。历史场景缺失拒绝推测。
 - `equipmentOverrides` 按槽位指定完整物品 ID、装等、bonus IDs、宝石和附魔，只允许有界数字结构。生成 profile 指定替换物品装等；其余原输入保持不变。继续基于变体重跑时保留未改槽位；新装备不继承旧宝石覆盖。`get_simulation_job` 返回有效装备供核对。
-- 编译语义新增 v4，仅 v4 接受整件装备替换；v4 worker 可按原 revision 处理旧 v1/v2/v3 任务。没有变更生产配置、运行引擎或启动本地 SimC。
+- 编译语义新增 v4，仅 v4 接受整件装备替换；v4 worker 可按原 revision 处理旧 v1/v2/v3 任务。运行引擎保持不变，未启动本地 SimC；生产编译配置按下方发布记录更新。
 - 装备参数必须由用户明确资料或可靠来源核验；未实现制造属性、美化等任意输入，不能猜补。FAQ 展示操作示例，不冒充已完成的历史换装案例。
 
-### 发布前剩余工作
+### 发布条件与结果
 
-部署经授权的 API/Worker/Web，API 与 Worker 同步设置 `WOW_SIMC_COMPILER_REVISION=chickenbro-simc-compiler-v4`。先完成 Candidate 中真实鸡哥按 ID 换装、云端 SimC 正数结果、有效装备/保留参数核对、基线与新任务对比、其他账号隔离，再切流。此处未授权或执行部署。
+部署经授权的 API/Worker/Web，API 与 Worker 同步设置 `WOW_SIMC_COMPILER_REVISION=chickenbro-simc-compiler-v4`。先完成 Candidate 中真实鸡哥按 ID 换装、云端 SimC 正数结果、有效装备/保留参数核对、基线与新任务对比、其他账号隔离，再切流。2026-09-08 用户明确授权“是的，部署”，上述后端 Candidate 与正式真实任务链路已通过；Web 在正式页面验证。
 
 回滚保留旧 Web/API/Worker 与原编译配置。回退至不认识 v4 的 worker 前必须停止新提交并处理完 v4 队列；不得让旧 worker 领取新语义任务。无需数据库 schema 迁移，旧任务/快照不修改。
+
+正式发布源补丁 f2932f8b6，七文件后端覆盖与完整 Web 产物、真实任务/隔离验证及回滚点见 [发布证据](../../artifacts/verification/2026-09-08-faq/README.md)。旧客户端不请求 scenarioVersion=2 时不返回新 equipmentOverrides 字段，避免已发布小程序列表与详情校验失败；Chat 工具仍读取完整真实配置。用户体验验收与仓库合入/推送尚未进行。
