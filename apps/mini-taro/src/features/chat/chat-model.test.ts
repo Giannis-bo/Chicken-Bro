@@ -35,6 +35,7 @@ function success<T>(payload: T): ApiResult<T> {
 }
 
 class FakeChatClient implements ChatClient {
+  async remove(): Promise<ApiResult<{ deleted: boolean }>> { return success({ deleted: true }) }
   detail: ConversationDetail = { ...conversation, messages: [] }
   readonly calls: Array<{ name: string; auth: ClientAuthContext; idempotencyKey?: string }> = []
   createFailures = 0
@@ -502,4 +503,44 @@ it('refreshes A after completion arrives while a stale A history response is in 
   await navigation
   await Promise.resolve()
   expect(model.get().activeConversation?.messages[0]?.content).toBe('A回答')
+})
+
+it('removes the current conversation only after server success and returns to a blank view', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  client.remove = vi.fn(async () => ({ payload: { deleted: false }, fromFallback: true,
+    error: 'HTTP 409', problemCode: 'CHAT_CONVERSATION_BUSY', httpStatus: 409 }))
+  expect(await model.remove(conversation.id)).toContain('等待')
+  expect(model.get().activeConversation?.id).toBe(conversation.id)
+  client.remove = vi.fn(async () => success({ deleted: true }))
+  expect(await model.remove(conversation.id)).toBeNull()
+  expect(model.get()).toMatchObject({ activeConversation: null, conversations: [], phase: 'ready' })
+})
+
+it('clears deleted A even when an in-flight navigation to B subsequently fails', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  let finish!: (value: ApiResult<ConversationDetail>) => void
+  client.get = () => new Promise(resolve => { finish = resolve })
+  const navigation = model.open(otherConversation.id)
+  await model.remove(conversation.id)
+  finish({ payload: client.detail, fromFallback: true, error: 'HTTP 500' })
+  await navigation
+  expect(model.get().activeConversation).toBeNull()
+})
+
+it('does not restore a deleted conversation from an older pagination response', async () => {
+  const client = new FakeChatClient()
+  client.list = async () => success({ items: [conversation], nextCursor: 'next-page' })
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  await model.load()
+  let finish!: (value: ApiResult<ConversationPage>) => void
+  client.list = () => new Promise(resolve => { finish = resolve })
+  const pagination = model.loadMore()
+  await model.remove(conversation.id)
+  finish(success({ items: [conversation], nextCursor: null }))
+  await pagination
+  expect(model.get().conversations).toEqual([])
 })

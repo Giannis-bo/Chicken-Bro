@@ -8,6 +8,8 @@ from server.app.chickenbro.domain import (
     ChatAccountBusy,
     AgentRunStatus,
     Conversation,
+    ConversationUnavailable,
+    ConversationBusy,
     ConversationStatus,
     Message,
     MessageRole,
@@ -60,6 +62,23 @@ class PostgresChatRepository:
                     raise RuntimeError("idempotent conversation identity is owned by another user")
         return self._conversation_from_row(row)
 
+    def archive_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT status FROM chat.conversations WHERE user_id = %s AND id = %s FOR UPDATE",
+                               (user_id, conversation_id))
+                row = cursor.fetchone()
+                if row is None:
+                    raise ConversationUnavailable()
+                if _row_value(row, "status", 0) == "archived":
+                    return
+                cursor.execute("SELECT 1 FROM chat.agent_runs WHERE user_id = %s AND conversation_id = %s AND status = 'streaming' LIMIT 1",
+                               (user_id, conversation_id))
+                if cursor.fetchone() is not None:
+                    raise ConversationBusy()
+                cursor.execute("UPDATE chat.conversations SET status = 'archived' WHERE user_id = %s AND id = %s",
+                               (user_id, conversation_id))
+
     def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Conversation | None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
@@ -67,7 +86,7 @@ class PostgresChatRepository:
                     """
                     SELECT id, user_id, title, status, created_at, updated_at
                     FROM chat.conversations
-                    WHERE user_id = %s AND id = %s
+                    WHERE user_id = %s AND id = %s AND status = 'active'
                     """,
                     (user_id, conversation_id),
                 )
@@ -89,7 +108,7 @@ class PostgresChatRepository:
                         """
                         SELECT id, user_id, title, status, created_at, updated_at
                         FROM chat.conversations
-                        WHERE user_id = %s
+                        WHERE user_id = %s AND status = 'active'
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
                         (user_id, limit),
@@ -100,7 +119,7 @@ class PostgresChatRepository:
                         """
                         SELECT id, user_id, title, status, created_at, updated_at
                         FROM chat.conversations
-                        WHERE user_id = %s
+                        WHERE user_id = %s AND status = 'active'
                           AND (updated_at, id) < (%s, %s)
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
@@ -249,6 +268,11 @@ class PostgresChatRepository:
         run_id = uuid4()
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
+                # Serialize message admission with soft deletion of this conversation.
+                cursor.execute("SELECT id FROM chat.conversations WHERE user_id = %s AND id = %s AND status = 'active' FOR UPDATE",
+                               (user_id, conversation_id))
+                if cursor.fetchone() is None:
+                    raise ConversationUnavailable()
                 cursor.execute(
                     """
                     INSERT INTO chat.messages (

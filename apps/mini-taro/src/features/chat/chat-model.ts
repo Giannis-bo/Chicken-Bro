@@ -72,6 +72,8 @@ function resultProblem(result: ApiResult<unknown>, fallback: string): { code: st
 }
 
 export class ChatModel {
+  private readonly deletedIds = new Set<string>()
+  private openingId: string | null = null
   private state: ChatModelState = initialState
   private readonly listeners = new Set<ChatListener>()
   private readonly requestId: () => string
@@ -126,7 +128,7 @@ export class ChatModel {
       this.apiFailure(result, '会话历史加载失败')
       return
     }
-    const conversations = [...result.payload.items]
+    const conversations = result.payload.items.filter(item => !this.deletedIds.has(item.id))
     this.update({
       phase: 'ready',
       conversations,
@@ -168,7 +170,7 @@ export class ChatModel {
       return
     }
     const byId = new Map(this.state.conversations.map((item) => [item.id, item]))
-    result.payload.items.forEach((item) => byId.set(item.id, item))
+    result.payload.items.filter(item => !this.deletedIds.has(item.id)).forEach((item) => byId.set(item.id, item))
     this.update({
       conversations: [...byId.values()],
       nextCursor: result.payload.nextCursor,
@@ -181,6 +183,7 @@ export class ChatModel {
   async open(conversationId: string): Promise<void> {
     this.pendingBackgroundRefresh.delete(conversationId)
     const generation = this.beginViewRequest()
+    this.openingId = conversationId
     this.update({ phase: 'loading', pendingUserContent: '', streamText: '', streamProgress: '', streamProgressStatus: 'thinking', streamCompletedAt: '', streamDurationMs: null, })
     let auth: ClientAuthContext
     try {
@@ -192,9 +195,12 @@ export class ChatModel {
     const result = await this.client.get(conversationId, { auth })
     if (generation !== this.streamGeneration) return
     if (result.fromFallback) {
+      this.openingId = null
       this.apiFailure(result, '会话内容加载失败')
       return
     }
+    this.openingId = null
+    if (this.deletedIds.has(conversationId)) return
     this.update({
       phase: 'ready',
       activeConversation: result.payload,
@@ -204,6 +210,27 @@ export class ChatModel {
     })
     if (this.pendingBackgroundRefresh.delete(conversationId)) {
       await this.refreshAfterStream(conversationId, false, generation)
+    }
+  }
+
+  async remove(conversationId: string): Promise<string | null> {
+    try {
+      const result = await this.client.remove(conversationId, { auth: this.authProvider() })
+      if (result.fromFallback) return result.problemCode === 'CHAT_CONVERSATION_BUSY'
+        ? '鸡哥正在回复此会话，请等待回复结束后再删除。' : '删除失败，请稍后重试。'
+      this.deletedIds.add(conversationId)
+      const conversations = this.state.conversations.filter(item => item.id !== conversationId)
+      if (this.openingId === conversationId || (!this.openingId && this.state.activeConversation?.id === conversationId)) {
+        this.beginViewRequest()
+        this.update({ ...initialState, phase: 'ready', conversations, nextCursor: this.state.nextCursor })
+      } else if (this.state.activeConversation?.id === conversationId) {
+        this.update({ ...initialState, phase: this.state.phase, conversations, nextCursor: this.state.nextCursor })
+      } else {
+        this.update({ conversations })
+      }
+      return null
+    } catch {
+      return '删除失败，请稍后重试。'
     }
   }
 
@@ -347,6 +374,7 @@ export class ChatModel {
   }
 
   private beginViewRequest(): number {
+    this.openingId = null
     this.streamSucceeded = false
     const activeStream = this.activeStream
     this.activeStream = null
@@ -411,7 +439,7 @@ export class ChatModel {
     preserveFailure: boolean,
     generation: number,
   ): Promise<void> {
-    if (generation !== this.streamGeneration) return
+    if (generation !== this.streamGeneration || this.deletedIds.has(conversationId)) return
     const failure = {
       errorCode: this.state.errorCode,
       errorMessage: this.state.errorMessage,

@@ -75,7 +75,7 @@ export default function WebChatView({ auth }: WebChatViewProps) {
             </View>
             <WebConversationHistory conversations={state.conversations}
               activeId={state.activeConversation?.id ?? ''} hasMore={Boolean(state.nextCursor)}
-              onOpen={(id) => void model.open(id)} />
+              onOpen={(id) => void model.open(id)} onDelete={id => model.remove(id)} />
             {state.nextCursor ? (
               <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void model.loadMore()}>
                 加载更多
