@@ -54,7 +54,7 @@ export default function WebFaqPage({ returnLabel, onReturn }: { returnLabel: str
           <div className={styles['testNote']}>你正在使用测试版。选择 A / B 测试账号并输入对应凭证登录，两端请选同一个账号。</div>
         ) : null}
         {groups.map((group, index) => (
-          <details className={styles['group']} key={group.title} open={index === 0}>
+          <details className={styles['group']} key={group.title}>
             <summary className={styles['groupTitle']}>
               <span><h2>{group.title}</h2><span className={styles['description']}>{group.description}</span></span>
               <span className={styles['chevron']} aria-hidden="true">⌄</span>
