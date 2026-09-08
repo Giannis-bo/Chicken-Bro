@@ -1,0 +1,18 @@
+{
+  "build": {
+    "status": "pass",
+    "projectRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro",
+    "outputRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro/dist/weapp",
+    "fileCount": 43,
+    "stylesheet": "common.wxss",
+    "gitHead": "a7aac2374f24e58d02c60be5b72891206a515e3f",
+    "sourceHash": "sha256:b3da03d492d1f394e2b827ea60f2f863e08af1ef2f0036d10d6acc9280ddaebb",
+    "builtAt": "2026-09-08T12:23:55.086Z"
+  },
+  "compiledOriginChecks": {
+    "trial": "https://api.chickenbro.cloud",
+    "release": "https://api.chickenbro.cloud"
+  },
+  "testLogin": false,
+  "apiPrefix": "/api/v2"
+}
