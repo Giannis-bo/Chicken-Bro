@@ -12,6 +12,12 @@
 
 静态资源仅通过鉴权控制台或签名请求上传到新版本目录，不得为了上传恢复 COS 公有写。已有整改记录见 [COS 安全处理](../artifacts/security/2026-09-08-cos-write-hardening/report.md)；历史请求审计与恢复能力仍是独立待办。
 
+## 回答反馈增量发布（2026-09-08）
+
+源码 `5ace442c38f6ec2657c2804f6bf87b96aa46ade5` 已发布。`/opt/chickenbro` 指向 `/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`，Web current 指向 `/var/www/chickenbro-web/releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`；迁移 `0006_chat_resolution_feedback` 已应用，公网 27 文件哈希匹配，反馈接口验证通过。Mini `1.0.1` 已上传，微信公开发布待用户后台操作。见 [发布证据](../artifacts/verification/2026-09-08-chat-feedback/publish.json)。
+
+回滚前核对有效指针并排空任务，停止 API/Worker，代码原子恢复到 `/opt/chickenbro-releases/faq-f2932f8b6eb68ea7627ca428e14f460a57ab4ad4`，Web 恢复到 `/var/www/chickenbro-web/releases/simc-layout-27e3dd08b8a75bab`，启动服务并验证。保留新增列和已收集反馈，不反向删除。没有修改既有 dropin 或 SimC 引擎。
+
 ## 历史运行与操作记录
 
 状态：当前生产操作权威；Phase 5 accepted_write、生产 Chat/SimC 双端业务验收、首条新写入核对和稳定健康窗口均已通过。2026-09-04 用户明确授权不制作独立备份并直接永久清理旧目标；云端与本地旧服务/代码/数据已按精确清单完成清理，最终只剩 main/origin parity 与 WeApp 刷新收尾。

@@ -1,0 +1,42 @@
+{
+  "status": "web_backend_live_mini_uploaded_publication_pending",
+  "sourceCommit": "5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+  "codeRoot": "/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+  "webRoot": "/var/www/chickenbro-web/releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+  "rollbackCode": "/opt/chickenbro-releases/faq-f2932f8b6eb68ea7627ca428e14f460a57ab4ad4",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/simc-layout-27e3dd08b8a75bab",
+  "migration": "0006_chat_resolution_feedback",
+  "candidateTests": 17,
+  "publicWebFilesMatched": 27,
+  "smoke": {
+    "status": "passed",
+    "transport": "public_https",
+    "sourceCommit": "5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+    "checks": [
+      "mini_write_web_read",
+      "immutable_409",
+      "same_choice_idempotent",
+      "other_owner_404",
+      "web_csrf_403",
+      "legacy_contract_unchanged"
+    ],
+    "realWechatLogin": "not_run_dedicated_verification_sessions",
+    "conversationId": "313b1bb2-15ed-5e20-9697-6aac6463a094",
+    "fixtureAnswer": "synthetic_no_model_call"
+  },
+  "mini": {
+    "version": "1.0.1",
+    "upload": "passed",
+    "bytes": 1066177,
+    "publicRelease": "pending_user_platform_action",
+    "blocker": "browser_site_safety_policy_blocks_mp.weixin.qq.com",
+    "buildIdentity": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+      "sourceHash": "sha256:a8c5323c0da04a3affb686b7c482bd8006e71053144f5b03e954397862fd58e3",
+      "builtAt": "2026-09-08T11:53:11.280Z"
+    }
+  },
+  "runtimeReadiness": "ready",
+  "simcRuntimeChanged": false
+}
