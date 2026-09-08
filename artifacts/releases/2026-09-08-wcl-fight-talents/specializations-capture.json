@@ -1,0 +1,7 @@
+{
+  "note": "Text evidence normalized to one final LF. The pinned catalog hash identifies original captured bytes; no runtime metadata changed.",
+  "originalCaptureSha256": "7128443e43775eb6ba9f868911ef7500b3c9d7aaccedd71bc83516c7acb8cbd9",
+  "normalizedTextSha256": "e2db6d2b575fe2ebdbac5052b172803a21cb191cb2861892216a859dce8038e8",
+  "removedTrailingLfCount": 2,
+  "reproduceOriginal": "Append removedTrailingLfCount LF bytes to specializations.txt."
+}

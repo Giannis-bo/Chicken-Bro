@@ -1,0 +1,22 @@
+{
+  "status": "user_accepted_integration_verified",
+  "backendTests": 413,
+  "frontendTests": 290,
+  "controlTests": 62,
+  "opsNodeTests": 101,
+  "opsPythonTests": 14,
+  "publishTests": 2,
+  "typecheck": "passed",
+  "lint": "passed",
+  "independentReview": "passed",
+  "production": {
+    "root": "/opt/chickenbro-releases/wcl-8a1a893b1b4b75de7515c85d4cd4a411c49dae30",
+    "sha256": {
+      "server/app/simulation/sources.py": "d1f483603d691bd5eaf738b8b9a3e46448088b0238bb85654c1747b346f8a406",
+      "server/app/simulation/wcl_talents.py": "a943073101c5ed9ab708398a8058417da61366ba53d7bd958ab2758360aa7d0e",
+      "server/app/simulation/compiler.py": "e61827d5900be91d2a74893476b6812a0cbd00b41b7e3d82a80148e2f129a7c9",
+      "server/app/simulation/readiness.py": "cc2c967daaf80b82a0175605c07dbb47fccb48b5ca622a16504b1f1b1f9aef49",
+      "server/app/simulation/data/traits-12.1.0.json": "98894e905a902219d2b55b08080bcd1f821128d615d84da2692bff7f756d264f"
+    }
+  }
+}
