@@ -1239,7 +1239,7 @@
     opacity: 0.56;
     filter: saturate(0.75);
   }
-  &[data-empty='false'] .chatScene { opacity: 0.16; }
+  &[data-empty='false'] .chatScene { opacity: 0.32; }
   &[data-empty='true'] {
     .messageContent { height: 100%; }
     .emptyState {

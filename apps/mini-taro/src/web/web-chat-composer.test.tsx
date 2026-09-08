@@ -3,7 +3,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), streamMessage: vi.fn() }))
+const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), streamMessage: vi.fn() }))
 vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api } }))
 vi.mock('@tarojs/components', async () => {
   const { createElement: element } = await import('react')
@@ -54,6 +54,35 @@ describe('Web chat composer interactions', () => {
     await act(async () => input().dispatchEvent(event))
     return event
   }
+
+  it('shows the welcome screen after creating a conversation and hides it on the first send', async () => {
+    const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
+    const existing = { id: 'chat-one', title: 'Test', updatedAt: '2026-09-05', messages: [
+      { id: 'old-message', role: 'user', content: '已有消息', createdAt: '2026-09-05' },
+    ] }
+    api.get.mockResolvedValue(success(existing))
+    const history = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('Test'))!
+    await act(async () => history.click())
+    expect(container.textContent).toContain('已有消息')
+    expect(container.textContent).not.toContain('准备好了，随时开始')
+
+    const fresh = { id: 'chat-new', title: '新对话', updatedAt: '2026-09-08' }
+    api.create.mockResolvedValue(success(fresh))
+    api.get.mockResolvedValue(success({ ...fresh, messages: [] }))
+    const create = Array.from(container.querySelectorAll('button')).find(button => button.textContent?.includes('+ 新对话'))!
+    await act(async () => create.click())
+    expect(container.textContent).toContain('准备好了，随时开始')
+    expect(container.querySelector('[data-empty="true"]')).not.toBeNull()
+    expect(container.textContent).not.toContain('已有消息')
+    expect(container.textContent).not.toContain('回到最新')
+    const prompt = Array.from(container.querySelectorAll('button')).find(button => button.textContent === '帮我分析WCL的数据')!
+    await act(async () => prompt.click())
+    expect(input().value).toBe('帮我分析WCL的数据')
+    await enter()
+    expect(container.textContent).not.toContain('准备好了，随时开始')
+    expect(container.querySelector('[data-empty="true"]')).toBeNull()
+    expect(container.querySelector('[aria-label="正在回复"]')).not.toBeNull()
+  })
 
   it('streams an expandable summary, collapses at the answer, and restores server timing', async () => {
     await draft('分析日志')
