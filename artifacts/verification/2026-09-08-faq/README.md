@@ -57,3 +57,7 @@
 - 本轮未重新扫码、未上传/发布小程序、未宣称用户验收。裸域 chickenbro.cloud 的附加检查遇到证书主机名不匹配，既有 TLS 配置未改；正式入口使用 https://www.chickenbro.cloud/。
 
 正式 www 入口 readiness 为 ready，34 项公网静态文件 SHA 与发布 manifest 一致；最终 62 项控制面通过。见 public-verification.json。
+
+## 默认全部折叠追加调整
+
+用户要求首次进入 FAQ 四个分类全部折叠。正式 Web 已更新至 f715fb7531a4fc16c14fe9e46d0cc0cbf336192f，14 项导航回归、类型检查与 H5 通过；生产浏览器从对话页首次进入 FAQ，四个 details.open 均为 false。API/Worker 不变，旧 Web 根保留。见 collapsed-release.json。
