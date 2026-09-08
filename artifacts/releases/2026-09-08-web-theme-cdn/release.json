@@ -1,5 +1,5 @@
 {
-  "status": "cdn_and_web_preview_verified",
+  "status": "cdn_and_production_web_verified",
   "cdnRoot": "https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1",
   "files": 7,
   "totalBytes": 10111725,
@@ -11,7 +11,7 @@
   "typecheck": "passed",
   "lint": "passed",
   "h5Build": "passed_existing_size_warnings",
-  "productionWebCutover": "not_performed",
+  "productionWebCutover": "completed",
   "userAcceptance": "pending",
   "inheritedBucketPermissions": "public_read_write_unchanged",
   "uploadMethod": "COS PUT over HTTPS; new release prefix only; forbid overwrite; no stored credentials or new dependencies",
@@ -46,5 +46,15 @@
         0.31169
       ]
     }
-  }
+  },
+  "sourceCommit": "b356cd170169c4d3ec62fed564d561e31ecd24d7",
+  "webRoot": "/var/www/chickenbro-web/releases/theme-cdn-b356cd170169c4d3ec62fed564d561e31ecd24d7",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/mini-parity-4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "publicFilesMatched": 27,
+  "productionBrowserCheck": "passed: existing session/history, seven CDN theme URLs, rendered alliance art, refresh persistence",
+  "apiWorkerMini": "unchanged",
+  "gitPush": "not_performed",
+  "productionUrl": "https://www.chickenbro.cloud/",
+  "newChatOrSimcWrites": "not_performed",
+  "refreshPersistence": "passed"
 }

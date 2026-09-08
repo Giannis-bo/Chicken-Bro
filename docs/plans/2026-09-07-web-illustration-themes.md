@@ -8,6 +8,7 @@
 - `web-theme-cdn.json` 为当前 Web 资源地址清单。`node scripts/prepare-web-theme-cdn.cjs prepare` 生成七张原图及字节/SHA 清单；`verify` 从 CDN 回读全部文件，验证图片类型及一年 immutable 缓存。传输内容按字节验证，原图无压缩和画质变化。
 - 上传仅新增上述版本目录，保留所有历史资源，不覆盖旧对象。资源更新需新版本目录；回滚 Web 到前一构建即可恢复旧资源路径。
 - 当前控制台和实际上传证明桶允许匿名写入，这是继承的权限风险；本次未改桶权限，后续应单独收紧为公有读、鉴权写。
+- 正式 Web 已部署源码 `b356cd170169c4d3ec62fed564d561e31ecd24d7`；27 个线上文件 SHA 匹配，已检查已有登录态、七主题 CDN 地址切换与刷新恢复，原联盟主题已恢复。321 前端、62 控制面、类型、lint、正式 H5 构建通过；现有 bundle 体积警告保留。旧 Web 为 `mini-parity-4b2119190debee22b637c2fe7ba5ce28c3958af9`，保留作回滚点，API/Worker/Mini 不变。尚未推送或合入 main，用户体验验收待完成。
 - 交付证据：[CDN 发布记录](../../artifacts/releases/2026-09-08-web-theme-cdn/release.json)。用户体验验收与合入收尾另行记录。
 
 状态：`已完成`；用户 2026-09-07 已确认六张插画并授权上色和主题功能；伊利丹暂缓。
