@@ -1,0 +1,35 @@
+{
+  "status": "local_verified_and_web_deployed_mini_uploaded",
+  "sourceCommit": "4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "frontendTests": 319,
+  "controlTests": 62,
+  "typecheck": "passed",
+  "lint": "passed",
+  "buildH5": "passed_existing_size_warnings",
+  "buildWeapp": "passed_existing_size_warnings",
+  "independentReview": "passed_after_logout_race_fixes",
+  "mini": {
+    "version": "2026.09.08-parity",
+    "upload": "success",
+    "preview": "success",
+    "packageBytes": 1070581,
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "4b2119190debee22b637c2fe7ba5ce28c3958af9",
+      "sourceHash": "sha256:a7b816a035f35710cbc5e5ec299e6b0a900d52d0ad196514b953fdf8a7124166",
+      "builtAt": "2026-09-08T05:21:03.382Z"
+    },
+    "testLoginUI": false,
+    "platformReviewAndPublish": "not_performed",
+    "realPhoneAcceptance": "pending"
+  },
+  "web": {
+    "publicFilesMatched": 34,
+    "existingUserSessionRestored": true,
+    "miniLogoutDidNotLogoutWeb": true,
+    "temporaryMiniDeletedConversationAbsent": true
+  },
+  "apiWorkerChanged": false,
+  "gitPush": "not_run",
+  "userAcceptance": "pending"
+}

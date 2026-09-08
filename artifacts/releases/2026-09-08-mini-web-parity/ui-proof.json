@@ -1,0 +1,10 @@
+{
+  "apiMocks": false,
+  "nativeActionSheetSelection": "automated selection only",
+  "checks": [
+    "FAQ four groups collapsed",
+    "FAQ historical examples expanded",
+    "account panel and theme saved",
+    "cached Simc tab remains usable"
+  ]
+}

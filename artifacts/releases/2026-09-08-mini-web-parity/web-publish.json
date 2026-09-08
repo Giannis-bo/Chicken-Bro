@@ -1,0 +1,8 @@
+{
+  "status": "published",
+  "commit": "4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "webRoot": "/var/www/chickenbro-web/releases/mini-parity-4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "previousWeb": "/var/www/chickenbro-web/releases/faq-collapsed-f715fb7531a4fc16c14fe9e46d0cc0cbf336192f",
+  "publicFilesMatched": 34,
+  "apiWorkerChanged": false
+}

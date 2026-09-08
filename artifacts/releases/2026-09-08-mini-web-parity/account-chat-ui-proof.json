@@ -1,0 +1,8 @@
+{
+  "source": "4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "apiMocks": false,
+  "nativePromptSelection": "automated",
+  "logoutAcrossTabs": true,
+  "reloginRestoresPage": true,
+  "createdAndDeletedOnlyNewConversation": true
+}
