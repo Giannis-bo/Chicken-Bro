@@ -79,7 +79,11 @@ function remainingSeconds(expiresAt: string, now: number): number {
 }
 
 export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
-  useEffect(normalizeWebUrl, [])
+  useEffect(() => {
+    normalizeWebUrl()
+    window.addEventListener('hashchange', normalizeWebUrl)
+    return () => window.removeEventListener('hashchange', normalizeWebUrl)
+  }, [])
   const webAuth = authClient
   const [state, setState] = useState<WebAuthState>(initialWebAuthState)
   const [account, setAccount] = useState<MeResponse | null>(null)

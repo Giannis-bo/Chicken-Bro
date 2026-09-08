@@ -150,6 +150,13 @@ describe('unauthenticated Web home', () => {
     expect(vi.mocked(auth.createWebLoginSession).mock.calls[1]).toEqual(firstAttempt)
   })
 
+  it('shortens a legacy chat fragment opened in the current document', async () => {
+    await render()
+    window.history.replaceState(null, '', '/#/pages/chickenbro/index')
+    await act(async () => window.dispatchEvent(new HashChangeEvent('hashchange')))
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/')
+  })
+
   it('preserves a legacy SimC destination through Mini confirmation and login', async () => {
     window.history.replaceState(null, '', '/?view=simc#/pages/chickenbro/index')
     await render()
