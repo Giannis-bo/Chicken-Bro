@@ -1,0 +1,1 @@
+{"status": "published", "patchCommit": "8a1a893b1b4b75de7515c85d4cd4a411c49dae30", "codeRoot": "/opt/chickenbro-releases/wcl-8a1a893b1b4b75de7515c85d4cd4a411c49dae30", "rollbackCode": "/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13", "webUnchanged": "/var/www/chickenbro-web/releases/welcome-529a7f1305c28ed96dfff37e8a7d9d7d64bf6bdc", "databaseChanged": false}

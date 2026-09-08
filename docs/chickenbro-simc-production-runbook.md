@@ -536,3 +536,11 @@ Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenb
 29 个线上 Web 文件哈希通过，两个公网域名 ready。小程序 `2026.09.07-chat`（1,036,862 bytes）上传成功，正式 API，开发预览二维码已提供；尚未设为固定体验版或提交微信审核/发布。隔离库真实 Codex 回复与耗时保存通过，摘要存储另经自动化测试验证；该短问题未返回公开摘要，真实手机体验仍待用户验收。见 [发布记录](../artifacts/releases/2026-09-07-chat-progress-timing/release.json)。
 
 回滚前排空当前聊天/模拟任务，停止 API/Worker，把 code 指回 `/opt/chickenbro-releases/95fedba9c5fbc8088a652a887b70dad144164313`，Web 指回 `/var/www/chickenbro-web/releases/brand-centered-8a047efdaecb14b56590c4f8f72902192b173f48`；仅移除本次两个 `99-chat-progress-release-20260907.conf`，daemon-reload 后启动服务并核对 readiness。保留新增列、已存摘要以及旧品牌/头像配置；不执行破坏性反向迁移。源码分支保留，尚未合并 main 或推送。
+
+## WCL 历史天赋修复发布（2026-09-08）
+
+用户已批准发布。`/opt/chickenbro` 指向 `/opt/chickenbro-releases/wcl-8a1a893b1b4b75de7515c85d4cd4a411c49dae30`，是在旧生产 `29c5b2a258bb76c54726fad7285eca25643fbc13` 上精确覆盖五个后端源码/目录文件的组合版本；完整覆盖清单见 [manifest](../artifacts/releases/2026-09-08-wcl-fight-talents/publish-manifest.json)。根目录原始 BRANCH_COMMIT 仍表示基线，补丁身份以 manifest/release 为准。Web 保留并发任务新发布的 `welcome-529a7f1305c28ed96dfff37e8a7d9d7d64bf6bdc`，不修改服务 dropin、登录配置或数据库。
+
+正式原始 WCL 链接读取就绪并完成模拟任务 `2110bcab-27da-4614-a6cf-da07590f5c3b`；新天赋还原路径绑定 SimC 源 f50a2121 的节点目录，未知或不同 runtime 拒绝使用旧目录。
+
+回滚须先确认当前 code 指针仍为上述 wcl 目录、入口无流式 Chat 且模拟/队列已排空；停止 API、再次排空再停 Worker，将 `/opt/chickenbro` 原子切回 `/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13`，启动 API/Worker 并核对 readiness 与任务功能。Web 指针和所有现有配置不动。旧代码及新还原快照保留，不反向迁移或清理用户任务。

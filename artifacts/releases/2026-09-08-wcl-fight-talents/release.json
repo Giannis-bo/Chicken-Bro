@@ -1,0 +1,39 @@
+{
+  "status": "production_deployed_business_smoke_passed",
+  "patchCommit": "8a1a893b1b4b75de7515c85d4cd4a411c49dae30",
+  "codeRoot": "/opt/chickenbro-releases/wcl-8a1a893b1b4b75de7515c85d4cd4a411c49dae30",
+  "rollbackCode": "/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "webUnchanged": "/var/www/chickenbro-web/releases/welcome-529a7f1305c28ed96dfff37e8a7d9d7d64bf6bdc",
+  "databaseChanged": false,
+  "sourceUrl": "https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+  "browser": {
+    "url": "https://www.chickenbro.cloud/simc",
+    "login": "existing_authenticated_session",
+    "characterStatus": "角色已就绪",
+    "character": "Giannis",
+    "jobId": "2110bcab-27da-4614-a6cf-da07590f5c3b",
+    "jobStatus": "completed",
+    "dps": 160305.26,
+    "iterationsActual": 299,
+    "iterationsLimit": 300,
+    "meanFightSeconds": 299.77,
+    "talentExportMatchedIndependentCloudProof": true,
+    "scenarioHash": "f9c08d3cbfc38807427e1bf6dca4691734e5884b7f542c25d97450949db61ac3",
+    "profileHash": "77aef713ba5c25021914c41801e97461dd976f4bbb179d3a262a414901ba9c81"
+  },
+  "backendTests": 413,
+  "controlTests": 62,
+  "publishTests": 2,
+  "independentReview": "passed",
+  "userAcceptance": "pending",
+  "gitMainMerged": false,
+  "gitPushed": false,
+  "existingReportNameGaps": "Some summon names remain unmatched; outside WCL import fix scope",
+  "patchedFilesSha256": {
+    "server/app/simulation/sources.py": "d1f483603d691bd5eaf738b8b9a3e46448088b0238bb85654c1747b346f8a406",
+    "server/app/simulation/wcl_talents.py": "a943073101c5ed9ab708398a8058417da61366ba53d7bd958ab2758360aa7d0e",
+    "server/app/simulation/readiness.py": "cc2c967daaf80b82a0175605c07dbb47fccb48b5ca622a16504b1f1b1f9aef49",
+    "server/app/simulation/compiler.py": "e61827d5900be91d2a74893476b6812a0cbd00b41b7e3d82a80148e2f129a7c9",
+    "server/app/simulation/data/traits-12.1.0.json": "98894e905a902219d2b55b08080bcd1f821128d615d84da2692bff7f756d264f"
+  }
+}
