@@ -113,6 +113,8 @@ def _raise_chat_error(error: ChatApplicationError) -> None:
         "CLIENT_MESSAGE_ID_INVALID": 422,
         "IDEMPOTENCY_CONFLICT": 409,
         "CHAT_RUN_IN_PROGRESS": 409,
+        "CHAT_ACCOUNT_BUSY": 409,
+        "CHAT_CONVERSATION_BUSY": 409,
         "CHAT_RUN_NOT_REPLAYABLE": 409,
         "CODEX_UNAVAILABLE": 503,
     }.get(error.code, 500)
@@ -229,3 +231,16 @@ def stream_message(
 
 
 __all__ = ["router"]
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: UUID,
+    principal: Principal = Depends(require_mutating_principal),
+    application: ChatApplication = Depends(chat_application),
+) -> dict[str, bool]:
+    try:
+        application.delete_conversation(principal, conversation_id)
+    except ChatApplicationError as error:
+        _raise_chat_error(error)
+    return {"deleted": True}

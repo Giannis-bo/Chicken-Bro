@@ -1,0 +1,36 @@
+{
+  "sourceCommit": "29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "status": "user_accepted",
+  "scope": "Web native button class selectors and dimensions",
+  "verification": {
+    "frontendTests": 275,
+    "typecheck": "passed",
+    "h5AndMiniBuilds": "passed",
+    "productionCSSBrowserVisual": "passed",
+    "publicWebHashesVerified": 29,
+    "releaseFilesVerified": 174,
+    "bothDomainsReadiness": "ready",
+    "nginx": "restored"
+  },
+  "rollbackSource": "c70d11561147187c0e4b85e7ef865290debbaabf",
+  "miniUpload": false,
+  "mainMerge": "authorized acceptance closure",
+  "push": "authorized acceptance closure",
+  "userAcceptance": {
+    "date": "2026-09-08",
+    "confirmation": "OK，可以。",
+    "scope": "Web deletion flow and corrected dialog buttons"
+  },
+  "closureVerification": {
+    "backend": 403,
+    "frontend": 275,
+    "migration": 77,
+    "migrationSkipped": 0,
+    "control": 62,
+    "ops": "passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "sourceDiffReview": "passed",
+    "deployedSourceUnchanged": true
+  }
+}

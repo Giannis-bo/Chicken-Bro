@@ -1,0 +1,24 @@
+.row { position: relative; }
+.row .conversationButton { padding-right: 43px; }
+.trash {
+  position: absolute; right: 9px; bottom: 9px; width: 28px; height: 28px;
+  display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
+  color: #9c948e; background: transparent; cursor: pointer;
+  &:hover, &:focus-visible { color: #a64837; background: #f3e5df; }
+}
+.dialog {
+  position: fixed; inset: 0; margin: auto; box-sizing: border-box;
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
+  padding: 25px; border: 1px solid #e8ddd6; border-radius: 18px;
+  background: #fffcf8; color: #51443c; box-shadow: 0 20px 70px #35251c30;
+  &::backdrop { background: #241c1759; }
+  h2 { margin: 0 0 12px; font-size: 18px; }
+  p { margin: 0 0 20px; line-height: 1.7; font-size: 14px; overflow-wrap: anywhere; }
+}
+.actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  .actionButton { appearance: none; min-width: 72px; font: inherit; line-height: 1.4; padding: 9px 19px; border: 1px solid #ded3cb; border-radius: 9px; color: #63564d; background: white; cursor: pointer; }
+  .confirm { background: #a64e3c; color: white; border-color: #a64e3c; }
+  .actionButton:disabled { opacity: .55; cursor: wait; }
+}
+.error { color: #a64837; }

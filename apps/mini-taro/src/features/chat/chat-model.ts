@@ -72,9 +72,13 @@ function resultProblem(result: ApiResult<unknown>, fallback: string): { code: st
 }
 
 export class ChatModel {
+  private readonly deletedIds = new Set<string>()
+  private openingId: string | null = null
   private state: ChatModelState = initialState
   private readonly listeners = new Set<ChatListener>()
   private readonly requestId: () => string
+  private readonly pendingBackgroundRefresh = new Set<string>()
+  private readonly backgroundStreams = new Set<ApiStreamTask>()
   private activeStream: ApiStreamTask | null = null
   private streamSucceeded = false
   private streamSequence = 0
@@ -124,7 +128,7 @@ export class ChatModel {
       this.apiFailure(result, '会话历史加载失败')
       return
     }
-    const conversations = [...result.payload.items]
+    const conversations = result.payload.items.filter(item => !this.deletedIds.has(item.id))
     this.update({
       phase: 'ready',
       conversations,
@@ -166,7 +170,7 @@ export class ChatModel {
       return
     }
     const byId = new Map(this.state.conversations.map((item) => [item.id, item]))
-    result.payload.items.forEach((item) => byId.set(item.id, item))
+    result.payload.items.filter(item => !this.deletedIds.has(item.id)).forEach((item) => byId.set(item.id, item))
     this.update({
       conversations: [...byId.values()],
       nextCursor: result.payload.nextCursor,
@@ -177,7 +181,9 @@ export class ChatModel {
   }
 
   async open(conversationId: string): Promise<void> {
+    this.pendingBackgroundRefresh.delete(conversationId)
     const generation = this.beginViewRequest()
+    this.openingId = conversationId
     this.update({ phase: 'loading', pendingUserContent: '', streamText: '', streamProgress: '', streamProgressStatus: 'thinking', streamCompletedAt: '', streamDurationMs: null, })
     let auth: ClientAuthContext
     try {
@@ -189,9 +195,12 @@ export class ChatModel {
     const result = await this.client.get(conversationId, { auth })
     if (generation !== this.streamGeneration) return
     if (result.fromFallback) {
+      this.openingId = null
       this.apiFailure(result, '会话内容加载失败')
       return
     }
+    this.openingId = null
+    if (this.deletedIds.has(conversationId)) return
     this.update({
       phase: 'ready',
       activeConversation: result.payload,
@@ -199,6 +208,30 @@ export class ChatModel {
       errorMessage: '',
       retryable: false,
     })
+    if (this.pendingBackgroundRefresh.delete(conversationId)) {
+      await this.refreshAfterStream(conversationId, false, generation)
+    }
+  }
+
+  async remove(conversationId: string): Promise<string | null> {
+    try {
+      const result = await this.client.remove(conversationId, { auth: this.authProvider() })
+      if (result.fromFallback) return result.problemCode === 'CHAT_CONVERSATION_BUSY'
+        ? '鸡哥正在回复此会话，请等待回复结束后再删除。' : '删除失败，请稍后重试。'
+      this.deletedIds.add(conversationId)
+      const conversations = this.state.conversations.filter(item => item.id !== conversationId)
+      if (this.openingId === conversationId || (!this.openingId && this.state.activeConversation?.id === conversationId)) {
+        this.beginViewRequest()
+        this.update({ ...initialState, phase: 'ready', conversations, nextCursor: this.state.nextCursor })
+      } else if (this.state.activeConversation?.id === conversationId) {
+        this.update({ ...initialState, phase: this.state.phase, conversations, nextCursor: this.state.nextCursor })
+      } else {
+        this.update({ conversations })
+      }
+      return null
+    } catch {
+      return '删除失败，请稍后重试。'
+    }
   }
 
   create(title?: string): Promise<ConversationSummary | null> {
@@ -283,19 +316,33 @@ export class ChatModel {
     const clientMessageId = boundedRequestId(this.requestId(), 'client-message')
     const idempotencyKey = boundedRequestId(this.requestId(), 'idempotency')
     let endedDuringStart = false
-    const task = this.client.streamMessage(
+    let task: ApiStreamTask | null = null
+    const finishBackground = () => {
+      if (!task || !this.backgroundStreams.delete(task)) return
+      this.pendingBackgroundRefresh.add(conversation.id)
+      if (this.state.activeConversation?.id === conversation.id
+        && (this.state.phase === 'ready' || this.state.phase === 'blocked')) {
+        this.pendingBackgroundRefresh.delete(conversation.id)
+        void this.refreshAfterStream(conversation.id, false, this.streamGeneration)
+      }
+    }
+    task = this.client.streamMessage(
       conversation.id,
       { content: normalized, clientMessageId },
       {
         auth,
         idempotencyKey,
         onEvent: (event) => {
-          if (event.type === 'completed' || event.type === 'failed') endedDuringStart = true
+          if (event.type === 'completed' || event.type === 'failed') {
+            endedDuringStart = true
+            finishBackground()
+          }
           this.onStreamEvent(event, conversation.id, generation)
           if (this.state.phase !== 'sending') endedDuringStart = true
         },
         onFailure: (error) => {
           endedDuringStart = true
+          finishBackground()
           this.onStreamFailure(error, conversation.id, generation)
         },
       },
@@ -320,15 +367,19 @@ export class ChatModel {
     this.streamGeneration += 1
     this.historyGeneration += 1
     activeStream?.abort()
+    for (const stream of this.backgroundStreams) stream.abort()
+    this.backgroundStreams.clear()
+    this.pendingBackgroundRefresh.clear()
     this.listeners.clear()
   }
 
   private beginViewRequest(): number {
+    this.openingId = null
     this.streamSucceeded = false
     const activeStream = this.activeStream
     this.activeStream = null
     this.streamGeneration += 1
-    activeStream?.abort()
+    if (activeStream) this.backgroundStreams.add(activeStream)
     return this.streamGeneration
   }
 
@@ -377,7 +428,9 @@ export class ChatModel {
   private onStreamFailure(error: string, conversationId: string, generation: number): void {
     if (generation !== this.streamGeneration) return
     this.activeStream = null
-    this.fail(error || 'CHAT_STREAM_FAILED', '回答连接中断，正在恢复服务端历史', true)
+    this.fail(error || 'CHAT_STREAM_FAILED', error === 'CHAT_ACCOUNT_BUSY'
+      ? '鸡哥正在回复你的另一条消息，请等待回复结束后再发送。'
+      : '回答连接中断，正在恢复服务端历史', true)
     void this.refreshAfterStream(conversationId, true, generation)
   }
 
@@ -386,7 +439,7 @@ export class ChatModel {
     preserveFailure: boolean,
     generation: number,
   ): Promise<void> {
-    if (generation !== this.streamGeneration) return
+    if (generation !== this.streamGeneration || this.deletedIds.has(conversationId)) return
     const failure = {
       errorCode: this.state.errorCode,
       errorMessage: this.state.errorMessage,

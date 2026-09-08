@@ -1,0 +1,82 @@
+{
+  "recordedAt": "2026-09-07T13:57:37.065289+00:00",
+  "status": "user_accepted",
+  "sourceCommit": "74d9b38d44de2d3693345c8d64a268a664a0ef23",
+  "branch": "codex/chat-account-limit",
+  "mainMerged": false,
+  "pushed": false,
+  "userAuthorization": "OK，部署到双端，我我验证一下。",
+  "manifestSha256": "db34d0297445d7b630627fe013fa0720ba5562d029cc5003f57bac9d51470b69",
+  "codeRoot": "/opt/chickenbro-releases/74d9b38d44de2d3693345c8d64a268a664a0ef23",
+  "webRoot": "/opt/chickenbro-releases/74d9b38d44de2d3693345c8d64a268a664a0ef23/web",
+  "rollbackCode": "/opt/chickenbro-releases/c8faf06322a98dc6f754ae8dbf96cfc8ba72c665",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/chat-duration-2474eb3146c89a87b5cd81fb122e752def35555d",
+  "newDropins": [
+    "/etc/systemd/system/chickenbro-api.service.d/99-chat-single-flight-release-20260907.conf",
+    "/etc/systemd/system/chickenbro-worker.service.d/99-chat-single-flight-release-20260907.conf"
+  ],
+  "migration": {
+    "id": "0005_chat_account_concurrency",
+    "productionApplied": true,
+    "index": "agent_runs_one_streaming_per_user",
+    "oldHistoryRewritten": false,
+    "writeFence": "removed_after_publication"
+  },
+  "candidate": {
+    "isolatedDatabase": "chickenbro_account_limit_verify_20260907",
+    "postgresTests": 7,
+    "skipped": 0,
+    "databaseRemovedAfterVerification": true
+  },
+  "live": {
+    "crossTransport": "Mini Bearer A -> Web Cookie B",
+    "busyStatus": 409,
+    "busyCode": "CHAT_ACCOUNT_BUSY",
+    "rejectedMessageRows": 0,
+    "firstNativeReply": "completed",
+    "secondNativeReplyAfterRelease": "completed",
+    "sameIdempotencyRetry": "passed",
+    "publicWebFilesHashVerified": 29,
+    "allReleaseFilesHashVerified": 173,
+    "wwwReadiness": "ready",
+    "apiReadiness": "ready",
+    "testAccountSessions": "revoked",
+    "realWechatLogin": "not_run",
+    "realPhoneAcceptance": "pending"
+  },
+  "mini": {
+    "version": "2026.09.07-limit",
+    "upload": "success",
+    "packageBytes": 1038464,
+    "previewPackageBytes": 1038248,
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "74d9b38d44de2d3693345c8d64a268a664a0ef23",
+      "sourceHash": "sha256:224aacebbee0ceb263aed534ac85a4c514332df376043ed6a5ee7c00f087e884",
+      "builtAt": "2026-09-07T13:52:08.291Z"
+    },
+    "preview": "success",
+    "previewQr": "mini-preview.png",
+    "apiOrigin": "https://api.chickenbro.cloud",
+    "testLoginUI": false,
+    "setAsTrialVersion": "not_performed",
+    "platformReviewAndPublish": "not_performed"
+  },
+  "verification": {
+    "backend": 403,
+    "frontend": 270,
+    "migrationLocal": 72,
+    "migrationSkipped": 0,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed",
+    "weapp": "passed",
+    "independentReview": "passed_after_navigation_regressions"
+  },
+  "userAcceptance": {
+    "status": "passed",
+    "confirmation": "OK，符合预期。",
+    "date": "2026-09-07"
+  }
+}

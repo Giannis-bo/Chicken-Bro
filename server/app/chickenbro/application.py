@@ -8,7 +8,7 @@ from typing import Any
 from uuid import UUID, uuid4, uuid5
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
-from server.app.chickenbro.domain import AgentRunStatus, Conversation, ConversationStatus
+from server.app.chickenbro.domain import ConversationUnavailable, ConversationBusy, ChatAccountBusy, AgentRunStatus, Conversation, ConversationStatus
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
 from server.app.identity.domain import Principal
 
@@ -134,12 +134,23 @@ class ChatApplication:
             bounded_title,
             _utc(self._clock),
         )
+        if _value(conversation, "status") not in {ConversationStatus.ACTIVE, "active"}:
+            raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
         if str(_value(conversation, "title", "")) != bounded_title:
             raise ChatApplicationError(
                 "IDEMPOTENCY_CONFLICT",
                 "idempotency identity belongs to a different conversation request",
             )
         return conversation
+
+    def delete_conversation(self, principal: Principal, conversation_id: UUID) -> None:
+        self._recover_stale_agent_runs(principal, conversation_id)
+        try:
+            self._repository.archive_conversation(principal.user_id, conversation_id)
+        except ConversationUnavailable as error:
+            raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found") from error
+        except ConversationBusy as error:
+            raise ChatApplicationError("CHAT_CONVERSATION_BUSY", "鸡哥正在回复此会话，请等待回复结束后再删除。") from error
 
     def list_conversations(
         self,
@@ -281,7 +292,7 @@ class ChatApplication:
             client_message_id = str(client_message_id).strip()
             if not client_message_id or len(client_message_id) > 128:
                 raise ChatApplicationError("CLIENT_MESSAGE_ID_INVALID", "client message id is invalid")
-        self._recover_stale_agent_runs(principal, conversation_id)
+        self._recover_stale_agent_runs(principal, None)
         existing_run = self._find_idempotent_run(
             principal,
             conversation_id,
@@ -327,6 +338,13 @@ class ChatApplication:
             if raced_run is not None:
                 yield from self._replay_agent_run(principal, raced_run)
                 return
+            if isinstance(error, ConversationUnavailable):
+                raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found") from error
+            if isinstance(error, ChatAccountBusy):
+                raise ChatApplicationError(
+                    "CHAT_ACCOUNT_BUSY",
+                    "鸡哥正在回复你的另一条消息，请等待回复结束后再发送。",
+                ) from error
             raise ChatApplicationError(
                 "CHAT_PERSISTENCE_FAILED",
                 "user message and agent run could not be persisted",
@@ -473,7 +491,7 @@ class ChatApplication:
     def _recover_stale_agent_runs(
         self,
         principal: Principal,
-        conversation_id: UUID,
+        conversation_id: UUID | None,
     ) -> None:
         now = _utc(self._clock)
         stale_before = now - timedelta(

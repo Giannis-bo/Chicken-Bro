@@ -47,6 +47,7 @@ export interface ChatStreamOptions extends ChatRequestOptions {
 }
 
 export interface ChatClient {
+  remove(conversationId: string, options: ChatRequestOptions): Promise<ApiResult<{ deleted: boolean }>>
   list(request: ChatListRequest, options: ChatRequestOptions): Promise<ApiResult<ConversationPage>>
   create(request: ChatCreateRequest, options: ChatCreateOptions): Promise<ApiResult<ConversationSummary>>
   get(conversationId: string, options: ChatRequestOptions): Promise<ApiResult<ConversationDetail>>
@@ -88,7 +89,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     data: RequestData | undefined,
     options: ChatRequestOptions,
     config: {
-      method?: 'GET' | 'POST'
+      method?: 'GET' | 'POST' | 'DELETE'
       mutating: boolean
       idempotencyKey?: string
       fallback: () => T
@@ -109,6 +110,13 @@ export function createChatClient(transport: ApiTransport): ChatClient {
   }
 
   return {
+    remove(conversationId, options) {
+      const id = boundedIdentifier(conversationId, 'conversation id')
+      return request(apiV2Path(`/chat/conversations/${encodeURIComponent(id)}`), undefined, options, {
+        method: 'DELETE', mutating: true, fallback: () => ({ deleted: false }),
+        validate: value => typeof value === 'object' && value !== null && 'deleted' in value && value.deleted === true,
+      })
+    },
     list(listRequest, options) {
       const query = new URLSearchParams()
       if (listRequest.cursor !== undefined) query.set('cursor', listRequest.cursor)

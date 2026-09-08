@@ -5,8 +5,11 @@ from uuid import UUID, uuid4
 
 from server.app.chickenbro.domain import (
     AgentRun,
+    ChatAccountBusy,
     AgentRunStatus,
     Conversation,
+    ConversationUnavailable,
+    ConversationBusy,
     ConversationStatus,
     Message,
     MessageRole,
@@ -59,6 +62,23 @@ class PostgresChatRepository:
                     raise RuntimeError("idempotent conversation identity is owned by another user")
         return self._conversation_from_row(row)
 
+    def archive_conversation(self, user_id: UUID, conversation_id: UUID) -> None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT status FROM chat.conversations WHERE user_id = %s AND id = %s FOR UPDATE",
+                               (user_id, conversation_id))
+                row = cursor.fetchone()
+                if row is None:
+                    raise ConversationUnavailable()
+                if _row_value(row, "status", 0) == "archived":
+                    return
+                cursor.execute("SELECT 1 FROM chat.agent_runs WHERE user_id = %s AND conversation_id = %s AND status = 'streaming' LIMIT 1",
+                               (user_id, conversation_id))
+                if cursor.fetchone() is not None:
+                    raise ConversationBusy()
+                cursor.execute("UPDATE chat.conversations SET status = 'archived' WHERE user_id = %s AND id = %s",
+                               (user_id, conversation_id))
+
     def get_conversation(self, user_id: UUID, conversation_id: UUID) -> Conversation | None:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
@@ -66,7 +86,7 @@ class PostgresChatRepository:
                     """
                     SELECT id, user_id, title, status, created_at, updated_at
                     FROM chat.conversations
-                    WHERE user_id = %s AND id = %s
+                    WHERE user_id = %s AND id = %s AND status = 'active'
                     """,
                     (user_id, conversation_id),
                 )
@@ -88,7 +108,7 @@ class PostgresChatRepository:
                         """
                         SELECT id, user_id, title, status, created_at, updated_at
                         FROM chat.conversations
-                        WHERE user_id = %s
+                        WHERE user_id = %s AND status = 'active'
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
                         (user_id, limit),
@@ -99,7 +119,7 @@ class PostgresChatRepository:
                         """
                         SELECT id, user_id, title, status, created_at, updated_at
                         FROM chat.conversations
-                        WHERE user_id = %s
+                        WHERE user_id = %s AND status = 'active'
                           AND (updated_at, id) < (%s, %s)
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
@@ -211,25 +231,25 @@ class PostgresChatRepository:
     def recover_stale_agent_runs(
         self,
         user_id: UUID,
-        conversation_id: UUID,
+        conversation_id: UUID | None,
         stale_before: datetime,
         finished_at: datetime,
     ) -> int:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """
+                    f"""
                     UPDATE chat.agent_runs
                     SET status = 'failed',
                         assistant_message_id = NULL,
                         public_error_code = 'CODEX_EXECUTION_FAILED',
                         finished_at = %s
                     WHERE user_id = %s
-                      AND conversation_id = %s
+                      {"AND conversation_id = %s" if conversation_id is not None else ""}
                       AND status = 'streaming'
                       AND started_at <= %s
                     """,
-                    (finished_at, user_id, conversation_id, stale_before),
+                    (finished_at, user_id, *((conversation_id,) if conversation_id is not None else ()), stale_before),
                 )
                 return int(cursor.rowcount)
 
@@ -248,6 +268,11 @@ class PostgresChatRepository:
         run_id = uuid4()
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
+                # Serialize message admission with soft deletion of this conversation.
+                cursor.execute("SELECT id FROM chat.conversations WHERE user_id = %s AND id = %s AND status = 'active' FOR UPDATE",
+                               (user_id, conversation_id))
+                if cursor.fetchone() is None:
+                    raise ConversationUnavailable()
                 cursor.execute(
                     """
                     INSERT INTO chat.messages (
@@ -257,24 +282,29 @@ class PostgresChatRepository:
                     """,
                     (message_id, conversation_id, user_id, content, client_message_id, now),
                 )
-                cursor.execute(
-                    """
-                    INSERT INTO chat.agent_runs (
-                        id, user_id, conversation_id, user_message_id, status,
-                        runtime_revision, started_at, idempotency_key
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO chat.agent_runs (
+                            id, user_id, conversation_id, user_message_id, status,
+                            runtime_revision, started_at, idempotency_key
+                        )
+                        VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
+                        """,
+                        (
+                            run_id,
+                            user_id,
+                            conversation_id,
+                            message_id,
+                            runtime_revision,
+                            now,
+                            idempotency_key,
+                        ),
                     )
-                    VALUES (%s, %s, %s, %s, 'streaming', %s, %s, %s)
-                    """,
-                    (
-                        run_id,
-                        user_id,
-                        conversation_id,
-                        message_id,
-                        runtime_revision,
-                        now,
-                        idempotency_key,
-                    ),
-                )
+                except Exception as error:
+                    if getattr(getattr(error, "diag", None), "constraint_name", None) == "agent_runs_one_streaming_per_user":
+                        raise ChatAccountBusy("account already has a streaming reply") from error
+                    raise
                 cursor.execute(
                     """
                     UPDATE chat.conversations

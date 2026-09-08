@@ -426,7 +426,9 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
         if (failed || aborted) return
         if (!response.ok) {
           clearRequestTimeout()
-          fail(`HTTP ${response.status}`)
+          let problem: unknown
+          try { problem = await response.json() } catch { /* Non-JSON HTTP errors keep their status. */ }
+          fail(responseProblemCode(problem) || `HTTP ${response.status}`)
           return
         }
         const reader = response.body?.getReader()
@@ -460,6 +462,9 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       return { abort }
     }
 
+    // Retain a bounded prefix for non-SSE problem responses on Mini chunked requests.
+    const problemPrefix = new Uint8Array(16384)
+    let problemBytes = 0
     const task = Taro.request<unknown>({
       url,
       method: options.method ?? 'POST',
@@ -469,7 +474,7 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       credentials: authRequest.credentials,
       enableChunked: true,
       responseType: 'arraybuffer',
-    }) as unknown as Promise<{ statusCode: number }> & {
+    }) as unknown as Promise<{ statusCode: number; data?: unknown }> & {
       abort?: () => void
       onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
     }
@@ -484,6 +489,9 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       task.onChunkReceived(({ data }) => {
         if (failed || aborted || ended) return
         try {
+          const prefix = new Uint8Array(data).subarray(0, problemPrefix.length - problemBytes)
+          problemPrefix.set(prefix, problemBytes)
+          problemBytes += prefix.length
           decoder.push(data).forEach((event) => emit(event, abort))
         } catch {
           fail('malformed SSE payload')
@@ -494,7 +502,15 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
     void task.then((response) => {
       if (failed || aborted || ended) return
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        fail(`HTTP ${response.statusCode}`)
+        let problem = response.data
+        try {
+          if (problem instanceof ArrayBuffer) problem = new TextDecoder().decode(problem)
+          if (problem === undefined || problem === '') {
+            problem = new TextDecoder().decode(problemPrefix.subarray(0, problemBytes))
+          }
+          if (typeof problem === 'string') problem = JSON.parse(problem)
+        } catch { /* Non-JSON HTTP errors keep their status. */ }
+        fail(responseProblemCode(problem) || `HTTP ${response.statusCode}`)
         return
       }
       try {

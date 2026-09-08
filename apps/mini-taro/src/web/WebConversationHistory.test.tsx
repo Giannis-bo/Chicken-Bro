@@ -11,10 +11,14 @@ const conversation = (id: string, updatedAt: string): ConversationSummary => ({
 describe('Web history day groups', () => {
   let container: HTMLDivElement
   let root: Root
+  const onDelete = vi.fn(async () => null as string | null)
   const onOpen = vi.fn()
   beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     onOpen.mockClear()
+    onDelete.mockClear()
+    HTMLDialogElement.prototype.showModal = function () { this.open = true }
+    HTMLDialogElement.prototype.close = function () { this.open = false }
     container = document.createElement('div')
     document.body.append(container)
     root = createRoot(container)
@@ -25,9 +29,26 @@ describe('Web history day groups', () => {
     vi.unstubAllGlobals()
   })
   async function render(conversations: ConversationSummary[], activeId = '', hasMore = false) {
-    await act(async () => root.render(createElement(WebConversationHistory, { conversations, activeId, hasMore, onOpen })))
+    await act(async () => root.render(createElement(WebConversationHistory, { conversations, activeId, hasMore, onOpen, onDelete })))
   }
   const groups = () => Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'))
+
+  it('requires confirmation and cancel does not delete or open the conversation', async () => {
+    await render([conversation('one', '2026-09-05T12:00:00+08:00')])
+    const trash = container.querySelector<HTMLButtonElement>('[title="删除会话"]')!
+    expect(trash).not.toBeNull()
+    await act(async () => trash.click())
+    expect(onOpen).not.toHaveBeenCalled()
+    expect(onDelete).not.toHaveBeenCalled()
+    const dialog = container.querySelector<HTMLDialogElement>('dialog')!
+    expect(dialog.open).toBe(true)
+    const buttons = Array.from(dialog.querySelectorAll('button'))
+    await act(async () => buttons.find(b => b.textContent === '取消')!.click())
+    expect(onDelete).not.toHaveBeenCalled()
+    await act(async () => trash.click())
+    await act(async () => Array.from(container.querySelectorAll('dialog button')).find(b => b.textContent === '删除')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith('one')
+  })
 
   it('groups offset timestamps in Beijing time, sorts recent first and displays only HH:mm', async () => {
     await render([

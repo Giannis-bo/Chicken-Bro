@@ -255,3 +255,14 @@ describe('formal Chat client', () => {
     },
   )
 })
+
+it('sends deletion through the owner-authenticated formal route and validates acknowledgement', async () => {
+  const transport = new RecordingTransport()
+  const auth = { kind: 'web' as const, csrfToken: 'csrf' }
+  await createChatClient(transport).remove('conversation/one', { auth })
+  const call = transport.requests[0]!
+  expect(call.path).toBe('/api/v2/chat/conversations/conversation%2Fone')
+  expect(call.options).toMatchObject({ method: 'DELETE', auth, responseMode: 'structured-problem' })
+  expect(call.options.validate?.({ deleted: true })).toBe(true)
+  expect(call.options.validate?.({ deleted: false })).toBe(false)
+})

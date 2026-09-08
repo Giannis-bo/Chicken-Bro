@@ -259,7 +259,7 @@ class OwnerIsolationTest(unittest.TestCase):
         owner_id = UUID("00000000-0000-0000-0000-0000000000a1")
         conversation_id = UUID("00000000-0000-4000-8000-0000000000a2")
         now = datetime(2026, 9, 3, 11, 25, tzinfo=timezone.utc)
-        cursor = RecordingCursor([], fail_on_execute=2)
+        cursor = RecordingCursor([(conversation_id,)], fail_on_execute=3)
         connection = RecordingConnection(cursor)
         repository = PostgresChatRepository(lambda: connection)
         self.assertTrue(
@@ -280,15 +280,15 @@ class OwnerIsolationTest(unittest.TestCase):
 
         self.assertEqual(connection.enter_count, 1)
         self.assertIs(connection.exit_exception_type, RuntimeError)
-        self.assertEqual(len(cursor.executed), 2)
-        self.assertIn("INSERT INTO chat.messages", cursor.executed[0][0])
-        self.assertIn("INSERT INTO chat.agent_runs", cursor.executed[1][0])
+        self.assertEqual(len(cursor.executed), 3)
+        self.assertIn("INSERT INTO chat.messages", cursor.executed[1][0])
+        self.assertIn("INSERT INTO chat.agent_runs", cursor.executed[2][0])
 
     def test_postgres_atomic_start_persists_codex_runtime_revision(self):
         owner_id = UUID("00000000-0000-0000-0000-0000000000b1")
         conversation_id = UUID("00000000-0000-4000-8000-0000000000b2")
         now = datetime(2026, 9, 3, 11, 30, tzinfo=timezone.utc)
-        cursor = RecordingCursor([])
+        cursor = RecordingCursor([(conversation_id,)])
         repository = PostgresChatRepository(
             lambda: RecordingConnection(cursor),
         )
@@ -307,7 +307,7 @@ class OwnerIsolationTest(unittest.TestCase):
             self.fail(f"atomic start rejected runtime revision: {error}")
 
         self.assertEqual(run.runtime_revision, "codex:native:test-revision")
-        statement, parameters = cursor.executed[1]
+        statement, parameters = cursor.executed[2]
         self.assertIn("runtime_revision", statement)
         self.assertIn("codex:native:test-revision", parameters)
 
@@ -315,7 +315,7 @@ class OwnerIsolationTest(unittest.TestCase):
         owner_id = UUID("00000000-0000-0000-0000-0000000000d1")
         conversation_id = UUID("00000000-0000-4000-8000-0000000000d2")
         now = datetime(2026, 9, 3, 11, 32, tzinfo=timezone.utc)
-        cursor = RecordingCursor([])
+        cursor = RecordingCursor([(conversation_id,)])
         connection = RecordingConnection(cursor)
         repository = PostgresChatRepository(lambda: connection)
 
@@ -330,8 +330,8 @@ class OwnerIsolationTest(unittest.TestCase):
         )
 
         self.assertEqual(connection.enter_count, 1)
-        self.assertEqual(len(cursor.executed), 3)
-        statement, parameters = cursor.executed[2]
+        self.assertEqual(len(cursor.executed), 4)
+        statement, parameters = cursor.executed[3]
         self.assertIn("UPDATE chat.conversations", statement)
         self.assertIn("status = 'active'", statement)
         self.assertEqual(parameters, (now, conversation_id, owner_id))
