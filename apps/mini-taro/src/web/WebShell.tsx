@@ -1,32 +1,20 @@
 import { Button, Text, View } from '@tarojs/components'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
+import { readWebView as readView, webViewHref as viewHref, type WebView } from './web-routing'
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
 import WebServiceHealth from './WebServiceHealth'
 import WebHeaderActions from './WebHeaderActions'
 import WebFaqPage from './WebFaqPage'
+import { readWebTheme, resolveWebTheme, saveWebTheme, themeStorageKey, type WebThemeId } from './web-themes'
 import styles from './WebApp.module.scss'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 type BusinessView = 'chat' | 'simc'
-type WebView = BusinessView | 'faq'
-
-function readView(): WebView {
-  const view = new URLSearchParams(window.location.search).get('view')
-  return view === 'faq' || view === 'simc' ? view : 'chat'
-}
-
-function viewHref(view: WebView): string {
-  const url = new URL(window.location.href)
-  if (view === 'chat') url.searchParams.delete('view')
-  else url.searchParams.set('view', view)
-  return url.pathname + url.search + url.hash
-}
-
 const modes: Array<{ id: BusinessView; number: string; label: string }> = [
   { id: 'chat', number: '01', label: '对话' },
   { id: 'simc', number: '02', label: '模拟' },
@@ -39,6 +27,23 @@ export interface WebShellProps {
 }
 
 export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps) {
+  const [themeId, setThemeId] = useState(readWebTheme)
+  const [themeSaveFailed, setThemeSaveFailed] = useState(false)
+  const theme = resolveWebTheme(themeId)
+  const selectTheme = (id: WebThemeId) => {
+    setThemeId(id)
+    setThemeSaveFailed(!saveWebTheme(id))
+  }
+  useEffect(() => {
+    const restore = (event: StorageEvent) => {
+      if (event.key === themeStorageKey || event.key === null) {
+        setThemeId(readWebTheme())
+        setThemeSaveFailed(false)
+      }
+    }
+    window.addEventListener('storage', restore)
+    return () => window.removeEventListener('storage', restore)
+  }, [])
   const [avatar, setAvatar] = useState<string | null>(null)
   const refreshAvatar = useRef<() => void>(() => undefined)
   useEffect(() => {
@@ -63,7 +68,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
       document.removeEventListener('visibilitychange', visible)
     }
   }, [auth])
-  const [activeView, setActiveView] = useState<WebView>(readView)
+  const [activeView, setActiveView] = useState<WebView>(() => readView())
   const [simcVisited, setSimcVisited] = useState(() => readView() === 'simc')
   const lastBusinessView = useRef<BusinessView>(activeView === 'simc' ? 'simc' : 'chat')
 
@@ -91,7 +96,8 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
     <View
       className={styles['workspace'] ?? ''}
       data-business-view={activeView}
-      data-skin="horde"
+      data-skin={theme.id}
+      style={{ '--accent': theme.accent, '--accent-soft': theme.soft, '--sidebar-bg': theme.sidebar } as CSSProperties}
     >
       <View className={styles['workspaceTopbar'] ?? ''}>
         <View className={styles['brand'] ?? ''}>
@@ -120,29 +126,19 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
         </View>
 
         <WebHeaderActions avatarDataUrl={avatar} onRefreshAvatar={() => refreshAvatar.current()} accountLabel={accountLabel} onLogout={onLogout}
+          themeId={themeId} onSelectTheme={selectTheme} themeSaveFailed={themeSaveFailed}
           faqActive={activeView === 'faq'} faqHref={viewHref('faq')} onFaq={() => navigate('faq')} />
       </View>
 
       <View className={styles['workspaceBody'] ?? ''}>
         <View className={styles['workspaceMain'] ?? ''}>
-          {activeView === 'chat' ? (
-            <View className={styles['workspaceArt'] ?? ''} data-decorative="true">
-              <View className={styles['chatArtCrop'] ?? ''}>
-                <View className={styles['chatScene'] ?? ''} />
-                <View className={styles['chatArtWash'] ?? ''} />
-                <View className={`${styles['chatCloud'] ?? ''} ${styles['chatCloudBack'] ?? ''}`} />
-                <View className={`${styles['chatCloud'] ?? ''} ${styles['chatCloudFront'] ?? ''}`} />
-              </View>
-            </View>
-          ) : null}
-
           {activeView === 'faq' ? <WebFaqPage
             returnLabel={lastBusinessView.current === 'simc' ? '返回模拟' : '返回对话'}
             onReturn={() => navigate(lastBusinessView.current)} /> : null}
 
           {/* A tab change must not dispose the chat model and abort its active stream. */}
           <div className={styles['businessPane']} hidden={activeView !== 'chat'}>
-            <WebChatView auth={auth} />
+            <WebChatView auth={auth} themeId={themeId} />
           </div>
           {simcVisited ? (
             <div className={styles['businessPane']} hidden={activeView !== 'simc'}>

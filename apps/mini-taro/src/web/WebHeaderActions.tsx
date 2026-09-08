@@ -1,9 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react'
 
 import WebHelpDialog from './WebHelpDialog'
+import WebThemeDialog from './WebThemeDialog'
+import type { WebThemeId } from './web-themes'
 import styles from './WebHeaderActions.module.scss'
 
-export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar }: {
+export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar, themeId = 'horde', onSelectTheme, themeSaveFailed = false }: {
+  themeId?: WebThemeId
+  onSelectTheme?: (id: WebThemeId) => void
+  themeSaveFailed?: boolean
   avatarDataUrl?: string | null
   onRefreshAvatar?: () => void
   accountLabel: string
@@ -15,6 +20,7 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLButtonElement>(null)
   const panelId = useId()
@@ -67,6 +73,8 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
           <div id={panelId} className={styles['accountPanel']}>
             <span className={styles['accountCaption']}>当前账号</span>
             <span className={styles['accountName']}>{accountLabel}</span>
+            {onSelectTheme ? <button type="button" aria-label="修改主题" aria-haspopup="dialog" className={styles['themeAction']}
+              onClick={() => { setAccountOpen(false); setThemeOpen(true) }}>修改主题 <span aria-hidden="true">◈</span></button> : null}
             <button type="button" aria-label="退出登录" className={styles['logout']}
               onClick={() => { setAccountOpen(false); onLogout() }}>
               退出登录 <span aria-hidden="true">↗</span>
@@ -75,6 +83,8 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
         ) : null}
       </div>
       {changelogOpen ? <WebHelpDialog onClose={() => setChangelogOpen(false)} /> : null}
+      {themeOpen && onSelectTheme ? <WebThemeDialog selected={themeId} onSelect={onSelectTheme} saveFailed={themeSaveFailed}
+        returnFocus={avatarRef} onClose={() => setThemeOpen(false)} /> : null}
     </div>
   )
 }

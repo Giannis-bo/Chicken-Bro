@@ -7,6 +7,8 @@ import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 import { ChatModel, type ChatModelState } from '../features/chat/chat-model'
 import styles from './WebApp.module.scss'
 import WebMessage from './WebMessage'
+import WebThemeArt from './WebThemeArt'
+import type { WebThemeId } from './web-themes'
 import WebReplyStatus from './WebReplyStatus'
 import WebConversationHistory from './WebConversationHistory'
 import WebMiniProgramPromo from './WebMiniProgramPromo'
@@ -16,16 +18,17 @@ import { useChatAutoScroll } from './use-chat-auto-scroll'
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 
 const quickPrompts = [
-  '帮我看看元素萨满的装备',
-  '从一个模拟开始',
-  '聊聊鸡哥的新皮肤',
+  '帮我看看元素萨的手法',
+  '帮我分析WCL的数据',
+  '帮我看看这场战斗如何提升',
 ]
 
 export interface WebChatViewProps {
   auth: WebClientAuth
+  themeId?: WebThemeId
 }
 
-export default function WebChatView({ auth }: WebChatViewProps) {
+export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProps) {
   const model = useMemo(() => new ChatModel(wowApi.chat, () => auth), [auth])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
@@ -89,8 +92,12 @@ export default function WebChatView({ auth }: WebChatViewProps) {
         </View>
 
         <View className={styles['chatPane'] ?? ''}>
+          <div className={styles['chatCanvas']} data-empty={!state.activeConversation && state.phase === 'ready'}>
+            <div className={styles['workspaceArt']} aria-hidden="true" data-decorative="true">
+              <div className={styles['chatScene']}><WebThemeArt themeId={themeId} /></div>
+            </div>
           <div ref={messageList} className={styles['messageList'] ?? ''} tabIndex={0} aria-label="聊天消息">
-            <div ref={messageContent}>
+            <div ref={messageContent} className={styles['messageContent']}>
             {state.activeConversation?.messages.map((message) => (
               <View
                 key={message.id}
@@ -122,10 +129,9 @@ export default function WebChatView({ auth }: WebChatViewProps) {
             ) : null}
             {!state.activeConversation && state.phase === 'ready' ? (
               <View className={styles['emptyState'] ?? ''}>
-                <Text className={styles['emptyEyebrow'] ?? ''}>WOW COMPANION / 对话</Text>
                 <Text className={styles['emptyTitle'] ?? ''}>准备好了，随时开始</Text>
                 <Text className={styles['emptyDescription'] ?? ''}>
-                  把你的副本目标、装备疑问或输出困惑交给鸡哥，先聊清楚再行动。
+                  把你的手法、装备、输出疑惑交给鸡哥
                 </Text>
                 <View className={styles['emptyHint'] ?? ''}>
                   <View className={styles['emptyHintDot'] ?? ''} />
@@ -134,6 +140,8 @@ export default function WebChatView({ auth }: WebChatViewProps) {
               </View>
             ) : null}
             </div>
+          </div>
+
           </div>
 
           {state.phase === 'blocked' || state.phase === 'signed_out' ? (

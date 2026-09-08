@@ -35,3 +35,4 @@ packages/*/dist/
 
 # Isolated test-login build outputs
 /artifacts/test-login-builds/
+.gstack/

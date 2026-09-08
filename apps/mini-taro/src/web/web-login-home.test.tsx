@@ -35,6 +35,7 @@ describe('unauthenticated Web home', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     vi.stubGlobal('__WOW_TEST_LOGIN__', false)
     vi.useFakeTimers()
+    window.history.replaceState(null, '', '/')
     sessionStorage.clear()
     expiresAt = new Date(Date.now() + 300000).toISOString()
     auth = {
@@ -149,13 +150,23 @@ describe('unauthenticated Web home', () => {
     expect(vi.mocked(auth.createWebLoginSession).mock.calls[1]).toEqual(firstAttempt)
   })
 
-  it('exchanges only after Mini confirmation and then enters the authenticated workspace', async () => {
+  it('shortens a legacy chat fragment opened in the current document', async () => {
     await render()
+    window.history.replaceState(null, '', '/#/pages/chickenbro/index')
+    await act(async () => window.dispatchEvent(new HashChangeEvent('hashchange')))
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/')
+  })
+
+  it('preserves a legacy SimC destination through Mini confirmation and login', async () => {
+    window.history.replaceState(null, '', '/?view=simc#/pages/chickenbro/index')
+    await render()
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/simc')
     expect(auth.exchangeWebLoginSession).not.toHaveBeenCalled()
     vi.mocked(auth.statusWebLoginSession).mockResolvedValue(success({ status: 'confirmed', expiresAt }) as never)
     vi.mocked(auth.me).mockResolvedValue(success({ connected: true, displayName: '队长' }) as never)
     await act(async () => vi.advanceTimersByTimeAsync(1500))
     expect(auth.exchangeWebLoginSession).toHaveBeenCalledTimes(1)
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/simc')
     expect(container.textContent).toContain('已进入对话与模拟')
   })
 

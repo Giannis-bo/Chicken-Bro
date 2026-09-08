@@ -11,6 +11,7 @@ location = /web-candidate {
 location ^~ /web-candidate/ {
     alias /var/www/chickenbro-candidate/current/;
     index index.html;
+    rewrite ^/web-candidate/simc/?$ /web-candidate/index.html last;
     expires -1;
 }
 

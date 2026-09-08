@@ -1,0 +1,22 @@
+.dialog { position: fixed; inset: 0; margin: auto; padding: 0; width: min(940px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 40px); border: 1px solid var(--line); border-radius: 20px; background: #fff; color: var(--ink); box-shadow: 0 24px 80px #24242430; font: inherit; overflow: hidden; }
+.dialog[open] { display: flex; flex-direction: column; }
+.dialog::backdrop { background: #24242440; backdrop-filter: blur(4px); }
+.header { display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 18px; border-bottom: 1px solid var(--line); }
+.header h2 { margin: 0; font-size: 23px; }
+.header p { margin: 8px 0 0; font-size: 13px; color: var(--muted-strong); }
+.close { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: white; color: var(--muted-strong); font-size: 24px; cursor: pointer; }
+.body { overflow-y: auto; min-height: 0; padding: 22px 28px; overscroll-behavior: contain; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card { min-width: 0; padding: 0 0 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.card:hover { border-color: var(--accent); }
+.card[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); background: var(--accent-soft); }
+.card img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: contain; background: #fff; }
+.name { display: block; margin: 13px 12px 8px; font-size: 13px; font-weight: 600; }
+.meta { display: flex; align-items: center; gap: 6px; margin: 0 12px; font-size: 11px; color: var(--muted-strong); }
+.meta i { width: 8px; height: 8px; border-radius: 50%; }
+.selected { margin-left: auto; color: var(--accent); }
+.footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 28px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted-strong); }
+.footer button { margin-left: auto; flex-shrink: 0; padding: 10px 22px; border: 0; border-radius: 8px; background: var(--accent); color: white; font: inherit; cursor: pointer; }
+.dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 700px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .header, .body, .footer { padding: 16px; } .name { font-size: 12px; } }
+@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } }

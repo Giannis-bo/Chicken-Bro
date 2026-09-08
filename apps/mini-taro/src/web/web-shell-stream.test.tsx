@@ -48,6 +48,7 @@ describe('Web business tabs during a chat reply', () => {
     vi.clearAllMocks()
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     window.history.replaceState(null, '', '/')
+    localStorage.clear()
     api.avatar.mockResolvedValue(success({ avatarDataUrl: null }))
     api.list.mockResolvedValue(success({ items: [conversation], nextCursor: null }))
     api.get.mockResolvedValue(success({ ...conversation, messages: [] }))
@@ -77,6 +78,38 @@ describe('Web business tabs during a chat reply', () => {
     await click('发送消息')
     return api.streamMessage.mock.calls[0]![2].onEvent
   }
+
+  it('switches themes without interrupting a reply and remembers the browser selection', async () => {
+    await send()
+    await click('账户菜单')
+    await click('修改主题')
+    expect(container.querySelector('dialog')?.open).toBe(true)
+    expect(container.textContent).not.toContain('伊利丹')
+    expect(container.querySelectorAll('button[data-theme-choice]')).toHaveLength(7)
+    await click('为了联盟')
+    expect(container.querySelector('[data-skin]')?.getAttribute('data-skin')).toBe('alliance')
+    expect(localStorage.getItem('chickenbro.web.theme.v1')).toBe('alliance')
+    expect(abort).not.toHaveBeenCalled()
+    await click('关闭修改主题')
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('账户菜单')
+    await act(async () => root.unmount())
+    root = createRoot(container)
+    await act(async () => root.render(createElement(WebShell, {
+      accountLabel: '测试', auth: { kind: 'web', csrfToken: 'test-csrf' }, onLogout,
+    })))
+    expect(container.querySelector('[data-skin]')?.getAttribute('data-skin')).toBe('alliance')
+  })
+
+  it('keeps theme selection usable when browser storage is unavailable', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied') })
+    await click('账户菜单')
+    await click('修改主题')
+    await click('至暗之夜')
+    expect(container.querySelector('[data-skin]')?.getAttribute('data-skin')).toBe('void')
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('无法保存')
+    await act(async () => container.querySelector('dialog')!.dispatchEvent(new Event('cancel', { cancelable: true })))
+    expect(container.querySelector('dialog')).toBeNull()
+  })
 
   it('enlarges the Mini Program artwork and restores focus after dismissal without changing the chat', async () => {
     const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="放大小程序码"]')!
@@ -233,6 +266,30 @@ describe('Web business tabs during a chat reply', () => {
     expect(container.querySelector('button[aria-label="正在回复"]')).not.toBeNull()
   })
 
+  it('opens SimC directly after a fresh page load', async () => {
+    await act(async () => root.unmount())
+    window.history.replaceState(null, '', '/simc')
+    root = createRoot(container)
+    await act(async () => root.render(createElement(WebShell, {
+      accountLabel: '测试', auth: { kind: 'web', csrfToken: 'test-csrf' }, onLogout,
+    })))
+    expect(container.querySelector('[data-business-view]')?.getAttribute('data-business-view')).toBe('simc')
+    await click('队长对话')
+    expect(window.location.pathname).toBe('/')
+    await act(async () => {
+      window.history.replaceState(null, '', '/simc')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    expect(container.querySelector('[data-business-view]')?.getAttribute('data-business-view')).toBe('simc')
+  })
+
+  it('uses short URLs when switching business tabs', async () => {
+    await click('SimC 模拟')
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/simc')
+    await click('队长对话')
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/')
+  })
+
   it('opens FAQ from a direct link and follows browser history changes', async () => {
     await act(async () => root.unmount())
     window.history.replaceState(null, '', '/?view=faq')
@@ -242,7 +299,7 @@ describe('Web business tabs during a chat reply', () => {
     })))
     expect(container.querySelector('main h1')?.textContent).toBe('FAQ')
     await act(async () => {
-      window.history.replaceState(null, '', '/?view=simc')
+      window.history.replaceState(null, '', '/simc')
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
     expect(container.querySelector('main h1')).toBeNull()

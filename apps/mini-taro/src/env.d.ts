@@ -19,3 +19,5 @@ declare module '*.png' {
   const url: string
   export default url
 }
+
+declare const __WOW_H5_PUBLIC_PATH__: string

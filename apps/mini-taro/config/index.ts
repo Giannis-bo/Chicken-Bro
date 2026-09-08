@@ -70,6 +70,7 @@ export default defineConfig<'webpack5'>({
     enable: !productionBuild && !isolatedBuild,
   },
   defineConstants: {
+    __WOW_H5_PUBLIC_PATH__: JSON.stringify(configuredH5PublicPath),
     __WOW_TEST_LOGIN__: JSON.stringify(configuredTestLogin),
     __WOW_BACKEND_API_BASE_URL__: JSON.stringify(configuredBackendApiBaseUrl),
     __WOW_API_V2_PREFIX__: JSON.stringify(configuredApiV2Prefix),
@@ -95,7 +96,11 @@ export default defineConfig<'webpack5'>({
     publicPath: configuredH5PublicPath.endsWith('/') ? configuredH5PublicPath : `${configuredH5PublicPath}/`,
     staticDirectory: 'static',
     router: {
-      mode: 'hash',
+      mode: 'browser',
+      basename: configuredH5PublicPath.replace(/\/+$/u, ''),
+      customRoutes: {
+        '/pages/chickenbro/index': ['/', '/simc'],
+      },
     },
     devServer: {
       host: '127.0.0.1',
