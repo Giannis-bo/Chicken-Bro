@@ -186,8 +186,40 @@ function responseProblemCode(value: unknown): string | undefined {
   return undefined
 }
 
+// Mini runtimes may lack the browser Encoding API. Keep incomplete UTF-8
+// bytes between chunks; decoding each network chunk independently corrupts text.
+class Utf8StreamDecoder {
+  private pending = new Uint8Array(0)
+
+  decode(input = new Uint8Array(0), options: { stream?: boolean } = {}): string {
+    const bytes = new Uint8Array(this.pending.length + input.length)
+    bytes.set(this.pending)
+    bytes.set(input, this.pending.length)
+    let end = bytes.length
+    if (options.stream && end) {
+      let start = end - 1
+      while (start > 0 && (bytes[start]! & 0xc0) === 0x80) start -= 1
+      const lead = bytes[start]!
+      const length = lead >= 0xf0 && lead <= 0xf4 ? 4
+        : lead >= 0xe0 && lead <= 0xef ? 3
+          : lead >= 0xc2 && lead <= 0xdf ? 2 : 1
+      if (end - start < length) end = start
+    }
+    this.pending = bytes.slice(end)
+    let encoded = ''
+    for (let index = 0; index < end; index += 1) {
+      encoded += '%' + bytes[index]!.toString(16).padStart(2, '0')
+    }
+    return decodeURIComponent(encoded)
+  }
+}
+
+function utf8Decoder() {
+  return typeof TextDecoder === 'function' ? new TextDecoder('utf-8') : new Utf8StreamDecoder()
+}
+
 export class SseDecoder {
-  private readonly decoder = new TextDecoder('utf-8')
+  private readonly decoder = utf8Decoder()
   private buffered = ''
 
   push(data: ArrayBuffer): unknown[] {
@@ -504,9 +536,9 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         let problem = response.data
         try {
-          if (problem instanceof ArrayBuffer) problem = new TextDecoder().decode(problem)
+          if (problem instanceof ArrayBuffer) problem = utf8Decoder().decode(new Uint8Array(problem))
           if (problem === undefined || problem === '') {
-            problem = new TextDecoder().decode(problemPrefix.subarray(0, problemBytes))
+            problem = utf8Decoder().decode(problemPrefix.subarray(0, problemBytes))
           }
           if (typeof problem === 'string') problem = JSON.parse(problem)
         } catch { /* Non-JSON HTTP errors keep their status. */ }

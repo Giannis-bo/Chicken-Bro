@@ -593,3 +593,14 @@ it('keeps the selected reply sending when loading more history', async () => {
   expect(client.abort).not.toHaveBeenCalled()
   model.dispose()
 })
+
+it('leaves sending state when the transport throws during startup', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'mini-token' }))
+  await model.open(conversation.id)
+  vi.spyOn(client, 'streamMessage').mockImplementation(() => { throw new Error('native transport unavailable') })
+  expect(() => model.send('你好')).not.toThrow()
+  expect(model.get().phase).not.toBe('sending')
+  expect(model.get().errorMessage).toBeTruthy()
+  model.dispose()
+})

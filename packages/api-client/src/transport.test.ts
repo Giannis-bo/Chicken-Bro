@@ -551,3 +551,15 @@ it.each(['WEB', 'WEAPP'])('preserves the account-busy problem code for %s stream
   await vi.waitFor(() => expect(failures).toEqual(['CHAT_ACCOUNT_BUSY']))
   vi.unstubAllGlobals()
 })
+
+it('decodes Chinese and emoji SSE across every byte split without a browser TextDecoder', () => {
+  const bytes = new TextEncoder().encode('data: {"text":"你好🐔"}\n\n')
+  vi.stubGlobal('TextDecoder', undefined)
+  try {
+    for (let split = 0; split <= bytes.length; split += 1) {
+      const decoder = new SseDecoder()
+      expect([...decoder.push(bytes.slice(0, split).buffer), ...decoder.push(bytes.slice(split).buffer), ...decoder.finish()])
+        .toEqual([{ text: '你好🐔' }])
+    }
+  } finally { vi.unstubAllGlobals() }
+})

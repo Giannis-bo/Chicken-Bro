@@ -21,6 +21,8 @@ function ChickenbroPage() {
   const model = useMemo(() => new ChatModel(wowApi.chat, () => sessions.createAuthContext()), [sessions])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
+  const inputSession = useRef(0)
+  const renderedInputSession = inputSession.current
   const [historyOpen, setHistoryOpen] = useState(false)
   useEffect(() => {
     if (!historyOpen) return
@@ -94,7 +96,13 @@ function ChickenbroPage() {
         if (!created || !mounted.current) return
       }
       const task = model.send(content)
-      if (task) { setDraft(''); setFollowing(true) }
+      if (task) {
+        // Replace the native editor and reject late IME events from the sent draft.
+        inputSession.current += 1
+        setDraft('')
+        setFollowing(true)
+        void Taro.hideKeyboard?.().catch(() => undefined)
+      }
     } finally { sending.current = false; if (mounted.current) setPreparing(false) }
   }
   const retry = () => {
@@ -219,11 +227,13 @@ function ChickenbroPage() {
       <Button className={styles['secondaryButton'] ?? ''} onClick={retry}>{state.phase === 'signed_out' ? '重新登录' : '重新读取历史'}</Button>
     </View> : null}
     <View className={styles['composer'] ?? ''}>
-      <Textarea className={styles['textarea'] ?? ''} maxlength={4000} placeholder="发消息给鸡哥…" value={draft}
-        autoHeight adjustPosition={false} holdKeyboard confirmType="send" showConfirmBar={false}
-        disabled={preparing} onConfirm={() => void send()} onInput={(event) => setDraft(event.detail.value)} />
+      <Textarea key={renderedInputSession} className={styles['textarea'] ?? ''} maxlength={4000} placeholder="发消息给鸡哥…" value={draft}
+        autoHeight adjustPosition cursorSpacing={24} holdKeyboard confirmType="send" showConfirmBar={false}
+        disabled={preparing} onConfirm={() => void send()} onInput={(event) => {
+          if (renderedInputSession === inputSession.current) setDraft(event.detail.value)
+        }} />
       <Button className={styles['sendButton'] ?? ''} disabled={busy || !draft.trim() || state.phase !== 'ready'}
-        loading={busy && state.phase === 'sending'} onClick={() => void send()}>{state.phase === 'sending' ? '回复中' : '发送'}</Button>
+        onClick={() => void send()}>{state.phase === 'sending' ? '回复中' : '发送'}</Button>
     </View>
     {draft.length > 3600 ? <Text className={styles['composerHint'] ?? ''}>{draft.length}/4000</Text> : null}
   </View>

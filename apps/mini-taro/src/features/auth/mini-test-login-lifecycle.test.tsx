@@ -238,9 +238,11 @@ describe('Mini test login lifecycle', () => {
   it('sends a first draft through a created conversation and prevents duplicate sends while replying', async () => {
     await mountSignedOut(ChickenbroPage)
     await click('Enter A')
-    const composer = container.querySelector('textarea')!
+    let composer = container.querySelector('textarea')!
     await input(composer, '帮我分析战斗')
     await click('发送')
+    // Sending replaces the native editor; inspect the current input, not the detached node.
+    composer = container.querySelector('textarea')!
     expect(composer.value).toBe('')
     expect(container.textContent).toContain('正在思考')
     expect(container.textContent).toContain('帮我分析战斗')

@@ -357,27 +357,32 @@ export class ChatModel {
         void this.refreshAfterStream(conversation.id, false, this.streamGeneration)
       }
     }
-    task = this.client.streamMessage(
-      conversation.id,
-      { content: normalized, clientMessageId },
-      {
-        auth,
-        idempotencyKey,
-        onEvent: (event) => {
-          if (event.type === 'completed' || event.type === 'failed') {
+    try {
+      task = this.client.streamMessage(
+        conversation.id,
+        { content: normalized, clientMessageId },
+        {
+          auth,
+          idempotencyKey,
+          onEvent: (event) => {
+            if (event.type === 'completed' || event.type === 'failed') {
+              endedDuringStart = true
+              finishBackground()
+            }
+            this.onStreamEvent(event, conversation.id, generation)
+            if (this.state.phase !== 'sending') endedDuringStart = true
+          },
+          onFailure: (error) => {
             endedDuringStart = true
             finishBackground()
-          }
-          this.onStreamEvent(event, conversation.id, generation)
-          if (this.state.phase !== 'sending') endedDuringStart = true
+            this.onStreamFailure(error, conversation.id, generation)
+          },
         },
-        onFailure: (error) => {
-          endedDuringStart = true
-          finishBackground()
-          this.onStreamFailure(error, conversation.id, generation)
-        },
-      },
-    )
+      )
+    } catch {
+      this.onStreamFailure('CHAT_TRANSPORT_UNAVAILABLE', conversation.id, generation)
+      return null
+    }
     if (endedDuringStart) return null
     this.activeStream = task
     return task

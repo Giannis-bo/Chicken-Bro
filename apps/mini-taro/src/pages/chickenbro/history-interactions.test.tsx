@@ -6,13 +6,14 @@ import type { ChatStreamOptions } from '@wow-mini/api-client'
 
 const api = vi.hoisted(() => ({
   show: undefined as (() => void) | undefined,
+  hideKeyboard: vi.fn().mockResolvedValue({}), textareaInput: undefined as ((event: { detail: { value: string } }) => void) | undefined,
   modal: vi.fn(), toast: vi.fn(), remove: vi.fn(), abort: vi.fn(),
   feedback: vi.fn(), feedbackEnabled: false,
   resolved: null as boolean | null,
   stream: undefined as ChatStreamOptions | undefined,
   storage: new Map<string, unknown>(),
 }))
-vi.mock('@tarojs/taro', () => ({ default: { showModal: api.modal, showToast: api.toast }, useDidShow: (fn: () => void) => { api.show = fn } }))
+vi.mock('@tarojs/taro', () => ({ default: { hideKeyboard: api.hideKeyboard, showModal: api.modal, showToast: api.toast }, useDidShow: (fn: () => void) => { api.show = fn } }))
 vi.mock('../../use-tab-root-identity', () => ({ useTabRootIdentity: () => undefined }))
 vi.mock('../../features/auth/with-mini-test-login', () => ({ withMiniTestLogin: (page: ComponentType) => page }))
 vi.mock('../../web/WebMessage', () => ({ default: ({ content }: { content: string }) => createElement('span', {}, content) }))
@@ -28,7 +29,7 @@ vi.mock('@tarojs/components', async () => {
   const view = (p: Record<string, unknown>) => h('div', { 'data-chat-phase': p['data-chat-phase'] }, p['children'] as never)
   return { View: view, ScrollView: view, Text: (p: Record<string, unknown>) => h('span', {}, p['children'] as never), Image: () => null,
     Button: (p: Record<string, unknown>) => h('button', { disabled: !!p['disabled'], onClick: p['onClick'] as () => void, 'aria-label': p['aria-label'], 'aria-pressed': p['aria-pressed'] as boolean }, p['children'] as never),
-    Textarea: (p: Record<string, unknown>) => h('textarea', { value: p['value'] as string, onChange: () => undefined, onInput: (event: { currentTarget: HTMLTextAreaElement }) => (p['onInput'] as (e: unknown) => void)({ detail: { value: event.currentTarget.value } }) }),
+    Textarea: (p: Record<string, unknown>) => { api.textareaInput = p['onInput'] as typeof api.textareaInput; return h('textarea', { value: p['value'] as string, onChange: () => undefined, onInput: (event: { currentTarget: HTMLTextAreaElement }) => (p['onInput'] as (e: unknown) => void)({ detail: { value: event.currentTarget.value } }) }) },
   }
 })
 vi.mock('@wow-mini/api-client', () => {
@@ -198,4 +199,17 @@ it('closes the history drawer by backdrop or close button without losing the dra
   await act(async () => node.querySelector<HTMLButtonElement>('[aria-label="关闭历史会话"]')!.click())
   expect(button('会话B')).toBeUndefined()
   expect(api.abort).not.toHaveBeenCalled()
+})
+
+
+it('clears a sent Mini draft and ignores delayed input from the previous keyboard session', async () => {
+  await input('你好')
+  const delayedInput = api.textareaInput!
+  await click('发送')
+  expect(node.querySelector('textarea')!.value).toBe('')
+  await act(async () => delayedInput({ detail: { value: '你好' } }))
+  expect(node.querySelector('textarea')!.value).toBe('')
+  expect(api.hideKeyboard).toHaveBeenCalledOnce()
+  await input('下一条草稿')
+  expect(node.querySelector('textarea')!.value).toBe('下一条草稿')
 })
