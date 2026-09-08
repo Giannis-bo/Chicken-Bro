@@ -1,0 +1,21 @@
+{
+  "schemaRevision": "wow-weapp-build-v1",
+  "gitHead": "c966bd16ce4b24f53b62a558492f3e039f241027",
+  "sourceHash": "sha256:b293d3d136f9ed7856fc4410a006c478fa248b510cd0ead917829f8e912aad9e",
+  "builtAt": "2026-09-08T05:33:15.112Z",
+  "version": "2026.09.08-drawer",
+  "preview": "passed",
+  "developmentUpload": "passed",
+  "tests": 28,
+  "typecheck": "passed",
+  "lint": "passed",
+  "devtools": {
+    "screenshot": "drawer.png",
+    "closeButton": "passed",
+    "backdrop": "passed",
+    "selectConversation": "passed",
+    "nativeTabsHidden": "passed"
+  },
+  "publicRelease": "not performed",
+  "userAcceptance": "pending"
+}
