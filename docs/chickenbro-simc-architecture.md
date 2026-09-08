@@ -20,7 +20,7 @@
 | --- | --- |
 | Identity | Mini Bearer 与 Web HttpOnly Cookie 分离，Origin/CSRF、单次票据及服务端 owner 映射 |
 | Chat | 服务端共享历史、幂等发送、持久化回放、公开进展/完成时间、账号级单回复、软删除 |
-| SimC | Raider.IO/WCL 快照、readiness、compiler、PostgreSQL queue、云端 Worker、语义结果、任务 ID 换装重跑 |
+| SimC | Raider.IO 导入快照（保留历史 WCL 快照）、readiness、compiler、PostgreSQL queue、云端 Worker、语义结果、任务 ID 换装重跑 |
 | Mini | 5 条页面路由、2 个 Tab；历史抽屉、FAQ/更新日志、任务 ID 复制；取消账号与外观面板 |
 | Web | `/` 对话、`/simc` 模拟、`/?view=faq` FAQ；扫码登录、账号菜单、七种静态插画主题 |
 | 数据面 | 正式产品仅 Identity/Chat/SimC/Ops，`chickenbro_prod`；旧 `wow_test` 和 legacy 运行面已退役 |
@@ -38,7 +38,7 @@ Web/H5 ---- HttpOnly Cookie ---/                   |
                                                    +-> SimC -> ops.job_queue -> Worker
                                                                   |            |
                                                                   |            +-> cloud SimulationCraft
-                                                                  +-> Raider.IO / WCL adapters
+                                                                  +-> Raider.IO adapter
 ```
 
 部署单元固定为一个模块化单体 API、一个独立 Worker、一套 PostgreSQL 和一个已安装的云端 SimulationCraft runtime。不引入第二种数据库、Redis、Celery、Kafka、长期双写或通用插件平台。

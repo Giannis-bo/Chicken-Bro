@@ -97,10 +97,6 @@ export function simulationPollDelay(attempt: number): number {
   return Math.min(1000 * (2 ** boundedAttempt), 10000)
 }
 
-function positiveQueryValue(value: string | null): boolean {
-  return value === null || /^[1-9][0-9]{0,8}$/u.test(value)
-}
-
 export function isSupportedCharacterSourceUrl(value: string): boolean {
   if (!value || value.length > 2048) return false
   try {
@@ -124,23 +120,6 @@ export function isSupportedCharacterSourceUrl(value: string): boolean {
         && normalized.slice(1).every((part) => Boolean(part) && !part.includes('\0'))
         && !parsed.search
         && !parsed.hash
-    }
-    if (host === 'warcraftlogs.com' || host === 'www.warcraftlogs.com' || host === 'cn.warcraftlogs.com') {
-      if (
-        path.length < 2
-        || path.length > 3
-        || path[0]?.toLowerCase() !== 'reports'
-        || !/^[A-Za-z0-9]{4,128}$/u.test(path[1] ?? '')
-      ) return false
-      const query = new URLSearchParams(parsed.search)
-      const fragment = new URLSearchParams(parsed.hash.replace(/^#/u, ''))
-      const keys = new Set([...query.keys(), ...fragment.keys()])
-      if ([...keys].some((key) => key !== 'fight' && key !== 'source')) return false
-      for (const key of ['fight', 'source']) {
-        const values = [...query.getAll(key), ...fragment.getAll(key)]
-        if (values.length > 1 || !positiveQueryValue(values[0] ?? null)) return false
-      }
-      return true
     }
     return false
   } catch {
@@ -193,7 +172,7 @@ export class SimcModel {
     this.activeJobGeneration += 1
     if (!isSupportedCharacterSourceUrl(sourceUrl)) {
       this.update({ snapshot: null, activeJob: null })
-      this.fail('INVALID_LINK', '只接受 Raider.IO 或 Warcraft Logs 的角色链接', false)
+      this.fail('INVALID_LINK', '仅支持 HTTPS 的 Raider.IO 角色链接', false)
       return null
     }
     let auth: ClientAuthContext

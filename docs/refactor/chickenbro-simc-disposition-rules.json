@@ -32,12 +32,14 @@
         "docs/user-guide.md",
         "docs/development.md",
         "docs/releases/1.0.md",
-        "docs/roadmap-history-v1.md"
+        "docs/roadmap-history-v1.md",
+        "artifacts/verification/2026-09-08-mini-keyboard/README.md"
       ],
       "prefixes": [
         "artifacts/verification/2026-09-08-v1-close/",
         "artifacts/releases/2026-09-08-web-simc-layout/",
-        "artifacts/security/2026-09-08-cos-write-hardening/"
+        "artifacts/security/2026-09-08-cos-write-hardening/",
+        "artifacts/verification/2026-09-08-simc-raider-only/"
       ]
     },
     {

@@ -16,10 +16,11 @@ from server.app.simulation.domain import (
     SimulationJobStatus,
     SimulationResult,
     SourceSnapshot,
+    SourceProvider,
 )
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.runtime import get_simc_runtime_info
-from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink
+from server.app.simulation.sources import CharacterSourceRouter, InvalidSourceLink, parse_character_source_url
 
 
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
@@ -254,9 +255,11 @@ class SimulationApplication:
 
     def resolve_source(self, principal: Principal, source_url: str) -> SourceSnapshot:
         try:
+            if parse_character_source_url(source_url).provider is not SourceProvider.RAIDERIO:
+                raise InvalidSourceLink("SimC only supports Raider.IO character links")
             candidate = self._source_router.resolve(source_url)
         except InvalidSourceLink as error:
-            raise SimulationApplicationError("INVALID_LINK", "source link is not allowed") from error
+            raise SimulationApplicationError("INVALID_LINK", "SimC 仅支持 HTTPS 的 Raider.IO 角色链接") from error
         report = self._readiness_validator.validate(candidate, self._runtime_capabilities)
         snapshot = candidate.to_source_snapshot(
             user_id=principal.user_id,

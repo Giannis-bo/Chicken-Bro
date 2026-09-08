@@ -1,6 +1,7 @@
 import json
 import math
 import unittest
+from unittest.mock import patch
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -161,6 +162,15 @@ class SimulationApplicationTest(unittest.TestCase):
             runtime_capabilities=capabilities,
             clock=lambda: self.now,
         )
+
+    def test_wcl_import_is_rejected_before_provider_or_persistence(self):
+        for host in ("warcraftlogs.com", "www.warcraftlogs.com", "cn.warcraftlogs.com"):
+            with self.subTest(host=host), patch.object(self.application._source_router, "resolve", side_effect=AssertionError("provider must not be called")) as resolve:
+                with self.assertRaises(SimulationApplicationError) as raised:
+                    self.application.resolve_source(self.owner, f"https://{host}/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4")
+                self.assertEqual(raised.exception.code, "INVALID_LINK")
+                resolve.assert_not_called()
+                self.assertEqual(self.repository.snapshots, {})
 
     def test_ready_source_can_submit_by_reference_and_is_idempotent(self):
         snapshot = self.application.resolve_source(

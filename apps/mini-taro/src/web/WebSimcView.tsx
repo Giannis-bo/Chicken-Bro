@@ -162,7 +162,7 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
     </nav>
 
     {state.phase === 'blocked' || state.phase === 'signed_out' ? <div className={styles['error']} role="alert" data-error-code={state.errorCode}>
-      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新扫码登录' : state.errorCode === 'INVALID_LINK' ? '非法链接：链接格式不正确或来源不受支持。请参考输入框下方的角色评分、战斗日志链接示例，修改后重新读取。' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
+      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新扫码登录' : state.errorCode === 'INVALID_LINK' ? '链接无效：仅支持 HTTPS 的 Raider.IO 角色链接。请参考输入框下方示例，修改后重新读取。' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
       {state.retryable && state.phase !== 'signed_out' ? <button data-simc-button="" className={styles['textButton']} onClick={() => {
         if (page === 'report' && selectedJobId) void openJob(selectedJobId)
         else if (page === 'tasks') void model.loadJobs()
@@ -176,15 +176,13 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
         <div className={styles['configStack']}>
           <section className={styles['card']}>
             <div className={styles['sectionHeading']}><h3><span className={styles['step']}>01</span>角色来源</h3><span>从链接读取角色</span></div>
-            <label data-simc-label="" className={styles['field']}><span>角色评分或战斗日志链接</span>
-              <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="仅接收 Raider.IO 或者 WCL 的合法链接，请参考示例" onChange={(event) => setSourceUrl(event.target.value)} />
+            <label data-simc-label="" className={styles['field']}><span>Raider.IO 角色链接</span>
+              <div className={styles['sourceRow']}><input data-simc-input="" name="sourceUrl" type="url" value={sourceUrl} placeholder="仅支持 HTTPS 的 Raider.IO 角色链接，请参考示例" onChange={(event) => setSourceUrl(event.target.value)} />
                 <button data-simc-button="" className={styles['secondaryButton']} disabled={!sourceUrl.trim() || resolving || state.phase === 'submitting'} onClick={() => void resolve()}>{resolving ? '读取中…' : '读取角色'}</button></div>
             </label>
             <div className={styles['sourceExamples']} aria-label="合法链接格式示例">
               <div><span className={styles['exampleLabel']}>Raider.IO 链接格式参考：</span>
                 <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
-              <div><span className={styles['exampleLabel']}>WCL 链接参考格式参考：</span>
-                <a className={styles['exampleLink']} href="https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4" target="_blank" rel="noreferrer">https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&amp;source=4</a></div>
             </div>
             {snapshotCurrent ? <div className={styles['snapshot']} data-readiness={snapshot.readiness}>
               <strong>{sourceReady ? '角色已就绪' : simcReadinessLabel(snapshot.readiness)}{actor ? ` · ${actor.name}` : ''}</strong>

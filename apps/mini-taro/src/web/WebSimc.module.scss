@@ -257,8 +257,8 @@
     .pageIntro { margin: 12px auto; gap: 12px; }
     .pageIntro > h2 { flex-basis: auto; font-size: 20px; }
     .pageIntro > h2 + p { margin-top: 0; }
-    .setupGrid { grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; }
-    .configStack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+    .setupGrid { grid-template-columns: minmax(0, 1fr) 260px; align-items: stretch; gap: 16px; }
+    .configStack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr; gap: 14px; align-items: stretch; }
     .configStack > .card:first-child { grid-column: 1 / -1; }
     .card { padding: 14px; }
     .sectionHeading { margin-bottom: 10px; }

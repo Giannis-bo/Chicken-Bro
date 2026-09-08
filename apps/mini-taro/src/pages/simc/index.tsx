@@ -15,7 +15,6 @@ import styles from './index.module.scss'
 const fightKeys = Object.keys(simcFightStyles) as (keyof typeof simcFightStyles)[]
 const sourceExamples = [
   ['Raider.IO 链接格式参考', 'https://raider.io/cn/characters/cn/silver-hand/Giannis'],
-  ['WCL 链接格式参考', 'https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4'],
 ] as const
 function validNumber(value: string, min: number, max: number, integer = false) {
   const number = Number(value)
@@ -130,8 +129,8 @@ function SimcPage() {
     <ScrollView className={styles['content'] ?? ''} scrollY>
       <View className={styles['card'] ?? ''}>
         <Text className={styles['cardTitle'] ?? ''}>1. 角色来源</Text>
-        <Text className={styles['hint'] ?? ''}>仅接收 Raider.IO 或者 WCL 的合法链接，请参考示例。</Text>
-        <Textarea maxlength={2048} disabled={busy} autoHeight className={styles['input'] ?? ''} placeholder="粘贴角色评分或战斗日志链接" value={sourceUrl} onInput={(e) => setSourceUrl(e.detail.value)} />
+        <Text className={styles['hint'] ?? ''}>仅支持 HTTPS 的 Raider.IO 角色链接，请参考示例。</Text>
+        <Textarea maxlength={2048} disabled={busy} autoHeight className={styles['input'] ?? ''} placeholder="粘贴 Raider.IO 角色链接" value={sourceUrl} onInput={(e) => setSourceUrl(e.detail.value)} />
         <Button className={styles['primaryButton'] ?? ''} disabled={!sourceUrl.trim() || busy} loading={state.phase === 'loading'} onClick={() => void resolveSource()}>{state.phase === 'loading' ? '正在读取角色…' : '读取角色'}</Button>
         <Button className={styles['textButton'] ?? ''} aria-expanded={examplesOpen} onClick={() => setExamplesOpen(!examplesOpen)}>链接示例</Button>
         {examplesOpen ? sourceExamples.map(([label, url]) => <View className={styles['example'] ?? ''} key={url}>

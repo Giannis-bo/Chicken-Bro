@@ -28,7 +28,7 @@ const diagnostic: Readonly<Record<string, string>> = {
   SIMC_RESULT_VALID: '模拟结果已验证',
   AUTH_REQUIRED: '登录已失效，请重新登录', MINI_SESSION_REQUIRED: '小程序登录已失效，请重新登录',
   WEB_SESSION_REQUIRED: '网页登录已失效，请重新登录', CSRF_INVALID: '登录验证已失效，请刷新页面后重试',
-  INVALID_LINK: '角色链接无效，请使用支持的角色评分或战斗日志链接',
+  INVALID_LINK: '角色链接无效，仅支持 HTTPS 的 Raider.IO 角色链接',
   CHARACTER_NOT_FOUND: '未找到角色，请检查角色链接', ACCESS_RESTRICTED: '角色资料访问受限，请检查来源网站的公开权限',
   SNAPSHOT_UNAVAILABLE: '角色资料暂不可用，请稍后重新读取', SNAPSHOT_NOT_FOUND: '未找到角色资料，请重新读取角色',
   SNAPSHOT_NOT_READY: '角色资料尚不完整，请先补齐所需资料', SIMULATION_NOT_FOUND: '未找到该模拟任务',
