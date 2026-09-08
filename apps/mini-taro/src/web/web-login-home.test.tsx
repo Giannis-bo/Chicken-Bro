@@ -69,7 +69,7 @@ describe('unauthenticated Web home', () => {
     expect(auth.createWebLoginSession).toHaveBeenCalledTimes(1)
     expect(container.querySelector('h1')).not.toBeNull()
     expect(document.documentElement.classList.contains('web-login-fixed')).toBe(true)
-    expect(container.querySelector('footer')?.textContent).toBe('Powered by Lighthouse&Codex')
+    expect(container.querySelector('footer')?.textContent).toBe('Powered By Lighthouse&Codex')
     expect(container.textContent).not.toContain('魔兽世界 · 对话与模拟')
     expect(container.textContent).not.toMatch(/有问题，找鸡哥|有想法，模拟一下|为每一次更好的战斗/)
     expect(container.querySelector('aside[aria-label="微信扫码登录"] img')?.getAttribute('src')).toBe(qrDataUrl)

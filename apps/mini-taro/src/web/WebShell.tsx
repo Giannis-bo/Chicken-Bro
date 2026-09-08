@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
 import { readWebView as readView, webViewHref as viewHref, type WebView } from './web-routing'
+import PoweredBy from '../components/PoweredBy'
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
 import WebServiceHealth from './WebServiceHealth'
@@ -145,6 +146,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
               <WebSimcView auth={auth} themeId={themeId} />
             </div>
           ) : null}
+          <PoweredBy />
         </View>
       </View>
     </View>

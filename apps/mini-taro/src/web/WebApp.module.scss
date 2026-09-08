@@ -405,6 +405,7 @@
 }
 
 .workspaceMain {
+  box-sizing: border-box;
   position: relative;
   isolation: isolate;
   min-height: 100vh;
@@ -1283,5 +1284,3 @@
     &[data-empty='false'] .chatScene { top: 0; height: 100%; }
   }
 }
-
-.workspace[data-business-view='simc'] .workspaceMain { box-sizing: border-box; }

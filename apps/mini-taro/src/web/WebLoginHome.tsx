@@ -1,6 +1,7 @@
 import { webViewHref } from './web-routing'
 import { useEffect, type ReactNode } from 'react'
 import mascot from './assets/gu-gu-mascot.png'
+import PoweredBy from '../components/PoweredBy'
 import styles from './WebLoginHome.module.scss'
 
 export default function WebLoginHome({ children }: { children: ReactNode }) {
@@ -49,7 +50,7 @@ export default function WebLoginHome({ children }: { children: ReactNode }) {
           {children}
         </aside>
       </div>
-      <footer className={styles['credit']}>Powered by Lighthouse&amp;Codex</footer>
+      <PoweredBy />
     </main>
   )
 }

@@ -20,6 +20,8 @@
 
 ## 1.0 后续更新
 
+- `正在推进 / 已验收，发布中`：桌面 Web 的 `Powered By Lighthouse&Codex` 融入右下角，不占独立一行或底栏；Mini 和窄屏 Web 不展示。用户已批准提交、合入、发布，见 [发布记录](../artifacts/verification/2026-09-08-powered-by/README.md)。
+
 
 - `已完成 / 微信公开发布待用户操作`：SimC 新角色导入仅支持 Raider.IO，双端示例、错误提示与 FAQ 同步，Web 卡片底边对齐。源码 `431545547` 已合入推送，后端/Web 已上线，27 个公网文件哈希匹配，双端拒绝 WCL 和 Raider.IO 导入就绪验证通过；Mini 1.0.4 已上传，审核/公开发布待用户操作。421 项后端、335 项前端、62 项控制面及构建检查通过，发布身份见 [发布记录](../artifacts/verification/2026-09-08-simc-raider-only/README.md)。
 
