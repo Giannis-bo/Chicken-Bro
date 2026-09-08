@@ -1,0 +1,30 @@
+{
+  "status": "published",
+  "userAccepted": true,
+  "authorization": "可以，把这些都合入，然后发布吧。",
+  "webCommit": "4a39d1eed6386de69c781c1267aee8af1cf1fc99",
+  "webRoot": "/var/www/chickenbro-web/releases/themes-4a39d1eed6386de69c781c1267aee8af1cf1fc99",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/short-urls-6b2f4bebaadb39c32fac14f2649daaa37dbe4229",
+  "apiWorkerUnchanged": "/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "mini": "unchanged_web_only_release",
+  "publicFilesVerified": 34,
+  "checks": {
+    "frontend": 289,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionH5": "passed",
+    "themeButtonsGeneratedCSS": "passed",
+    "desktopAnd390pxPreview": "passed",
+    "productionThemeSwitchAndRefresh": "passed",
+    "existingHistoryAndShortURLs": "passed",
+    "readiness": "all_components_ready"
+  },
+  "mainMerge": "complete",
+  "push": "complete",
+  "sourceVersusMain": "release source is ancestor of main; subsequent commits only documentation and evidence",
+  "newQrLogin": "not_performed",
+  "newChatOrSimcWrites": "not_performed",
+  "candidate": "production-config frontend preview with existing session; no isolated database candidate",
+  "themes": "seven static illustrations; Illidan excluded; all illustration motion removed"
+}
