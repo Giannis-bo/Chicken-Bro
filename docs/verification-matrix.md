@@ -33,6 +33,8 @@ git diff --check
 
 本地不能安装或运行 SimulationCraft。SimC 语义结果只在云端受控 runtime 上验证。
 
+回答解决情况反馈的真实数据库与 API 用例为 `tests.app_chat_feedback_postgres_test`，纳入 `test:migration`；须配置独立 UTF8 `WOW_PG_TEST_DSN_V2`。UI 同时验证共享组件及 Mini/Web 页面提交、重新打开历史恢复；旧客户端不请求 `includeFeedback` 时必须保持原合同。
+
 ## 1.0 验证与历史阶段
 
 用户于 2026-09-08 接受当前 1.0 实现。新一轮源码验证、环境限制与构建身份见 [收尾验证](../artifacts/verification/2026-09-08-v1-close/README.md)，产品交付状态见 [版本说明](releases/1.0.md)。

@@ -1,4 +1,5 @@
 import ChatReplyDetails from '../components/ChatReplyDetails'
+import ChatFeedback from '../components/ChatFeedback'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -112,6 +113,8 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                   status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
                   durationMs={message.progress?.durationMs ?? null} /> : null}
                 <WebMessage content={message.content} markdown={message.role !== 'user'} />
+                {message.role === 'assistant' && message.resolved !== undefined ? <ChatFeedback
+                  resolved={message.resolved} onSubmit={choice => model.setFeedback(message.id, choice)} /> : null}
               </View>
             ))}
             {state.pendingUserContent ? (

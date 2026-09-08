@@ -155,16 +155,44 @@ class PostgresChatRepository:
                     raise RuntimeError("agent run was not streaming for progress")
 
     def list_run_presentations(self, user_id: UUID, conversation_id: UUID) -> list[dict[str, Any]]:
-        keys = ("id", "assistant_message_id", "status", "started_at", "finished_at", "public_progress")
+        keys = ("id", "assistant_message_id", "status", "started_at", "finished_at", "public_progress", "resolved")
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT id, assistant_message_id, status, started_at, finished_at, public_progress
+                    """SELECT id, assistant_message_id, status, started_at, finished_at, public_progress, resolved
                        FROM chat.agent_runs WHERE user_id = %s AND conversation_id = %s
                        ORDER BY started_at, id""", (user_id, conversation_id),
                 )
                 return [{key: _row_value(row, key, index) for index, key in enumerate(keys)}
                         for row in cursor.fetchall()]
+
+    def set_feedback(self, user_id: UUID, conversation_id: UUID, message_id: UUID,
+                     resolved: bool, now: datetime) -> bool | None:
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                # Serialize with soft deletion. Feedback cannot revive archived history.
+                cursor.execute("""SELECT id FROM chat.conversations
+                                  WHERE user_id = %s AND id = %s AND status = 'active' FOR SHARE""",
+                               (user_id, conversation_id))
+                if cursor.fetchone() is None:
+                    return None
+                cursor.execute("""UPDATE chat.agent_runs
+                                  SET resolved = %s, feedback_updated_at = %s
+                                  WHERE user_id = %s AND conversation_id = %s
+                                    AND assistant_message_id = %s AND status = 'succeeded'
+                                    AND resolved IS NULL
+                                  RETURNING resolved""",
+                               (resolved, now, user_id, conversation_id, message_id))
+                row = cursor.fetchone()
+                if row is None:
+                    # The conditional update waits for a racing first write and
+                    # rechecks NULL. This next read returns its committed choice.
+                    cursor.execute("""SELECT resolved FROM chat.agent_runs
+                                      WHERE user_id = %s AND conversation_id = %s
+                                        AND assistant_message_id = %s AND status = 'succeeded'""",
+                                   (user_id, conversation_id, message_id))
+                    row = cursor.fetchone()
+                return _row_value(row, "resolved", 0) if row is not None else None
 
     def get_message_by_client_id(
         self,

@@ -191,12 +191,26 @@ class ChatApplication:
                          "created_at": finished}
                 messages.append(reply)
             if reply is not None:
+                if status == "succeeded":
+                    reply["resolved"] = _value(run, "resolved")
                 reply.update(progress_text=_value(run, "public_progress", ""),
                              reply_status="completed" if status == "succeeded" else "failed",
                              completed_at=finished,
                              duration_ms=self._timing(run, finished).get("duration_ms"))
         messages.sort(key=lambda row: row["created_at"])
         return {"conversation": conversation, "messages": messages}
+
+    def set_feedback(self, principal: Principal, conversation_id: UUID, message_id: UUID,
+                     resolved: bool) -> bool:
+        if type(resolved) is not bool:
+            raise ChatApplicationError("FEEDBACK_INVALID", "请选择已解决或未解决")
+        saved = self._repository.set_feedback(principal.user_id, conversation_id, message_id,
+                                              resolved, self._clock())
+        if saved is None:
+            raise ChatApplicationError("FEEDBACK_MESSAGE_NOT_FOUND", "这条回答已不可用，请刷新会话")
+        if saved != resolved:
+            raise ChatApplicationError("FEEDBACK_ALREADY_SUBMITTED", "评价已确认，不能修改")
+        return saved
 
     @staticmethod
     def _timing(run: Any, finished: datetime | None) -> dict[str, Any]:

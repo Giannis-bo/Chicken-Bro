@@ -47,6 +47,8 @@ export interface ChatStreamOptions extends ChatRequestOptions {
 }
 
 export interface ChatClient {
+  setFeedback(conversationId: string, messageId: string, resolved: boolean,
+    options: ChatRequestOptions): Promise<ApiResult<{ resolved: boolean }>>
   remove(conversationId: string, options: ChatRequestOptions): Promise<ApiResult<{ deleted: boolean }>>
   list(request: ChatListRequest, options: ChatRequestOptions): Promise<ApiResult<ConversationPage>>
   create(request: ChatCreateRequest, options: ChatCreateOptions): Promise<ApiResult<ConversationSummary>>
@@ -110,6 +112,17 @@ export function createChatClient(transport: ApiTransport): ChatClient {
   }
 
   return {
+    setFeedback(conversationId, messageId, resolved, options) {
+      const id = boundedIdentifier(conversationId, 'conversation id')
+      const message = boundedIdentifier(messageId, 'message id')
+      if (typeof resolved !== 'boolean') throw new TypeError('feedback is invalid')
+      return request(apiV2Path(`/chat/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(message)}/feedback`),
+        { resolved }, options, {
+          method: 'POST', mutating: true, fallback: () => ({ resolved }),
+          validate: value => typeof value === 'object' && value !== null
+            && Object.keys(value).length === 1 && 'resolved' in value && value.resolved === resolved,
+        })
+    },
     remove(conversationId, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       return request(apiV2Path(`/chat/conversations/${encodeURIComponent(id)}`), undefined, options, {
@@ -151,7 +164,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     get(conversationId, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       return request(
-        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}?includeProgress=true`),
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}?includeProgress=true&includeFeedback=true`),
         undefined,
         options,
         {

@@ -12,6 +12,16 @@ const messageId = '00000000-0000-4000-8000-000000000302'
 const runId = '00000000-0000-4000-8000-000000000303'
 const timestamp = '2026-09-03T09:00:00+00:00'
 
+it('accepts only nullable boolean resolution feedback on assistant replies', () => {
+  const detail = (resolved: unknown, role = 'assistant') => ({
+    id: conversationId, title: '反馈', status: 'active', createdAt: timestamp, updatedAt: timestamp,
+    messages: [{ id: messageId, role, content: '回答', createdAt: timestamp, resolved }],
+  })
+  for (const value of [null, true, false]) expect(isConversationDetail(detail(value))).toBe(true)
+  for (const value of ['false', 0, {}, undefined]) expect(isConversationDetail(detail(value))).toBe(false)
+  expect(isConversationDetail(detail(false, 'user'))).toBe(false)
+})
+
 
 describe('formal Chat domain guards', () => {
   it('accepts the exact owner-free conversation page and detail contracts', () => {

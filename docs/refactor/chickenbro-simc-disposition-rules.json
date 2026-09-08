@@ -2,6 +2,27 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "chat-resolution-feedback",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "chickenbro_chat",
+      "reason": "User-approved two-choice answer feedback, shared by Mini and Web, with local verification evidence.",
+      "paths": [
+        "docs/plans/2026-09-08-chat-feedback.md",
+        "tests/app_chat_feedback_postgres_test.py",
+        "server/migrations/product/0006_chat_resolution_feedback.sql",
+        "apps/mini-taro/src/components/ChatFeedback.tsx",
+        "apps/mini-taro/src/components/ChatFeedbackConfirm.tsx",
+        "apps/mini-taro/src/components/ChatFeedbackConfirm.weapp.tsx",
+        "apps/mini-taro/src/components/ChatFeedbackConfirm.module.scss",
+        "apps/mini-taro/src/components/ChatFeedback.module.scss",
+        "apps/mini-taro/src/features/chat/chat-feedback.test.tsx"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-08-chat-feedback/"
+      ]
+    },
+    {
       "id": "v1-product-documentation",
       "disposition": "keep",
       "category": "current-control-plane",
@@ -15,6 +36,7 @@
       ],
       "prefixes": [
         "artifacts/verification/2026-09-08-v1-close/",
+        "artifacts/releases/2026-09-08-web-simc-layout/",
         "artifacts/security/2026-09-08-cos-write-hardening/"
       ]
     },

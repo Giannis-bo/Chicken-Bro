@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from server.app.api.dependencies import (
     chat_application,
@@ -38,6 +38,12 @@ class ChatMessageBody(BaseModel):
     )
 
 
+class ChatFeedbackBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    resolved: StrictBool
+
+
 def _value(row: object, key: str, default: object = None) -> object:
     if isinstance(row, dict):
         return row.get(key, default)
@@ -69,6 +75,8 @@ def _message_payload(message: object) -> dict[str, object]:
     }
 
     status = _value(message, "reply_status")
+    if status == "completed":
+        payload["resolved"] = _value(message, "resolved")
     if status in {"completed", "failed"}:
         payload["progress"] = {
             "text": str(_value(message, "progress_text", "")),
@@ -79,7 +87,7 @@ def _message_payload(message: object) -> dict[str, object]:
     return payload
 
 
-def _detail_payload(view: object, include_progress: bool = False) -> dict[str, object]:
+def _detail_payload(view: object, include_progress: bool = False, include_feedback: bool = False) -> dict[str, object]:
     if not isinstance(view, dict):
         raise ChatApplicationError(
             "CHAT_PERSISTENCE_FAILED",
@@ -95,8 +103,8 @@ def _detail_payload(view: object, include_progress: bool = False) -> dict[str, o
     return {
         **_conversation_payload(conversation),
         "messages": [
-            (_message_payload(message) if include_progress else
-             {key: value for key, value in _message_payload(message).items() if key != "progress"})
+            {key: value for key, value in _message_payload(message).items()
+             if (include_progress or key != "progress") and (include_feedback or key != "resolved")}
             for message in messages if include_progress or _value(message, "reply_status") != "failed"
         ],
     }
@@ -105,6 +113,9 @@ def _detail_payload(view: object, include_progress: bool = False) -> dict[str, o
 def _raise_chat_error(error: ChatApplicationError) -> None:
     status_code = {
         "CONVERSATION_NOT_FOUND": 404,
+        "FEEDBACK_MESSAGE_NOT_FOUND": 404,
+        "FEEDBACK_INVALID": 422,
+        "FEEDBACK_ALREADY_SUBMITTED": 409,
         "INVALID_CURSOR": 422,
         "MESSAGE_REQUIRED": 422,
         "MESSAGE_TOO_LONG": 422,
@@ -123,6 +134,20 @@ def _raise_chat_error(error: ChatApplicationError) -> None:
         code=error.code,
         message=error.message,
     ) from error
+
+
+@router.post("/conversations/{conversation_id}/messages/{message_id}/feedback")
+def set_feedback(
+    conversation_id: UUID,
+    message_id: UUID,
+    body: ChatFeedbackBody,
+    principal: Principal = Depends(require_mutating_principal),
+    application: ChatApplication = Depends(chat_application),
+) -> dict[str, bool]:
+    try:
+        return {"resolved": application.set_feedback(principal, conversation_id, message_id, body.resolved)}
+    except ChatApplicationError as error:
+        _raise_chat_error(error)
 
 
 @router.get("/conversations")
@@ -170,12 +195,13 @@ def create_conversation(
 def get_conversation(
     conversation_id: UUID,
     include_progress: bool = Query(default=False, alias="includeProgress"),
+    include_feedback: bool = Query(default=False, alias="includeFeedback"),
     principal: Principal = Depends(require_principal),
     application: ChatApplication = Depends(chat_application),
 ) -> dict[str, object]:
     try:
         view = application.load_conversation(principal, conversation_id)
-        return _detail_payload(view, include_progress)
+        return _detail_payload(view, include_progress, include_feedback)
     except ChatApplicationError as error:
         _raise_chat_error(error)
 

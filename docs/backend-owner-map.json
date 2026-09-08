@@ -26,6 +26,7 @@
       "characterization": [
         "tests/app_chickenbro_application_test.py",
         "tests/app_chat_cross_client_test.py",
+        "tests/app_chat_feedback_postgres_test.py",
         "tests/app_chickenbro_raiderio_research_test.py",
         "tests/app_chickenbro_public_web_test.py",
         "tests/app_chickenbro_native_mcp_test.py",

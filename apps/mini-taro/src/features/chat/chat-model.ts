@@ -101,6 +101,37 @@ export class ChatModel {
     return this.state
   }
 
+  async setFeedback(messageId: string, resolved: boolean): Promise<void> {
+    const conversation = this.state.activeConversation
+    const message = conversation?.messages.find(row => row.id === messageId)
+    if (!conversation || message?.role !== 'assistant' || message.resolved === undefined) {
+      throw new Error('这条回答暂不可评价')
+    }
+    if (message.resolved !== null) {
+      if (message.resolved === resolved) return
+      throw new Error('评价已确认，不能修改')
+    }
+    const auth = this.authProvider()
+    const result = await this.client.setFeedback(conversation.id, messageId, resolved, { auth })
+    if (result.fromFallback) {
+      if (result.problemCode === 'FEEDBACK_ALREADY_SUBMITTED') {
+        const latest = await this.client.get(conversation.id, { auth })
+        const saved = latest.payload.messages.find(row => row.id === messageId)?.resolved
+        const current = this.state.activeConversation
+        if (!latest.fromFallback && typeof saved === 'boolean' && current?.id === conversation.id) {
+          this.update({ activeConversation: { ...current, messages: current.messages.map(row =>
+            row.id === messageId ? { ...row, resolved: saved } : row) } })
+        }
+        throw new Error('评价已确认，不能修改')
+      }
+      throw new Error('反馈未保存，请重试')
+    }
+    const current = this.state.activeConversation
+    if (current?.id !== conversation.id) return
+    this.update({ activeConversation: { ...current, messages: current.messages.map(row =>
+      row.id === messageId ? { ...row, resolved: result.payload.resolved } : row) } })
+  }
+
   subscribe(listener: ChatListener): () => void {
     this.listeners.add(listener)
     listener(this.state)

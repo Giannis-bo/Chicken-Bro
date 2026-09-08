@@ -1,4 +1,5 @@
 import ChatReplyDetails from '../../components/ChatReplyDetails'
+import ChatFeedback from '../../components/ChatFeedback'
 import { MiniHelpActions } from '../../components/MiniHelp'
 import { useTabRootIdentity } from '../../use-tab-root-identity'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
@@ -187,6 +188,8 @@ function ChickenbroPage() {
             status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
             durationMs={message.progress?.durationMs ?? null} /> : null}
           <MiniMessage content={message.content} markdown={message.role !== 'user'} />
+          {message.role === 'assistant' && message.resolved !== undefined ? <ChatFeedback
+            resolved={message.resolved} onSubmit={choice => model.setFeedback(message.id, choice)} /> : null}
         </View>)}
         {state.pendingUserContent ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
           <Text className={styles['messageRole'] ?? ''}>我</Text><MiniMessage content={state.pendingUserContent} />

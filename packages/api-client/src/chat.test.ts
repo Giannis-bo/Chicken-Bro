@@ -66,7 +66,7 @@ describe('formal Chat client', () => {
     expect(transport.requests.map((call) => call.path)).toEqual([
       '/api/v2/chat/conversations?limit=20',
       '/api/v2/chat/conversations',
-      '/api/v2/chat/conversations/conversation%2Fone?includeProgress=true',
+      '/api/v2/chat/conversations/conversation%2Fone?includeProgress=true&includeFeedback=true',
     ])
     for (const call of transport.requests) {
       expect(call.path).not.toContain('/prototype/')
@@ -265,4 +265,16 @@ it('sends deletion through the owner-authenticated formal route and validates ac
   expect(call.options).toMatchObject({ method: 'DELETE', auth, responseMode: 'structured-problem' })
   expect(call.options.validate?.({ deleted: true })).toBe(true)
   expect(call.options.validate?.({ deleted: false })).toBe(false)
+})
+
+it('submits a boolean feedback choice with the current transport auth and validates the saved choice', async () => {
+  const transport = new RecordingTransport()
+  const auth = { kind: 'web' as const, csrfToken: 'csrf' }
+  await createChatClient(transport).setFeedback('conversation/one', 'message/one', false, { auth })
+  const call = transport.requests[0]!
+  expect(call.path).toBe('/api/v2/chat/conversations/conversation%2Fone/messages/message%2Fone/feedback')
+  expect(call.options).toMatchObject({ method: 'POST', auth, data: { resolved: false }, responseMode: 'structured-problem' })
+  expect(call.options.validate?.({ resolved: false })).toBe(true)
+  expect(call.options.validate?.({ resolved: true })).toBe(false)
+  expect(call.options.validate?.({ resolved: 'false' })).toBe(false)
 })

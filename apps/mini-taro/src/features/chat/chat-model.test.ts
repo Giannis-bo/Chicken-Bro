@@ -35,6 +35,11 @@ function success<T>(payload: T): ApiResult<T> {
 }
 
 class FakeChatClient implements ChatClient {
+  setFeedback = vi.fn(async (_conversationId: string, _messageId: string, resolved: boolean,
+    options: Parameters<ChatClient['setFeedback']>[3]) => {
+    this.calls.push({ name: 'feedback', auth: options.auth })
+    return success({ resolved })
+  })
   async remove(): Promise<ApiResult<{ deleted: boolean }>> { return success({ deleted: true }) }
   detail: ConversationDetail = { ...conversation, messages: [] }
   readonly calls: Array<{ name: string; auth: ClientAuthContext; idempotencyKey?: string }> = []
@@ -97,7 +102,37 @@ class FakeChatClient implements ChatClient {
   }
 }
 
+it('locks saved feedback without interrupting chat', async () => {
+  const client = new FakeChatClient()
+  client.detail = { ...conversation, messages: [{ id: 'answer', role: 'assistant', content: '回答', createdAt: now, resolved: null }] }
+  const auth = { kind: 'web' as const, csrfToken: 'csrf' }
+  const model = new ChatModel(client, () => auth)
+  await model.open(conversation.id)
+  await model.setFeedback('answer', false)
+  expect(client.setFeedback).toHaveBeenCalledWith(conversation.id, 'answer', false, { auth })
+  expect(model.get().activeConversation?.messages[0]?.resolved).toBe(false)
+  await expect(model.setFeedback('answer', true)).rejects.toThrow('评价已确认，不能修改')
+  await model.setFeedback('answer', false)
+  expect(client.setFeedback).toHaveBeenCalledTimes(1)
+  expect(model.get().activeConversation?.messages[0]?.resolved).toBe(false)
+  expect(model.get().phase).toBe('ready')
+})
+
 const auth: ClientAuthContext = { kind: 'mini', accessToken: 'mini-token' }
+
+it('restores the locked server choice when the other client has already confirmed', async () => {
+  const client = new FakeChatClient()
+  client.detail = { ...conversation, messages: [{ id: 'answer', role: 'assistant', content: '回答', createdAt: now, resolved: null }] }
+  const model = new ChatModel(client, () => auth)
+  await model.open(conversation.id)
+  client.detail = { ...conversation, messages: [{ id: 'answer', role: 'assistant', content: '回答', createdAt: now, resolved: true }] }
+  client.setFeedback.mockResolvedValueOnce({ ...success({ resolved: false }), fromFallback: true,
+    httpStatus: 409, problemCode: 'FEEDBACK_ALREADY_SUBMITTED' })
+  await expect(model.setFeedback('answer', false)).rejects.toThrow('评价已确认，不能修改')
+  expect(model.get().activeConversation?.messages[0]?.resolved).toBe(true)
+  await expect(model.setFeedback('answer', false)).rejects.toThrow('评价已确认，不能修改')
+  expect(client.setFeedback).toHaveBeenCalledTimes(1)
+})
 
 describe('ChatModel', () => {
   it('loads server-owned conversations and the selected ordered detail', async () => {

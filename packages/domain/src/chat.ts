@@ -17,6 +17,8 @@ export interface ChatProgress {
 }
 
 export interface ChatMessage {
+  // Present only when the server has a completed, feedback-eligible answer.
+  resolved?: boolean | null
   progress?: ChatProgress
   id: string
   role: ChatMessageRole
@@ -99,7 +101,10 @@ function isProgress(value: unknown): value is ChatProgress {
 
 function isChatMessage(value: unknown): value is ChatMessage {
   if (!record(value) || !exactKeys(value, ['id', 'role', 'content', 'createdAt',
+    ...('resolved' in value ? ['resolved'] : []),
     ...('progress' in value ? ['progress'] : [])])) return false
+  if ('resolved' in value && (value['role'] !== 'assistant'
+    || (value['resolved'] !== null && typeof value['resolved'] !== 'boolean'))) return false
   if ('progress' in value && (value['role'] !== 'assistant' || !isProgress(value['progress']))) return false
   return nonEmptyString(value['id'], 128)
     && (value['role'] === 'user' || value['role'] === 'assistant')
