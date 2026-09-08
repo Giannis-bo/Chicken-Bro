@@ -33,3 +33,7 @@ CodeRabbit CLI/MCP 当前不可用，未安装或调用。采用本地源码与�
 本地/远端/构建最终身份在提交后核对；Git SHA 相同只能证明仓库一致，不能证明线上运行版本一致。
 
 提交前 WeApp sourceHash 为 `sha256:f6f83fc8f9eee0841dffd990f17ee3c12c4120723470167361663e5db0a3fa62`，构建时间 `2026-09-08T06:52:16.808Z`；该构建 gitHead 为本轮基线，不冒充未生成的合并 commit。合入后重新执行 `refresh:weapp` 绑定最终 main，结果以生成的 `apps/mini-taro/dist/weapp/wow-build.json` 为准。
+
+## 后续最终发布
+
+上述未部署说明是首次文档收尾状态。用户随后授权双端上线日志与最终发布，源码 `d2a2b752c` 已部署 Web、上传 Mini `1.0.0`；现状见 [发布证据](publish.json)。微信审核/公开发布待用户后台操作。后端 79 文件与最新源码一致，无需更新服务。

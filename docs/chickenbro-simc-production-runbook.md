@@ -4,7 +4,9 @@
 
 1.0 当前实现已获用户验收，当前仓库状态见 [版本说明](releases/1.0.md)。下文带日期的 code/Web 路径、service readiness、容量与清理记录均是当时的快照；其中“当前/现指向”只相对于该记录日期成立。操作前必须重新读取有效 symlink、systemd WorkingDirectory、构建 manifest 和健康状态，不能直接使用最晚一段文字猜当前部署。
 
-最近本地发布记录列出的 API/Worker 为 `f2932f8b6`、Web 为 `b356cd170`、Mini 抽屉开发版为 `c966bd16c`；本轮未据此宣称线上与新仓库提交逐字节一致。最后两处 UI 精简与 FAQ 修改需要单独发布，开发者工具刷新不等同上传/审核/微信公开发布。
+最新发布源码为 `d2a2b752c`：Web `current` 在 2026-09-08 本轮检查时指向 `/var/www/chickenbro-web/releases/v1-d2a2b752c89bb2ac43c6065509151878a30a9d09`，28 文件公网 SHA 一致；Mini `1.0.0` 已上传但微信公开发布待用户操作。API/Worker 仍使用 `faq-f2932f8b6...` 目录，其 79 个业务源码/配置/迁移文件与当前仓库一致，本轮无需重启。见 [发布证据](../artifacts/verification/2026-09-08-v1-close/publish.json)。
+
+本轮 Web 回滚点为 `/var/www/chickenbro-web/releases/theme-cdn-b356cd170169c4d3ec62fed564d561e31ecd24d7`，旧文件保留；操作前仍需重新核对有效指针，不能覆盖其他后续发布。微信上传与公开发布分别记录，版本管理页本轮被工具安全策略阻止访问。
 
 日常增量变更按影响范围构建并核对精确文件身份，保留当前回滚包；不得重放下面已完成的 legacy 迁移、切流或清理脚本。SimC 引擎继续只运行于云端。1.0 文档收尾本身不需要修改数据库、Worker 或 SimC runtime。
 

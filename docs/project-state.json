@@ -187,8 +187,10 @@
     "scope": "current_implemented_chat_and_simc",
     "releaseNotes": "docs/releases/1.0.md",
     "verificationRecord": "artifacts/verification/2026-09-08-v1-close/README.md",
-    "finalUiChanges": "local_only_pending_publication",
-    "wechatPublicRelease": "not_verified_this_run",
-    "historicalRefactorEvidenceAsOf": "2026-09-04"
+    "finalUiChanges": "web_deployed_mini_uploaded",
+    "wechatPublicRelease": "pending_user_platform_action",
+    "historicalRefactorEvidenceAsOf": "2026-09-04",
+    "latestApplicationSourceCommit": "d2a2b752c89bb2ac43c6065509151878a30a9d09",
+    "publicationEvidence": "artifacts/verification/2026-09-08-v1-close/publish.json"
   }
 }

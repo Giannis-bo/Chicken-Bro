@@ -1,0 +1,54 @@
+{
+  "status": "web_deployed_mini_uploaded_publication_pending",
+  "sourceCommit": "d2a2b752c89bb2ac43c6065509151878a30a9d09",
+  "web": {
+    "status": "live_verified",
+    "root": "/var/www/chickenbro-web/releases/v1-d2a2b752c89bb2ac43c6065509151878a30a9d09",
+    "rollback": "/var/www/chickenbro-web/releases/theme-cdn-b356cd170169c4d3ec62fed564d561e31ecd24d7",
+    "filesMatched": 28,
+    "browserChecks": [
+      "existing_session_restored",
+      "history_visible",
+      "2026-09-08_launch_entry_visible",
+      "removed_intro_absent"
+    ]
+  },
+  "mini": {
+    "version": "1.0.0",
+    "upload": "passed",
+    "bytes": 1059532,
+    "buildIdentity": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "d2a2b752c89bb2ac43c6065509151878a30a9d09",
+      "sourceHash": "sha256:a5e26c1b7c70d21c9c01a7daff9fde6bb8be2a760c4eee6336e17c67d6954cd1",
+      "builtAt": "2026-09-08T08:20:46.426Z"
+    },
+    "developerToolsChecks": [
+      "more_menu_only_faq_and_changelog",
+      "2026-09-08_launch_entry_visible"
+    ],
+    "wechatPublicRelease": "requires_user_platform_action",
+    "platformAccess": "browser_site_safety_policy_blocked_no_workaround"
+  },
+  "backend": {
+    "root": "/opt/chickenbro-releases/faq-f2932f8b6eb68ea7627ca428e14f460a57ab4ad4",
+    "comparedFiles": 79,
+    "differences": 0,
+    "scope": "server/app, product migrations and native MCP/worker entrypoints (.py/.json/.sql/.toml/.md)",
+    "readiness": "ready_all_components",
+    "restarted": false,
+    "databaseChanged": false,
+    "simcRuntimeChanged": false
+  },
+  "verification": {
+    "frontend": 321,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed_existing_size_warnings",
+    "weapp": "passed",
+    "mergedTargetedTests": 23,
+    "review": "independent_static_review_no_findings"
+  },
+  "newChatOrSimcTasks": "not_created"
+}
