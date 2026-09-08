@@ -12,6 +12,14 @@
 
 静态资源仅通过鉴权控制台或签名请求上传到新版本目录，不得为了上传恢复 COS 公有写。已有整改记录见 [COS 安全处理](../artifacts/security/2026-09-08-cos-write-hardening/report.md)；历史请求审计与恢复能力仍是独立待办。
 
+## SimC Raider.IO-only 增量发布（2026-09-08）
+
+源码 `4315455479566aab7ead4488c52842f3b83c55b1` 已发布。代码指针 `/opt/chickenbro` 指向 `/opt/chickenbro-releases/raider-4315455479566aab7ead4488c52842f3b83c55b1`；Web current 指向 `/var/www/chickenbro-web/releases/raider-4315455479566aab7ead4488c52842f3b83c55b1`。仅 SimC application 拒绝新 WCL 导入，保留 Chat WCL 和历史任务。无迁移、引擎或服务配置变更。
+
+服务器独立候选目录 87 项测试通过，27 个公网文件 SHA 匹配，正式接口 Mini/Web WCL 导入 422 且无快照写入，Raider.IO 导入 READY_FOR_SIMC。Mini 1.0.4 已上传；微信审核和公开发布待用户操作。见 [发布结果](../artifacts/verification/2026-09-08-simc-raider-only/publish.json)。
+
+回滚前核对当前指针仍为本次目录并排空任务，停止 API/Worker，代码原子恢复到 `/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`，Web 恢复到 `/var/www/chickenbro-web/releases/keyboard-c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe`，启动服务并复核健康；不修改数据库或 SimC runtime。
+
 ## 回答反馈增量发布（2026-09-08）
 
 源码 `5ace442c38f6ec2657c2804f6bf87b96aa46ade5` 已发布。`/opt/chickenbro` 指向 `/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`，Web current 指向 `/var/www/chickenbro-web/releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`；迁移 `0006_chat_resolution_feedback` 已应用，公网 27 文件哈希匹配，反馈接口验证通过。Mini `1.0.1` 已上传，微信公开发布待用户后台操作。见 [发布证据](../artifacts/verification/2026-09-08-chat-feedback/publish.json)。

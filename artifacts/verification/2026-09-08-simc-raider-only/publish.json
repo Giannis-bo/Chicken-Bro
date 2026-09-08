@@ -1,0 +1,58 @@
+{
+  "status": "published",
+  "sourceCommit": "4315455479566aab7ead4488c52842f3b83c55b1",
+  "codeRoot": "/opt/chickenbro-releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+  "webRoot": "/var/www/chickenbro-web/releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+  "rollbackCode": "/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/keyboard-c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe",
+  "publicFilesMatched": 27,
+  "readiness": "ready",
+  "databaseChanged": false,
+  "simcRuntimeChanged": false,
+  "candidateTests": {
+    "passed": 87
+  },
+  "localVerification": {
+    "backend": 421,
+    "frontend": 335,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5Build": "passed",
+    "weappBuild": "passed",
+    "independentReview": "no_findings",
+    "coderabbit": "unavailable_not_installed"
+  },
+  "businessSmoke": {
+    "status": "passed",
+    "sourceCommit": "4315455479566aab7ead4488c52842f3b83c55b1",
+    "checks": [
+      "mini_wcl_rejected_422",
+      "web_wcl_rejected_422",
+      "wcl_no_snapshot_written",
+      "raiderio_import_201"
+    ],
+    "raiderioReadiness": "READY_FOR_SIMC",
+    "realWechatLogin": "not_run_dedicated_verification_sessions",
+    "simulationJobCreated": false
+  },
+  "mini": {
+    "version": "1.0.4",
+    "upload": "succeeded",
+    "bytes": 1066066,
+    "publicRelease": "pending_user_platform_action",
+    "blockedReason": "browser_site_safety_blocks_wechat_version_management",
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "4315455479566aab7ead4488c52842f3b83c55b1",
+      "sourceHash": "sha256:956d3ae48d36ab401a7175cae7f210b401831f8e994285d538108885faca688c",
+      "builtAt": "2026-09-08T12:48:28.346Z"
+    }
+  },
+  "liveWeb": {
+    "session": "existing_login_reused",
+    "raiderioExampleOnly": true,
+    "leftBottom": 683.9323425292969,
+    "summaryBottom": 683.9323120117188
+  }
+}
