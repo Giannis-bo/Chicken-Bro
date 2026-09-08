@@ -1,0 +1,24 @@
+{
+  "status": "local_and_isolated_cloud_verified",
+  "baseCommit": "ef538f239168adb0c0f43afbd819beb0b7393fb4",
+  "branch": "codex/wcl-fight-talents",
+  "worktreeChangesCommitted": false,
+  "backendTests": 413,
+  "controlTests": 62,
+  "independentReview": "passed_after_two_fixes",
+  "productionDeployed": false,
+  "userAccepted": false,
+  "realLogEntryCount": 80,
+  "freshLogEqualsFixture": true,
+  "independentEngineExportEqualsReconstructed": true,
+  "liveDps": 226890.70431082917,
+  "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "testedCodeSha256": {
+    "server/app/simulation/sources.py": "d1f483603d691bd5eaf738b8b9a3e46448088b0238bb85654c1747b346f8a406",
+    "server/app/simulation/wcl_talents.py": "a943073101c5ed9ab708398a8058417da61366ba53d7bd958ab2758360aa7d0e",
+    "server/app/simulation/readiness.py": "cc2c967daaf80b82a0175605c07dbb47fccb48b5ca622a16504b1f1b1f9aef49",
+    "server/app/simulation/compiler.py": "e61827d5900be91d2a74893476b6812a0cbd00b41b7e3d82a80148e2f129a7c9",
+    "server/app/simulation/data/traits-12.1.0.json": "98894e905a902219d2b55b08080bcd1f821128d615d84da2692bff7f756d264f"
+  },
+  "reportSha256": "2eaaad9eecc540e9f2fac3eea51c9eaef636a5d6a8a10e6762f6e75e2706c7d0"
+}

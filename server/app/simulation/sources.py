@@ -14,6 +14,7 @@ from server.app.simulation.domain import SourceProvider, SourceReadiness
 from server.app.simulation.source_details import (
     combatant_input, matching_talent_export, read_character_details,
 )
+from server.app.simulation.wcl_talents import reconstruct_fight_talents
 from server.app.simulation.snapshots import (
     CharacterSnapshotCandidate,
     missing_snapshot_fields,
@@ -800,7 +801,15 @@ class WclCharacterAdapter:
                         character["raceKey"] = _key(detail_character["race"]["slug"])
                     character["realm"] = server["slug"]
                     code = matching_talent_export(event.get("talentTree"), detail_character, character["specKey"])
-                    if code:
+                    reconstructed = reconstruct_fight_talents(
+                        event.get("talentTree"), event.get("specID"), detail_character, character["specKey"])
+                    if reconstructed is not None:
+                        reconstructed_code, reconstruction = reconstructed
+                        snapshot["talents"] = {"string": reconstructed_code}
+                        provenance["wclTalentReconstruction"] = reconstruction
+                    elif code and (event.get("specID") is None or (
+                        type(event["specID"]) is int and event["specID"] == detail_character["spec"].get("id")
+                    )):
                         snapshot["talents"] = {"string": code}
                     provenance["raiderioCharacterDetails"] = {
                         **metadata, "fields": ["level", "raceKey", "realm"],

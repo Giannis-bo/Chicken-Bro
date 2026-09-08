@@ -8,6 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Mapping
 
+from server.app.simulation.wcl_talents import talent_catalog_matches_runtime
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
 from server.app.simulation.snapshots import (
     REQUIRED_CHARACTER_PATHS,
@@ -306,6 +307,8 @@ class SimcReadinessValidator:
                     )
 
         require("talents", "talents.loadout" not in missing_fields, "TALENTS_MISSING")
+        require("talentRuntime", talent_catalog_matches_runtime(raw_provenance, runtime_capabilities.runtime_revision),
+                "TALENTS_INVALID")
         provenance_present = (
             isinstance(raw_provenance, Mapping)
             and bool(str(raw_provenance.get("sourceUrl") or "").strip())

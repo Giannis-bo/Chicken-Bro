@@ -1,0 +1,48 @@
+{
+  "missingFields": [],
+  "provenance": {
+    "provider": "warcraftlogs",
+    "sourceUrl": "https://www.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+    "reportCode": "CPGWvnJ2t9QMRrA1",
+    "fightId": 1,
+    "actorId": 4,
+    "guid": 109015493,
+    "fetchedAt": "2026-09-08T03:11:25.206612+00:00",
+    "endpoint": "warcraftlogs-report-player-details",
+    "wclCombatantInfo": {
+      "fightId": 1,
+      "actorId": 4,
+      "eventSha256": "30d1a003906e4504adfd50da51574aab3569a8ed6fbb1d972b308b1c1c60cc44",
+      "fields": [
+        "gear",
+        "talents"
+      ]
+    },
+    "wclTalentReconstruction": {
+      "method": "recorded-entries-to-blizzard-v2",
+      "entryCount": 80,
+      "specId": 262,
+      "heroSubTreeId": 56,
+      "gameBuild": "12.1.0.69299",
+      "catalogRuntimeRevision": "f50a2121bf894570146507496f3e113bff68e445",
+      "catalogSourceSha256": "2471472ebeef6028016a189f38cb6852f86cdfdbe809bc938a0d67428a9cf1ca"
+    },
+    "raiderioCharacterDetails": {
+      "provider": "raiderio",
+      "endpoint": "https://raider.io/api/characters/cn/silver-hand/Giannis",
+      "characterPath": "/characters/cn/silver-hand/Giannis",
+      "rawSha256": "add732b2fb3fa5a27a1f6bc02a1b143c89cc128b320885cd577f5c7b083b05be",
+      "fields": [
+        "level",
+        "raceKey",
+        "realm"
+      ],
+      "talentsVerifiedAgainstFight": false
+    },
+    "wclCharacterIdentity": {
+      "rawSha256": "f1cb47239c557ca95a0b1d1a84514f3aa8c522997cf9c1c7b4b1576514d8440a"
+    },
+    "sourceRevision": "1"
+  },
+  "rawSha256": "799b3da6ccc6f7134d29d5f3181505cd890cf68a318bda6926cabc93dbf15930"
+}

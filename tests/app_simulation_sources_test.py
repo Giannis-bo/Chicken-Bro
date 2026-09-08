@@ -115,12 +115,12 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertEqual(candidate.snapshot["gear"]["neck"]["gems"], [240983])
         self.assertEqual(candidate.snapshot["gear"]["main_hand"]["itemId"], 245770)
         self.assertEqual(candidate.snapshot["gearState"]["unequippedSlots"], ["off_hand"])
-        self.assertEqual(candidate.snapshot["talents"]["string"],
-                         details["characterDetails"]["character"]["talentLoadout"]["loadoutText"])
+        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export.json").read_text())
+        self.assertEqual(candidate.snapshot["talents"]["string"], expected["talents"])
         self.assertIn("wclCombatantInfo", candidate.provenance)
         from server.app.simulation.compiler import SimcProfileCompiler
         from server.app.simulation.readiness import SimcRuntimeCapabilities, SimcReadinessValidator
-        capabilities = SimcRuntimeCapabilities("simc:test", "chickenbro-simc-compiler-v3", frozenset({("shaman", "elemental")}))
+        capabilities = SimcRuntimeCapabilities("simc:managed:f50a2121bf894570146507496f3e113bff68e445:" + "a" * 64, "chickenbro-simc-compiler-v3", frozenset({("shaman", "elemental")}))
         saved = candidate.to_source_snapshot(user_id="00000000-0000-4000-8000-000000000001",
             snapshot_id="00000000-0000-4000-8000-000000000002",
             readiness_report=SimcReadinessValidator().validate(candidate, capabilities))
@@ -138,6 +138,33 @@ class SimulationSourcesTest(unittest.TestCase):
             parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
         self.assertIn("talents.loadout", candidate.missing_fields)
         self.assertNotIn("string", candidate.snapshot["talents"])
+
+    def test_wcl_historical_talents_survive_current_character_respec(self):
+        gateway, official, _, details, _, _ = self._giannis_gateway()
+        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export.json").read_text())["talents"]
+        # A later respec must not alter or invalidate the recorded fight build.
+        details["characterDetails"]["character"]["talentLoadout"]["nodes"] = []
+        details["characterDetails"]["character"]["talentLoadout"]["loadoutText"] = "AAAA"
+        candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+            parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+        self.assertEqual(candidate.missing_fields, ())
+        self.assertEqual(candidate.snapshot["talents"].get("string"), expected)
+        self.assertEqual(candidate.provenance["wclTalentReconstruction"]["entryCount"], 80)
+
+    def test_wcl_fight_survives_current_character_changing_specialization(self):
+        gateway, official, _, details, _, _ = self._giannis_gateway()
+        details["characterDetails"]["character"]["spec"].update(id=263, slug="enhancement")
+        candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+            parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+        self.assertEqual(candidate.missing_fields, ())
+        self.assertEqual(candidate.snapshot["character"]["specKey"], "elemental")
+
+    def test_wcl_wrong_event_spec_cannot_use_current_export(self):
+        gateway, official, _, _, report, _ = self._giannis_gateway()
+        report["data"]["reportData"]["report"]["events"]["data"][0]["specID"] = 263
+        candidate = WclCharacterAdapter(gateway, access_token="fixture", official_enricher=official).resolve(
+            parse_character_source_url("https://cn.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4"))
+        self.assertIn("talents.loadout", candidate.missing_fields)
 
     def test_wcl_wrong_fight_or_actor_event_cannot_supply_gear(self):
         for field, value in [("fight", 2), ("sourceID", 5)]:

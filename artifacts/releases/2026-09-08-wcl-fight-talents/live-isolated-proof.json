@@ -1,0 +1,57 @@
+{
+  "status": "isolated_live_source_and_cloud_simc_verified",
+  "productionChanged": false,
+  "databaseWrites": false,
+  "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "sourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "binarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "profileSha256": "fdf519155a82b82c0ed9f0457a7af20dc31b51adae0bb8c85412125069e297e7",
+  "reportSha256": "2eaaad9eecc540e9f2fac3eea51c9eaef636a5d6a8a10e6762f6e75e2706c7d0",
+  "missingFields": [],
+  "dps": 226890.70431082917,
+  "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMGjZZbZMmhZAAAAgFzsBDYAzGzAmFAY2mZmxYZx0GzMbjlZegZGDLWmZWGGzMLAAzAgZGDDD",
+  "provenance": {
+    "provider": "warcraftlogs",
+    "sourceUrl": "https://www.warcraftlogs.com/reports/CPGWvnJ2t9QMRrA1#fight=1&source=4",
+    "reportCode": "CPGWvnJ2t9QMRrA1",
+    "fightId": 1,
+    "actorId": 4,
+    "guid": 109015493,
+    "fetchedAt": "2026-09-08T03:18:19.547873+00:00",
+    "endpoint": "warcraftlogs-report-player-details",
+    "wclCombatantInfo": {
+      "fightId": 1,
+      "actorId": 4,
+      "eventSha256": "30d1a003906e4504adfd50da51574aab3569a8ed6fbb1d972b308b1c1c60cc44",
+      "fields": [
+        "gear",
+        "talents"
+      ]
+    },
+    "wclTalentReconstruction": {
+      "method": "recorded-entries-to-blizzard-v2",
+      "entryCount": 80,
+      "specId": 262,
+      "heroSubTreeId": 56,
+      "gameBuild": "12.1.0.69299",
+      "catalogRuntimeRevision": "f50a2121bf894570146507496f3e113bff68e445",
+      "catalogSourceSha256": "2471472ebeef6028016a189f38cb6852f86cdfdbe809bc938a0d67428a9cf1ca"
+    },
+    "raiderioCharacterDetails": {
+      "provider": "raiderio",
+      "endpoint": "https://raider.io/api/characters/cn/silver-hand/Giannis",
+      "characterPath": "/characters/cn/silver-hand/Giannis",
+      "rawSha256": "72ce737508d4c51284471e8fe130c04d815935f02337e834cd601d18a3526830",
+      "fields": [
+        "level",
+        "raceKey",
+        "realm"
+      ],
+      "talentsVerifiedAgainstFight": false
+    },
+    "wclCharacterIdentity": {
+      "rawSha256": "f1cb47239c557ca95a0b1d1a84514f3aa8c522997cf9c1c7b4b1576514d8440a"
+    },
+    "sourceRevision": "6"
+  }
+}

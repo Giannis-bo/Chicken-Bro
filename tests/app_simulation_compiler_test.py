@@ -34,6 +34,21 @@ class SimulationCompilerTest(unittest.TestCase):
         )
         self.capabilities = capabilities
 
+    def test_reconstructed_talents_reject_different_or_unknown_runtime_catalog(self):
+        snapshot = replace(self.snapshot, provenance={**self.snapshot.provenance,
+            "wclTalentReconstruction": {"catalogRuntimeRevision": "f" * 40}})
+        for runtime in ("simc:managed:" + "a" * 40 + ":" + "b" * 64, "simc:unknown"):
+            caps = replace(self.capabilities, runtime_revision=runtime)
+            report = SimcReadinessValidator().validate(snapshot, caps)
+            self.assertIn("TALENTS_INVALID", report.blockers)
+            with self.assertRaises(SimcCompileError) as error:
+                SimcProfileCompiler(capabilities=caps).compile(snapshot, {})
+            self.assertEqual(error.exception.code, "TALENTS_INVALID")
+        caps = replace(self.capabilities, runtime_revision="simc:managed:" + "f" * 40 + ":" + "b" * 64)
+        self.assertNotIn("TALENTS_INVALID", SimcReadinessValidator().validate(snapshot, caps).blockers)
+        compiled = SimcProfileCompiler(capabilities=caps).compile(snapshot, {})
+        self.assertEqual(compiled.provenance["wclTalentReconstruction"], snapshot.provenance["wclTalentReconstruction"])
+
     def test_compiler_outputs_bounded_profile_with_hash_and_provenance(self):
         compiled = SimcProfileCompiler(capabilities=self.capabilities).compile(
             self.snapshot,

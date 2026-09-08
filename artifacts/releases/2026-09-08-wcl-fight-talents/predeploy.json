@@ -1,0 +1,18 @@
+{
+  "previousCode": "/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "previousWeb": "/var/www/chickenbro-web/releases/themes-4a39d1eed6386de69c781c1267aee8af1cf1fc99",
+  "files": {
+    "server/app/simulation/sources.py": "bbb6c1085d358895345134ad2e3d24eaa9425b5fed37a4670916ef774f281a23",
+    "server/app/simulation/wcl_talents.py": null,
+    "server/app/simulation/readiness.py": "c668f9aa53282d3417cbd7920bfaf0665eae565a4fbd50fed3153127a6bd1353",
+    "server/app/simulation/compiler.py": "e8bfda6401da33366bf77b1993dfe16820e899fb0dd9bdd33276e8a74074bbc9",
+    "server/app/simulation/data/traits-12.1.0.json": null
+  },
+  "migrations": [
+    "0001_chickenbro_simc_core",
+    "0002_chat_idempotent_replay",
+    "0003_account_avatar",
+    "0004_chat_public_progress",
+    "0005_chat_account_concurrency"
+  ]
+}

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Mapping
 from uuid import UUID
 
+from server.app.simulation.wcl_talents import talent_catalog_matches_runtime
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
 from server.app.simulation.readiness import SimcRuntimeCapabilities
 from server.app.simulation.snapshots import REQUIRED_GEAR_SLOTS, canonical_json
@@ -105,6 +106,8 @@ class SimcProfileCompiler:
             readiness = SourceReadiness(str(readiness))
         if readiness is not SourceReadiness.READY_FOR_SIMC:
             raise SimcCompileError("SNAPSHOT_NOT_READY")
+        if not talent_catalog_matches_runtime(snapshot.provenance, self._capabilities.runtime_revision):
+            raise SimcCompileError("TALENTS_INVALID")
         normalized_scenario = normalize_scenario(scenario)
         raw_snapshot = snapshot.snapshot if isinstance(snapshot.snapshot, Mapping) else {}
         character = raw_snapshot.get("character") if isinstance(raw_snapshot.get("character"), Mapping) else {}
@@ -260,6 +263,8 @@ class SimcProfileCompiler:
             "sourceRawSha256": snapshot.raw_sha256,
             "snapshotRevision": snapshot.revision,
         }
+        if "wclTalentReconstruction" in snapshot.provenance:
+            provenance["wclTalentReconstruction"] = dict(snapshot.provenance["wclTalentReconstruction"])
         return CompiledSimcInput(
             snapshot_id=snapshot.id,
             actor_name=name,
