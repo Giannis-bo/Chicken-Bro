@@ -37,6 +37,6 @@ export default function WebThemeDialog({ selected, onSelect, onClose, saveFailed
       </div>
     </div>
     <footer className={styles['footer']}>{saveFailed ? <span role="status">主题已切换，但浏览器无法保存，刷新后可能恢复默认。</span> : null}
-      <button type="button" onClick={onClose}>完成</button></footer>
+      <button type="button" className={styles['done']} onClick={onClose}>完成</button></footer>
   </dialog>
 }
