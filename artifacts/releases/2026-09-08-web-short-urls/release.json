@@ -1,5 +1,5 @@
 {
-  "status": "live_verified_user_acceptance_pending",
+  "status": "user_accepted",
   "webCommit": "6b2f4bebaadb39c32fac14f2649daaa37dbe4229",
   "baseProductionCommit": "29c5b2a258bb76c54726fad7285eca25643fbc13",
   "webRoot": "/var/www/chickenbro-web/releases/short-urls-6b2f4bebaadb39c32fac14f2649daaa37dbe4229",
@@ -34,7 +34,11 @@
   "apiWorkerChanged": false,
   "miniChanged": false,
   "testNginxChanged": false,
-  "mainMerge": "not_requested",
-  "push": "not_performed",
-  "themeWip": "preserved and excluded from release"
+  "mainMerge": "authorized accepted closure",
+  "push": "authorized main push; verify repository refs after closure",
+  "themeWip": "preserved and excluded from release",
+  "userAcceptance": {
+    "confirmation": "很好，合入。",
+    "date": "2026-09-08"
+  }
 }
