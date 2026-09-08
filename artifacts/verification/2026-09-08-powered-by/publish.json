@@ -1,0 +1,24 @@
+{
+  "status": "published",
+  "sourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
+  "webRoot": "/var/www/chickenbro-web/releases/credit-189d711648c6846df73f07d9aeb2ae7f9766ff15",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+  "publicFilesMatched": 27,
+  "readiness": "ready",
+  "backendChanged": false,
+  "miniChanged": false,
+  "miniVersionRetained": "1.0.4",
+  "liveUi": {
+    "existingWebSessionReused": true,
+    "chatHistoryLoaded": true,
+    "creditPosition": "bottom_right",
+    "separateFooterRow": false
+  },
+  "verification": {
+    "frontendPassed": 335,
+    "typecheck": "passed",
+    "lint": "passed",
+    "independentReview": "no_findings",
+    "coderabbit": "unavailable_not_installed"
+  }
+}
