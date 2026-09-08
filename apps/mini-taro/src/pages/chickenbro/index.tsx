@@ -135,13 +135,17 @@ function ChickenbroPage() {
 
   return <View className={styles['page'] ?? ''} data-chat-phase={state.phase}>
     <View className={styles['header'] ?? ''}>
-      <Button className={styles['historyButton'] ?? ''} onClick={() => setHistoryOpen(!historyOpen)}>
-        {historyOpen ? '收起历史 ▴' : '历史对话 ▾'}
+      <Button className={styles['historyButton'] ?? ''} aria-expanded={historyOpen} onClick={() => { void Taro.hideKeyboard?.().catch(() => undefined); setHistoryOpen(true) }}>
+        历史对话 ☰
       </Button>
       <Button className={styles['secondaryButton'] ?? ''} disabled={preparing || state.phase === 'loading'} onClick={() => void startNew()}>＋ 新对话</Button>
       <MiniHelpActions />
     </View>
-    {historyOpen ? <ScrollView className={styles['history'] ?? ''} scrollY>
+    {historyOpen ? <View className={styles['drawerLayer'] ?? ''}>
+      <Button className={styles['drawerMask'] ?? ''} aria-label="关闭历史抽屉遮罩" onClick={() => setHistoryOpen(false)} />
+      <View className={styles['drawer'] ?? ''}>
+        <View className={styles['drawerHeader'] ?? ''}><Text className={styles['drawerTitle'] ?? ''}>历史会话</Text><Button className={styles['drawerClose'] ?? ''} aria-label="关闭历史会话" onClick={() => setHistoryOpen(false)}>关闭</Button></View>
+        <ScrollView className={styles['history'] ?? ''} scrollY>
       {deleteError ? <Text className={styles['deleteError'] ?? ''}>{deleteError}</Text> : null}
       {state.conversations.map((conversation, index) => <View key={conversation.id} className={styles['conversationRow'] ?? ''}><Button
         className={`${styles['conversationButton']} ${state.activeConversation?.id === conversation.id ? styles['activeConversation'] : ''}`}
@@ -158,7 +162,9 @@ function ChickenbroPage() {
       </View>)}
       {state.nextCursor ? <Button className={styles['secondaryButton'] ?? ''} disabled={preparing || state.phase === 'loading'} onClick={() => void model.loadMore()}>加载更多对话</Button> : null}
       {!state.conversations.length ? <Text className={styles['hint'] ?? ''}>还没有历史对话</Text> : null}
-    </ScrollView> : null}
+        </ScrollView>
+      </View>
+    </View> : null}
     <ScrollView className={styles['messages'] ?? ''} scrollY scrollIntoView={endAnchor}
       onTouchStart={() => { touching.current = true }} onTouchEnd={() => { touching.current = false }}
       onScroll={(event) => {

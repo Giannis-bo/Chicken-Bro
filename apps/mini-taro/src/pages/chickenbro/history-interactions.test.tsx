@@ -147,3 +147,16 @@ it('creates an empty Web conversation during a reply without aborting the origin
   await act(async () => api.stream!.onEvent({ type: 'delta', text: 'A后台回答', conversationId: 'A', requestId: 'request-a', runId: 'run-a', sequence: 2 }))
   expect(node.textContent).not.toContain('A后台回答')
 })
+
+
+it('closes the history drawer by backdrop or close button without losing the draft', async () => {
+  await input('保留我的草稿')
+  await click('历史对话')
+  await act(async () => node.querySelector<HTMLButtonElement>('[aria-label="关闭历史抽屉遮罩"]')!.click())
+  expect(button('会话B')).toBeUndefined()
+  expect(node.querySelector('textarea')!.value).toBe('保留我的草稿')
+  await click('历史对话')
+  await act(async () => node.querySelector<HTMLButtonElement>('[aria-label="关闭历史会话"]')!.click())
+  expect(button('会话B')).toBeUndefined()
+  expect(api.abort).not.toHaveBeenCalled()
+})

@@ -3,7 +3,7 @@
 .historyButton, .secondaryButton, .sendButton, .suggestion, .backToLatest { margin: 0; padding: 18rpx 22rpx; min-height: 76rpx; color: #695e55; background: #f0ece7; border-radius: 14rpx; font-size: 25rpx; line-height: 1.5; }
 .historyButton::after, .secondaryButton::after, .sendButton::after, .suggestion::after, .backToLatest::after, .conversationButton::after { border: 0; }
 .historyButton { margin-right: auto !important; width: auto; background: transparent; padding-left: 0; }
-.history { flex: none; height: 380rpx; border-bottom: 1rpx solid #e8e3de; }
+.history { flex: 1; height: 0; min-height: 0; }
 .conversationButton { width: 100%; margin: 0; padding: 18rpx; text-align: left; color: #4e4944; background: transparent; border-radius: 10rpx; line-height: 1.5; }
 .activeConversation { background: var(--mini-theme-soft, #f2e5e1); color: var(--mini-theme-accent, #9e5145); }
 .conversationTitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27rpx; }
@@ -46,3 +46,13 @@
 .deleteButton { flex: none; width: auto !important; min-width: 88rpx; min-height: 76rpx; margin: 0 !important; padding: 18rpx 12rpx; color: var(--mini-theme-accent, #9e5145); background: transparent; font-size: 23rpx; line-height: 1.5; }
 .deleteButton::after { border: 0; }
 .deleteError { display: block; padding: 12rpx 8rpx; color: #8f3328; font-size: 24rpx; line-height: 1.5; }
+
+.drawerLayer { position: fixed; inset: 0; z-index: 1000; }
+.drawerMask { position: absolute; inset: 0; width: 100% !important; height: 100%; margin: 0 !important; padding: 0; border: 0; border-radius: 0; background: rgba(30, 25, 22, .38); }
+.drawerMask::after, .drawerClose::after { border: 0; }
+.drawer { position: absolute; top: 0; bottom: 0; left: 0; display: flex; flex-direction: column; box-sizing: border-box; width: 84%; max-width: 640rpx; padding: 24rpx 20rpx calc(24rpx + env(safe-area-inset-bottom)); background: #faf8f5; box-shadow: 12rpx 0 40rpx rgba(40, 30, 20, .12); animation: historyEnter .2s ease-out; }
+.drawerHeader { display: flex; align-items: center; justify-content: space-between; flex: none; padding: 0 4rpx 20rpx; border-bottom: 1rpx solid #e8e3de; }
+.drawerTitle { font-size: 34rpx; font-weight: 700; }
+.drawerClose { width: auto !important; margin: 0 !important; padding: 12rpx 16rpx; font-size: 26rpx; line-height: 1.5; color: var(--mini-theme-accent, #9e5145); background: transparent; }
+@keyframes historyEnter { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
