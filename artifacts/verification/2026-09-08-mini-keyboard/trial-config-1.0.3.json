@@ -14,5 +14,12 @@
     "release": "https://api.chickenbro.cloud"
   },
   "testLogin": false,
-  "apiPrefix": "/api/v2"
+  "apiPrefix": "/api/v2",
+  "userAcceptance": {
+    "status": "passed",
+    "confirmation": "这次OK了。",
+    "date": "2026-09-08",
+    "scope": "1.0.3_trial_on_real_device"
+  },
+  "publicRelease": "pending_user_platform_action"
 }

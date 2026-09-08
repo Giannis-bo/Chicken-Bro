@@ -26,4 +26,4 @@ Web 回滚：确认 current 仍指向 publish.json 中的 root 后，原子切�
 WOW_BACKEND_API_BASE_URL=https://api.chickenbro.cloud WOW_TEST_LOGIN_UI=0 WOW_API_V2_PREFIX=/api/v2 WOW_WEB_AUTH_API_PREFIX=/api/v2 npm run build:weapp
 ```
 
-35 项网络层测试通过；从实际 common.js 提取并执行地址解析函数，在 trial/release 两种环境均返回正式 HTTPS 地址，忽略本地覆盖。见 trial-config-1.0.3.json 和 mini-upload-1.0.3.json。后台设为体验版、重新扫码与公开发布仍待用户完成。源码哈希不能单独证明构建环境配置，后续上传须同时核对编译后的正式地址、测试入口关闭和体验路径。
+35 项网络层测试通过；从实际 common.js 提取并执行地址解析函数，在 trial/release 两种环境均返回正式 HTTPS 地址，忽略本地覆盖。见 trial-config-1.0.3.json 和 mini-upload-1.0.3.json。用户重新扫码后于 2026-09-08 明确确认“这次OK了。”，1.0.3 体验版真机验收通过；微信审核与公开发布仍待用户平台操作。源码哈希不能单独证明构建环境配置，后续上传须同时核对编译后的正式地址、测试入口关闭和体验路径。
