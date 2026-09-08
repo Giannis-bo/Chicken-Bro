@@ -1,0 +1,63 @@
+{
+  "status": "user_accepted",
+  "cdnRoot": "https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1",
+  "files": 7,
+  "totalBytes": 10111725,
+  "cacheControl": "public,max-age=31536000,immutable",
+  "byteAndSha256Verification": "passed",
+  "cdnContentTypeAndCachePolicy": "passed",
+  "frontendTests": 321,
+  "controlTests": 62,
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5Build": "passed_existing_size_warnings",
+  "productionWebCutover": "completed",
+  "userAcceptance": "passed",
+  "inheritedBucketPermissions": "public_read_write_unchanged",
+  "uploadMethod": "COS PUT over HTTPS; new release prefix only; forbid overwrite; no stored credentials or new dependencies",
+  "previewUrl": "https://www.chickenbro.cloud/previews/theme-cdn-20260908/",
+  "previewFilesMatched": 27,
+  "previewThemeSwitches": 7,
+  "existingSessionRestored": true,
+  "localReview": "passed: seven curated originals, fixed HTTPS release, no Mini imports, no credentials, original files retained",
+  "downloadTiming": {
+    "method": "same local network, three sequential full GETs per route, no browser cache; seconds",
+    "horde": {
+      "web": [
+        1.056238,
+        1.848108,
+        2.25766
+      ],
+      "cdn": [
+        0.501769,
+        0.289298,
+        0.489213
+      ]
+    },
+    "deathwing": {
+      "web": [
+        2.259166,
+        3.65332,
+        3.353327
+      ],
+      "cdn": [
+        0.410578,
+        0.605951,
+        0.31169
+      ]
+    }
+  },
+  "sourceCommit": "b356cd170169c4d3ec62fed564d561e31ecd24d7",
+  "webRoot": "/var/www/chickenbro-web/releases/theme-cdn-b356cd170169c4d3ec62fed564d561e31ecd24d7",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/mini-parity-4b2119190debee22b637c2fe7ba5ce28c3958af9",
+  "publicFilesMatched": 27,
+  "productionBrowserCheck": "passed: existing session/history, seven CDN theme URLs, rendered alliance art, refresh persistence",
+  "apiWorkerMini": "unchanged",
+  "gitPush": "pending_closure",
+  "productionUrl": "https://www.chickenbro.cloud/",
+  "newChatOrSimcWrites": "not_performed",
+  "refreshPersistence": "passed",
+  "userAcceptanceText": "\u975e\u5e38\u597d\uff0c\u63d0\u4ea4\uff0c\u5408\u5165\u3002",
+  "closureReview": "local source review passed under current AGENTS.md; CodeRabbit executable unavailable, no installation",
+  "closureScope": "merge accepted CDN work, preserve existing main closure and unchanged COS permissions"
+}
