@@ -5,6 +5,9 @@ import styles from './WebHeaderActions.module.scss'
 
 
 const releases = [
+  { date: '2026-09-08', title: '炸鸡队长来啦 1.0 正式上线', items: [
+    '与鸡哥聊魔兽、运行云端模拟，在小程序和 Web 继续同一段对话。',
+  ] },
   { date: '2026-09-07', title: '更清爽的导航与账号入口', items: [
     '点击右上角头像查看当前账号并退出登录。',
     'FAQ 改为独立页面，支持直接链接与浏览器返回；更新日志可随时查看。',

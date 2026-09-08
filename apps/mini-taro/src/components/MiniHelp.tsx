@@ -8,6 +8,9 @@ import styles from './MiniHelp.module.scss'
 export type MiniHelpView = 'faq' | 'changelog'
 
 const releases = [
+  { date: '2026-09-08', scope: '小程序 / Web', title: '炸鸡队长来啦 1.0 正式上线', items: [
+    '与鸡哥聊魔兽、运行云端模拟，在小程序和 Web 继续同一段对话。',
+  ] },
   { date: '2026-09-07', scope: '小程序', title: '小程序移动端交互优化', items: [
     '调整顶部安全区与底部导航，聊天输入区常驻。',
     '历史对话改为折叠列表，回复支持 Markdown 和纵向时间线。',
