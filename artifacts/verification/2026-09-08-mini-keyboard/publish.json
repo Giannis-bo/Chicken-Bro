@@ -1,0 +1,39 @@
+{
+  "status": "web_live_mini_uploaded_publication_pending",
+  "sourceCommit": "c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe",
+  "userAcceptance": "这次好了，提交、合入、部署。",
+  "web": {
+    "root": "/var/www/chickenbro-web/releases/keyboard-c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe",
+    "rollback": "/var/www/chickenbro-web/releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+    "publicFilesMatched": 27
+  },
+  "mini": {
+    "version": "1.0.2",
+    "upload": "passed",
+    "bytes": 1066901,
+    "build": {
+      "status": "pass",
+      "projectRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro",
+      "outputRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro/dist/weapp",
+      "fileCount": 43,
+      "stylesheet": "common.wxss",
+      "gitHead": "c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe",
+      "sourceHash": "sha256:b3da03d492d1f394e2b827ea60f2f863e08af1ef2f0036d10d6acc9280ddaebb",
+      "builtAt": "2026-09-08T12:12:16.642Z"
+    },
+    "publicRelease": "pending_user_platform_action"
+  },
+  "verification": {
+    "frontendTests": 335,
+    "controlTests": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed",
+    "weapp": "passed",
+    "readiness": "ready",
+    "review": "local_source_review_coderabbit_unavailable"
+  },
+  "backendChanged": false,
+  "databaseChanged": false,
+  "simcRuntimeChanged": false
+}

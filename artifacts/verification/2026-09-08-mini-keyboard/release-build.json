@@ -1,0 +1,10 @@
+{
+  "status": "pass",
+  "projectRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro",
+  "outputRoot": "/Users/boyuan/Documents/wow_mini_program/apps/mini-taro/dist/weapp",
+  "fileCount": 43,
+  "stylesheet": "common.wxss",
+  "gitHead": "c1dfe7bfd94f42fc07d9fe626edd462cbb470cbe",
+  "sourceHash": "sha256:b3da03d492d1f394e2b827ea60f2f863e08af1ef2f0036d10d6acc9280ddaebb",
+  "builtAt": "2026-09-08T12:12:16.642Z"
+}

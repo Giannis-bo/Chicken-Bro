@@ -1,0 +1,37 @@
+{
+  "filesMatched": 27,
+  "readiness": {
+    "status": "ready",
+    "requestId": "1fde7d8e-a3d9-4aa2-8886-14ea0348d5fb",
+    "components": {
+      "database": {
+        "status": "ready",
+        "code": ""
+      },
+      "worker": {
+        "status": "ready",
+        "code": ""
+      },
+      "codex": {
+        "status": "ready",
+        "code": ""
+      },
+      "raiderio": {
+        "status": "ready",
+        "code": ""
+      },
+      "warcraftlogs": {
+        "status": "ready",
+        "code": ""
+      },
+      "simc": {
+        "status": "ready",
+        "code": ""
+      },
+      "wechat_mini": {
+        "status": "ready",
+        "code": ""
+      }
+    }
+  }
+}
