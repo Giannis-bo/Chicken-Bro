@@ -51,3 +51,13 @@
 ## 最终状态：用户取消全部插画动效
 
 静态背景已恢复；动效组件简化为背景图展示，动画CSS、SVG滤镜和叠加特效移除。新版格罗姆与主题选择保留。typecheck、15项相关测试、diff检查通过。浏览器实际读取 document.getAnimations().length=0，animate与data-motion-layer节点=0。前述动态证据仅为历史，不代表当前交付。未发布线上。
+
+## 2026-09-08 合入发布前复核
+
+用户已明确接受并授权合入、发布。合并 origin/main 后保留账号并发、会话删除与短地址；与 origin/main 比较，features/packages/server 无差异。289 前端、62 控制面、类型、lint、正式 H5 构建通过。控制面新增主题计划/证据保留规则。
+
+源码审查覆盖主题 storage 回退及失败提示、切换不重建模型、原生 dialog 焦点恢复、七资源映射、动效删除与平台边界。CodeRabbit 未安装，沿用用户“不需要再安装CodeRabbit”的既有决定，以本地源码审查和 fresh checks 为本次门禁。
+
+正式配置预览修复了 Taro 将 button CSS 标签改写为 taro-button-core 导致完成按钮失去样式的问题：改用独立 done class 和显式 focus 类。重跑289前端/类型/lint与两个正式配置构建通过；生成 CSS 不含被改写的主题按钮选择器，未打包弃用 maghar/storm-clouds。
+
+最终构建源提交 4a39d1eed6386de69c781c1267aee8af1cf1fc99。正式域名 /previews/themes-final-20260908/ 使用现有登录态与生产 API，只读历史；这不是隔离数据库 Candidate 或新的扫码验收。七插画加载、七名称、完成按钮右对齐、删除底部提示、主题切换/刷新、桌面及390px检查通过。未发送消息或创建模拟。回滚目标与逐文件 SHA 见 final/manifest.json。
