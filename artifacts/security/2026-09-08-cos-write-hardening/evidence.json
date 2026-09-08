@@ -1,0 +1,98 @@
+{
+  "checkedAt": "2026-09-08T06:07:15.851869+00:00",
+  "bucket": "zhajiduizhang-1257807175",
+  "region": "ap-shanghai",
+  "environment": "production",
+  "permissionBefore": "public_read_write",
+  "permissionAfter": "public_read_private_write",
+  "changedVia": "authenticated Lighthouse console; user completed billing dialog, agent saved ACL",
+  "checks": [
+    {
+      "key": "wow-assets/security-verification-20260908-9452e079/",
+      "operation": "anonymous_overwrite",
+      "forbidOverwriteHeader": false,
+      "http": 403,
+      "error": "AccessDenied"
+    },
+    {
+      "key": "security-check-108132b9-2c19-4e85-ad25-18725939e1e6.txt",
+      "operation": "anonymous_create",
+      "forbidOverwriteHeader": false,
+      "http": 403,
+      "error": "AccessDenied"
+    },
+    {
+      "key": "data/security-check-163d7743-c2ab-49f4-8a01-0bd78919d037.txt",
+      "operation": "anonymous_create",
+      "forbidOverwriteHeader": false,
+      "http": 403,
+      "error": "AccessDenied"
+    },
+    {
+      "key": "wow-assets/releases/2026-09-08-web-themes-v1/security-check-93e6e39a-dee4-41dc-b865-1b90a692990e.txt",
+      "operation": "anonymous_create",
+      "forbidOverwriteHeader": false,
+      "http": 403,
+      "error": "AccessDenied"
+    }
+  ],
+  "sentinel": {
+    "key": "wow-assets/security-verification-20260908-9452e079/",
+    "createdVia": "authenticated console create folder",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "unchangedAfterOverwriteAttempt": true,
+    "retainedForEvidence": true
+  },
+  "productionObjectsOverwritten": false,
+  "versioning": "unverified",
+  "objectLock": "unverified",
+  "objectLoggingConfiguration": "unverified",
+  "cloudAudit": {
+    "window": "last 7 days",
+    "filter": "COS write events",
+    "results": 0,
+    "trackingSets": 0,
+    "cannotExcludeHistoricalAnonymousWrites": true
+  },
+  "inventory": {
+    "rootPrefixesBeforeTest": [
+      "data/",
+      "wow-assets/"
+    ],
+    "dataDirectory": "empty in authenticated UI",
+    "releaseDirectories": [
+      "2026-07-18-ui-v2",
+      "2026-09-08-web-themes-v1"
+    ],
+    "historicalManifestTypes": {
+      "png": 69,
+      "svg": 66
+    },
+    "currentReleaseTypes": {
+      "png": 7,
+      "json": 1
+    }
+  },
+  "postHardeningIntegrity": {
+    "cdn": {
+      "checkedAt": "2026-09-08T06:11:15.229Z",
+      "imagesMatched": 7,
+      "manifestMatched": true,
+      "contentTypeAndImmutableCacheVerified": true
+    },
+    "origin": {
+      "checkedAt": "2026-09-08T06:11:30.963Z",
+      "imagesMatched": 7,
+      "manifestMatched": true
+    },
+    "baseline": "local source via scripts/prepare-web-theme-cdn.cjs collect",
+    "responseBytesSavedToDisk": false
+  },
+  "productLimitations": {
+    "documentation": "https://cloud.tencent.com/document/product/1207/108904",
+    "versioning": "not offered in documented Lighthouse bucket features",
+    "bucketLevelSdkOperations": "unsupported per official documentation",
+    "objectLockAndAccessLogging": "not exposed in inspected console; effective settings unverified"
+  }
+}

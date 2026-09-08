@@ -33,16 +33,17 @@ git diff --check
 
 本地不能安装或运行 SimulationCraft。SimC 语义结果只在云端受控 runtime 上验证。
 
-## 阶段矩阵
+## 1.0 验证与历史阶段
 
-| 阶段 | 当前状态 | 自动证据 | 运行态/人工门禁 |
-| --- | --- | --- | --- |
-| 1. 控制面 | `local_verified` | 状态、Owner Map、规则、逐文件清单、Harness | 云端清单只读且脱敏 |
-| 2. 数据与 Identity | `local_verified_candidate_apply_blocked` | product schema、Identity、Origin/CSRF、迁移与 provisioning dry-run | 独立恢复、容量、隔离 PostgreSQL candidate |
-| 3. Chat | `local_verified` | owner scope、SSE、幂等重放、API/client、Codex 失败语义 | Candidate Codex、同 owner 双端历史 |
-| 4. SimC | `local_verified` | Snapshot、readiness、compiler、queue/lease、Worker、API/client、结果语义 | 云端 SimC 正数指标和 provenance |
-| 5. 双端与切流 | `local_verified_live_acceptance_blocked` | 5 pages/2 tabs、Web 登录、白名单迁移、candidate/cutover dry-run | 真实扫码、双向 Chat/SimC、第二用户隔离、写栅栏和首条新写入 |
-| 6. Legacy 退役 | `local_and_cloud_cleanup_controls_verified_apply_blocked` | caller/link graph、逐文件 SHA、本地与云端 exact-target dry-run | Phase 5 完成、零引用/连接、restore、稳定窗口、清理后再次验收 |
+用户于 2026-09-08 接受当前 1.0 实现。新一轮源码验证、环境限制与构建身份见 [收尾验证](../artifacts/verification/2026-09-08-v1-close/README.md)，产品交付状态见 [版本说明](releases/1.0.md)。
+
+| 范围 | 已有结论 | 证据边界 |
+| --- | --- | --- |
+| 六阶段重构 | 迁移、accepted_write、旧系统退役已完成 | 2026-09-04 历史 evidence，不重复执行清理 |
+| 1.0 现有能力 | 用户整体接受当前实现 | 不等于所有历史设想均已实现 |
+| 当前差异 | Web 更新日志、Mini 账号面板移除、FAQ 文案与文档同步 | 本轮 fresh tests/build/review 记录 |
+| PostgreSQL | 账户互斥、软删除、持久化公开摘要及迁移测试 | 必须配置独立 UTF8 测试库；有 skip 不能称为全套通过 |
+| 线上/微信平台 | 逐次发布记录与回滚目录保留 | 本地 build/DevTools 不代表代码已上传或公开发布 |
 
 ## Candidate 与切流
 
@@ -70,7 +71,9 @@ node scripts/apply-chickenbro-simc-local-cleanup.js \
 
 云端退休同样默认 dry-run，并保护 `chickenbro_prod`、`chickenbro-api.service`、`chickenbro-worker.service`、当前 Web/Mini identity、Nginx/TLS 与 `/opt/wow-simc/current`。数据库删除还要求零连接、零配置引用；独立恢复验证由默认恢复模式或本轮显式无备份授权二选一。
 
-## 最终完成
+## 历史六阶段最终完成条件
+
+以下要求描述六阶段整体退役的历史验收合同，不要求每次文档或 UI 收尾重跑迁移/销毁。任何新的生产操作仍应按当次范围取得证据与授权。
 
 最终 evidence 必须同时包含：本地全套验证；candidate identity；白名单全量 + fenced delta 核对；生产切流和首条新写入；云端语义 SimC；本地/云端精确清理结果；隔离恢复演练；清理后真实 Mini/Web 验收；本地 `main`、`origin/main`、部署文件和 migration identity 一致；回滚窗口到期并按 manifest 退役。
 

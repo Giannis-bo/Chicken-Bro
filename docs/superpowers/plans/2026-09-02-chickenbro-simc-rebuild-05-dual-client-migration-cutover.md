@@ -1,5 +1,7 @@
 # Chickenbro-SimC Rebuild Phase 5 Dual Client, Migration, and Cutover Implementation Plan
 
+> 当前结论（2026-09-08）：本计划已交付的 1.0 实现范围获用户整体验收，状态为 `已完成`。下面保留各阶段当时的状态与证据；旧“待验收/未合入/阻塞”描述不代表当前结论，也不授权重放迁移、发布或清理。未实现设想及微信公开发布不自动完成。详见 [1.0 说明](../../releases/1.0.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver the two-tab Mini/Web product, migrate all valid owner-bound Chat and SimC history into `chickenbro_prod`, and cut the only public write path to the new platform.

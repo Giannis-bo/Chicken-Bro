@@ -53,7 +53,6 @@ export default function WebHelpDialog({ onClose }: { onClose: () => void }) {
           </button>
         </header>
         <div className={styles['dialogBody']}>
-              <p className={styles['intro']}>{isTestLoginEnabled() ? '这里记录近期可体验的变化。以下为测试版更新，正式版上线时间另行记录。' : '这里记录各功能的更新日期，本次正式版已包含这些改进。'}</p>
               {releases.map(release => (
                 <article key={release.date} className={styles['release']}>
                   <div className={styles['releaseMeta']}><time dateTime={release.date}>{release.date}</time><span>{isTestLoginEnabled() ? '测试版' : '功能更新'}</span></div>

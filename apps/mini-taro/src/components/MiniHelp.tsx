@@ -2,7 +2,6 @@ import { createContext, useContext, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { isTestLoginEnabled } from '../features/auth/test-login-mode'
-import { MiniAccountContext } from '../features/auth/mini-account-context'
 import { faqGroups } from '../features/help/faq-content'
 import styles from './MiniHelp.module.scss'
 
@@ -37,15 +36,13 @@ export const MiniHelpContext = createContext<(view: MiniHelpView) => void>(() =>
 
 export function MiniHelpActions() {
   const onOpen = useContext(MiniHelpContext)
-  const onAccount = useContext(MiniAccountContext)
   const openMenu = async () => {
     try {
-      const { tapIndex } = await Taro.showActionSheet({ itemList: ['账号与外观', 'FAQ · 常见问题', '更新日志'] })
-      if (tapIndex === 0) onAccount()
-      if (tapIndex === 1 || tapIndex === 2) onOpen(tapIndex === 1 ? 'faq' : 'changelog')
+      const { tapIndex } = await Taro.showActionSheet({ itemList: ['FAQ · 常见问题', '更新日志'] })
+      if (tapIndex === 0 || tapIndex === 1) onOpen(tapIndex === 0 ? 'faq' : 'changelog')
     } catch { /* Dismissing the native menu leaves the current page untouched. */ }
   }
-  return <Button className={styles['more'] ?? ''} aria-label="更多：账号、外观与帮助" onClick={() => void openMenu()}>更多</Button>
+  return <Button className={styles['more'] ?? ''} aria-label="更多：FAQ 与更新日志" onClick={() => void openMenu()}>更多</Button>
 }
 
 export function MiniHelpPanel({ view, onClose }: { view: MiniHelpView; onClose: () => void }) {

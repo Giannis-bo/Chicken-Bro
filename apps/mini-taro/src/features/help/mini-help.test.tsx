@@ -9,7 +9,6 @@ vi.mock('@tarojs/components', async () => {
   const host = (tag: string) => ({ selectable, ...props }: Record<string, unknown>) => element(tag, { ...Object.fromEntries(Object.entries(props).filter(([key]) => key !== 'scrollY')), ...(selectable ? { 'data-selectable': 'true' } : {}) })
   return { Button: host('button'), Text: host('span'), View: host('div'), ScrollView: host('div') }
 })
-import { MiniAccountContext } from '../auth/mini-account-context'
 import { MiniHelpPanel, MiniHelpActions, MiniHelpContext } from '../../components/MiniHelp'
 let root: Root
 let container: HTMLDivElement
@@ -38,17 +37,14 @@ it('keeps the existing changelog available', async () => {
   expect(container.textContent).toContain('小程序移动端交互优化')
 })
 
-it('routes the account, FAQ and changelog menu actions independently', async () => {
-  const account = vi.fn(); const help = vi.fn()
-  await act(async () => root.render(createElement(MiniAccountContext.Provider, { value: account }, createElement(MiniHelpContext.Provider, { value: help }, createElement(MiniHelpActions)))))
+it('routes the remaining FAQ and changelog menu actions independently', async () => {
+  const help = vi.fn()
+  await act(async () => root.render(createElement(MiniHelpContext.Provider, { value: help }, createElement(MiniHelpActions))))
   menu.mockResolvedValueOnce({ tapIndex: 0 })
   await act(async () => container.querySelector('button')!.click())
-  expect(account).toHaveBeenCalledOnce()
-  expect(help).not.toHaveBeenCalled()
-  menu.mockResolvedValueOnce({ tapIndex: 1 })
-  await act(async () => container.querySelector('button')!.click())
+  expect(menu).toHaveBeenLastCalledWith({ itemList: ['FAQ · 常见问题', '更新日志'] })
   expect(help).toHaveBeenLastCalledWith('faq')
-  menu.mockResolvedValueOnce({ tapIndex: 2 })
+  menu.mockResolvedValueOnce({ tapIndex: 1 })
   await act(async () => container.querySelector('button')!.click())
   expect(help).toHaveBeenLastCalledWith('changelog')
 })

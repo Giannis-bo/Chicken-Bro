@@ -4,7 +4,7 @@
 
 本架构定义重构后的唯一产品边界：微信小程序和 Web 只提供炸鸡队长会话与 SimC 任务。两端使用不同的客户端会话，但服务端都把它们解析成同一个内部 `user_id`，因此共享同一份服务端业务历史。
 
-本文件同时是目标架构说明和接口参考。当前实现状态必须结合 [project-state.json](project-state.json) 判断；“目标”不代表已经部署、切流或通过用户验收。
+本文件是 1.0 实现说明与接口参考。产品验收、仓库提交、在线部署与微信公开版本分别以 [项目状态](project-state.json) 和 [版本说明](releases/1.0.md) 记录。
 
 ## 用户承诺
 
@@ -12,19 +12,20 @@
 
 以下内容不属于“同步所有数据”：OpenID、`session_key`、Cookie、Bearer、微信 access token、第三方凭据、模型思维链、内部日志、prototype/demo 数据，以及迁移完整性校验拒绝的旧记录。
 
-## 当前实现与目标的边界
+## 1.0 当前实现
 
-| 能力 | 当前仓库基础 | 正式目标 | 解锁阶段 |
-| --- | --- | --- | --- |
-| Principal | 正式 Mini Bearer、Web Cookie、Origin/CSRF 与混合凭据拒绝已在本地候选实现 | 真实微信凭据、候选与生产验收 | Phase 2 已实现；Phase 5 验收待执行 |
-| Web 小程序确认 | browser verifier、opaque scene、原子单次交换、HttpOnly Cookie、审计与重放拒绝已实现 | 真实二维码确认和独立 Web Session 验收 | Phase 2 已实现；Phase 5 验收待执行 |
-| Chat | 正式 `/api/v2/chat/**`、owner-scoped 历史、稳定游标、幂等发送与持久化回放已实现 | 候选/生产双端真实数据验收 | Phase 3 已实现；Phase 5 验收待执行 |
-| SimC | 正式 `/api/v2/simc/**`、快照/readiness/compiler、PostgreSQL queue、Worker 与语义结果已实现 | 云端真实 runtime、任务终态和跨端结果验收 | Phase 4 已实现；Phase 5 验收待执行 |
-| 客户端 | 活跃 Taro shell 已收敛为 5 条路由、2 Tab 与正式 Web Shell；旧文件仅作为待清理目标留存 | 候选构建、真实设备与登录验收 | Phase 5 本地实现完成；外部验收待执行 |
-| 数据面 | 干净 `chickenbro_prod` 已完成白名单迁移、归档、独立恢复和双重核对；生产仍依赖 legacy `wow_test` | 容量预清理后部署 candidate，再切换只含 Identity、Chat、SimC、Ops 的生产数据面 | Phase 2 恢复证明已通过；Phase 5 candidate/切流待执行 |
-| 旧系统 | 精确本地/云端清单和 fail-closed apply 已实现；旧系统仍承担生产与回滚职责 | 门禁通过后精确退役，Git 历史承担归档 | Phase 6 实现完成；apply 待 Phase 5 与恢复验证 |
+2026-09-08 用户确认 1.0 当前实现完成。以下描述仓库行为；各运行面的部署身份与平台发布状态见 [1.0 说明](releases/1.0.md)。早期六阶段迁移/清理已经完成，`project-state.json.refactorEvidence` 保留 2026-09-04 历史证据，不作为现在的在线清单。
 
-旧 prototype 文件仍在本地精确删除清单中，但已经从正式 application composition 和客户端调用图断开；`/api/v2/prototype/**` 不属于正式 API。HTTP 200、systemd active、候选首页可达或本地测试通过都不能把表中“目标”提升为生产完成。
+| 能力 | 当前实现 |
+| --- | --- |
+| Identity | Mini Bearer 与 Web HttpOnly Cookie 分离，Origin/CSRF、单次票据及服务端 owner 映射 |
+| Chat | 服务端共享历史、幂等发送、持久化回放、公开进展/完成时间、账号级单回复、软删除 |
+| SimC | Raider.IO/WCL 快照、readiness、compiler、PostgreSQL queue、云端 Worker、语义结果、任务 ID 换装重跑 |
+| Mini | 5 条页面路由、2 个 Tab；历史抽屉、FAQ/更新日志、任务 ID 复制；取消账号与外观面板 |
+| Web | `/` 对话、`/simc` 模拟、`/?view=faq` FAQ；扫码登录、账号菜单、七种静态插画主题 |
+| 数据面 | 正式产品仅 Identity/Chat/SimC/Ops，`chickenbro_prod`；旧 `wow_test` 和 legacy 运行面已退役 |
+
+当前 Mini 页面没有头像选择入口；移除设置面板不改变身份服务、已保存头像数据与 Web 会话隔离。Mini 不再提供主动退出/主题选择入口，已有 signedOut 恢复及设备主题读取兼容保留。两端共享的是业务数据，不包括设备本地外观状态。
 
 ## 运行拓扑
 
@@ -126,7 +127,7 @@ Web Session Cookie 固定为 HttpOnly、Secure 的 `__Host-chickenbro-session`�
 
 Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完成 verifier、code 与 scene 的长度和字符边界校验。双端 response guard 只接受每个端点约定的精确字段集合和可选 `requestId`；任何额外的 `userId`、OpenID、token 或其他身份字段都按非法响应失败关闭。
 
-账号头像是可选的 Identity 展示字段，不是登录条件。小程序通过 `chooseAvatar` 获取用户主动选择的图片，压缩后上传；服务端只接受有界 PNG/JPEG 数据，剥离元数据并按 Principal 更新 `identity.users.avatar_data_url`。两端通过独立认证读取，响应禁止缓存；不返回公共图片 URL，也不根据昵称或图片推断身份。原 `/me` 合同保持兼容。
+账号头像是可选的 Identity 展示字段，不是登录条件。当前 Mini 未挂载头像选择组件；历史 `chooseAvatar` 组件与头像 API 合同保留兼容，不能据其代码存在宣称现有页面提供选择入口。头像上传路径接收主动选择并压缩后的图片；服务端只接受有界 PNG/JPEG 数据，剥离元数据并按 Principal 更新 `identity.users.avatar_data_url`。两端通过独立认证读取，响应禁止缓存；不返回公共图片 URL，也不根据昵称或图片推断身份。原 `/me` 合同保持兼容。
 
 公开展示名与 `identity.users.display_name` 共用 256 字符上限；正式迁移、API 和双端 response guard 必须接受完整的合法持久化范围，不能因客户端采用更窄的历史边界而阻断已迁移用户登录。客户端只展示该字段，不把它当作账号合并或授权依据。
 
@@ -158,7 +159,7 @@ Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完
 
 禁止在新库创建 `content`、`cache`、`knowledge`、`analytics`、旧 `app`、WebSim、gear 或 talent schema/table。
 
-`wow_app` 只获得业务运行所需的 SELECT/INSERT/UPDATE；Identity、Chat、SimC、job queue 与 usage counters 均无直接 DELETE，schema/database CREATE 也保持关闭。账号或历史删除只能由后续受控清理或管理角色路径完成。
+`wow_app` 只获得业务运行所需的 SELECT/INSERT/UPDATE；Identity、Chat、SimC、job queue 与 usage counters 均无直接 DELETE，schema/database CREATE 也保持关闭。对话删除通过业务层 owner 校验与 archived 状态软删除，使用 UPDATE；物理清理仍由独立受控路径完成。
 
 ## Chat 语义
 

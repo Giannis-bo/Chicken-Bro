@@ -181,35 +181,26 @@ describe('Mini test login lifecycle', () => {
     })
   }
 
-  it('shows account details and stays logged out across page show until explicit login', async () => {
+  it('opens only help from the formal Mini menu and preserves the logged-in page', async () => {
     vi.stubGlobal('__WOW_TEST_LOGIN__', false)
     runtime.storage.set(MINI_SESSION_KEY, {accessToken: 'formal-mini-session-123456789', expiresAt: '2099-09-05T12:00:00Z'})
     await render(createElement(ChickenbroPage))
     await act(async () => {runtime.show.forEach(callback => callback())})
+    const composer = container.querySelector('textarea')!
     runtime.actionSheet.mockResolvedValueOnce({tapIndex: 0})
     await click('更多')
-    expect(container.textContent).toContain('当前测试账号')
-    expect(runtime.me).toHaveBeenCalledWith({kind: 'mini', accessToken: 'formal-mini-session-123456789'})
-    await click('退出登录')
+    expect(runtime.actionSheet).toHaveBeenLastCalledWith({itemList: ['FAQ · 常见问题', '更新日志']})
+    expect(container.textContent).toContain('FAQ · 常见问题')
+    expect(container.textContent).not.toMatch(/账号与外观|退出登录/)
+    expect(runtime.me).not.toHaveBeenCalled()
     expect(runtime.logout).not.toHaveBeenCalled()
-    runtime.modal.mockResolvedValueOnce({confirm: true})
-    await click('退出登录')
-    expect(container.textContent).toContain('已退出登录')
-    expect(container.querySelector('textarea')).toBeNull()
-    expect(runtime.logout).toHaveBeenCalledWith({kind: 'mini', accessToken: 'formal-mini-session-123456789'})
-    await act(async () => {runtime.show.forEach(callback => callback())})
-    expect(runtime.exchangeMiniCode).not.toHaveBeenCalled()
-    const readsBeforeLogin = runtime.listChat.mock.calls.length
-    await click('微信登录')
-    expect(runtime.listChat.mock.calls.length).toBeGreaterThan(readsBeforeLogin)
-    expect(runtime.exchangeMiniCode).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('textarea')).not.toBeNull()
-    expect(container.textContent).not.toContain('formal-mini-session-123456789')
+    await click('关闭帮助')
+    expect(container.querySelector('textarea')).toBe(composer)
   })
 
   it('opens help before login and returns to the same chat draft after reading updates', async () => {
     await mountSignedOut(ChickenbroPage)
-    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 1 })
+    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 0 })
     await click('更多')
     await click('账号记录')
     expect(container.textContent).toContain('Web 和小程序的记录会同步吗？')
@@ -223,7 +214,7 @@ describe('Mini test login lifecycle', () => {
     runtime.actionSheet.mockRejectedValueOnce({ errMsg: 'showActionSheet:fail cancel' })
     await click('更多')
     expect(composer.value).toBe('这段草稿要保留')
-    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 2 })
+    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 1 })
     await click('更多')
     expect(container.textContent).toContain('小程序移动端交互优化')
     expect(container.textContent).toContain('Web 导航与帮助入口')

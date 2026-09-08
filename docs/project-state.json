@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-04",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+  "updatedAt": "2026-09-08",
+  "activeMilestone": "chickenbro_v1_0",
   "status": "complete",
   "targetProduct": {
     "businessDomains": [
@@ -134,7 +134,7 @@
     "loginAcceptance": {
       "mode": "user_authorized_skipped",
       "realWechatQrLogin": "not_run",
-      "reason": "\u7528\u6237\u660e\u786e\u6388\u6743\u8df3\u8fc7\u672c\u8f6e\u5fae\u4fe1\u626b\u7801\u767b\u5f55\uff1b\u6b64\u524d\u5fae\u4fe1\u767b\u5f55\u5df2\u9a8c\u8bc1\uff0c\u672c\u8f6e\u4e0d\u5ba3\u79f0\u65b0\u7684\u626b\u7801\u6210\u529f\u3002"
+      "reason": "用户明确授权跳过本轮微信扫码登录；此前微信登录已验证，本轮不宣称新的扫码成功。"
     },
     "localCleanupResult": {
       "status": "applied",
@@ -178,5 +178,17 @@
     "requiresCrossBoundManifest": true,
     "requiresCleanVerificationHead": true,
     "rejectsZeroOrMultipleTaskPackets": true
+  },
+  "productRelease": {
+    "version": "1.0.0",
+    "status": "user_accepted",
+    "acceptedAt": "2026-09-08",
+    "acceptance": "目前我认为1.0版本已经完成了！",
+    "scope": "current_implemented_chat_and_simc",
+    "releaseNotes": "docs/releases/1.0.md",
+    "verificationRecord": "artifacts/verification/2026-09-08-v1-close/README.md",
+    "finalUiChanges": "local_only_pending_publication",
+    "wechatPublicRelease": "not_verified_this_run",
+    "historicalRefactorEvidenceAsOf": "2026-09-04"
   }
 }

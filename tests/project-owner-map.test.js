@@ -11,7 +11,7 @@ const rules = loadRules(path.join(repositoryRoot, 'docs/refactor/chickenbro-simc
 
 test('project owner map covers exactly the rebuilt product domains', () => {
   assert.equal(ownerMap.schemaVersion, 2)
-  assert.equal(ownerMap.activeMilestone, 'chickenbro_simc_total_rebuild_phase_6')
+  assert.equal(ownerMap.activeMilestone, 'chickenbro_v1_0')
   assert.deepEqual(ownerMap.criticalDomains.map((domain) => domain.id), [
     'identity',
     'chickenbro_chat',

@@ -1,5 +1,17 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
+## 1.0 运维入口（2026-09-08）
+
+1.0 当前实现已获用户验收，当前仓库状态见 [版本说明](releases/1.0.md)。下文带日期的 code/Web 路径、service readiness、容量与清理记录均是当时的快照；其中“当前/现指向”只相对于该记录日期成立。操作前必须重新读取有效 symlink、systemd WorkingDirectory、构建 manifest 和健康状态，不能直接使用最晚一段文字猜当前部署。
+
+最近本地发布记录列出的 API/Worker 为 `f2932f8b6`、Web 为 `b356cd170`、Mini 抽屉开发版为 `c966bd16c`；本轮未据此宣称线上与新仓库提交逐字节一致。最后两处 UI 精简与 FAQ 修改需要单独发布，开发者工具刷新不等同上传/审核/微信公开发布。
+
+日常增量变更按影响范围构建并核对精确文件身份，保留当前回滚包；不得重放下面已完成的 legacy 迁移、切流或清理脚本。SimC 引擎继续只运行于云端。1.0 文档收尾本身不需要修改数据库、Worker 或 SimC runtime。
+
+静态资源仅通过鉴权控制台或签名请求上传到新版本目录，不得为了上传恢复 COS 公有写。已有整改记录见 [COS 安全处理](../artifacts/security/2026-09-08-cos-write-hardening/report.md)；历史请求审计与恢复能力仍是独立待办。
+
+## 历史运行与操作记录
+
 状态：当前生产操作权威；Phase 5 accepted_write、生产 Chat/SimC 双端业务验收、首条新写入核对和稳定健康窗口均已通过。2026-09-04 用户明确授权不制作独立备份并直接永久清理旧目标；云端与本地旧服务/代码/数据已按精确清单完成清理，最终只剩 main/origin parity 与 WeApp 刷新收尾。
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。

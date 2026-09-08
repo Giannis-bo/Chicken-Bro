@@ -1,74 +1,51 @@
-# Chickenbro
+# 炸鸡队长 Chickenbro
 
-Chickenbro 是一个微信小程序 + Web 双端 WoW 助手。产品只保留两项核心能力：炸鸡队长会话和 SimC 模拟任务。
+你的魔兽世界讨论搭子，也是随手可用的云端模拟助手。
 
-小程序通过 `wx.login` 建立 Mini Bearer Session；Web 生成一次性确认票据，用户必须在已登录小程序中明确确认，随后浏览器获得独立的 HttpOnly Cookie Session。两个 Session 都由服务端解析为同一个内部 `user_id`，所以两端读取同一份 Chat 与 SimC 历史；Cookie、Bearer、OpenID、`session_key` 和微信 access token 不在端间共享。
+想复盘一场战斗、聊聊职业打法，或者验证一件装备值不值得换？把问题、角色链接或战斗日志交给鸡哥，从讨论到模拟，再到读懂结果，在同一个地方完成。
 
-## 当前状态
+**1.0 已完成产品验收 · 微信小程序 + Web · 对话与云端 SimC**
 
-Phase 1--4 以及 Phase 5 的本地代码、构建、迁移和切流控制已经验证。真实 candidate 数据库、真实微信扫码、生产切流、第一条新写入和云端清理尚未完成。当前云主机容量与独立恢复链不满足 apply 条件，因此生产旧服务和数据仍保持不变。
+[打开 Web](https://www.chickenbro.cloud/) · [使用指南](docs/user-guide.md) · [1.0 版本说明](docs/releases/1.0.md)
 
-机器可读事实以 [项目状态](docs/project-state.json) 为准。任何 candidate、HTTP 200、测试通过、systemd active 或 SimC return code 0 都不能替代真实双端验收。
+## 和鸡哥聊一场有依据的魔兽讨论
 
-## 产品路由
+贴一段 Warcraft Logs 日志，问具体的战斗表现；带着装备、天赋或打法疑问继续追问。鸡哥可以查询公开资料，结合日志和模拟结果解释判断，并说明缺少什么信息。
 
-小程序只发布五个页面，其中两个是 Tab：
+你可以这样问：
 
-```text
-pages/chickenbro/index
-pages/simc/index
-pages/simc/tasks
-pages/simc/task-detail
-pages/auth/web-login-confirm
-```
+- “帮我复盘这场战斗，先说最值得改的三件事。”
+- “这个技能应该什么时候交？结合这段日志解释一下。”
+- “这两件饰品怎么选？先核对角色和战斗条件，再帮我模拟。”
 
-Web 只保留登录、Chat、SimC、账号状态和退出。所有正式客户端都通过 typed API client 访问服务端 owner-scoped 数据。
+对话自动保存。生成回复时可以查看历史，回复中的公开进展、完成时间和耗时也可以回看。同一账号一次生成一个回复，另一端会明确提示等待。
 
-## 代码结构
+## 把配装疑问交给真实模拟
 
-```text
-apps/mini-taro/          Taro 小程序与 H5/Web
-packages/api-client/     Mini/Web 分离认证传输和 typed API
-packages/domain/         Chat、SimC、Web 登录领域合同
-server/app/              Identity、Chat、SimC、Worker 与 API
-server/migrations/product/ 干净 schema 和白名单迁移
-scripts/                 Harness、构建和精确清理工具
-docs/                    当前架构、状态、Runbook 与计划
-```
+在“模拟”中导入 HTTPS 的 Raider.IO 角色链接或 WCL 日志链接，确认角色资料和战斗条件后，交给云端 SimulationCraft 运行。
 
-## 本地命令
+任务列表显示进度，报告展示结果、技能贡献与运行信息。复制完整任务 ID 给鸡哥，就能基于原任务讨论结果，或指定替换装备并创建一次新的模拟；原任务和结果会保留。
 
-依赖使用仓库现有 lockfile；在本机下载或安装缺失依赖前需要明确授权。
+也可以直接在对话中说：“用这个角色跑一份 5 目标、300 秒的模拟，再解释结果。”
 
-```bash
-npm run test:taro
-npm run typecheck
-npm run lint
-npm run build:weapp
-npm run build:h5
-npm run test:control
-npm run test:backend
-```
+模拟需要完整、可核对的角色资料。缺失字段或运行失败会如实提示；公开数据覆盖和名称翻译仍可能不完整。当前不支持直接粘贴插件 `/simc` 导出文本。
 
-微信开发者工具导入 `apps/mini-taro`。合入并需要刷新预览时运行：
+## 手机和电脑，接着同一段对话
 
-```bash
-npm run refresh:weapp
-```
+在小程序开始讨论，回到电脑继续；在电脑提交模拟，手机查看同一任务的状态和结果。使用同一个微信账号，两端共享服务端保存的对话与模拟记录。
 
-## 安全边界
+Web 通过小程序扫码确认登录。Web 可以独立退出，不影响小程序登录。小程序保留简洁的聊天与模拟入口，“更多”中提供 FAQ 和更新日志；Web 可切换七种静态插画主题。
 
-- 新路径通过 candidate、恢复验证和真实双端验收前，不删除现有生产入口。
-- 历史迁移只复制白名单内有效 Chat/SimC 业务数据，不复制旧 Session、token、trace 或 prototype 数据。
-- 第一条新生产写入后，旧库永久只读，不建立长期双写或反向同步。
-- 文件、服务、数据库与目录只按绑定 SHA 的精确清单清理；禁止通配符和宽泛递归目标。
-- 云端 apply 还要求独立、恢复验证过的备份以及零连接、零引用证明。
+## 开始使用
 
-## 文档
+1. 打开[炸鸡队长 Web](https://www.chickenbro.cloud/)，用微信扫描登录码，在小程序中确认。
+2. 在对话中提出问题，或打开“模拟”导入角色来源。
+3. 查看结果并继续追问；需要换装备比较时，复制任务 ID 告诉鸡哥。
 
-- [文档地图](docs/README.md)
-- [Roadmap](docs/roadmap.md)
-- [当前架构](docs/chickenbro-simc-architecture.md)
-- [生产 Runbook](docs/chickenbro-simc-production-runbook.md)
-- [验证矩阵](docs/verification-matrix.md)
-- [六阶段计划](docs/plans/README.md)
+小程序使用入口以微信平台可访问版本为准。开发预览、体验版与微信审核后的公开版本分别管理，1.0 产品验收不代表本轮已代为完成微信公开发布。
+
+## 关于项目
+
+炸鸡队长聚焦魔兽玩家的两件事：**把问题聊明白，把模拟跑出来。** 它是非官方玩家工具，不隶属于或代表暴雪娱乐。讨论用于辅助判断，实际结果需要结合数据来源、模拟条件和游戏环境理解。
+
+想参与开发或了解实现？请从[文档地图](docs/README.md)和[开发指南](docs/development.md)开始。

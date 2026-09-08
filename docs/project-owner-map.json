@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-03",
+  "updatedAt": "2026-09-08",
   "status": "active",
-  "activeMilestone": "chickenbro_simc_total_rebuild_phase_6",
+  "activeMilestone": "chickenbro_v1_0",
   "unownedCriticalDomains": [],
   "conflictingFactOwners": [],
   "clientContract": {

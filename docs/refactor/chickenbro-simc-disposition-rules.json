@@ -2,6 +2,23 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "v1-product-documentation",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "dual_client",
+      "reason": "User-accepted 1.0 product documentation, closure verification and existing COS security evidence.",
+      "paths": [
+        "docs/user-guide.md",
+        "docs/development.md",
+        "docs/releases/1.0.md",
+        "docs/roadmap-history-v1.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-08-v1-close/",
+        "artifacts/security/2026-09-08-cos-write-hardening/"
+      ]
+    },
+    {
       "id": "wcl-fight-talents",
       "disposition": "keep",
       "category": "current-control-plane",

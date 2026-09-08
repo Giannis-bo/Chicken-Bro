@@ -22,7 +22,7 @@ test('project state names only the approved dual-client Chat and SimC product', 
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.schemaVersion, 2)
-  assert.equal(state.activeMilestone, 'chickenbro_simc_total_rebuild_phase_6')
+  assert.equal(state.activeMilestone, 'chickenbro_v1_0')
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
   assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
