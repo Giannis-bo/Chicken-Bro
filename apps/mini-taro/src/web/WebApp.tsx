@@ -11,6 +11,7 @@ import {
 import { wowApi } from '@wow-mini/api-client'
 import { isMeResponse, type MeResponse } from '@wow-mini/domain'
 
+import { normalizeWebUrl } from './web-routing'
 import WebShell from './WebShell'
 import WebLoginHome from './WebLoginHome'
 import {
@@ -78,6 +79,7 @@ function remainingSeconds(expiresAt: string, now: number): number {
 }
 
 export default function WebApp({ authClient = wowApi.webAuth }: WebAppProps) {
+  useEffect(normalizeWebUrl, [])
   const webAuth = authClient
   const [state, setState] = useState<WebAuthState>(initialWebAuthState)
   const [account, setAccount] = useState<MeResponse | null>(null)

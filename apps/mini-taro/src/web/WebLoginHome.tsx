@@ -1,3 +1,4 @@
+import { webViewHref } from './web-routing'
 import { useEffect, type ReactNode } from 'react'
 import mascot from './assets/gu-gu-mascot.png'
 import styles from './WebLoginHome.module.scss'
@@ -15,7 +16,7 @@ export default function WebLoginHome({ children }: { children: ReactNode }) {
   return (
     <main className={styles['home']}>
       <header className={styles['header']}>
-        <a className={styles['brand']} href="#/pages/chickenbro/index" aria-label="炸鸡队长首页">
+        <a className={styles['brand']} href={webViewHref('chat')} aria-label="炸鸡队长首页">
           <img src={mascot} alt="" width="44" height="44" />
           <span>炸鸡队长<span className={styles['brandNote']}>CHICKENBRO</span></span>
         </a>

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
+import { readWebView as readView, webViewHref as viewHref, type WebView } from './web-routing'
 import WebChatView from './WebChatView'
 import WebSimcView from './WebSimcView'
 import WebServiceHealth from './WebServiceHealth'
@@ -13,20 +14,6 @@ import styles from './WebApp.module.scss'
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 type BusinessView = 'chat' | 'simc'
-type WebView = BusinessView | 'faq'
-
-function readView(): WebView {
-  const view = new URLSearchParams(window.location.search).get('view')
-  return view === 'faq' || view === 'simc' ? view : 'chat'
-}
-
-function viewHref(view: WebView): string {
-  const url = new URL(window.location.href)
-  if (view === 'chat') url.searchParams.delete('view')
-  else url.searchParams.set('view', view)
-  return url.pathname + url.search + url.hash
-}
-
 const modes: Array<{ id: BusinessView; number: string; label: string }> = [
   { id: 'chat', number: '01', label: '对话' },
   { id: 'simc', number: '02', label: '模拟' },
@@ -63,7 +50,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
       document.removeEventListener('visibilitychange', visible)
     }
   }, [auth])
-  const [activeView, setActiveView] = useState<WebView>(readView)
+  const [activeView, setActiveView] = useState<WebView>(() => readView())
   const [simcVisited, setSimcVisited] = useState(() => readView() === 'simc')
   const lastBusinessView = useRef<BusinessView>(activeView === 'simc' ? 'simc' : 'chat')
 

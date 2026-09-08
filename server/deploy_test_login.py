@@ -76,6 +76,7 @@ def publish():
 location ^~ /test/ {
     alias /opt/chickenbro-test/current/web/;
     index index.html;
+    rewrite ^/test/simc/?$ /test/index.html last;
     add_header Cache-Control "no-store" always;
 }
 '''
