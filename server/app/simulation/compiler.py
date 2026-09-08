@@ -1,3 +1,4 @@
+from copy import deepcopy
 import hashlib
 import math
 import re
@@ -39,7 +40,7 @@ SUPPORTED_FIGHT_STYLES = frozenset({"Patchwerk", "HecticAddCleave", "LightMoveme
 def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
-    allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides",
+    allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides", "equipmentOverrides",
                "varyCombatLength", "targetError", "raidBuffs", "bloodlust"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
@@ -88,6 +89,24 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
                 raise SimcCompileError("SCENARIO_INVALID")
             copied_overrides[slot] = list(gems)
         normalized["gemOverrides"] = copied_overrides
+    if "equipmentOverrides" in scenario:
+        overrides = scenario["equipmentOverrides"]
+        if not isinstance(overrides, Mapping) or len(overrides) > len(REQUIRED_GEAR_SLOTS):
+            raise SimcCompileError("SCENARIO_INVALID")
+        for slot, item in overrides.items():
+            if (slot not in REQUIRED_GEAR_SLOTS or not isinstance(item, Mapping)
+                    or set(item) != {"itemId", "itemLevel", "bonusIds", "gems", "enchant"}):
+                raise SimcCompileError("SCENARIO_INVALID")
+            for key, maximum in (("itemId", 2147483647), ("itemLevel", 1000)):
+                if type(item[key]) is not int or not 1 <= item[key] <= maximum:
+                    raise SimcCompileError("SCENARIO_INVALID")
+            for key in ("bonusIds", "gems"):
+                if (not isinstance(item[key], list) or len(item[key]) > 32
+                        or any(type(n) is not int or not 1 <= n <= 2147483647 for n in item[key])):
+                    raise SimcCompileError("SCENARIO_INVALID")
+            if item["enchant"] is not None and (type(item["enchant"]) is not int or not 1 <= item["enchant"] <= 2147483647):
+                raise SimcCompileError("SCENARIO_INVALID")
+        normalized["equipmentOverrides"] = deepcopy(dict(overrides))
     return normalized
 
 
@@ -128,7 +147,7 @@ class SimcProfileCompiler:
         region = self._token(character.get("region"), "region", "MISSING_REGION")
         realm = self._server_token(character.get("realm"))
         if self._capabilities.compiler_revision not in {
-            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3"
+            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"
         }:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if (
@@ -137,8 +156,12 @@ class SimcProfileCompiler:
         ):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if ({"varyCombatLength", "targetError", "raidBuffs", "bloodlust"}.intersection(normalized_scenario)
-                and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v3"):
+                and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"}):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
+        if "equipmentOverrides" in normalized_scenario and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v4":
+            raise SimcCompileError("COMPILER_UNAVAILABLE")
+        equipment_overrides = normalized_scenario.get("equipmentOverrides", {})
+        gear = {**gear, **equipment_overrides}
         if not self._capabilities.runtime_revision or not self._capabilities.supports(class_key, spec_key):
             raise SimcCompileError("RUNTIME_UNAVAILABLE")
         lines = [
@@ -221,6 +244,8 @@ class SimcProfileCompiler:
             ):
                 raise SimcCompileError(f"INVALID_GEAR_{slot.upper()}_ENCHANT")
             line = f"{slot}=,id={item_id}"
+            if slot in equipment_overrides:
+                line += f",ilevel={item_level}"
             bonus_ids = self._positive_ints(item.get("bonusIds"))
             gems = gem_overrides.get(slot, self._positive_ints(item.get("gems")))
             enchant = item.get("enchant")
@@ -263,6 +288,9 @@ class SimcProfileCompiler:
             "sourceRawSha256": snapshot.raw_sha256,
             "snapshotRevision": snapshot.revision,
         }
+        if equipment_overrides:
+            provenance["equipmentOverrides"] = deepcopy(equipment_overrides)
+            provenance["equipmentOverrideSource"] = "requested_scenario"
         if "wclTalentReconstruction" in snapshot.provenance:
             provenance["wclTalentReconstruction"] = dict(snapshot.provenance["wclTalentReconstruction"])
         return CompiledSimcInput(

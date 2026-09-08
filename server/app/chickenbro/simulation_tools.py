@@ -111,6 +111,11 @@ def _snapshot_packet(snapshot: SourceSnapshot) -> dict:
             if not isinstance(item, Mapping):
                 continue
             projected = _project(item, ("itemId", "itemLevel", "name", "enchant"))
+            # Preserve explicit absence; an omitted key still means unknown.
+            if "enchant" in item and item["enchant"] in (None, ""):
+                projected["enchant"] = None
+            elif isinstance(item.get("enchant"), str) and item["enchant"].isdigit():
+                projected["enchant"] = int(item["enchant"])
             for key in ("bonusIds", "gems"):
                 values = item.get(key)
                 if isinstance(values, (list, tuple)):
@@ -154,9 +159,16 @@ def _job_packet(view: SimulationJobView) -> dict:
         limitations.append("The simulation is pending; no performance result is available yet.")
     if view.scenario is None:
         limitations.append("The original scenario is unavailable; do not infer targets, duration or gem replacements from this job.")
+    gear = _snapshot_packet(view.snapshot)["gear"] if view.snapshot else {}
+    if view.scenario:
+        gear.update(deepcopy(view.scenario.get("equipmentOverrides", {})))
+        for slot, gems in view.scenario.get("gemOverrides", {}).items():
+            if slot in gear:
+                gear[slot]["gems"] = list(gems)
     return _packet(
         job.status.value, jobId=str(job.id), snapshotId=str(job.snapshot_id),
         scenario=deepcopy(view.scenario),
+        gear=gear,
         scenarioHash=job.scenario_hash, compilerRevision=job.compiler_revision,
         runtimeRevision=job.runtime_revision, errorCode=_code(job.public_error_code, "SIMC_FAILED") if job.public_error_code else None,
         createdAt=job.created_at.isoformat(), updatedAt=job.updated_at.isoformat(), result=result,
@@ -208,7 +220,7 @@ class SimulationToolGateway:
         try:
             if not isinstance(arguments, dict) or not isinstance(operation, str):
                 raise ValueError("invalid operation arguments")
-            allowed = {"prepare": {"sourceUrl"}, "submit": {"snapshotId", "scenario"},
+            allowed = {"prepare": {"sourceUrl"}, "submit": {"snapshotId", "baseJobId", "scenario"},
                        "get": {"jobId", "waitSeconds"}, "list": {"limit", "cursor"}}
             if operation not in allowed or set(arguments) - allowed[operation]:
                 raise ValueError("unknown operation or extra arguments")
@@ -243,8 +255,32 @@ class SimulationToolGateway:
                     run.preparations[url] = packet
                     return deepcopy(packet)
                 if operation == "submit":
-                    snapshot_id = _uuid(arguments.get("snapshotId"))
-                    scenario = normalize_scenario(arguments.get("scenario"))
+                    if ("snapshotId" in arguments) == ("baseJobId" in arguments):
+                        raise ValueError("exactly one simulation source required")
+                    if "baseJobId" in arguments:
+                        base = self._application.read_job(principal, _uuid(arguments["baseJobId"]))
+                        if base.scenario is None:
+                            return _blocked("SIMC_BASE_SCENARIO_UNAVAILABLE")
+                        snapshot_id = base.job.snapshot_id
+                        patch = arguments.get("scenario", {})
+                        if not isinstance(patch, dict):
+                            raise ValueError("scenario patch required")
+                        merged = deepcopy(dict(base.scenario))
+                        merged.update(patch)
+                        # Slot maps are patches, so earlier changes in other slots survive.
+                        for field in ("equipmentOverrides", "gemOverrides"):
+                            if field in patch:
+                                if not isinstance(patch[field], dict):
+                                    raise ValueError("slot map required")
+                                merged[field] = {**base.scenario.get(field, {}), **patch[field]}
+                        # Replacing an item also replaces its gems, unless explicitly patched.
+                        for slot in patch.get("equipmentOverrides", {}):
+                            if slot not in patch.get("gemOverrides", {}):
+                                merged.get("gemOverrides", {}).pop(slot, None)
+                        scenario = normalize_scenario(merged)
+                    else:
+                        snapshot_id = _uuid(arguments["snapshotId"])
+                        scenario = normalize_scenario(arguments.get("scenario"))
                     digest = scenario_hash(scenario)
                     key = hashlib.sha256(f"{run.context.run_id}:{snapshot_id}:{digest}".encode()).hexdigest()
                     if run.submissions.get(key) is not None:

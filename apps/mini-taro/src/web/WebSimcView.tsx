@@ -25,6 +25,17 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
   const [page, setPage] = useState<WorkbenchPage>('new')
   const [filter, setFilter] = useState<SimulationJobStatus | 'all'>('all')
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+  const [copyState, setCopyState] = useState<{ id: string; status: 'copied' | 'failed' } | null>(null)
+  const copyGenerationRef = useRef(0)
+  const copyJobId = async (id: string) => {
+    const generation = ++copyGenerationRef.current
+    try {
+      await navigator.clipboard.writeText(id)
+      if (!disposedRef.current && generation === copyGenerationRef.current) setCopyState({ id, status: 'copied' })
+    } catch {
+      if (!disposedRef.current && generation === copyGenerationRef.current) setCopyState({ id, status: 'failed' })
+    }
+  }
   const [opening, setOpening] = useState(false)
   const [sourceUrl, setSourceUrl] = useState('')
   const [resolvedSource, setResolvedSource] = useState('')
@@ -224,12 +235,19 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
         {(['all', 'queued', 'running', 'succeeded', 'failed', 'cancelled'] as const).map((status) => <button data-simc-button="" key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{status === 'all' ? '全部' : simcStatuses[status]}</button>)}
       </div><span className={styles['muted']}>已加载 {state.jobs.length} 项</span></div>
       <div className={styles['taskList']}>
-        {filteredJobs.map((job) => <button data-simc-button="" key={job.id} className={styles['taskRow']} data-job-id={job.id} onClick={() => void openJob(job.id)}>
+        {filteredJobs.map((job) => <div key={job.id} className={styles['taskCard']}>
+        <button data-simc-button="" className={styles['taskRow']} data-job-id={job.id} onClick={() => void openJob(job.id)}>
           <span className={styles['taskCharacter']}><strong>{job.character?.name || '角色信息未记录'}</strong><small>{job.character ? `${simcLabel(job.character.specialization)} ${simcLabel(job.character.className)}` : `任务 ${job.id.slice(0, 8)}`}</small></span>
           <span className={styles['taskScenario']}>{job.scenario ? `${simcFightStyles[job.scenario.fightStyle as keyof typeof simcFightStyles] ?? '未记录战斗类型'} · ${job.scenario.desiredTargets} 目标` : '配置未记录'}<small>{simcDate(job.createdAt)}</small></span>
           <span className={styles['taskMetric']}>{job.metric ? <><strong>{simcNumber(job.metric.value)}</strong><small>{simcMetricName(job.metric.name)}</small></> : <small>{job.status === 'queued' || job.status === 'running' ? '等待结果' : '无结果'}</small>}</span>
           <span className={styles['status']} data-status={job.status}>{simcStatuses[job.status]}</span><span className={styles['rowArrow']} aria-hidden="true">→</span>
-        </button>)}
+        </button>
+        <div className={styles['taskIdRow']}>
+          <span data-task-id="">任务 ID：<code>{job.id}</code></span>
+          <button type="button" data-simc-button="" className={styles['copyId']} aria-label={`复制任务 ID ${job.id}`} onClick={() => void copyJobId(job.id)}>{copyState?.id === job.id && copyState.status === 'copied' ? '已复制' : '复制 ID'}</button>
+          {copyState?.id === job.id ? <span role="status">{copyState.status === 'failed' ? '复制失败，请选中任务 ID 手动复制' : '任务 ID 已复制'}</span> : null}
+        </div>
+        </div>)}
       </div>
       {!filteredJobs.length && state.phase !== 'blocked' && state.phase !== 'signed_out' ? <div className={styles['empty']} role="status"><h3>{state.phase === 'loading' ? '正在读取任务…' : filter === 'all' ? '还没有模拟任务' : '暂无此状态的任务'}</h3><p>{filter === 'all' ? '读取角色并开始模拟，你的结果会保存在这里。' : '切换其他状态查看，或刷新任务列表。'}</p></div> : null}
       {state.nextCursor ? <button data-simc-button="" className={styles['loadMore']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs(state.nextCursor ?? undefined)}>{state.phase === 'loading' ? '正在加载…' : '加载更多任务'}</button> : null}

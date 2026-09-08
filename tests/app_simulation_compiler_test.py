@@ -34,6 +34,33 @@ class SimulationCompilerTest(unittest.TestCase):
         )
         self.capabilities = capabilities
 
+    def test_equipment_override_compiles_exact_item_without_mutating_source(self):
+        compiler = SimcProfileCompiler(capabilities=replace(self.capabilities,
+            compiler_revision="chickenbro-simc-compiler-v4"))
+        before = json.dumps(self.snapshot.snapshot, sort_keys=True)
+        item = {"itemId": 9999, "itemLevel": 285, "bonusIds": [123], "gems": [], "enchant": None}
+        scenario = {"equipmentOverrides": {"trinket1": item}}
+        compiled = compiler.compile(self.snapshot, scenario)
+        self.assertIn("trinket1=,id=9999,ilevel=285,bonus_id=123\n", compiled.profile)
+        self.assertEqual(json.dumps(self.snapshot.snapshot, sort_keys=True), before)
+        self.assertNotEqual(compiled.scenario_hash, scenario_hash({}))
+        item["bonusIds"].append(124)
+        self.assertEqual(compiled.scenario["equipmentOverrides"]["trinket1"]["bonusIds"], [123])
+
+    def test_equipment_overrides_reject_incomplete_or_injected_items_and_old_compiler(self):
+        item = {"itemId": 9999, "itemLevel": 285, "bonusIds": [], "gems": [], "enchant": None}
+        for overrides in ({"unknown": item}, {"trinket1": {"itemId": 9999}},
+                          {"trinket1": {**item, "itemId": "9999\njson=/tmp/x"}},
+                          {"trinket1": {**item, "itemLevel": True}},
+                          {"trinket1": {**item, "gems": [0]}},
+                          {"trinket1": {**item, "stats": "crit=9999"}}):
+            with self.subTest(overrides=overrides), self.assertRaises(SimcCompileError):
+                normalize_scenario({"equipmentOverrides": overrides})
+        with self.assertRaises(SimcCompileError) as error:
+            SimcProfileCompiler(capabilities=self.capabilities).compile(self.snapshot,
+                {"equipmentOverrides": {"trinket1": item}})
+        self.assertEqual(error.exception.code, "COMPILER_UNAVAILABLE")
+
     def test_reconstructed_talents_reject_different_or_unknown_runtime_catalog(self):
         snapshot = replace(self.snapshot, provenance={**self.snapshot.provenance,
             "wclTalentReconstruction": {"catalogRuntimeRevision": "f" * 40}})

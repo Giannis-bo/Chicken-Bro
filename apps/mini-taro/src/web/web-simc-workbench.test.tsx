@@ -85,6 +85,22 @@ describe('Web SimC workbench', () => {
     await act(async () => container.querySelector<HTMLButtonElement>('[data-job-id="job-completed"]')!.click())
   }
 
+  it('copies the full job ID without opening its report and reports clipboard failures', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    await click('模拟任务')
+    expect(container.querySelector('[data-task-id]')?.textContent).toContain(job.id)
+    await click('复制 ID')
+    expect(writeText).toHaveBeenCalledWith(job.id)
+    expect(container.querySelector('[data-simc-page="tasks"]')).not.toBeNull()
+    expect(api.getJob).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('已复制')
+    writeText.mockRejectedValueOnce(new Error('denied'))
+    await click('已复制')
+    expect(container.textContent).toContain('复制失败，请选中任务 ID 手动复制')
+    expect(container.querySelector('[data-task-id]')?.textContent).toContain(job.id)
+  })
+
   it('renders the real elemental report with named skills and buffs while preserving its metrics', async () => {
     const before = JSON.stringify(elementalReport)
     api.getJob.mockResolvedValue(success({ ...job, character: elementalReport.actor,

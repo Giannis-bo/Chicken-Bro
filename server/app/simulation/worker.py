@@ -417,6 +417,9 @@ class SimulationWorker:
                 ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2"),
                 ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v3"),
                 ("chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3"),
+                ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v4"),
+                ("chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v4"),
+                ("chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"),
             }
             and job.runtime_revision == self._runtime_capabilities.runtime_revision
         ):

@@ -226,6 +226,18 @@ class SimulationWorkerTest(unittest.TestCase):
                 self.assertEqual(worker.handle(lease), SimulationJobStatus.SUCCEEDED)
                 self.assertEqual(repository.results[0].compiler_revision, revision)
 
+    def test_v4_worker_replays_v1_v2_v3_jobs_with_original_revision(self):
+        from server.app.simulation.compiler import SimcProfileCompiler
+        for revision in ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3"):
+            self.job = replace(self.job, compiler_revision=revision)
+            lease = replace(self.lease, payload={**self.lease.payload, "compilerRevision": revision})
+            worker, repository = self.build_worker(RawSimulationExecution(0, "Player: Stormsample\nDPS=12345\n", "", "simc:current:abc"))
+            worker._runtime_capabilities = replace(worker._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v4")
+            worker._compiler = SimcProfileCompiler(capabilities=worker._runtime_capabilities)
+            with self.subTest(revision=revision):
+                self.assertEqual(worker.handle(lease), SimulationJobStatus.SUCCEEDED)
+                self.assertEqual(repository.results[0].compiler_revision, revision)
+
     def test_structured_report_is_persisted_with_original_provenance(self):
         import json
         from tests.app_simulation_report_test import report_fixture

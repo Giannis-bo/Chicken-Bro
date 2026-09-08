@@ -25,6 +25,13 @@ describe('SimC workbench guards', () => {
     expect(isSimulationReport({...report,actor:{...report.actor,userId:'private'}})).toBe(false)
     expect(isSimulationReport({...report,buffs:[{name:'Invalid',uptime:101}]})).toBe(false)
   })
+  it('reads equipment variant scenarios but rejects incomplete item data', () => {
+    const item = { itemId: 12345, itemLevel: 285, bonusIds: [123], gems: [], enchant: null }
+    expect(isSimulationScenario({ equipmentOverrides: { trinket1: item } })).toBe(true)
+    expect(isSimulationScenario({ equipmentOverrides: { trinket1: { itemId: 12345 } } })).toBe(false)
+    expect(isSimulationScenario({ equipmentOverrides: { unknown: item } })).toBe(false)
+    expect(isSimulationScenario({ equipmentOverrides: { trinket1: { ...item, itemLevel: true } } })).toBe(false)
+  })
   it('validates options and actual version metadata', () => {
     expect(isSimulationScenario({maxTime:300,targetError:.5,raidBuffs:true})).toBe(true)
     expect(isSimulationScenario({fightStyle:'bogus'})).toBe(false)

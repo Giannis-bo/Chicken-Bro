@@ -142,7 +142,8 @@
         "tests/app_chickenbro_simulation_tools_test.py"
       ],
       "prefixes": [
-        "artifacts/releases/2026-09-06-chickenbro-simc-tools/"
+        "artifacts/releases/2026-09-06-chickenbro-simc-tools/",
+        "artifacts/verification/2026-09-08-faq/"
       ]
     },
     {

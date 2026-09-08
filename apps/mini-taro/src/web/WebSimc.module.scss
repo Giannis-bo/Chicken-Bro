@@ -229,3 +229,12 @@
 .exampleLabel { color: var(--simc-muted); }
 .exampleLink { color: var(--simc-accent); overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
 .exampleLink:focus-visible { outline: 2px solid var(--simc-accent); outline-offset: 3px; border-radius: 2px; }
+
+.taskCard { border: 1px solid var(--simc-line); border-radius: 11px; background: #fff; min-width: 0; }
+.taskCard .taskRow { border: 0; border-radius: 11px 11px 0 0; padding-bottom: 10px; }
+.taskIdRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 0 22px 16px; color: var(--simc-muted); font-size: 11px; }
+.taskIdRow span, .taskIdRow code { user-select: text; -webkit-user-select: text; overflow-wrap: anywhere; }
+.taskIdRow code { font-family: ui-monospace, monospace; }
+.copyId { flex-shrink: 0; border: 1px solid var(--simc-line); border-radius: 5px; padding: 4px 8px; background: #faf8f5; color: var(--simc-ink); font: inherit; cursor: pointer; }
+.copyId:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 700px) { .taskIdRow { padding: 0 17px 16px; } }

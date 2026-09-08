@@ -59,6 +59,49 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.repository.save_result(result)
         return result
 
+    def test_rerun_by_job_id_preserves_scenario_and_checks_owner(self):
+        caps = replace(self.application._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v4")
+        self.application._runtime_capabilities = caps
+        self.application._compiler = application_fixtures.SimcProfileCompiler(capabilities=caps)
+        baseline = self.submit(self.prepare()["snapshotId"], {"maxTime": 120, "desiredTargets": 5,
+            "varyCombatLength": 0.1, "raidBuffs": False, "bloodlust": False})
+        args = {"baseJobId": baseline["jobId"], "scenario": {"equipmentOverrides": {
+            "trinket1": {"itemId": 9999, "itemLevel": 285, "bonusIds": [], "gems": [], "enchant": None}}}}
+        variant = self.gateway.execute(self.token, "submit", args)
+        self.assertEqual(variant["status"], "queued")
+        self.assertNotEqual(variant["jobId"], baseline["jobId"])
+        self.assertEqual(variant["snapshotId"], baseline["snapshotId"])
+        self.assertEqual(variant["scenario"]["maxTime"], 120)
+        self.assertEqual(variant["scenario"]["desiredTargets"], 5)
+        self.assertFalse(variant["scenario"]["raidBuffs"])
+        self.assertEqual(self.gateway.execute(self.token, "submit", args)["jobId"], variant["jobId"])
+        original = self.gateway.execute(self.token, "get", {"jobId": baseline["jobId"]})
+        self.assertNotIn("equipmentOverrides", original["scenario"])
+        self.assertIn("gear", original)
+        other_token = self.gateway.issue_capability(replace(self.context, principal=self.other, run_id=uuid4()))
+        denied = self.gateway.execute(other_token, "submit", args)
+        self.assertEqual(denied["errorCode"], "SIMULATION_NOT_FOUND")
+        self.assertEqual(len(self.queue.calls), 2)
+
+    def test_base_job_requires_owned_source_and_recorded_scenario(self):
+        base = self.submit(self.prepare()["snapshotId"])
+        self.queue.calls.clear()
+        result = self.gateway.execute(self.token, "submit", {"baseJobId": base["jobId"], "scenario": {}})
+        self.assertEqual(result["errorCode"], "SIMC_BASE_SCENARIO_UNAVAILABLE")
+        result = self.gateway.execute(self.token, "submit", {"baseJobId": base["jobId"],
+            "snapshotId": base["snapshotId"], "scenario": {}})
+        self.assertEqual(result["errorCode"], "SIMC_ARGUMENTS_INVALID")
+        self.assertEqual(len(self.queue.calls), 0)
+
+    def test_effective_gear_preserves_known_unenchanted_item_for_rerun(self):
+        prepared = self.prepare()
+        self.assertIn("enchant", prepared["gear"]["trinket1"])
+        self.assertIsNone(prepared["gear"]["trinket1"]["enchant"])
+        baseline = self.submit(prepared["snapshotId"])
+        read = self.gateway.execute(self.token, "get", {"jobId": baseline["jobId"]})
+        self.assertIn("enchant", read["gear"]["trinket1"])
+        self.assertIsNone(read["gear"]["trinket1"]["enchant"])
+
     def test_preparation_is_deduplicated_and_projects_real_gems(self):
         first = self.prepare()
         second = self.prepare()

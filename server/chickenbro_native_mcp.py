@@ -164,11 +164,25 @@ TOOL_DEFINITIONS = [
 ]
 
 _UUID_SCHEMA = {"type": "string", "format": "uuid", "maxLength": 36}
+_EQUIPMENT_ITEM_SCHEMA = {"type": "object", "additionalProperties": False,
+    "required": ["itemId", "itemLevel", "bonusIds", "gems", "enchant"], "properties": {
+        "itemId": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "itemLevel": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "bonusIds": {"type": "array", "maxItems": 32, "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}},
+        "gems": {"type": "array", "maxItems": 32, "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}},
+        "enchant": {"type": ["integer", "null"], "minimum": 1, "maximum": 2147483647},
+    }}
 _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties": {
     "fightStyle": {"type": "string", "maxLength": 64},
     "desiredTargets": {"type": "integer", "minimum": 1, "maximum": 20},
     "iterations": {"type": "integer", "minimum": 1, "maximum": 10000},
     "maxTime": {"type": "integer", "minimum": 30, "maximum": 600},
+    "varyCombatLength": {"type": "number", "minimum": 0, "maximum": 0.5},
+    "targetError": {"type": "number", "minimum": 0, "maximum": 5},
+    "raidBuffs": {"type": "boolean"}, "bloodlust": {"type": "boolean"},
+    "equipmentOverrides": {"type": "object", "maxProperties": 16,
+        "description": "Canonical slot to COMPLETE replacement item. Use verified item ID, exact item level/bonus IDs, gems and enchant; []/null explicitly mean none. Never invent item data. Requires compiler v4.",
+        "additionalProperties": _EQUIPMENT_ITEM_SCHEMA},
     "gemOverrides": {"type": "object", "maxProperties": 16,
         "description": "Canonical equipment slot to replacement gem ITEM IDs; preserve exact socket count. Obtain real IDs from sources; never invent them.",
         "additionalProperties": {"type": "array", "minItems": 1, "maxItems": 32,
@@ -177,9 +191,9 @@ _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties
 for _name, _description, _required, _properties, _read_only in [
     ("prepare_simulation", "Prepare and validate an owner-scoped SimC snapshot from a Raider.IO/WCL URL. Does not run SimC. Returns character, original gear/gem IDs, talents, snapshotId and exact readiness blockers. Reuse the same snapshot for comparisons.",
      ["sourceUrl"], {"sourceUrl": {"type": "string", "maxLength": 2048}}, False),
-    ("submit_simulation", "Submit an actual cloud SimulationCraft job for the current account. Use when the user asks to run a simulation, not for explanation-only questions. Requires a ready snapshotId from prepare_simulation. Up to 4 distinct jobs per Chat turn; repeated same snapshot/scenario is idempotent. Compare baseline and gemOverrides with identical target/time/iterations. Queued is not a result; read get_simulation_job. Jobs also appear in the account's SimC list.",
-     ["snapshotId", "scenario"], {"snapshotId": _UUID_SCHEMA, "scenario": _SCENARIO_SCHEMA}, False),
-    ("get_simulation_job", "Read this account's SimC job, status, validated DPS/HPS, uncertainty when available and provenance. waitSeconds up to20 waits for completion. Poll reasonably within the Chat time budget; pending is not success. Never invent DPS or significance when uncertainty is absent.",
+    ("submit_simulation", "Submit an actual cloud SimulationCraft job for the current account. Use when the user asks to run a simulation, not for explanation-only questions. Provide exactly one of snapshotId or baseJobId. baseJobId reuses an owned job snapshot and preserves its scenario; scenario is a patch, including slot-wise equipmentOverrides/gemOverrides. Original job is unchanged. Read get_simulation_job first for gear and scenario; use verified replacement item data. Up to 4 distinct jobs per Chat turn; repeated same snapshot/scenario is idempotent. Compare baseline and gemOverrides with identical target/time/iterations. Queued is not a result; read get_simulation_job. Jobs also appear in the account's SimC list.",
+     ["scenario"], {"snapshotId": _UUID_SCHEMA, "baseJobId": _UUID_SCHEMA, "scenario": _SCENARIO_SCHEMA}, False),
+    ("get_simulation_job", "Read this account's SimC job, effective gear, original scenario, snapshotId, status, validated DPS/HPS, uncertainty when available and provenance. waitSeconds up to20 waits for completion. Poll reasonably within the Chat time budget; pending is not success. Never invent DPS or significance when uncertainty is absent.",
      ["jobId"], {"jobId": _UUID_SCHEMA, "waitSeconds": {"type": "integer", "minimum": 0, "maximum": 20}}, True),
     ("list_simulation_jobs", "List the current account's existing SimC jobs and available results. Useful for follow-up questions and jobs still running after a prior Chat turn; no ownership parameter is accepted.",
      [], {"limit": {"type": "integer", "minimum": 1, "maximum": 10}, "cursor": {"type": "string", "maxLength": 1024}}, True),
