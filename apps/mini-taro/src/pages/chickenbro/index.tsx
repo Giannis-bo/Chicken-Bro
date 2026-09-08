@@ -21,6 +21,11 @@ function ChickenbroPage() {
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
+  useEffect(() => {
+    if (!historyOpen) return
+    void Taro.hideTabBar?.({ animation: false }).catch(() => undefined)
+    return () => { void Taro.showTabBar?.({ animation: false }).catch(() => undefined) }
+  }, [historyOpen])
   const [deletingId, setDeletingId] = useState('')
   const [deleteError, setDeleteError] = useState('')
   const deleteInFlight = useRef(false)
