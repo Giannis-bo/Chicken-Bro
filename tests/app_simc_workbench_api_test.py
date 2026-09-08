@@ -74,6 +74,21 @@ class WorkbenchApiTest(unittest.TestCase):
         self.assertNotIn('scenario', legacy)
         self.assertNotIn('character', legacy)
 
+    def test_equipment_scenario_is_opt_in_for_existing_mini_clients(self):
+        from server.app.api.routes.simc import _job_summary
+        from server.app.simulation.application import SimulationJobView
+        snapshot = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json={
+            'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}).json()
+        self.client.post('/api/v2/simc/jobs', headers={**mini_headers(), 'Idempotency-Key': 'equipment-contract'},
+            json={'snapshotId': snapshot['id'], 'scenario': {'iterations': 100}})
+        job = next(iter(self.repository.jobs.values()))
+        scenario = {'iterations': 100, 'equipmentOverrides': {'trinket1': {
+            'itemId': 12345, 'itemLevel': 200, 'bonusIds': [], 'gems': [], 'enchant': None}}}
+        view = SimulationJobView(job=job, attempts=(), result=None, scenario=scenario)
+        self.assertEqual(_job_summary(view, True)['scenario'], {'iterations': 100})
+        self.assertEqual(_job_summary(view, True, 2)['scenario'], scenario)
+        self.assertIn('equipmentOverrides', view.scenario)
+
     def test_runtime_requires_authentication(self):
         self.assertEqual(self.client.get('/api/v2/simc/runtime').status_code, 401)
         with patch('server.app.simulation.application.get_simc_runtime_info', return_value={

@@ -89,7 +89,7 @@ def _snapshot_payload(snapshot: SourceSnapshot, workbench: bool = False) -> dict
     }
 
 
-def _job_summary(view: SimulationJobView, workbench: bool = False) -> dict[str, object]:
+def _job_summary(view: SimulationJobView, workbench: bool = False, scenario_version: int = 1) -> dict[str, object]:
     validated_simulation_result_provenance(view)
     job = view.job
     public_error = str(job.public_error_code or "")
@@ -97,7 +97,8 @@ def _job_summary(view: SimulationJobView, workbench: bool = False) -> dict[str, 
         public_error = "SIMC_FAILED"
     return {
         "id": str(job.id),
-        **({"character": _character_payload(view.snapshot), "scenario": view.scenario,
+        **({"character": _character_payload(view.snapshot), "scenario": (dict(view.scenario) if scenario_version == 2 else
+                {key: value for key, value in view.scenario.items() if key != "equipmentOverrides"}) if view.scenario is not None else None,
             "metric": {"name": view.result.primary_metric_name, "value": view.result.primary_metric_value} if view.result else None} if workbench else {}),
         "snapshotId": str(job.snapshot_id),
         "status": job.status.value,
@@ -145,9 +146,9 @@ def _result_payload(view: SimulationJobView, workbench: bool = False, localized:
     }
 
 
-def _job_detail(view: SimulationJobView, workbench: bool = False, localized: bool = False) -> dict[str, object]:
+def _job_detail(view: SimulationJobView, workbench: bool = False, localized: bool = False, scenario_version: int = 1) -> dict[str, object]:
     return {
-        **_job_summary(view, workbench),
+        **_job_summary(view, workbench, scenario_version),
         "attempts": [_attempt_payload(attempt) for attempt in view.attempts[:20]],
         "result": _result_payload(view, workbench, localized),
     }
@@ -212,13 +213,14 @@ def list_jobs(
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
     view: str | None = None,
+    scenarioVersion: int = 1,
     cursor: str | None = None,
     limit: int = 20,
 ) -> dict[str, object]:
     try:
         page = application.list_jobs(principal, cursor, limit)
         return {
-            "items": [_job_summary(item, view == "workbench") for item in page.items],
+            "items": [_job_summary(item, view == "workbench", scenarioVersion) for item in page.items],
             "nextCursor": page.next_cursor,
         }
     except (SimulationApplicationError, TypeError, ValueError) as error:
@@ -235,6 +237,7 @@ def list_jobs(
 def create_job(
     body: SimulationCreateBody,
     view: str | None = None,
+    scenarioVersion: int = 1,
     reportLocale: str | None = None,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     principal: Principal = Depends(require_mutating_principal),
@@ -247,7 +250,7 @@ def create_job(
             body.scenario,
             idempotency_key or "",
         )
-        return _job_detail(application.read_job(principal, job.id), view == "workbench", reportLocale == 'zhCN')
+        return _job_detail(application.read_job(principal, job.id), view == "workbench", reportLocale == 'zhCN', scenarioVersion)
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
@@ -256,12 +259,13 @@ def create_job(
 def get_job(
     job_id: UUID,
     view: str | None = None,
+    scenarioVersion: int = 1,
     reportLocale: str | None = None,
     principal: Principal = Depends(require_principal),
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _job_detail(application.read_job(principal, job_id), view == "workbench", reportLocale == 'zhCN')
+        return _job_detail(application.read_job(principal, job_id), view == "workbench", reportLocale == 'zhCN', scenarioVersion)
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 
