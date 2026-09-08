@@ -10,6 +10,9 @@
       "paths": [
         "docs/plans/2026-09-07-chat-delete.md",
         "tests/app_chat_delete_postgres_test.py"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-08-chat-delete/"
       ]
     },
     {

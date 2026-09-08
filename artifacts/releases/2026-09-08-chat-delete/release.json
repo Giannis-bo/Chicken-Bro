@@ -1,0 +1,54 @@
+{
+  "date": "2026-09-08",
+  "status": "live_verified_user_acceptance_pending",
+  "sourceCommit": "c70d11561147187c0e4b85e7ef865290debbaabf",
+  "authorization": "部署我预览一下",
+  "url": "https://www.chickenbro.cloud",
+  "localVerification": {
+    "backend": 403,
+    "frontend": 275,
+    "control": 62,
+    "migrationPriorFeatureVerification": 77,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5Build": "passed",
+    "weappBuild": "passed",
+    "independentReview": "passed"
+  },
+  "cloudIsolatedDatabase": {
+    "name": "chickenbro_delete_verify_20260908",
+    "tests": 12,
+    "skipped": 0,
+    "fullCandidateAcceptance": false
+  },
+  "deployment": {
+    "releaseFilesVerified": 174,
+    "publicWebFilesVerified": 29,
+    "apiAndWorker": "active",
+    "bothDomainsReadiness": "ready",
+    "writeFence": "POST and DELETE; original nginx restored",
+    "migrations": "unchanged through 0005_chat_account_concurrency"
+  },
+  "liveSmoke": {
+    "account": "dedicated synthetic owner; credentials revoked",
+    "realReply": "completed",
+    "streamingDelete": 409,
+    "busyCode": "CHAT_CONVERSATION_BUSY",
+    "delete": 200,
+    "repeatDelete": 200,
+    "miniAndWebDetail": 404,
+    "miniAndWebHistory": "hidden",
+    "storage": "archived",
+    "messageRowsPreserved": 2,
+    "realWechatLogin": false
+  },
+  "rollback": {
+    "code": "/opt/chickenbro-releases/74d9b38d44de2d3693345c8d64a268a664a0ef23",
+    "web": "/opt/chickenbro-releases/74d9b38d44de2d3693345c8d64a268a664a0ef23/web",
+    "configBackup": "/var/lib/chickenbro/chat-delete-release/c70d11561147187c0e4b85e7ef865290debbaabf",
+    "newDropin": "99-chat-delete-release-20260908.conf"
+  },
+  "miniUpload": "not performed; existing Mini uses shared backend",
+  "mainMerge": "pending user acceptance",
+  "push": "not performed"
+}
