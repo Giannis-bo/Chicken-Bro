@@ -1,0 +1,19 @@
+{
+  "sourceCommit": "29c5b2a258bb76c54726fad7285eca25643fbc13",
+  "status": "deployed_user_acceptance_pending",
+  "scope": "Web native button class selectors and dimensions",
+  "verification": {
+    "frontendTests": 275,
+    "typecheck": "passed",
+    "h5AndMiniBuilds": "passed",
+    "productionCSSBrowserVisual": "passed",
+    "publicWebHashesVerified": 29,
+    "releaseFilesVerified": 174,
+    "bothDomainsReadiness": "ready",
+    "nginx": "restored"
+  },
+  "rollbackSource": "c70d11561147187c0e4b85e7ef865290debbaabf",
+  "miniUpload": false,
+  "mainMerge": false,
+  "push": false
+}

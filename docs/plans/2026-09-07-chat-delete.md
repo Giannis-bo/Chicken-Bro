@@ -31,3 +31,7 @@
 源码 `c70d11561147187c0e4b85e7ef865290debbaabf` 已发布到正式 API/Worker/Web。174 个部署文件与 29 个公开 Web 文件 SHA 全部一致，双域 readiness 通过，临时 POST/DELETE 写栅栏已恢复。云端独立数据库 `chickenbro_delete_verify_20260908` 的删除与账号互斥 12 项测试通过（这是隔离数据库验证，不等同完整 Candidate 双端验收）。
 
 专用测试账号经公网 Mini Bearer/Web Cookie 验证真实回复期间 DELETE 返回 409 `CHAT_CONVERSATION_BUSY`，回复完成后删除与重复删除成功，双端详情 404、历史移除，数据库 archived 且 2 条消息保留。测试会话凭据已撤销；未操作真实用户历史，未进行本次真实微信登录。旧版本 `74d9b38d44de2d3693345c8d64a268a664a0ef23` 保留，数据库 migration 未变。等待用户预览验收；不自动合入或推送。见 [发布证据](../../artifacts/releases/2026-09-08-chat-delete/release.json)。
+
+## 按钮样式修正（2026-09-08）
+
+用户预览发现取消/删除按钮退回原生样式。根因已在生产 CSS 复现：Taro 将 `button` 标签选择器转换为 `taro-button-core`，与 Web 原生元素不匹配。改为 actionButton/conversationButton 类选择器，恢复圆角、内边距、禁用状态及会话标题右侧留白。使用实际生产 CSS 的本地浏览器视觉检查通过，275 前端测试、类型检查及双端构建通过。源码 `29c5b2a258bb76c54726fad7285eca25643fbc13` 已继续部署预览，未合入或推送；用户验收仍待完成。
