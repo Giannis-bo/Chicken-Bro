@@ -1,0 +1,30 @@
+{
+  "status": "published",
+  "authorization": "OK，发布",
+  "webCommit": "529a7f1305c28ed96dfff37e8a7d9d7d64bf6bdc",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/themes-4a39d1eed6386de69c781c1267aee8af1cf1fc99",
+  "checks": {
+    "frontend": 290,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionH5": "passed_with_two_bundle_size_warnings",
+    "publicFilesVerified": 34,
+    "previewExistingSession": "passed",
+    "productionExistingHistory": {
+      "messages": 6,
+      "opacity": 0.32
+    },
+    "productionNewConversation": {
+      "welcome": true,
+      "messages": 0,
+      "opacity": 0.56,
+      "jumpToLatest": false
+    }
+  },
+  "review": "Local source review passed; CodeRabbit unavailable and not installed.",
+  "scope": "Web only; API, Worker and Mini unchanged.",
+  "acceptance": "User approved local preview and publication.",
+  "newChatWrite": "One empty conversation created in existing signed-in account for button verification; no messages sent.",
+  "sourceParity": "Subsequent closure commit contains documentation and evidence only."
+}
