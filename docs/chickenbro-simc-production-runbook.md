@@ -4,9 +4,9 @@
 
 1.0 当前实现已获用户验收，当前仓库状态见 [版本说明](releases/1.0.md)。下文带日期的 code/Web 路径、service readiness、容量与清理记录均是当时的快照；其中“当前/现指向”只相对于该记录日期成立。操作前必须重新读取有效 symlink、systemd WorkingDirectory、构建 manifest 和健康状态，不能直接使用最晚一段文字猜当前部署。
 
-最新发布源码为 `d2a2b752c`：Web `current` 在 2026-09-08 本轮检查时指向 `/var/www/chickenbro-web/releases/v1-d2a2b752c89bb2ac43c6065509151878a30a9d09`，28 文件公网 SHA 一致；Mini `1.0.0` 已上传但微信公开发布待用户操作。API/Worker 仍使用 `faq-f2932f8b6...` 目录，其 79 个业务源码/配置/迁移文件与当前仓库一致，本轮无需重启。见 [发布证据](../artifacts/verification/2026-09-08-v1-close/publish.json)。
+2026-09-08 本轮重新核对：Web `current` 指向 `/var/www/chickenbro-web/releases/credit-189d711648c6846df73f07d9aeb2ae7f9766ff15`；`/opt/chickenbro` 指向 `/opt/chickenbro-releases/raider-4315455479566aab7ead4488c52842f3b83c55b1`。源码与当前 main 对应运行面无差异；逐文件 SHA、两个域名 readiness、小程序 `1.0.5` 构建/上传结果见 [本轮对齐记录](../artifacts/verification/2026-09-08-v1-close/alignment/README.md)。历史 `v1-d2a2b752c...` / Mini `1.0.0` 已被后续发布取代。
 
-本轮 Web 回滚点为 `/var/www/chickenbro-web/releases/theme-cdn-b356cd170169c4d3ec62fed564d561e31ecd24d7`，旧文件保留；操作前仍需重新核对有效指针，不能覆盖其他后续发布。微信上传与公开发布分别记录，版本管理页本轮被工具安全策略阻止访问。
+最近 Web 发布的回滚点为 `/var/www/chickenbro-web/releases/raider-4315455479566aab7ead4488c52842f3b83c55b1`；后端最近发布的回滚点为 `/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5`。操作前核对当前指针及目录存在性，禁止机械使用下面历史发布的回滚命令。微信上传与审核/公开发布分别记录。
 
 日常增量变更按影响范围构建并核对精确文件身份，保留当前回滚包；不得重放下面已完成的 legacy 迁移、切流或清理脚本。SimC 引擎继续只运行于云端。1.0 文档收尾本身不需要修改数据库、Worker 或 SimC runtime。
 

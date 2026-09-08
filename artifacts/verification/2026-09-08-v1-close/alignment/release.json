@@ -1,0 +1,97 @@
+{
+  "status": "aligned_mini_uploaded_user_review_pending",
+  "observedAt": "2026-09-08T13:31:57.310491+00:00",
+  "repositoryBaseline": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1",
+  "latestApplicationSourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
+  "initialLocalRemoteAheadBehind": [
+    0,
+    0
+  ],
+  "web": {
+    "sourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
+    "root": "/var/www/chickenbro-web/releases/credit-189d711648c6846df73f07d9aeb2ae7f9766ff15",
+    "publicFilesMatched": 27,
+    "repositorySourceDiff": [],
+    "republishedThisRun": false,
+    "rollbackRoot": "/var/www/chickenbro-web/releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+    "rollbackDirectoryExists": true,
+    "liveUi": {
+      "existingSessionReused": true,
+      "serviceNormal": true,
+      "desktopCreditVisible": true,
+      "raiderioOnlyExample": true,
+      "existingSimulationTaskLoaded": true
+    }
+  },
+  "backend": {
+    "sourceCommit": "4315455479566aab7ead4488c52842f3b83c55b1",
+    "root": "/opt/chickenbro-releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+    "runtimeFilesMatched": 81,
+    "scope": [
+      "server/app",
+      "server/config",
+      "server/migrations/product",
+      "tracked requirements files"
+    ],
+    "repositorySourceDiff": [],
+    "services": "api_and_worker_active",
+    "readiness": {
+      "api.chickenbro.cloud": "ready_all_7_components",
+      "www.chickenbro.cloud": "ready_all_7_components"
+    },
+    "restartedThisRun": false,
+    "databaseChanged": false,
+    "simcRuntimeChanged": false,
+    "rollbackRoot": "/opt/chickenbro-releases/feedback-5ace442c38f6ec2657c2804f6bf87b96aa46ade5",
+    "rollbackDirectoryExists": true
+  },
+  "mini": {
+    "version": "1.0.5",
+    "upload": "succeeded",
+    "bytes": 1066066,
+    "build": {
+      "schemaRevision": "wow-weapp-build-v1",
+      "gitHead": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1",
+      "sourceHash": "sha256:1f3c44463ef4e770b0ef08c3defa48c8bcbfa1fe3ac3ef20f3601930255cc6f2",
+      "builtAt": "2026-09-08T13:27:00.220Z"
+    },
+    "productionApi": "https://api.chickenbro.cloud",
+    "testLoginUi": false,
+    "entryPage": "pages/chickenbro/index",
+    "webLoginConfirmationPagePresent": true,
+    "review": "pending_user_platform_action",
+    "publicRelease": "not_verified_this_run",
+    "realDeviceAcceptance": "not_run_this_upload"
+  },
+  "verification": {
+    "frontendPassed": 335,
+    "backendPassed": 421,
+    "controlPassed": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "weappBuild": "passed",
+    "h5Build": "not_rebuilt_source_unchanged_deployed_manifest_verified",
+    "review": "local_documentation_and_release_evidence_review_no_findings",
+    "coderabbit": "cli_and_connector_unavailable_not_installed",
+    "backendInitialAttempt": "system_python_missing_fastapi_retried_existing_venv_successfully",
+    "publicHashInitialAttempt": "python_ssl_authority_key_identifier_error_retried_system_curl_with_certificate_verification",
+    "migrationTests": "not_rerun_no_schema_or_runtime_changes",
+    "newChatOrSimulationWrites": false
+  },
+  "badcase": {
+    "scheduler": "existing_heartbeat_active",
+    "executionPipeline": "not_implemented_or_accepted",
+    "firstScan": "2026-09-09T06:00:00+08:00",
+    "scheduledScanHours": [
+      0,
+      6,
+      12,
+      18
+    ],
+    "conditionalReleaseHour": 18
+  },
+  "preservedLocalWork": [
+    "preexisting_untracked_preview_images_and_build_reports",
+    "/private/tmp/cb-feedback/release-src"
+  ]
+}

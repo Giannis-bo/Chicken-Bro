@@ -190,7 +190,10 @@
     "finalUiChanges": "web_deployed_mini_uploaded",
     "wechatPublicRelease": "pending_user_platform_action",
     "historicalRefactorEvidenceAsOf": "2026-09-04",
-    "latestApplicationSourceCommit": "d2a2b752c89bb2ac43c6065509151878a30a9d09",
-    "publicationEvidence": "artifacts/verification/2026-09-08-v1-close/publish.json"
+    "latestApplicationSourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
+    "publicationEvidence": "artifacts/verification/2026-09-08-v1-close/alignment/release.json",
+    "latestMiniVersion": "1.0.5",
+    "latestMiniUpload": "succeeded",
+    "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1"
   }
 }

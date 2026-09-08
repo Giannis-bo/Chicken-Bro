@@ -19,7 +19,7 @@
 | 能力 | 当前实现 |
 | --- | --- |
 | Identity | Mini Bearer 与 Web HttpOnly Cookie 分离，Origin/CSRF、单次票据及服务端 owner 映射 |
-| Chat | 服务端共享历史、幂等发送、持久化回放、公开进展/完成时间、账号级单回复、软删除 |
+| Chat | 服务端共享历史、幂等发送、持久化回放、公开进展/完成时间、账号级单回复、软删除、双端共享且不可修改的回答解决情况反馈 |
 | SimC | Raider.IO 导入快照（保留历史 WCL 快照）、readiness、compiler、PostgreSQL queue、云端 Worker、语义结果、任务 ID 换装重跑 |
 | Mini | 5 条页面路由、2 个 Tab；历史抽屉、FAQ/更新日志、任务 ID 复制；取消账号与外观面板 |
 | Web | `/` 对话、`/simc` 模拟、`/?view=faq` FAQ；扫码登录、账号菜单、七种静态插画主题 |
