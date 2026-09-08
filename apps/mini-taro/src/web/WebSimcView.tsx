@@ -6,20 +6,22 @@ import type { SimulationJobDetail, SimulationJobStatus, SimulationRuntimeView } 
 
 import { SimcModel, shouldPollSimulationJob, type SimcModelState } from '../features/simc/simc-model'
 import WebSimcReport from './WebSimcReport'
+import WebThemeArt from './WebThemeArt'
+import type { WebThemeId } from './web-themes'
 import { simcDate, simcFightStyles, simcLabel, simcMetricName, simcNumber, simcStatuses } from './simc-presentation'
 import styles from './WebSimc.module.scss'
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
 type WorkbenchPage = 'new' | 'tasks' | 'report'
 
-export interface WebSimcViewProps { auth: WebClientAuth }
+export interface WebSimcViewProps { auth: WebClientAuth; themeId?: WebThemeId }
 
 function validNumber(value: string, minimum: number, maximum: number, integer = false): boolean {
   const number = Number(value)
   return value.trim() !== '' && Number.isFinite(number) && number >= minimum && number <= maximum && (!integer || Number.isInteger(number))
 }
 
-export default function WebSimcView({ auth }: WebSimcViewProps) {
+export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProps) {
   const model = useMemo(() => new SimcModel(wowApi.simc, () => auth, { workbench: true, localizedReport: true }), [auth])
   const [state, setState] = useState<SimcModelState>(() => model.get())
   const [page, setPage] = useState<WorkbenchPage>('new')
@@ -145,6 +147,7 @@ export default function WebSimcView({ auth }: WebSimcViewProps) {
 
   return <div className={styles['workbench']} data-simc-phase={state.phase} data-simc-page={page}>
     <header className={styles['header']}>
+      <div className={styles['themeScene']}><WebThemeArt themeId={themeId} /></div>
       <div><h1>SIMC</h1></div>
       <div className={styles['engine']} data-runtime-status={runtime?.status ?? 'unknown'}>
         <span className={styles['engineDot']} aria-hidden="true" />

@@ -1283,3 +1283,5 @@
     &[data-empty='false'] .chatScene { top: 0; height: 100%; }
   }
 }
+
+.workspace[data-business-view='simc'] .workspaceMain { box-sizing: border-box; }

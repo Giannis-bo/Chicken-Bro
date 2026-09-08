@@ -142,7 +142,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
           </div>
           {simcVisited ? (
             <div className={styles['businessPane']} hidden={activeView !== 'simc'}>
-              <WebSimcView auth={auth} />
+              <WebSimcView auth={auth} themeId={themeId} />
             </div>
           ) : null}
         </View>
