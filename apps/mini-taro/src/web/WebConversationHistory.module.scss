@@ -1,5 +1,5 @@
 .row { position: relative; }
-.row > button:first-child { padding-right: 43px; }
+.row .conversationButton { padding-right: 43px; }
 .trash {
   position: absolute; right: 9px; bottom: 9px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
@@ -17,8 +17,8 @@
 }
 .actions {
   display: flex; justify-content: flex-end; gap: 10px;
-  button { padding: 9px 19px; border: 1px solid #ded3cb; border-radius: 9px; color: #63564d; background: white; cursor: pointer; }
+  .actionButton { appearance: none; min-width: 72px; font: inherit; line-height: 1.4; padding: 9px 19px; border: 1px solid #ded3cb; border-radius: 9px; color: #63564d; background: white; cursor: pointer; }
   .confirm { background: #a64e3c; color: white; border-color: #a64e3c; }
-  button:disabled { opacity: .55; cursor: wait; }
+  .actionButton:disabled { opacity: .55; cursor: wait; }
 }
 .error { color: #a64837; }

@@ -60,7 +60,7 @@ export default function WebConversationHistory({ conversations, activeId, hasMor
         </button>
         {open ? <div id={id} className={styles['historyDayItems']}>
           {group.entries.map(({ conversation, time }) => <div key={conversation.id} className={deleteStyles['row']}><button type="button"
-            className={styles['sideListButton']} data-conversation-id={conversation.id}
+            className={`${styles['sideListButton']} ${deleteStyles['conversationButton']}`} data-conversation-id={conversation.id}
             data-active={activeId === conversation.id ? 'true' : 'false'}
             aria-current={activeId === conversation.id ? 'true' : undefined}
             onClick={() => onOpen(conversation.id)}>
@@ -116,8 +116,8 @@ function DeleteDialog({ conversation, onDelete, onClose }: {
     <p>“{conversation.title || '炸鸡队长对话'}”及其消息将从网页和小程序历史中移除。</p>
     {error ? <p role="alert" className={deleteStyles['error']}>{error}</p> : null}
     <div className={deleteStyles['actions']}>
-      <button ref={cancel} type="button" disabled={busy} onClick={onClose}>取消</button>
-      <button type="button" className={deleteStyles['confirm']} disabled={busy} onClick={() => void submit()}>{busy ? '删除中…' : '删除'}</button>
+      <button ref={cancel} className={deleteStyles['actionButton']} type="button" disabled={busy} onClick={onClose}>取消</button>
+      <button type="button" className={`${deleteStyles['actionButton']} ${deleteStyles['confirm']}`} disabled={busy} onClick={() => void submit()}>{busy ? '删除中…' : '删除'}</button>
     </div>
   </dialog>
 }
