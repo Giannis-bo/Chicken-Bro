@@ -2,6 +2,19 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "web-illustration-themes",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "dual_client",
+      "reason": "User-approved static Web themes and release evidence.",
+      "paths": [
+        "docs/plans/2026-09-07-web-illustration-themes.md"
+      ],
+      "prefixes": [
+        "artifacts/releases/2026-09-07-web-illustration-themes/"
+      ]
+    },
+    {
       "id": "web-short-urls",
       "disposition": "keep",
       "category": "target-product-code",
