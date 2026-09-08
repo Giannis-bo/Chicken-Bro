@@ -1,9 +1,9 @@
 .account { min-width: 0; flex: 1; }
-.choose { display: flex; align-items: center; gap: 10rpx; width: fit-content !important; margin: 0 !important; padding: 8rpx 0; background: transparent; color: #d7c393; font-size: 22rpx; line-height: 44rpx; }
+.choose { display: flex !important; align-items: center; gap: 10rpx; width: fit-content !important; margin: 0 !important; padding: 8rpx 0; background: transparent; color: var(--mini-theme-accent, #9e5145); font-size: 22rpx; line-height: 44rpx; }
 .choose::after { border: 0; }
 .image, .placeholder { flex: none; display: block; width: 44rpx; height: 44rpx; border-radius: 50%; }
-.placeholder { background: #30382a; color: #d7c393; text-align: center; font-size: 22rpx; }
-.message { display: block; padding: 0 0 8rpx; color: #bfc6ae; font-size: 20rpx; line-height: 1.4; }
+.placeholder { background: #30382a; color: var(--mini-theme-accent, #9e5145); text-align: center; font-size: 22rpx; }
+.message { display: block; padding: 0 0 8rpx; color: #82796f; font-size: 20rpx; line-height: 1.4; }
 
 .iconOnly { flex: none; display: flex; justify-content: center; }
 .iconOnly .choose { position: relative; overflow: visible; width: 76px !important; height: 76px; padding: 0; border: 4px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #e4dbd1; }

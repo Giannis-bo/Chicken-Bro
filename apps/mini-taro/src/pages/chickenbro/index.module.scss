@@ -5,13 +5,13 @@
 .historyButton { margin-right: auto !important; width: auto; background: transparent; padding-left: 0; }
 .history { flex: none; height: 380rpx; border-bottom: 1rpx solid #e8e3de; }
 .conversationButton { width: 100%; margin: 0; padding: 18rpx; text-align: left; color: #4e4944; background: transparent; border-radius: 10rpx; line-height: 1.5; }
-.activeConversation { background: #f2e5e1; color: #9e5145; }
+.activeConversation { background: var(--mini-theme-soft, #f2e5e1); color: var(--mini-theme-accent, #9e5145); }
 .conversationTitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27rpx; }
 .conversationTime { display: block; font-size: 21rpx; color: #82796f; }
 .messages { flex: 1; height: 0; min-height: 0; width: 100%; }
 .messageList { padding: 24rpx 0 8rpx; }
 .userMessage, .assistantMessage { min-width: 0; margin-bottom: 30rpx; }
-.userMessage { max-width: 92%; margin-left: auto; padding: 18rpx 22rpx; background: #f2e5e1; border: 1rpx solid #ead8d1; border-radius: 20rpx 20rpx 4rpx 20rpx; }
+.userMessage { max-width: 92%; margin-left: auto; padding: 18rpx 22rpx; background: var(--mini-theme-soft, #f2e5e1); border: 1rpx solid #ead8d1; border-radius: 20rpx 20rpx 4rpx 20rpx; }
 .assistantMessage { width: 100%; padding: 0 4rpx; }
 .messageRole { display: flex; align-items: center; gap: 10rpx; margin-bottom: 12rpx; font-size: 22rpx; color: #8b6958; }
 .empty { padding: 32rpx 12rpx; text-align: center; }
@@ -24,7 +24,7 @@
 .errorCard .secondaryButton { margin-top: 12rpx; }
 .composer { flex: none; display: flex; align-items: flex-end; gap: 14rpx; padding: 14rpx; background: #ffffff; border: 1rpx solid #ded6cd; border-radius: 20rpx; }
 .textarea { flex: 1; min-width: 0; width: 0; min-height: 58rpx; max-height: 180rpx; padding: 8rpx 6rpx; color: #242424; font-size: 29rpx; line-height: 1.5; }
-.sendButton { width: auto; flex: none; min-width: 100rpx; min-height: 72rpx; padding: 14rpx 18rpx; color: #ffffff; background: #9e5145; font-weight: 700; }
+.sendButton { width: auto; flex: none; min-width: 100rpx; min-height: 72rpx; padding: 14rpx 18rpx; color: #ffffff; background: var(--mini-theme-accent, #9e5145); font-weight: 700; }
 .sendButton[disabled] { color: #a29b94; background: #ece8e2; }
 .composerHint { flex: none; display: block; text-align: center; padding-top: 8rpx; color: #82796f; font-size: 20rpx; line-height: 1.6; }
 
@@ -40,3 +40,9 @@
 .emptyMascot { display: block; width: 200rpx; height: 220rpx; margin: 0 auto 24rpx; }
 .header .historyButton { margin-right: auto !important; }
 .suggestion { width: 100% !important; color: #695e55; border: 1rpx solid #e8e3de; background: #ffffff; border-radius: 22rpx; }
+
+.conversationRow { display: flex; align-items: center; gap: 8rpx; }
+.conversationRow .conversationButton { flex: 1; min-width: 0; width: 0 !important; }
+.deleteButton { flex: none; width: auto !important; min-width: 88rpx; min-height: 76rpx; margin: 0 !important; padding: 18rpx 12rpx; color: var(--mini-theme-accent, #9e5145); background: transparent; font-size: 23rpx; line-height: 1.5; }
+.deleteButton::after { border: 0; }
+.deleteError { display: block; padding: 12rpx 8rpx; color: #8f3328; font-size: 24rpx; line-height: 1.5; }

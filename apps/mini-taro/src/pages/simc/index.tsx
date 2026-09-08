@@ -76,7 +76,7 @@ function SimcPage() {
     } catch { if (current()) setRuntime(null) }
     finally { if (current()) setRuntimeLoading(false) }
   }, [ensureSession, sessions])
-  useEffect(() => { if (isTestLoginEnabled()) void refreshRuntime() }, [refreshRuntime])
+  useEffect(() => { if (isTestLoginEnabled() || sessions.getValid()) void refreshRuntime() }, [refreshRuntime])
   useDidShow(() => { void refreshRuntime() })
 
   const resolveSource = async () => {

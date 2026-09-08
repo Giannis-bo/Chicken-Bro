@@ -544,3 +544,17 @@ it('does not restore a deleted conversation from an older pagination response', 
   await pagination
   expect(model.get().conversations).toEqual([])
 })
+
+it('keeps the selected reply sending when loading more history', async () => {
+  const client = new FakeChatClient()
+  client.list = async () => success({ items: [conversation], nextCursor: 'next-page' })
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  model.send('问题')
+  client.list = async () => success({ items: [otherConversation], nextCursor: null })
+  await model.loadMore()
+  expect(model.get().conversations.map(item => item.id)).toEqual([conversation.id, otherConversation.id])
+  expect(model.get()).toMatchObject({ phase: 'sending', pendingUserContent: '问题' })
+  expect(client.abort).not.toHaveBeenCalled()
+  model.dispose()
+})

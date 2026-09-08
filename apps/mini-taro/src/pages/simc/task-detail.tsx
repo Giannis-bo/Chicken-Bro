@@ -1,3 +1,4 @@
+import MiniSimcTaskId from '../../components/MiniSimcTaskId'
 import MiniSimcReport from '../../components/MiniSimcReport'
 import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
 import { simcStatuses, simcNameStatus } from '../../features/simc/simc-terms'
@@ -48,7 +49,7 @@ function SimcTaskDetailPage() {
   }
 
   useEffect(() => {
-    if (isTestLoginEnabled() && jobId.current) void loginAndPoll()
+    if ((isTestLoginEnabled() || sessions.getValid()) && jobId.current) void loginAndPoll()
   }, [model, sessions])
 
   useLoad<{ id?: string }>((params) => {
@@ -78,6 +79,7 @@ function SimcTaskDetailPage() {
         <ScrollView className={styles['content'] ?? ''} scrollY>
           <View className={styles['card'] ?? ''}>
             <Text className={styles['cardTitle'] ?? ''}>{simcStatuses[job.status]}</Text>
+            <MiniSimcTaskId id={job.id} />
             <Text className={styles['hint'] ?? ''}>{job.status === 'queued' ? '任务已排队，轮到后会自动开始。可以返回，稍后从记录继续查看。' : job.status === 'running' ? '云端正在模拟，进度会自动更新。离开此页不会中断任务。' : job.status === 'succeeded' ? '模拟已完成，下方查看结果。' : job.status === 'cancelled' ? '任务已取消，未生成结果。' : '本次模拟未完成，可返回检查角色资料后重新提交。'}</Text>
             {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
           </View>

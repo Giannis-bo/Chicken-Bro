@@ -11,6 +11,7 @@ import { isTestLoginEnabled } from './test-login-mode'
 
 
 export const MINI_SESSION_KEY = 'chickenbro.mini.session.v1'
+let logoutRevision = 0
 const sessionListeners = new Set<() => void>()
 
 function notifySessionChanged(): void {
@@ -85,7 +86,20 @@ export class MiniSessionStore {
     return null
   }
 
-  async login(): Promise<StoredMiniSession> {
+  isSignedOut(): boolean {
+    return this.storage.get(this.storageKey + '.signed-out') === true
+  }
+
+  async signOut(): Promise<void> {
+    logoutRevision += 1
+    this.storage.set(this.storageKey + '.signed-out', true)
+    notifySessionChanged()
+    await this.logout()
+  }
+
+  async login(explicit = false): Promise<StoredMiniSession> {
+    if (this.isSignedOut() && !explicit) throw new Error('MINI_EXPLICIT_LOGIN_REQUIRED')
+    const revision = logoutRevision
     if (isTestLoginEnabled()) {
       notifySessionChanged()
       throw new Error('TEST_LOGIN_REQUIRED')
@@ -97,25 +111,36 @@ export class MiniSessionStore {
     if (result.fromFallback || !isMiniExchangeResponse(result.payload)) {
       throw new Error(result.problemCode || 'MINI_LOGIN_FAILED')
     }
+    if (revision !== logoutRevision) {
+      await this.auth.logout({ kind: 'mini', accessToken: result.payload.accessToken }).catch(() => undefined)
+      throw new Error('MINI_LOGIN_CANCELLED')
+    }
     const session: StoredMiniSession = {
       accessToken: result.payload.accessToken,
       expiresAt: result.payload.expiresAt,
     }
     if (!validSession(session, this.now())) throw new Error('MINI_LOGIN_SESSION_INVALID')
     this.storage.set(this.storageKey, session)
+    this.storage.remove(this.storageKey + ".signed-out")
     notifySessionChanged()
     return session
   }
 
   async loginTestAccount(account: 'A' | 'B', credential: string): Promise<StoredMiniSession> {
     if (!isTestLoginEnabled() || !this.auth.loginTestMini) throw new Error('TEST_LOGIN_DISABLED')
+    const revision = logoutRevision
     const result = await this.auth.loginTestMini(account, credential)
     if (result.fromFallback || !isMiniExchangeResponse(result.payload)) {
       throw new Error(result.problemCode || 'TEST_LOGIN_FAILED')
     }
+    if (revision !== logoutRevision) {
+      await this.auth.logout({ kind: 'mini', accessToken: result.payload.accessToken }).catch(() => undefined)
+      throw new Error('MINI_LOGIN_CANCELLED')
+    }
     const session = { accessToken: result.payload.accessToken, expiresAt: result.payload.expiresAt }
     if (!validSession(session, this.now())) throw new Error('MINI_LOGIN_SESSION_INVALID')
     this.storage.set(this.storageKey, session)
+    this.storage.remove(this.storageKey + ".signed-out")
     notifySessionChanged()
     return session
   }
@@ -139,7 +164,7 @@ export class MiniSessionStore {
         }
       }
     } finally {
-      this.invalidate()
+      if (session && this.getValid()?.accessToken === session.accessToken) this.invalidate()
     }
   }
 }

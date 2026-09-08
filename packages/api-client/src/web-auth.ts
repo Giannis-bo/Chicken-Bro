@@ -31,7 +31,7 @@ export interface WebAuthClient {
   cancelWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginStatusResponse>>
   exchangeMiniCode(code: string): Promise<ApiResult<MiniExchangeResponse>>
   confirmMiniWebLogin(sceneTicket: string, accessToken: string): Promise<ApiResult<ConfirmResponse>>
-  me(): Promise<ApiResult<MeResponse>>
+  me(auth?: ClientAuthContext): Promise<ApiResult<MeResponse>>
   logout(auth?: ClientAuthContext): Promise<ApiResult<LogoutResponse>>
 }
 
@@ -164,10 +164,11 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
         validate: isConfirmResponse,
       })
     },
-    me() {
+    me(auth) {
       return webRequest(transport, apiV2Path('/me'), {
-        credentials: 'include',
-        auth: { kind: 'public' },
+        credentials: auth?.kind === 'mini' ? 'omit' : 'include',
+        auth: auth ?? { kind: 'public' },
+        baseUrl: auth?.kind === 'mini' ? 'default' : 'web-auth',
         fallback: () => ({ connected: true, displayName: '' }),
         validate: isMeResponse,
       })

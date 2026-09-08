@@ -52,6 +52,9 @@
 .headerActions .secondaryButton { display: flex; align-items: center; justify-content: center; height: 76rpx; margin: 0 !important; padding: 0 20rpx; line-height: 1; white-space: nowrap; }
 
 .toolbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 12rpx; }
-.filter { padding: 18rpx 16rpx; min-height: 76rpx; color: #9e5145; background: #f2e5e1; border-radius: 14rpx; font-size: 25rpx; }
+.filter { padding: 18rpx 16rpx; min-height: 76rpx; color: var(--mini-theme-accent, #9e5145); background: var(--mini-theme-soft, #f2e5e1); border-radius: 14rpx; font-size: 25rpx; }
 .loaded { flex: none; display: block; margin: 0; color: #82796f; font-size: 23rpx; }
 .jobMetric { display: block; margin-top: 18rpx; color: #54734e; font-size: 30rpx; font-weight: 600; }
+
+.openJob { width: 100% !important; margin: 14rpx 0 0 !important; padding: 16rpx 0; min-height: 76rpx; color: #695e55; background: transparent; font-size: 24rpx; line-height: 44rpx; text-align: left; }
+.openJob::after { border: 0; }

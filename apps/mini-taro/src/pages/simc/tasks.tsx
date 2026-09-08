@@ -1,3 +1,4 @@
+import MiniSimcTaskId from '../../components/MiniSimcTaskId'
 import { simcDiagnosticMessage } from '../../features/simc/simc-messages'
 import { simcStatuses, simcFightStyles, simcLabel, simcMetricName } from '../../features/simc/simc-terms'
 import { isTestLoginEnabled } from '../../features/auth/test-login-mode'
@@ -45,7 +46,7 @@ function SimcTasksPage() {
   }
 
   useEffect(() => {
-    if (isTestLoginEnabled()) void loginAndLoad()
+    if (isTestLoginEnabled() || sessions.getValid()) void loginAndLoad()
   }, [model, sessions])
 
   useDidShow(() => {
@@ -73,7 +74,7 @@ function SimcTasksPage() {
       {state.phase === 'loading' ? <Text className={styles['empty'] ?? ''}>正在读取任务…</Text> : null}
       <ScrollView className={styles['list'] ?? ''} scrollY>
         {state.jobs.filter(job => filter === 'all' || job.status === filter).map((job) => (
-          <Button
+          <View
             key={job.id}
             className={styles['jobCard'] ?? ''}
             data-status={job.status}
@@ -90,9 +91,10 @@ function SimcTasksPage() {
             <Text className={styles['jobMeta'] ?? ''}>{job.character ? `${simcLabel(job.character.specialization)} ${simcLabel(job.character.className)}` : '角色信息未记录'}</Text>
             <Text className={styles['jobMeta'] ?? ''}>{job.scenario ? `${simcFightStyles[job.scenario.fightStyle as keyof typeof simcFightStyles] || '战斗类型未记录'} · ${job.scenario.desiredTargets ?? '未记录'} 目标` : '配置未记录'}</Text>
             <Text className={styles['jobMetric'] ?? ''}>{job.metric ? `${job.metric.value.toLocaleString('zh-CN', {maximumFractionDigits: 2})} ${simcMetricName(job.metric.name)}` : job.status === 'queued' || job.status === 'running' ? '等待结果' : '无结果'}</Text>
-            <Text className={styles['jobMeta'] ?? ''}>查看进度与结果 →</Text>
+            <MiniSimcTaskId id={job.id} />
+            <Button className={styles['openJob'] ?? ''} onClick={event => { event.stopPropagation(); void Taro.navigateTo({ url: `/pages/simc/task-detail?id=${encodeURIComponent(job.id)}` }) }}>查看进度与结果 →</Button>
             {job.errorCode ? <Text className={styles['errorCode'] ?? ''}>{simcDiagnosticMessage(job.errorCode)}</Text> : null}
-          </Button>
+          </View>
         ))}
         {!state.jobs.some(job => filter === 'all' || job.status === filter) && state.phase === 'ready' ? (
           <View className={styles['empty'] ?? ''}><Text>{filter === 'all' ? '还没有模拟记录。返回后读取角色，就能创建第一次模拟。' : '已加载记录中暂无此状态的任务，可切换状态或继续加载。'}</Text></View>

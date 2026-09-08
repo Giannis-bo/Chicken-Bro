@@ -30,6 +30,62 @@ function authClient(
 }
 
 describe('MiniSessionStore', () => {
+  it('does not revive a test account when its response arrives after sign out', async () => {
+    vi.stubGlobal('__WOW_TEST_LOGIN__', true)
+    try {
+      const storage = new MemoryStorage()
+      let finish!: (value: ApiResult<MiniExchangeResponse>) => void
+      const sessions = new MiniSessionStore({...authClient(vi.fn()), loginTestMini: () => new Promise(r => { finish = r })}, storage)
+      const pending = sessions.loginTestAccount('A', 'test-only')
+      await sessions.signOut()
+      finish(success({accessToken: 'test-account-token-delayed', expiresAt: '2099-01-01T00:00:00Z'}))
+      await expect(pending).rejects.toThrow('MINI_LOGIN_CANCELLED')
+      expect(sessions.isSignedOut()).toBe(true)
+      expect(sessions.getValid()).toBeNull()
+    } finally { vi.unstubAllGlobals() }
+  })
+
+  it('does not let a delayed logout invalidate a new explicit login', async () => {
+    const storage = new MemoryStorage()
+    let completeLogout!: (value: ApiResult<LogoutResponse>) => void
+    let sequence = 0
+    const auth = authClient(vi.fn(async () => success({accessToken: 'session-token-number-' + ++sequence, expiresAt: '2099-01-01T00:00:00Z'})), vi.fn(() => new Promise<ApiResult<LogoutResponse>>(r => {completeLogout = r})))
+    const sessions = new MiniSessionStore(auth, storage)
+    await sessions.login()
+    const pendingLogout = sessions.signOut()
+    await sessions.login(true)
+    completeLogout(success({loggedOut: true}))
+    await pendingLogout
+    expect(sessions.getValid()?.accessToken).toBe('session-token-number-2')
+    expect(sessions.isSignedOut()).toBe(false)
+  })
+
+  it('keeps explicit logout across stores until deliberate login', async () => {
+    const storage = new MemoryStorage()
+    const auth = authClient(vi.fn(async () => success({accessToken: 'mini-valid-session-token', expiresAt: '2099-01-01T00:00:00Z'})))
+    const sessions = new MiniSessionStore(auth, storage)
+    await sessions.login()
+    await sessions.signOut()
+    const otherPage = new MiniSessionStore(auth, storage)
+    expect(otherPage.isSignedOut()).toBe(true)
+    await expect(otherPage.login()).rejects.toThrow('MINI_EXPLICIT_LOGIN_REQUIRED')
+    await otherPage.login(true)
+    expect(sessions.isSignedOut()).toBe(false)
+    expect(sessions.getValid()).not.toBeNull()
+  })
+  it('does not restore an in-flight login after explicit logout', async () => {
+    const storage = new MemoryStorage()
+    let resolve!: (value: ApiResult<MiniExchangeResponse>) => void
+    const auth = authClient(vi.fn(() => new Promise<ApiResult<MiniExchangeResponse>>(r => {resolve = r})))
+    const sessions = new MiniSessionStore(auth, storage)
+    const pending = sessions.login()
+    await Promise.resolve()
+    await sessions.signOut()
+    resolve(success({accessToken: 'mini-valid-session-token', expiresAt: '2099-01-01T00:00:00Z'}))
+    await expect(pending).rejects.toThrow('MINI_LOGIN_CANCELLED')
+    expect(sessions.getValid()).toBeNull()
+  })
+
   it('stores only a real test session and does not call WeChat in a test build', async () => {
     vi.stubGlobal('__WOW_TEST_LOGIN__', true)
     try {

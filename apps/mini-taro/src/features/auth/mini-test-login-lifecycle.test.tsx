@@ -11,7 +11,7 @@ const runtime = vi.hoisted(() => ({
   listChat: vi.fn(), listJobs: vi.fn(), getJob: vi.fn(),
   createChat: vi.fn(), getChat: vi.fn(), stream: vi.fn(), createSnapshot: vi.fn(), createJob: vi.fn(),
   keyboard: new Set<(event: { height: number }) => void>(),
-  login: vi.fn(), exchangeMiniCode: vi.fn(), logout: vi.fn(), actionSheet: vi.fn(), getRuntime: vi.fn(), navigate: vi.fn(),
+  me: vi.fn(), modal: vi.fn(), avatarGet: vi.fn(), login: vi.fn(), exchangeMiniCode: vi.fn(), logout: vi.fn(), actionSheet: vi.fn(), getRuntime: vi.fn(), navigate: vi.fn(),
 }))
 
 vi.mock('@tarojs/taro', async () => {
@@ -40,7 +40,7 @@ vi.mock('@tarojs/taro', async () => {
     getWindowInfo: () => ({ windowHeight: 720 }),
     onKeyboardHeightChange: (callback: (event: { height: number }) => void) => runtime.keyboard.add(callback),
     offKeyboardHeightChange: (callback: (event: { height: number }) => void) => runtime.keyboard.delete(callback),
-    navigateTo: runtime.navigate, navigateBack: vi.fn(), login: async () => ({code: 'fresh-mini-code'}), showActionSheet: runtime.actionSheet,
+    showModal: runtime.modal, navigateTo: runtime.navigate, navigateBack: vi.fn(), login: async () => ({code: 'fresh-mini-code'}), showActionSheet: runtime.actionSheet,
   } }
 })
 
@@ -68,7 +68,8 @@ vi.mock('@wow-mini/api-client', () => ({
     remove: (key: string) => { runtime.storage.delete(key) },
   },
   wowApi: {
-    webAuth: { loginTestMini: runtime.login, exchangeMiniCode: runtime.exchangeMiniCode, logout: runtime.logout },
+    avatar: { get: runtime.avatarGet },
+    webAuth: { me: runtime.me, loginTestMini: runtime.login, exchangeMiniCode: runtime.exchangeMiniCode, logout: runtime.logout },
     chat: { list: runtime.listChat, create: runtime.createChat, get: runtime.getChat, streamMessage: runtime.stream },
     simc: { getRuntime: runtime.getRuntime, listJobs: runtime.listJobs, getJob: runtime.getJob, createSnapshot: runtime.createSnapshot, createJob: runtime.createJob },
   },
@@ -112,6 +113,9 @@ describe('Mini test login lifecycle', () => {
     runtime.navigate.mockResolvedValue({})
     runtime.createJob.mockResolvedValue(success({id: 'submitted-job', status: 'queued', attempts: [], result: null}))
     runtime.logout.mockResolvedValue(success({ loggedOut: true }))
+    runtime.me.mockResolvedValue(success({connected: true, displayName: '当前测试账号'}))
+    runtime.avatarGet.mockResolvedValue(success({avatarDataUrl: null}))
+    runtime.modal.mockResolvedValue({confirm: false})
     runtime.createChat.mockResolvedValue(success({ id: 'new-conversation', title: '新对话', updatedAt: '2026-09-07T03:00:00Z' }))
     runtime.getChat.mockResolvedValue(success({ id: 'new-conversation', title: '新对话', updatedAt: '2026-09-07T03:00:00Z', messages: [] }))
     runtime.stream.mockReturnValue({ abort: vi.fn() })
@@ -177,10 +181,37 @@ describe('Mini test login lifecycle', () => {
     })
   }
 
+  it('shows account details and stays logged out across page show until explicit login', async () => {
+    vi.stubGlobal('__WOW_TEST_LOGIN__', false)
+    runtime.storage.set(MINI_SESSION_KEY, {accessToken: 'formal-mini-session-123456789', expiresAt: '2099-09-05T12:00:00Z'})
+    await render(createElement(ChickenbroPage))
+    await act(async () => {runtime.show.forEach(callback => callback())})
+    runtime.actionSheet.mockResolvedValueOnce({tapIndex: 0})
+    await click('更多')
+    expect(container.textContent).toContain('当前测试账号')
+    expect(runtime.me).toHaveBeenCalledWith({kind: 'mini', accessToken: 'formal-mini-session-123456789'})
+    await click('退出登录')
+    expect(runtime.logout).not.toHaveBeenCalled()
+    runtime.modal.mockResolvedValueOnce({confirm: true})
+    await click('退出登录')
+    expect(container.textContent).toContain('已退出登录')
+    expect(container.querySelector('textarea')).toBeNull()
+    expect(runtime.logout).toHaveBeenCalledWith({kind: 'mini', accessToken: 'formal-mini-session-123456789'})
+    await act(async () => {runtime.show.forEach(callback => callback())})
+    expect(runtime.exchangeMiniCode).not.toHaveBeenCalled()
+    const readsBeforeLogin = runtime.listChat.mock.calls.length
+    await click('微信登录')
+    expect(runtime.listChat.mock.calls.length).toBeGreaterThan(readsBeforeLogin)
+    expect(runtime.exchangeMiniCode).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('textarea')).not.toBeNull()
+    expect(container.textContent).not.toContain('formal-mini-session-123456789')
+  })
+
   it('opens help before login and returns to the same chat draft after reading updates', async () => {
     await mountSignedOut(ChickenbroPage)
-    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 0 })
+    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 1 })
     await click('更多')
+    await click('账号记录')
     expect(container.textContent).toContain('Web 和小程序的记录会同步吗？')
     await click('关闭帮助')
     await click('Enter A')
@@ -192,7 +223,7 @@ describe('Mini test login lifecycle', () => {
     runtime.actionSheet.mockRejectedValueOnce({ errMsg: 'showActionSheet:fail cancel' })
     await click('更多')
     expect(composer.value).toBe('这段草稿要保留')
-    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 1 })
+    runtime.actionSheet.mockResolvedValueOnce({ tapIndex: 2 })
     await click('更多')
     expect(container.textContent).toContain('小程序移动端交互优化')
     expect(container.textContent).toContain('Web 导航与帮助入口')
@@ -362,7 +393,6 @@ describe('Mini test login lifecycle', () => {
       ? {fromFallback: true, problemCode: 'AUTH_REQUIRED', httpStatus: 401, payload: null, error: 'Authentication required'}
       : success({status: 'available', version: '1210-01'}))
     await render(createElement(SimcPage))
-    await act(async () => runtime.show.forEach(callback => callback()))
     expect(container.querySelector('[data-runtime-status="unknown"]')).not.toBeNull()
     await click('重试引擎')
     expect(container.querySelector('[data-runtime-status="available"]')).not.toBeNull()
@@ -417,7 +447,7 @@ describe('Mini test login lifecycle', () => {
       auth: { kind: 'mini', accessToken: 'test-session-A-123456789' },
       workbench: true, localizedReport: true,
     })
-    expect(container.textContent).not.toContain(runtime.params.id)
+    expect(container.textContent).toContain(runtime.params.id)
     await click('查看运行详情')
     expect(container.textContent).toContain(runtime.params.id)
   })

@@ -15,7 +15,7 @@
 .entry:last-child { border-bottom: 0; }
 .entryTitle { display: block; margin: 8rpx 0; font-size: 28rpx; line-height: 1.5; font-weight: 600; overflow-wrap: anywhere; }
 .entryMeta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12rpx; margin-top: 14rpx; color: #82796f; font-size: 23rpx; line-height: 1.6; }
-.track { height: 6rpx; margin-top: 12rpx; background: #f2e5e1; border-radius: 4rpx; overflow: hidden; }
+.track { height: 6rpx; margin-top: 12rpx; background: var(--mini-theme-soft, #f2e5e1); border-radius: 4rpx; overflow: hidden; }
 .bar { height: 100%; background: #b47768; }
 .notice { display: block; margin-bottom: 20rpx; padding: 20rpx; border-radius: 14rpx; color: #82796f; background: #f0ece7; font-size: 25rpx; line-height: 1.7; }
 .talents { display: block; padding: 18rpx; background: #faf8f5; color: #695e55; font-size: 23rpx; line-height: 1.7; word-break: break-all; }

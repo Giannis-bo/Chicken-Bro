@@ -174,7 +174,7 @@ export class ChatModel {
     this.update({
       conversations: [...byId.values()],
       nextCursor: result.payload.nextCursor,
-      ...(viewGeneration === this.streamGeneration
+      ...(viewGeneration === this.streamGeneration && this.state.phase !== 'sending'
         ? { phase: 'ready' as const, errorCode: '', errorMessage: '', retryable: false }
         : {}),
     })

@@ -72,7 +72,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
               <button
                 type="button"
                 className={styles['newConversationButton'] ?? ''}
-                disabled={state.phase === 'loading' || state.phase === 'sending'}
+                disabled={state.phase === 'loading'}
                 onClick={() => void model.create()}
               >
                 + 新对话

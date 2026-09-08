@@ -19,6 +19,14 @@ class RecordingTransport implements ApiTransport {
 }
 
 describe('WebAuthClient', () => {
+  it('reads Mini account details with Bearer and no Web cookies', async () => {
+    const transport = new RecordingTransport()
+    await createWebAuthClient(transport).me({ kind: 'mini', accessToken: 'mini-token' })
+    expect(transport.calls[0]).toMatchObject({path: '/api/v2/me', options: {
+      auth: {kind: 'mini', accessToken: 'mini-token'}, credentials: 'omit', baseUrl: 'default',
+    }})
+  })
+
   it('issues test sessions with separated credential transports and no client owner', async () => {
     const transport = new RecordingTransport()
     const client = createWebAuthClient(transport)

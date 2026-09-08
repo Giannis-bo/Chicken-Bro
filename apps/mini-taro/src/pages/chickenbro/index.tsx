@@ -6,6 +6,7 @@ import { withMiniTestLogin } from '../../features/auth/with-mini-test-login'
 import { Button, Image, ScrollView, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ConversationSummary } from '@wow-mini/domain'
 import { wowApi } from '@wow-mini/api-client'
 import { MiniSessionStore } from '../../features/auth/mini-session'
 import { ChatModel, type ChatModelState } from '../../features/chat/chat-model'
@@ -20,6 +21,9 @@ function ChickenbroPage() {
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
+  const [deleteError, setDeleteError] = useState('')
+  const deleteInFlight = useRef(false)
   const [following, setFollowing] = useState(true)
   const [endAnchor, setEndAnchor] = useState('chat-end-0')
   const [elapsed, setElapsed] = useState(0)
@@ -48,7 +52,7 @@ function ChickenbroPage() {
       else await model.load()
     } catch { await model.recover() }
   }
-  useEffect(() => { if (isTestLoginEnabled()) void loginAndLoad() }, [model, sessions])
+  useEffect(() => { if (isTestLoginEnabled() || sessions.getValid()) void loginAndLoad() }, [model, sessions])
   useDidShow(() => { void loginAndLoad() })
 
   useEffect(() => {
@@ -95,7 +99,7 @@ function ChickenbroPage() {
     void model.recover()
   }
   const startNew = async () => {
-    if (busy) return
+    if (preparing || state.phase === 'loading') return
     if (draft.trim()) {
       const answer = await Taro.showModal({ title: '新建对话', content: '当前还有未发送的内容。新建后将清空输入框。', confirmText: '新建' })
       if (!answer.confirm || !mounted.current) return
@@ -107,25 +111,52 @@ function ChickenbroPage() {
     } finally { if (mounted.current) setPreparing(false) }
   }
 
+  const removeConversation = async (conversation: ConversationSummary) => {
+    if (deleteInFlight.current) return
+    deleteInFlight.current = true
+    setDeleteError('')
+    setDeletingId(conversation.id)
+    try {
+      const answer = await Taro.showModal({
+        title: '删除会话？',
+        content: `“${conversation.title || '炸鸡队长对话'}”及其消息将从网页和小程序历史中移除。`,
+        confirmText: '删除', cancelText: '取消', confirmColor: '#9e5145',
+      })
+      if (!answer.confirm || !mounted.current) return
+      const failure = await model.remove(conversation.id)
+      if (mounted.current && failure) setDeleteError(failure)
+    } catch {
+      if (mounted.current) setDeleteError('删除失败，请稍后重试。')
+    } finally {
+      deleteInFlight.current = false
+      if (mounted.current) setDeletingId('')
+    }
+  }
+
   return <View className={styles['page'] ?? ''} data-chat-phase={state.phase}>
     <View className={styles['header'] ?? ''}>
-      <Button className={styles['historyButton'] ?? ''} disabled={busy} onClick={() => setHistoryOpen(!historyOpen)}>
+      <Button className={styles['historyButton'] ?? ''} onClick={() => setHistoryOpen(!historyOpen)}>
         {historyOpen ? '收起历史 ▴' : '历史对话 ▾'}
       </Button>
-      <Button className={styles['secondaryButton'] ?? ''} disabled={busy} onClick={() => void startNew()}>＋ 新对话</Button>
+      <Button className={styles['secondaryButton'] ?? ''} disabled={preparing || state.phase === 'loading'} onClick={() => void startNew()}>＋ 新对话</Button>
       <MiniHelpActions />
     </View>
     {historyOpen ? <ScrollView className={styles['history'] ?? ''} scrollY>
-      {state.conversations.map((conversation, index) => <Button key={conversation.id}
+      {deleteError ? <Text className={styles['deleteError'] ?? ''}>{deleteError}</Text> : null}
+      {state.conversations.map((conversation, index) => <View key={conversation.id} className={styles['conversationRow'] ?? ''}><Button
         className={`${styles['conversationButton']} ${state.activeConversation?.id === conversation.id ? styles['activeConversation'] : ''}`}
-        disabled={busy} onClick={() => {
-          if (draft.trim()) { void Taro.showToast({ title: '请先发送或清空输入内容', icon: 'none' }); return }
+        disabled={preparing} onClick={() => {
           setHistoryOpen(false); setFollowing(true); void model.open(conversation.id)
         }}>
         <Text className={styles['conversationTitle'] ?? ''}>{conversation.title || `对话 ${state.conversations.length - index}`}</Text>
         <Text className={styles['conversationTime'] ?? ''}>{new Date(conversation.updatedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</Text>
-      </Button>)}
-      {state.nextCursor ? <Button className={styles['secondaryButton'] ?? ''} disabled={busy} onClick={() => void model.loadMore()}>加载更多对话</Button> : null}
+      </Button>
+        <Button className={styles['deleteButton'] ?? ''} aria-label={`删除会话：${conversation.title || '炸鸡队长对话'}`}
+          disabled={Boolean(deletingId)} onClick={() => void removeConversation(conversation)}>
+          {deletingId === conversation.id ? '处理中' : '删除'}
+        </Button>
+      </View>)}
+      {state.nextCursor ? <Button className={styles['secondaryButton'] ?? ''} disabled={preparing || state.phase === 'loading'} onClick={() => void model.loadMore()}>加载更多对话</Button> : null}
       {!state.conversations.length ? <Text className={styles['hint'] ?? ''}>还没有历史对话</Text> : null}
     </ScrollView> : null}
     <ScrollView className={styles['messages'] ?? ''} scrollY scrollIntoView={endAnchor}

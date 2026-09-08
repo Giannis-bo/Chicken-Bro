@@ -58,7 +58,7 @@ export default function WebLoginConfirmPage() {
     }
     setState({ phase: 'loading', code: '', message: '正在准备登录…' })
     try {
-      const session = await sessions.login()
+      const session = await sessions.login(true)
       accessTokenRef.current = session.accessToken
       setState({ phase: 'ready', code: '', message: '鸡哥已就位，等你开聊。' })
     } catch (error) {
