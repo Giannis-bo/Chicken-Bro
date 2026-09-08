@@ -1,22 +1,11 @@
-import horde from './assets/horde-bg-v2-clean.png'
-import alliance from './assets/themes/alliance.png'
-import maghar from './assets/themes/maghar-citadel.png'
-import forsaken from './assets/themes/forsaken.png'
-import voidArt from './assets/themes/void.png'
-import deathwing from './assets/themes/deathwing.png'
-import venom from './assets/themes/venom.png'
-
+import cdn from './web-theme-cdn.json'
 import { themes } from '../features/theme/theme-catalog'
 
-export const webThemes = [
-  { ...themes[0], image: horde },
-  { ...themes[1], image: alliance },
-  { ...themes[2], image: maghar },
-  { ...themes[3], image: forsaken },
-  { ...themes[4], image: voidArt },
-  { ...themes[5], image: deathwing },
-  { ...themes[6], image: venom },
-] as const
+const toWebTheme = (theme: typeof themes[number]) => ({
+  ...theme,
+  image: `${cdn.root}/${cdn.images[theme.id]}`,
+})
+export const webThemes = [toWebTheme(themes[0]), ...themes.slice(1).map(toWebTheme)] as const
 export type WebThemeId = typeof webThemes[number]['id']
 export const themeStorageKey = 'chickenbro.web.theme.v1'
 export function resolveWebTheme(value: string | null) {

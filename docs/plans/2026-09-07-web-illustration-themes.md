@@ -1,5 +1,15 @@
 # Web 插画主题
 
+## 2026-09-08 插画 COS/CDN 加速
+
+`正在推进`：用户已确认复用旧 COS/CDN 并开始实施。仅七张 Web 主题 PNG，保持原图、主题名、布局和偏好；Mini/API/Worker 不属于本次发布范围。
+
+- 桶：`zhajiduizhang-1257807175`，`ap-shanghai`；CDN 根：`https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1`。
+- `web-theme-cdn.json` 为当前 Web 资源地址清单。`node scripts/prepare-web-theme-cdn.cjs prepare` 生成七张原图及字节/SHA 清单；`verify` 从 CDN 回读全部文件，验证图片类型及一年 immutable 缓存。传输内容按字节验证，原图无压缩和画质变化。
+- 上传仅新增上述版本目录，保留所有历史资源，不覆盖旧对象。资源更新需新版本目录；回滚 Web 到前一构建即可恢复旧资源路径。
+- 当前控制台和实际上传证明桶允许匿名写入，这是继承的权限风险；本次未改桶权限，后续应单独收紧为公有读、鉴权写。
+- 交付证据：[CDN 发布记录](../../artifacts/releases/2026-09-08-web-theme-cdn/release.json)。用户体验验收与合入收尾另行记录。
+
 状态：`已完成`；用户 2026-09-07 已确认六张插画并授权上色和主题功能；伊利丹暂缓。
 
 ## 范围

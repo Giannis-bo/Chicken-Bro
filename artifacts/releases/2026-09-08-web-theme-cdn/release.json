@@ -1,0 +1,50 @@
+{
+  "status": "cdn_and_web_preview_verified",
+  "cdnRoot": "https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1",
+  "files": 7,
+  "totalBytes": 10111725,
+  "cacheControl": "public,max-age=31536000,immutable",
+  "byteAndSha256Verification": "passed",
+  "cdnContentTypeAndCachePolicy": "passed",
+  "frontendTests": 321,
+  "controlTests": 62,
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5Build": "passed_existing_size_warnings",
+  "productionWebCutover": "not_performed",
+  "userAcceptance": "pending",
+  "inheritedBucketPermissions": "public_read_write_unchanged",
+  "uploadMethod": "COS PUT over HTTPS; new release prefix only; forbid overwrite; no stored credentials or new dependencies",
+  "previewUrl": "https://www.chickenbro.cloud/previews/theme-cdn-20260908/",
+  "previewFilesMatched": 27,
+  "previewThemeSwitches": 7,
+  "existingSessionRestored": true,
+  "localReview": "passed: seven curated originals, fixed HTTPS release, no Mini imports, no credentials, original files retained",
+  "downloadTiming": {
+    "method": "same local network, three sequential full GETs per route, no browser cache; seconds",
+    "horde": {
+      "web": [
+        1.056238,
+        1.848108,
+        2.25766
+      ],
+      "cdn": [
+        0.501769,
+        0.289298,
+        0.489213
+      ]
+    },
+    "deathwing": {
+      "web": [
+        2.259166,
+        3.65332,
+        3.353327
+      ],
+      "cdn": [
+        0.410578,
+        0.605951,
+        0.31169
+      ]
+    }
+  }
+}

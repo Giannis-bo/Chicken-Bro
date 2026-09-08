@@ -1,0 +1,12 @@
+{
+  "root": "https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1",
+  "images": {
+    "horde": "horde-bg-v2-clean.png",
+    "alliance": "alliance.png",
+    "maghar": "maghar-citadel.png",
+    "forsaken": "forsaken.png",
+    "void": "void.png",
+    "deathwing": "deathwing.png",
+    "venom": "venom.png"
+  }
+}
