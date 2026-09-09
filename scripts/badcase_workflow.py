@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -32,6 +33,7 @@ CHECKS = {
     'review': ('local_diff_review', 'no_blocking_findings'),
     'candidate': ('real_chat_terminal', 'history_readback', 'affected_tools', 'same_permissions', 'original_question_context'),
     'rollback': ('baseline_package_verified', 'safe_code_rollback', 'recovery_procedure_verified'),
+    'generalization': (),
 }
 EVIDENCE_KINDS = tuple(CHECKS)
 LIVE_CHECKS = ('real_chat_terminal', 'history_readback', 'affected_tools', 'owner_isolation',
@@ -90,6 +92,137 @@ def run_id(value):
 def group_id(value):
     require(isinstance(value, str) and re.fullmatch(r'G[1-9][0-9]{0,7}', value), 'invalid group id')
     return value
+
+
+def nonempty(value):
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= 16000
+
+
+def number(value):
+    return type(value) in (int, float) and math.isfinite(value) and value >= 0
+
+
+def validate_generalization(record, batch):
+    """Validate registered assignments and measured paired outcomes, not a pass checkbox."""
+    proofs = record.get('groups', {})
+    require(isinstance(proofs, dict) and set(proofs) == set(batch['groups']), 'generalization unverified: group coverage differs')
+    categories = {'original', 'variant', 'independent_holdout', 'normal', 'permission'}
+    execution_ids, receipts = set(), set()
+    for proof in proofs.values():
+        require(isinstance(proof, dict), 'generalization unverified: group record missing')
+        for key in ('mechanism', 'root_cause_evidence', 'applicable_scope', 'excluded_boundaries'):
+            require(nonempty(proof.get(key)), 'generalization unverified: mechanism or boundaries missing')
+        audit = proof.get('anti_case_specialization', {})
+        require(audit.get('status') == 'passed' and audit.get('findings') == []
+                and audit.get('reviewed_diff_sha256') == batch['diff_sha256']
+                and set(audit.get('reviewed_surfaces', [])) == {'code', 'prompts', 'config', 'data_mappings'}
+                and nonempty(audit.get('review_notes')), 'generalization unverified: case specialization audit failed')
+        registration = proof.get('preregistration', {})
+        require(digest(registration) == valid_sha(proof.get('preregistration_sha256')), 'generalization unverified: registration hash differs')
+        fixed_at = timestamp(registration.get('fixed_at'))
+        criteria = registration.get('criteria', {})
+        require(isinstance(criteria, dict) and criteria and all(nonempty(k) and nonempty(v) for k,v in criteria.items()),
+                'generalization unverified: acceptance criteria missing')
+        assignments = registration.get('assignments', {})
+        require(isinstance(assignments, dict) and 5 <= len(assignments) <= 100, 'generalization unverified: sample assignments missing')
+        require(all(isinstance(a, dict) for a in assignments.values()), 'generalization unverified: invalid assignment')
+        require({a.get('category') for a in assignments.values()} == categories, 'generalization unverified: required sample category missing')
+        require(type(registration.get('model_stochastic')) is bool, 'generalization unverified: model stochasticity unspecified')
+        minimum = registration.get('minimum_repetitions')
+        require(type(minimum) is int and (2 if registration['model_stochastic'] else 1) <= minimum <= 20,
+                'generalization unverified: repeated trials missing')
+        threshold = registration.get('minimum_after_pass_rate')
+        require(number(threshold) and 0 < threshold <= 1, 'generalization unverified: acceptance rate missing')
+        pairs = proof.get('pairs', {})
+        require(isinstance(pairs, dict) and set(pairs) == set(assignments), 'generalization unverified: assigned samples omitted')
+        for key in ('baseline_config_sha256', 'before_prompt_sha256', 'after_prompt_sha256', 'conditions_sha256', 'model_config_sha256'):
+            valid_sha(proof.get(key))
+        original_inputs = {a['input_sha256'] for a in assignments.values() if a['category'] == 'original'}
+        for sample_id, assignment in assignments.items():
+            input_sha = valid_sha(assignment.get('input_sha256'))
+            category = assignment['category']
+            require(type(assignment.get('used_for_design')) is bool, 'generalization unverified: design participation unspecified')
+            if category == 'independent_holdout':
+                require(assignment['used_for_design'] is False
+                        and all(other_id == sample_id or other.get('input_sha256') != input_sha for other_id,other in assignments.items()),
+                        'generalization unverified: holdout used for design or duplicates original')
+            if category == 'variant':
+                require(input_sha not in original_inputs and nonempty(assignment.get('transformation')),
+                        'generalization unverified: variant does not vary unrelated input')
+            criterion_ids = assignment.get('criterion_ids', [])
+            require(isinstance(criterion_ids,list) and criterion_ids and len(set(criterion_ids)) == len(criterion_ids)
+                    and set(criterion_ids) <= set(criteria), 'generalization unverified: sample acceptance undefined')
+            pair = pairs[sample_id]
+            require(isinstance(pair,dict) and set(pair) == {'before','after'}, 'generalization unverified: paired result missing')
+            counts = []
+            counter_scopes = set()
+            for phase in ('before','after'):
+                observations = pair[phase]
+                runs = observations.get('runs', [])
+                require(isinstance(runs,list) and minimum <= len(runs) <= 20, 'generalization unverified: insufficient repetitions')
+                counts.append(len(runs))
+                passed = 0
+                for trial in runs:
+                    require(isinstance(trial,dict) and timestamp(trial.get('observed_at')) >= fixed_at
+                            and timestamp(trial['observed_at']) <= timestamp(record['observed_at']),
+                            'generalization unverified: trial outside registered observation period')
+                    expected = {'source_sha':batch['baseline_sha'] if phase == 'before' else batch['source_sha'],
+                                'config_sha256':proof['baseline_config_sha256'] if phase == 'before' else batch['config_sha256'],
+                                'prompt_sha256':proof[phase + '_prompt_sha256'], 'input_sha256':input_sha,
+                                'conditions_sha256':proof['conditions_sha256'], 'model_config_sha256':proof['model_config_sha256']}
+                    require(all(trial.get(k) == v for k,v in expected.items()) and nonempty(trial.get('runtime_id')),
+                            'generalization unverified: source or controlled conditions differ')
+                    trial_id = trial.get('trial_id')
+                    receipt = valid_sha(trial.get('evidence_sha256'))
+                    require(isinstance(trial_id,str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:-]{0,255}',trial_id),
+                            'generalization unverified: unique bounded trial identity missing')
+                    require(trial_id not in execution_ids and receipt not in receipts,
+                            'generalization unverified: duplicate execution or trial receipt')
+                    execution_ids.add(trial_id)
+                    receipts.add(receipt)
+                    verdicts = trial.get('criteria', {})
+                    require(isinstance(verdicts,dict) and set(verdicts) == set(criterion_ids)
+                            and set(verdicts.values()) <= {'passed','failed','unavailable'}, 'generalization unverified: criterion observations missing')
+                    success = all(v == 'passed' for v in verdicts.values())
+                    require(trial.get('outcome') in ('passed','failed','partial') and (trial['outcome'] == 'passed') == success,
+                            'generalization unverified: outcome contradicts criteria')
+                    passed += int(success)
+                    require(number(trial.get('duration_seconds')), 'generalization unverified: elapsed time missing')
+                    cost = trial.get('cost', {})
+                    require(cost.get('counter_scope') in ('source_gateway_only','all_tools')
+                            and type(cost.get('tool_calls')) is int and cost['tool_calls'] >= 0
+                            and 'provider_tokens' in cost and 'provider_cost' in cost and 'provider_cost_unit' in cost,
+                            'generalization unverified: measured cost or unavailable declaration missing')
+                    require(cost['provider_tokens'] is None or (type(cost['provider_tokens']) is int and cost['provider_tokens'] >= 0),
+                            'generalization unverified: invalid provider token count')
+                    require((cost['provider_cost'] is None and cost['provider_cost_unit'] is None)
+                            or (number(cost['provider_cost']) and nonempty(cost['provider_cost_unit'])),
+                            'generalization unverified: invalid provider cost')
+                rate = passed / len(runs)
+                summary = observations.get('summary', {})
+                require(summary.get('passed') == passed and summary.get('total') == len(runs)
+                        and number(summary.get('pass_rate')) and math.isclose(summary['pass_rate'],rate)
+                        and number(summary.get('duration_seconds'))
+                        and math.isclose(summary['duration_seconds'],sum(r['duration_seconds'] for r in runs)),
+                        'generalization unverified: rate or elapsed summary differs from trials')
+                units = {r['cost']['provider_cost_unit'] for r in runs if r['cost']['provider_cost'] is not None}
+                require(len(units) <= 1, 'generalization unverified: mixed cost currencies')
+                scopes = {r['cost']['counter_scope'] for r in runs}
+                counter_scopes.update(scopes)
+                require(len(scopes) == 1, 'generalization unverified: mixed tool counter scopes')
+                totals = {'counter_scope':next(iter(scopes)), 'tool_calls':sum(r['cost']['tool_calls'] for r in runs)}
+                for key in ('provider_tokens','provider_cost'):
+                    values = [r['cost'][key] for r in runs]
+                    totals[key] = None if any(v is None for v in values) else sum(values)
+                totals['provider_cost_unit'] = next(iter(units),None) if totals['provider_cost'] is not None else None
+                reported_cost = summary.get('cost', {})
+                require(set(reported_cost) == set(totals) and all(reported_cost[k] is None if v is None
+                        else (number(reported_cost[k]) and math.isclose(reported_cost[k],v)) if number(v)
+                        else reported_cost[k] == v for k,v in totals.items()), 'generalization unverified: cost summary differs from trials')
+                require((phase != 'after' or rate >= threshold) and (category not in ('normal','permission') or rate == 1),
+                        'generalization unverified: acceptance failed or normal/permission regressed')
+            require(len(counter_scopes) == 1, 'generalization unverified: before/after counter scopes differ')
+            require(counts[0] == counts[1], 'generalization unverified: unequal paired repetition counts')
 
 
 def scan_sql(cursor, limit):
@@ -337,6 +470,7 @@ class Workflow:
             approved = state['groups'].get(gid,{})
             require(approved.get('decision') == 'approved' and approved.get('report_sha256') == report, 'group not approved at this report version')
         evidence = batch.get('evidence',{})
+        require('generalization' in evidence, 'generalization unverified: missing evidence')
         require(set(evidence) == set(EVIDENCE_KINDS), 'missing release evidence')
         for kind in EVIDENCE_KINDS:
             ref = evidence[kind]
@@ -347,6 +481,8 @@ class Workflow:
             fresh(record.get('observed_at'))
             require(isinstance(record.get('details'),str) and record['details'].strip(), 'evidence details missing')
             require(all(record.get('checks',{}).get(k) is True for k in CHECKS[kind]), 'required verification missing')
+            if kind == 'generalization':
+                validate_generalization(record, batch)
             if kind == 'rollback':
                 rollback = record.get('rollback_identity', {})
                 require(rollback.get('source_sha') == batch['baseline_sha'], 'rollback baseline identity missing')

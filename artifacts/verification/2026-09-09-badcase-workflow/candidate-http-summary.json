@@ -1,0 +1,43 @@
+{
+  "mode": "candidate",
+  "source": "/var/tmp/chickenbro-badcase-20260909/candidate",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true
+  },
+  "passed": true,
+  "sessionsRevoked": true,
+  "cases": [
+    {
+      "case": "top10",
+      "runId": "822bf674-7353-4bab-978c-38441d787260",
+      "conversationId": "6496850a-5da5-524c-95eb-71eeb8e5c935",
+      "seconds": 279.84,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true
+      },
+      "answerSha256": "b9f04a96e4b2daa5187c065587ddd8176a9fc179a72fe377a6df22d5b020220f"
+    },
+    {
+      "case": "top100",
+      "runId": "42c05d58-cb37-4363-a49d-ec7f39af76d8",
+      "conversationId": "84ae99ce-0c6b-562c-b34d-b3b346911267",
+      "seconds": 314.49,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true
+      },
+      "answerSha256": "8ad4139089edcbb81ddb393cbb8d00d7fad28804a26871a4ba02525070ff4041"
+    }
+  ],
+  "fixtureDisposition": "isolated fixture messages redacted and conversations archived after verification; original feedback untouched"
+}

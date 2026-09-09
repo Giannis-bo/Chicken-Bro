@@ -245,6 +245,28 @@ class ReleaseTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'environment hash mismatch'):
                 self.r.read_recovery()
 
+    def test_service_commands_have_bounded_timeout(self):
+        with patch.object(d.subprocess, 'run') as run:
+            d.service('stop', d.UNITS[0])
+        self.assertEqual(run.call_args.kwargs['timeout'], 45)
+
+    def test_service_timeout_recovers_base_and_retains_snapshot(self):
+        self.recovery_fixture()
+        self.r.stage()
+        timeout = d.subprocess.TimeoutExpired(['systemctl', 'stop', d.UNITS[0]], 45)
+        with patch.object(d, 'require_private'):
+            self.r.save_recovery()
+            snapshot = self.r.recovery_path()
+            before = snapshot.read_bytes()
+            with patch.object(self.r, 'idle_fence', self.fence), \
+                 patch.object(self.r, 'active', return_value={'chat': 0}), \
+                 patch.object(d, 'service', side_effect=[timeout, None, None]), \
+                 patch.object(self.r, 'start'), patch.object(self.r, 'verify'):
+                with self.assertRaisesRegex(RuntimeError, 'activation failed; idle-fenced base recovery verified'):
+                    self.r.promote()
+            self.assertEqual(self.r.link.resolve(), self.r.base)
+            self.assertEqual(snapshot.read_bytes(), before)
+
     def test_environment_hash_preserves_non_app_config(self):
         self.assertEqual(d.env_digest({'X': '1', 'INVOCATION_ID': 'old'}),
                          d.env_digest({'X': '1', 'INVOCATION_ID': 'new'}))

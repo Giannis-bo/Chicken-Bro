@@ -92,7 +92,7 @@ def environment(unit):
 
 
 def service(*args):
-    subprocess.run(['systemctl', *args], check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(['systemctl', *args], check=True, stdout=subprocess.DEVNULL, timeout=45)
 
 
 def switch(link, destination):

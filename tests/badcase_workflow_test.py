@@ -96,6 +96,41 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('access_token', sql)
         with self.assertRaises(w.WorkflowError): w.scan_sql(['bad\'; DROP', 'bad'], 100)
 
+    def generalization_group(self, identity):
+        categories=('original','variant','independent_holdout','normal','permission')
+        fixed=w.utc_now()
+        criteria={'complete':'Answer meets bounded requested scope with supporting sources'}
+        assignment={category:dict(category=category,input_sha256=str(i+1)*64,
+                    used_for_design=category != 'independent_holdout',
+                    transformation='changed unrelated names and wording' if category == 'variant' else '',
+                    criterion_ids=['complete']) for i,category in enumerate(categories)}
+        prereg=dict(fixed_at=fixed,criteria=criteria,assignments=assignment,
+                    minimum_repetitions=2,minimum_after_pass_rate=1.0,model_stochastic=True)
+        pairs={}
+        for category in categories:
+            pair={}
+            for phase in ('before','after'):
+                outcome='failed' if phase == 'before' and category not in ('normal','permission') else 'passed'
+                runs=[dict(trial_id=f'{category}-{phase}-{repeat}',observed_at=w.utc_now(),source_sha=identity['baseline_sha'] if phase=='before' else identity['source_sha'],
+                    config_sha256='3'*64 if phase=='before' else identity['config_sha256'],
+                    prompt_sha256='4'*64 if phase=='before' else '5'*64,runtime_id=phase+'-runtime',
+                    conditions_sha256='6'*64,model_config_sha256='7'*64,
+                    input_sha256=assignment[category]['input_sha256'],outcome=outcome,
+                    criteria={'complete':outcome},duration_seconds=1.5,evidence_sha256=w.digest({'category':category,'phase':phase,'repeat':repeat}),
+                    cost=dict(counter_scope='source_gateway_only',tool_calls=1,provider_tokens=None,provider_cost=None,provider_cost_unit=None)) for repeat in range(2)]
+                pair[phase]={'runs':runs,'summary':dict(passed=2 if outcome=='passed' else 0,total=2,
+                    pass_rate=1.0 if outcome=='passed' else 0.0,duration_seconds=3.0,
+                    cost=dict(counter_scope='source_gateway_only',tool_calls=2,provider_tokens=None,provider_cost=None,provider_cost_unit=None))}
+            pairs[category]=pair
+        return dict(mechanism='missing general query entry',root_cause_evidence='baseline bounded query fails',
+                    applicable_scope='ranking discovery',excluded_boundaries='no guaranteed combat conclusion',
+                    anti_case_specialization=dict(status='passed',reviewed_diff_sha256=identity['diff_sha256'],
+                        findings=[],review_notes='Reviewed code prompts config and mappings; no case selectors',
+                        reviewed_surfaces=['code','prompts','config','data_mappings']),
+                    preregistration=prereg,preregistration_sha256=w.digest(prereg),
+                    baseline_config_sha256='3'*64,before_prompt_sha256='4'*64,after_prompt_sha256='5'*64,
+                    conditions_sha256='6'*64,model_config_sha256='7'*64,pairs=pairs)
+
     def prepared(self):
         self.flow.scan(lambda *_: [self.row()])
         group = self.flow.group('G1', [self.row()['run_id']], 'rankings query', 'scope-v1')
@@ -107,6 +142,9 @@ class WorkflowTests(unittest.TestCase):
         for kind in w.EVIDENCE_KINDS:
             record = dict(identity, kind=kind, status='passed', observed_at=w.utc_now(),
                           details='actual verification evidence', checks={name:True for name in w.CHECKS[kind]})
+            if kind == 'generalization':
+                record['groups'] = {'G1': self.generalization_group(identity)}
+                record['observed_at'] = w.utc_now()
             if kind == 'rollback':
                 record['rollback_identity'] = dict(source_sha='d'*40, artifact_sha256='1'*64, config_sha256='2'*64)
             evidence_path = Path(self.tmp.name)/f'{kind}.json'
@@ -328,6 +366,84 @@ class WorkflowTests(unittest.TestCase):
             return [self.row()]
         self.assertEqual(self.flow.scan(retry)['mode'],'reconciliation')
         self.assertEqual(seen_cursors,[None])
+
+    def test_generalization_gate_rejects_missing_kind(self):
+        manifest=self.prepared()
+        manifest['evidence'].pop('generalization',None)
+        with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
+
+    def test_generalization_rejects_unregistered_specialized_or_regressing_samples(self):
+        mutations=('missing_variant','missing_holdout','used_holdout','late_fixed','specialization',
+                   'failed_acceptance','normal_regression','permission_regression','wrong_conditions',
+                   'wrong_source','missing_repeat','false_rate','missing_cost','same_variant','tampered_prereg')
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                manifest=self.prepared()
+                self.assertIn('generalization',manifest['evidence'],'generalization evidence kind required')
+                path=Path(manifest['evidence']['generalization']['path'])
+                record=json.loads(path.read_text()); proof=record['groups']['G1']
+                registration=proof['preregistration']
+                if mutation=='missing_variant': del proof['pairs']['variant']
+                elif mutation=='missing_holdout': del proof['pairs']['independent_holdout']
+                elif mutation=='used_holdout': registration['assignments']['independent_holdout']['used_for_design']=True
+                elif mutation=='late_fixed': registration['fixed_at']='2099-01-01T00:00:00Z'
+                elif mutation=='specialization': proof['anti_case_specialization']['findings']=['hardcoded report id']
+                elif mutation in ('failed_acceptance','normal_regression','permission_regression'):
+                    category={'failed_acceptance':'original','normal_regression':'normal','permission_regression':'permission'}[mutation]
+                    phase='after' if mutation=='failed_acceptance' else 'before'
+                    trial=proof['pairs'][category][phase]['runs'][0]
+                    trial['outcome']='failed';trial['criteria']['complete']='failed'
+                elif mutation=='wrong_conditions': proof['pairs']['original']['before']['runs'][0]['conditions_sha256']='0'*64
+                elif mutation=='wrong_source': proof['pairs']['variant']['after']['runs'][0]['source_sha']='0'*40
+                elif mutation=='missing_repeat': proof['pairs']['independent_holdout']['after']['runs'].pop()
+                elif mutation=='false_rate': proof['pairs']['original']['before']['summary']['pass_rate']=1
+                elif mutation=='missing_cost': del proof['pairs']['original']['after']['runs'][0]['cost']
+                elif mutation=='same_variant': registration['assignments']['variant']['input_sha256']=registration['assignments']['original']['input_sha256']
+                elif mutation=='tampered_prereg': proof['preregistration_sha256']='0'*64
+                if mutation!='tampered_prereg': proof['preregistration_sha256']=w.digest(registration)
+                path.write_text(json.dumps(record));manifest['evidence']['generalization']['sha256']=w.file_sha(path)
+                with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
+
+    def test_generalization_rejects_truthfully_reported_regression_and_reused_holdout(self):
+        for mutation in ('normal','permission','after_failed','reused_holdout','counter_scope'):
+            with self.subTest(mutation=mutation):
+                manifest=self.prepared();path=Path(manifest['evidence']['generalization']['path'])
+                record=json.loads(path.read_text());proof=record['groups']['G1']
+                if mutation=='reused_holdout':
+                    assignments=proof['preregistration']['assignments']
+                    assignments['independent_holdout']['input_sha256']=assignments['variant']['input_sha256']
+                    proof['preregistration_sha256']=w.digest(proof['preregistration'])
+                    for phase in ('before','after'):
+                        for trial in proof['pairs']['independent_holdout'][phase]['runs']:
+                            trial['input_sha256']=assignments['variant']['input_sha256']
+                elif mutation=='counter_scope':
+                    for trial in proof['pairs']['normal']['after']['runs']: trial['cost']['counter_scope']='all_tools'
+                    proof['pairs']['normal']['after']['summary']['cost']['counter_scope']='all_tools'
+                else:
+                    category='original' if mutation=='after_failed' else mutation
+                    phase='after' if mutation=='after_failed' else 'before'
+                    observed=proof['pairs'][category][phase]
+                    for trial in observed['runs']:
+                        trial['outcome']='failed';trial['criteria']['complete']='failed'
+                    observed['summary'].update(passed=0,pass_rate=0)
+                path.write_text(json.dumps(record));manifest['evidence']['generalization']['sha256']=w.file_sha(path)
+                with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
+
+    def test_generalization_rejects_duplicate_execution_or_receipt_across_all_samples(self):
+        for mutation in ('same_trial','same_receipt','copied_run','other_phase','other_sample','missing_trial','oversize_trial'):
+            with self.subTest(mutation=mutation):
+                manifest=self.prepared();path=Path(manifest['evidence']['generalization']['path'])
+                record=json.loads(path.read_text());pairs=record['groups']['G1']['pairs']
+                runs=pairs['original']['after']['runs'];first=runs[0]
+                if mutation=='same_trial': runs[1]['trial_id']=first['trial_id']
+                elif mutation=='same_receipt': runs[1]['evidence_sha256']=first['evidence_sha256']
+                elif mutation=='copied_run': runs[1]=copy.deepcopy(first)
+                elif mutation=='other_phase': pairs['original']['before']['runs'][0]['trial_id']=first['trial_id']
+                elif mutation=='other_sample': pairs['normal']['after']['runs'][0]['evidence_sha256']=first['evidence_sha256']
+                elif mutation=='missing_trial': del runs[1]['trial_id']
+                else: runs[1]['trial_id']='x'*257
+                path.write_text(json.dumps(record));manifest['evidence']['generalization']['sha256']=w.file_sha(path)
+                with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
 
 
 if __name__ == '__main__': unittest.main()
