@@ -1,0 +1,701 @@
+{
+  "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b7b158fbab79483af1dbde15029b9539c9971d3da46db6dbd03128300a5df9ee",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "c1f9997e9381e62c935cc134670424eef66343cbb3be8f092b6ebf202b6610df",
+  "observed_at": "2026-09-09T19:08:54.870244Z",
+  "status": "paired_actual_http_passed_additional_candidate_and_live_pending",
+  "harness": "actual_http_worker_tool_recorder",
+  "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+  "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+  "gate_sha256": "8882b3a633a41464d142dcdbd2899744f70c0bf3b6ef32fcb9b7165df422dcc2",
+  "baseline_research": {
+    "total": 8,
+    "outcomes": "acquisition and analysis failed; completion passed"
+  },
+  "baseline_controls": {
+    "total": 4,
+    "passed": 4
+  },
+  "candidate": {
+    "total": 12,
+    "passed": 12,
+    "duration_seconds": 1826.777199,
+    "max_duration_seconds": 434.056605,
+    "source_calls": 315
+  },
+  "trials": [
+    {
+      "sample_id": "holdout",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 15
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 144.626002,
+      "evidence_sha256": "2e602c58cdaf1c49df9ad43f1daa535c342b5c3909f575f95a866af23a437caa",
+      "input_sha256": "931ee6427e1550c5cd2c35e9b699d95f811cb18cb7db6f0cb640f5698ddcba35",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:03:42.117598Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.holdout.1.2e18b88de9e7ce14"
+    },
+    {
+      "sample_id": "holdout",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 15
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 177.075229,
+      "evidence_sha256": "9f85773b1fd6263d533fef35ec47ae3e24cec9ee45df695e611385be8044ea49",
+      "input_sha256": "931ee6427e1550c5cd2c35e9b699d95f811cb18cb7db6f0cb640f5698ddcba35",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:04:20.809410Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.holdout.2.bf4ac4880fd55acb"
+    },
+    {
+      "sample_id": "holdout",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 103.69962,
+      "evidence_sha256": "30d4a2374d24a80b8cec5654fe0131faf649e84b615fd06957ad51abdc085f62",
+      "input_sha256": "931ee6427e1550c5cd2c35e9b699d95f811cb18cb7db6f0cb640f5698ddcba35",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:36.538199Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.holdout.1.122b9981ee1ea7dc"
+    },
+    {
+      "sample_id": "holdout",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 81.85608,
+      "evidence_sha256": "64404e4154a45a33a7965c62e774da8dc32ae3e7693088c1cd1f4c4884a7b604",
+      "input_sha256": "931ee6427e1550c5cd2c35e9b699d95f811cb18cb7db6f0cb640f5698ddcba35",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:27.159134Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.holdout.2.b1bcf8309db8a53e"
+    },
+    {
+      "sample_id": "normal",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 14.793422,
+      "evidence_sha256": "371fedd3e0843f280dc709c4b066ce0f33031b2432a34a783e5086dee47b623b",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:03:59.067814Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.normal.1.cd2682f8df652909"
+    },
+    {
+      "sample_id": "normal",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 11.078576,
+      "evidence_sha256": "963af03501186ee5510083ec8fdbd248e7a1b26efa417e8e423030a94798bef7",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:04:33.767039Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.normal.2.2de7a4da79a652ef"
+    },
+    {
+      "sample_id": "normal",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 12.191713,
+      "evidence_sha256": "f780bbb56c577f1d68e54670a16c5c2e9f0acbe87ff22918adb4e91642a334b6",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:49.866954Z",
+      "outcome": "passed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.normal.1.01016beb3849406d"
+    },
+    {
+      "sample_id": "normal",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 14.763972,
+      "evidence_sha256": "f7e5fd08e767fe84bcb60ebef28ee59b07cef89a4fc6b01dbccdd1e76c7c2491",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:43.304732Z",
+      "outcome": "passed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.normal.2.3e0ea5f2bde4b91e"
+    },
+    {
+      "sample_id": "original10",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 104
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 434.056605,
+      "evidence_sha256": "f082241bc71156462a8564f2654271e65b460d242288f56955b78c996e157338",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:56:16.628526Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.original10.1.888e4a9cd2c3f20e"
+    },
+    {
+      "sample_id": "original10",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 94
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 430.508353,
+      "evidence_sha256": "5ffcc6886adbe2d113491d80b5578166b2bdcb2b55d00a2a92a6dc3af87e139f",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:56:13.162348Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.original10.2.6234010d1e15503c"
+    },
+    {
+      "sample_id": "original10",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 26.783935,
+      "evidence_sha256": "027bb63a721304c9566b1d38f823712b80abc17339e07678f96b506f7aba5e71",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:45:18.229324Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.original10.1.3676c0b60de3b91a"
+    },
+    {
+      "sample_id": "original10",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 41.798094,
+      "evidence_sha256": "82584d9bbd00e170cf3ccd3063321922aefe0e4d6c9b6c4aa3327bd591b22b57",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:45:33.292663Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.original10.2.c7995651aa86e28a"
+    },
+    {
+      "sample_id": "original100",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 23
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 164.416404,
+      "evidence_sha256": "220c2520fb19ac74fd679cb15b59e3e821d29945ca7f01dbfe0a9eb486965efa",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:59:03.923338Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.original100.1.2d54345ff0ca1a4a"
+    },
+    {
+      "sample_id": "original100",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 29
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 171.831205,
+      "evidence_sha256": "cbdaf498e9805b7fba1ea76f39871841c1a09595456be3b5ea98d4231ba66025",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:59:06.887894Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.original100.2.f3e9b764f77e56bf"
+    },
+    {
+      "sample_id": "original100",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 32.286866,
+      "evidence_sha256": "85666dccfa6f21d635c5f8a21556ea6c1fc6ea3f86d804727abb0b3a8065fdb3",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:45:51.913827Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.original100.1.d3497ebca2a3b380"
+    },
+    {
+      "sample_id": "original100",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 33.966225,
+      "evidence_sha256": "adeceb894bebccfec6a3050ec99641f379c7baf6e6de9a6248659b5ec4f06094",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:46:09.041607Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.original100.2.2cd074478a44d518"
+    },
+    {
+      "sample_id": "permission",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 6.629176,
+      "evidence_sha256": "336e1ecb6293b15dfb08474edded498ce171ca367f715ce650a19305ca8cf163",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:04:06.661063Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.permission.1.41eff84e4b0a9344"
+    },
+    {
+      "sample_id": "permission",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 7.213567,
+      "evidence_sha256": "d378f849255714246212802ab243e00ecb61a826ec72f35e2ebc0c06c7f4da55",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:04:41.885772Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.permission.2.e3653abc796e4172"
+    },
+    {
+      "sample_id": "permission",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 6.494977,
+      "evidence_sha256": "b1cc1cb44eeb556a4ad903bbde859e03c473d9262598b23a5221a2e6f445749a",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:58.092631Z",
+      "outcome": "passed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.permission.1.bb59876554d3da70"
+    },
+    {
+      "sample_id": "permission",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 5.816591,
+      "evidence_sha256": "d3ebe201f4eee1402a69714bb7f994db9e6bc5e93846a43a71cbc2ae71b986fd",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:48:50.486664Z",
+      "outcome": "passed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.permission.2.cac578043ab44216"
+    },
+    {
+      "sample_id": "variant",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 16
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 130.62316,
+      "evidence_sha256": "f7419706067b925a17633bf42e52bbca4b2d7e3acc897553ba95fcd07922390f",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:01:16.182645Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.variant.1.7db4b3418f951778"
+    },
+    {
+      "sample_id": "variant",
+      "phase": "after",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 19
+      },
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 133.9255,
+      "evidence_sha256": "3cfe6a314b413c6a4934952c74d694464ef2cc2ce56823e952ec5ba60a522956",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T19:01:22.612390Z",
+      "outcome": "passed",
+      "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+      "runtime_id": "/opt/chickenbro-releases/badcase-5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "trial_id": "candidate-v11.variant.2.fbb26312b039b967"
+    },
+    {
+      "sample_id": "variant",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 58.216592,
+      "evidence_sha256": "9adbd287d143adecfa33e96aeafa9612ff83fdac4c98a26ddcc2bf22357db868",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:46:51.214988Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.variant.1.563ba74804632d0e"
+    },
+    {
+      "sample_id": "variant",
+      "phase": "before",
+      "conditions_sha256": "66a23b3de0733ef33fd2a1413224072a11fd8c27dc176b02c4c2548c33276a63",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      },
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 53.931574,
+      "evidence_sha256": "4db6200922398211c1af00b786b23b726e9695a4c6189819b02a2ef21ea26d2d",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "observed_at": "2026-09-09T18:47:04.425893Z",
+      "outcome": "failed",
+      "prompt_sha256": "f7f85d7e919e8023bdab47e145769f35c6c11496695205f6d7ddad03a1235885",
+      "runtime_id": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "trial_id": "baseline-v11.variant.2.b31461363fd51ec9"
+    }
+  ],
+  "limits": [
+    "No new user acceptance claimed.",
+    "Original V10 production failure remains failed; this new-source paired gate does not replace four additional synthetic trials, original-context Candidate/general or production live gates.",
+    "Provider tokens and billing unavailable: null.",
+    "Cast of an interrupt ability is not proof of a successful interrupt. Enemy target consistency does not mean all events share one target ID.",
+    "Holdout text and content-specific notes remain private."
+  ]
+}

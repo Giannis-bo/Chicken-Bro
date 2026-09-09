@@ -1,0 +1,18 @@
+{
+  "mode": "0o755",
+  "driver_sha256": "bb64670518df5b90208ccb3ee424ad551418318389e0161fb90eab925b259197",
+  "observation_files": 0,
+  "files": [
+    "driver.log",
+    "driver.py",
+    "observations",
+    "observer.py",
+    "worker-wrapper.py"
+  ],
+  "failure_before_database_or_model_initialization": true,
+  "recorded_at": "2026-09-09T19:13:46.201381+00:00",
+  "old_launcher_sha256": "cadbc0592d5cedac2b4454efe8e7f3aeb75e5494b535860ab64e75653d6ff30e",
+  "corrected_launcher_sha256": "cf33b3f8ad8a67ef6b9c79c27850608ec6d316b433747d667f51cd8c69614704",
+  "planned_model_trials_unchanged": 4,
+  "runtime_and_runner_unchanged": true
+}
