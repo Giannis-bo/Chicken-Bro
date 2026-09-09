@@ -1,38 +1,8 @@
 import { useEffect, useId, useRef } from 'react'
 import { isTestLoginEnabled } from '../features/auth/test-login-mode'
 
+import { releases } from '../features/help/release-content'
 import styles from './WebHeaderActions.module.scss'
-
-
-const releases = [
-  { date: '2026-09-09', title: 'QQ 登录、截图提问与更多模拟玩法', items: [
-    '现在通过 QQ 登录网页版，继续自己的对话和模拟；小程序已停止服务。',
-    '支持上传截图向鸡哥提问，结合图片讨论角色、装备和战斗表现。',
-    '模拟开放全部输出与坦克专精；治疗专精暂不支持。',
-    '可让鸡哥基于已有模拟调整天赋、替换装备并对比结果；资料不足的装备版本会明确提示。',
-    '改进回复生成的稳定性，网页断开后回答仍可继续生成。',
-    '优化回答反馈确认弹窗的按钮显示。',
-  ] },
-  { date: '2026-09-08', title: '炸鸡队长来啦 1.0 正式上线', items: [
-    '与鸡哥聊魔兽、运行云端模拟，并在当前 QQ 账号中继续对话。',
-  ] },
-  { date: '2026-09-07', title: '更清爽的导航与账号入口', items: [
-    '点击右上角头像查看当前账号并退出登录。',
-    'FAQ 改为独立页面，支持直接链接与浏览器返回；更新日志可随时查看。',
-    '移除主题口号、历史对话旁头像及侧栏底部装饰。',
-  ] },
-  { date: '2026-09-06', title: '模拟工作台与报告升级', items: [
-    '新增模拟参数、任务列表与结构化结果展示。',
-    '改进国服角色和战斗日志导入，补充链接格式提示。',
-    '逐步补齐技能、召唤物及增益的中文名称，部分名称仍待完善。',
-    '鸡哥可按需发起云端模拟；切换对话和模拟时，回答可以继续生成。',
-  ] },
-  { date: '2026-09-05', title: '聊天阅读和历史记录优化', items: [
-    '历史对话按日期分组，支持展开和收起。',
-    '优化回复排版、文字选择、输入区与等待提示。',
-    '长回复自动跟随，上翻或选择文字时暂停跟随。',
-  ] },
-]
 
 export default function WebHelpDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
