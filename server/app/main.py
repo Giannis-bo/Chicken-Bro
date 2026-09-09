@@ -3,6 +3,7 @@ import logging
 from collections.abc import Mapping
 
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 
 from server.app.api.errors import (
     ApiProblem,
@@ -36,13 +37,20 @@ from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.sources import CharacterSourceRouter, HttpxSourceGateway
 
 
+_QQ_CALLBACK_PREFIXES = (
+    '/api/v2/auth/qq/callback',
+    '/test/api/v2/auth/qq/callback',
+    '/api/v2-candidate/auth/qq/callback',
+)
+
+
 class QqCallbackAccessFilter(logging.Filter):
     """Uvicorn access logs must never retain OAuth code/state query parameters."""
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, tuple) and len(record.args) == 5:
             args = list(record.args)
-            if isinstance(args[2], str) and args[2].split('?', 1)[0] == '/api/v2/auth/qq/callback':
-                args[2] = '/api/v2/auth/qq/callback'
+            if isinstance(args[2], str) and args[2].split('?', 1)[0].startswith(_QQ_CALLBACK_PREFIXES):
+                args[2] = args[2].split('?', 1)[0]
                 record.args = tuple(args)
         return True
 
@@ -128,7 +136,16 @@ def create_app(
     async def request_id_middleware(request: Request, call_next):
         request_id = resolve_request_id(request.headers.get("X-Request-Id"))
         request.state.request_id = request_id
-        response = await call_next(request)
+        path = request.scope.get("path", "")
+        if path.startswith(_QQ_CALLBACK_PREFIXES) and path != '/api/v2/auth/qq/callback':
+            # Do not let Starlette's slash normalization carry OAuth secrets
+            # into a Location header. Proxy prefixes must be removed upstream.
+            destination = settings.web_origin.rstrip('/') + settings.qq_landing_path
+            response = RedirectResponse(destination + '?loginError=QQ_LOGIN_INVALID', status_code=303)
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['Referrer-Policy'] = 'no-referrer'
+        else:
+            response = await call_next(request)
         response.headers["X-Request-Id"] = request_id
         return response
 

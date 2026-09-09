@@ -300,3 +300,25 @@ class QqLoginTest(unittest.TestCase):
         response = self.client.post('/api/v2/auth/qq/login', json={}, headers={'Origin':ORIGIN})
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('test-key', response.text)
+
+    def test_callback_variants_never_log_or_redirect_with_oauth_query(self):
+        import logging
+        from server.app.main import QqCallbackAccessFilter
+        paths = ['/api/v2/auth/qq/callback/', '/api/v2/auth/qq/callback//',
+                 '/api/v2/auth/qq/callback/unknown', '/test/api/v2/auth/qq/callback-extra',
+                 '/test/api/v2/auth/qq/callback', '/test/api/v2/auth/qq/callback/',
+                 '/api/v2-candidate/auth/qq/callback', '/api/v2-candidate/auth/qq/callback/']
+        for path in paths:
+            with self.subTest(path=path):
+                query = '?code=private-code&state=private-state'
+                record = logging.LogRecord('uvicorn.access', logging.INFO, '', 1, '%s - "%s %s HTTP/%s" %d',
+                    ('127.0.0.1', 'GET', path + query, '1.1', 307), None)
+                self.assertTrue(QqCallbackAccessFilter().filter(record))
+                self.assertNotIn('private-', record.getMessage())
+                response = self.client.get(path + query, follow_redirects=False)
+                self.assertEqual(response.status_code, 303)
+                self.assertEqual(response.headers['location'], ORIGIN + '/?loginError=QQ_LOGIN_INVALID')
+                self.assertNotIn('private-', response.headers['location'])
+                self.assertEqual(response.headers['referrer-policy'], 'no-referrer')
+                self.assertEqual(response.headers['cache-control'], 'no-store')
+        self.assertFalse(self.calls)
