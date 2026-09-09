@@ -1,0 +1,229 @@
+[
+  {
+    "options": {
+      "encounterId": 3445,
+      "difficulty": 4,
+      "className": "Mage",
+      "specName": "Fire",
+      "partition": 1,
+      "limit": 10
+    },
+    "status": "source_reference",
+    "scope": {
+      "encounterId": 3445,
+      "encounterName": "Entombed Sentinels",
+      "zoneId": 53,
+      "difficulty": 4,
+      "partition": 1,
+      "partitionName": "12.1",
+      "className": "Mage",
+      "specName": "Fire",
+      "region": "world",
+      "metric": "dps"
+    },
+    "pagination": {
+      "page": 1,
+      "offset": 0,
+      "limit": 10,
+      "returned": 10,
+      "upstreamCount": 100,
+      "skippedInvalid": 0,
+      "hasMore": true,
+      "paginationCapReached": false,
+      "nextPage": 1,
+      "nextOffset": 10
+    },
+    "first": [
+      {
+        "rank": 1,
+        "name": "小鸟游小埋",
+        "class": "Mage",
+        "spec": "Fire",
+        "amount": 187514.367593,
+        "durationMs": 296257,
+        "startTime": 1788437902369,
+        "server": {
+          "id": 568,
+          "name": "伊利丹",
+          "region": "CN"
+        },
+        "report": {
+          "code": "mWV9aKzZJT4GrMfv",
+          "fightID": 10
+        },
+        "reportUrl": "https://www.warcraftlogs.com/reports/mWV9aKzZJT4GrMfv?fight=10"
+      }
+    ]
+  },
+  {
+    "options": {
+      "encounterId": 3470,
+      "difficulty": 4,
+      "className": "Priest",
+      "specName": "Holy",
+      "partition": 1,
+      "metric": "hps",
+      "limit": 10
+    },
+    "status": "partial",
+    "scope": {
+      "encounterId": 3470,
+      "encounterName": "Nek'zali the Soulcoiler",
+      "zoneId": 53,
+      "difficulty": 4,
+      "partition": 1,
+      "partitionName": "12.1",
+      "className": "Priest",
+      "specName": "Holy",
+      "region": "world",
+      "metric": "hps"
+    },
+    "pagination": {
+      "page": 1,
+      "offset": 0,
+      "limit": 10,
+      "returned": 9,
+      "upstreamCount": 100,
+      "skippedInvalid": 1,
+      "hasMore": true,
+      "paginationCapReached": false,
+      "nextPage": 1,
+      "nextOffset": 10
+    },
+    "first": [
+      {
+        "rank": 1,
+        "name": "Drohgohp",
+        "class": "Priest",
+        "spec": "Holy",
+        "amount": 393668.73822249,
+        "durationMs": 284971,
+        "startTime": 1788915652720,
+        "server": {
+          "id": 123,
+          "name": "Illidan",
+          "region": "US"
+        },
+        "report": {
+          "code": "rF6mzD39nX7HRtTk",
+          "fightID": 80
+        },
+        "reportUrl": "https://www.warcraftlogs.com/reports/rF6mzD39nX7HRtTk?fight=80"
+      }
+    ]
+  },
+  {
+    "options": {
+      "encounterId": 3470,
+      "difficulty": 4,
+      "className": "Druid",
+      "specName": "Feral",
+      "partition": 1,
+      "limit": 100,
+      "page": 2
+    },
+    "status": "source_reference",
+    "scope": {
+      "encounterId": 3470,
+      "encounterName": "Nek'zali the Soulcoiler",
+      "zoneId": 53,
+      "difficulty": 4,
+      "partition": 1,
+      "partitionName": "12.1",
+      "className": "Druid",
+      "specName": "Feral",
+      "region": "world",
+      "metric": "dps"
+    },
+    "pagination": {
+      "page": 2,
+      "offset": 0,
+      "limit": 100,
+      "returned": 100,
+      "upstreamCount": 100,
+      "skippedInvalid": 0,
+      "hasMore": true,
+      "paginationCapReached": false,
+      "nextPage": 3,
+      "nextOffset": 0
+    },
+    "first": [
+      {
+        "rank": 101,
+        "name": "Alakiros",
+        "class": "Druid",
+        "spec": "Feral",
+        "amount": 173871.53502925,
+        "durationMs": 259526,
+        "startTime": 1788454884004,
+        "server": {
+          "id": 251,
+          "name": "Al'Akir",
+          "region": "EU"
+        },
+        "report": {
+          "code": "GKYh7wNaq3W1bmxp",
+          "fightID": 6
+        },
+        "reportUrl": "https://www.warcraftlogs.com/reports/GKYh7wNaq3W1bmxp?fight=6"
+      }
+    ]
+  },
+  {
+    "options": {
+      "encounterId": 3470,
+      "difficulty": 4,
+      "className": "Druid",
+      "specName": "Feral",
+      "partition": 1,
+      "region": "cn",
+      "limit": 10
+    },
+    "status": "source_reference",
+    "scope": {
+      "encounterId": 3470,
+      "encounterName": "Nek'zali the Soulcoiler",
+      "zoneId": 53,
+      "difficulty": 4,
+      "partition": 1,
+      "partitionName": "12.1",
+      "className": "Druid",
+      "specName": "Feral",
+      "region": "cn",
+      "metric": "dps"
+    },
+    "pagination": {
+      "page": 1,
+      "offset": 0,
+      "limit": 10,
+      "returned": 10,
+      "upstreamCount": 100,
+      "skippedInvalid": 0,
+      "hasMore": true,
+      "paginationCapReached": false,
+      "nextPage": 1,
+      "nextOffset": 10
+    },
+    "first": [
+      {
+        "rank": 1,
+        "name": "一般不吃人",
+        "class": "Druid",
+        "spec": "Feral",
+        "amount": 193479.89843288,
+        "durationMs": 320970,
+        "startTime": 1788437692869,
+        "server": {
+          "id": 826,
+          "name": "血色十字军",
+          "region": "CN"
+        },
+        "report": {
+          "code": "YdZxCyVkcQLNvwKP",
+          "fightID": 2
+        },
+        "reportUrl": "https://www.warcraftlogs.com/reports/YdZxCyVkcQLNvwKP?fight=2"
+      }
+    ]
+  }
+]

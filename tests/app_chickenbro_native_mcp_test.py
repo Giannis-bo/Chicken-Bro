@@ -51,6 +51,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
                 "query_warcraftlogs_report",
                 "query_warcraftlogs_batch",
                 "query_warcraftlogs_character",
+                "query_warcraftlogs_rankings",
                 "query_raiderio_character",
                 "query_raiderio_rankings",
                 "query_raiderio_characters",

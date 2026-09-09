@@ -83,6 +83,11 @@ class ServerConfiguredSourceQuery:
                 results = list(pool.map(fetch,validated))
             return {'sourceKey':'warcraftlogs','status':'verified' if all(r.get('status')=='verified' for r in results) else 'partial',
                 'results':results,'limitations':['Results retain input order and independent coverage; do not combine overlapping events as distinct events.']}
+        if normalized_provider == "warcraftlogs_rankings":
+            from server.app.chickenbro.wcl_rankings import query_wcl_rankings
+            if target != "rankings":
+                raise InvalidSourceLink()
+            return query_wcl_rankings(options)
         if normalized_provider == "warcraftlogs_character":
             from server.app.chickenbro.character_discovery import discover_wcl_character
             if target != "character":

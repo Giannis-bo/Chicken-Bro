@@ -182,9 +182,26 @@ WCL_BATCH_TOOL_DEFINITION = {
     'annotations':{'readOnlyHint':True},
 }
 WCL_BATCH_TOOL_DEFINITION['inputSchema']['properties']['queries']['items']['properties']['options']['properties']['limit']['maximum'] = 200
+WCL_RANKINGS_TOOL_NAME = 'query_warcraftlogs_rankings'
+WCL_RANKINGS_TOOL_DEFINITION = {
+    'name':WCL_RANKINGS_TOOL_NAME,
+    'description':'Discover Warcraft Logs raid zones/partitions/encounters with empty arguments or zoneId. Then query an encounter DPS/HPS leaderboard with explicit difficulty, className (Druid), specName (Feral), partition and optional region (world default). Use this API for top raid players, not public ranking webpages. Catalog partitions distinguish live and PTR. Up to 100 ranks per page; limit defaults 10; continue nextPage/nextOffset. Ranking entries give report/fight and player identity, not rotation analysis; follow with report/events tools and disclose coverage.',
+    'inputSchema':{'type':'object','additionalProperties':False,'properties':{
+        'zoneId':{'type':'integer','minimum':1,'maximum':10000},
+        'encounterId':{'type':'integer','minimum':1,'maximum':1000000},
+        'difficulty':{'type':'integer','minimum':1,'maximum':5},
+        'partition':{'type':'integer','minimum':1,'maximum':100},
+        'className':{'type':'string','maxLength':31},'specName':{'type':'string','maxLength':31},
+        'metric':{'type':'string','enum':['dps','hps','bossdps']},
+        'region':{'type':'string','enum':['world','us','eu','kr','tw','cn']},
+        'page':{'type':'integer','minimum':1,'maximum':20},'offset':{'type':'integer','minimum':0,'maximum':99},
+        'limit':{'type':'integer','minimum':1,'maximum':100}}},
+    'annotations':{'readOnlyHint':True},
+}
 TOOL_DEFINITIONS = [
     TOOL_DEFINITION,
     WCL_CHARACTER_TOOL_DEFINITION,
+    WCL_RANKINGS_TOOL_DEFINITION,
     WARCRAFTLOGS_TOOL_DEFINITION,
     WCL_BATCH_TOOL_DEFINITION,
     RAIDERIO_TOOL_DEFINITION,
@@ -435,6 +452,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
         elif tool_name in SIMULATION_OPERATIONS:
             result = query_simulation_gateway(SIMULATION_OPERATIONS[tool_name], arguments)
+        elif tool_name == WCL_RANKINGS_TOOL_NAME:
+            result = query_source_gateway('warcraftlogs_rankings','rankings',options=arguments)
         elif tool_name == WCL_CHARACTER_TOOL_NAME:
             result = query_source_gateway("warcraftlogs_character", "character", options=arguments)
         elif tool_name == WCL_BATCH_TOOL_NAME:
