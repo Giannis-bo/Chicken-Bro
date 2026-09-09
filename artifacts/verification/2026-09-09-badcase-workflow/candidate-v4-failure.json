@@ -1,0 +1,20 @@
+{
+  "source_sha": "3215b3f796d50542b530cbd4a6c27cdbfc1ad0f1",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "3f64a2c47479d55b8d0468cc41b35b74b9d81ab095276377c42567f8d89a9a40",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "7e86831cd0eb802a5bdd7cece88efaab15735908d109eb9dac6af87dd01b1d0d",
+  "kind": "candidate",
+  "status": "failed",
+  "observed_at": "2026-09-09T13:31:48.760771+00:00",
+  "checks": {
+    "real_chat_terminal": false,
+    "history_readback": false,
+    "affected_tools": false,
+    "same_permissions": true,
+    "original_question_context": true
+  },
+  "details": "V4 original10 repeat2 has an independently verified false ordering claim: multi-target DoTs occurred after Primal Wrath, contrary to the returned sentence. Acquisition90ranks/9Boss and completion238.76s pass, but analysis fails; source3215 cannot freeze/release. Full ongoing v4 traces and subsequent HTTP runs are retained as failed-batch evidence, not a substitute pass.",
+  "failed_trial_receipt_sha256": "06e6c5650d50df165ebc30b9dee3cd5eece5532ed9d1dabf5f5ac2e114326aa6",
+  "production_attempted": false
+}
