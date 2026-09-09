@@ -1,0 +1,23 @@
+{
+  "source_sha": "4e8f1b7b70e622a30fc5809b5a8f43d0a629bad0",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c0e9784b832343c9f994fea3b7a4b5756ff4ab0de51a17b4e2ee16ebe09734b5",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "fba95d61a00df5315a12f4f965f7bb9084eacbb4d8e7eba6dbe57ed037a340a5",
+  "observed_at": "2026-09-09T15:12:18.545098+00:00",
+  "status": "local_checks_passed_business_gates_pending",
+  "checks": [
+    {
+      "kind": "backend",
+      "tests": 613,
+      "sha256": "6bd22e6446757410796d54d13d0bdc2c09dfd00289796a4f4b753fca9b4a73ec",
+      "exit_code": 0
+    },
+    {
+      "kind": "control",
+      "tests": 86,
+      "sha256": "22a1f2ee6963b9141fdab167bfe6083b3e46319d48329fcda3406ce375b7d201",
+      "exit_code": 0
+    }
+  ]
+}
