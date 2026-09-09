@@ -1,0 +1,73 @@
+{
+  "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b7b158fbab79483af1dbde15029b9539c9971d3da46db6dbd03128300a5df9ee",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "c1f9997e9381e62c935cc134670424eef66343cbb3be8f092b6ebf202b6610df",
+  "frozen_at": "2026-09-09T18:44:25.008413+00:00",
+  "paired_conditions_sha256": "5b864cc8803b8661db9137197cde524078e3f92289ab1993d9739da4863e2d86",
+  "synthetic_registration_sha256": "67b28b71b7f76cf1d5bf9532ea49d84fef3e28d6d7a207a24def6fa842ee17df",
+  "agent_rules_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+  "runtime_source_immutable": true,
+  "additional_synthetic_gate": {
+    "fixed_at": "2026-09-09T18:36:49.664171+00:00",
+    "kind": "additional_candidate_gate",
+    "attempts": 4,
+    "required_all_pass": true,
+    "does_not_replace": [
+      "paired_24_trials",
+      "original_context_http",
+      "production_http"
+    ],
+    "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+    "inputs": [
+      {
+        "case": "top10",
+        "repeat": 1,
+        "question_sha256": "aec8d8b5b2c8fa6ea2cb4f75003ad723a71cd05dc636caf04153895ff0c48895",
+        "context": []
+      },
+      {
+        "case": "top10",
+        "repeat": 2,
+        "question_sha256": "aec8d8b5b2c8fa6ea2cb4f75003ad723a71cd05dc636caf04153895ff0c48895",
+        "context": []
+      },
+      {
+        "case": "top100",
+        "repeat": 1,
+        "question_sha256": "e753d4bb870ac0b0ec70d04cb63e15191aacf12781932af7f940d458aa757547",
+        "context": []
+      },
+      {
+        "case": "top100",
+        "repeat": 2,
+        "question_sha256": "e753d4bb870ac0b0ec70d04cb63e15191aacf12781932af7f940d458aa757547",
+        "context": []
+      }
+    ],
+    "runner_sha256": "bb64670518df5b90208ccb3ee424ad551418318389e0161fb90eab925b259197",
+    "worker_sha256": "3869227a49319b58f3a44f934bace6690668854a6fabde98512ed6fa0a978aab",
+    "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+    "chat_budget_seconds": 480,
+    "wcl_budget_seconds": 360,
+    "amendment": {
+      "fixed_at": "2026-09-09T18:38:33.811706+00:00",
+      "before_runner_sha256": "147e8c7030e528f51255d043f3778a2b6fe1f83cbc9a84c70d8fc996660e4261",
+      "before_registration_sha256": "109e6dfc547b05cb85dbb808eb5a9d0eaf2a5b0912a8ce6fcbfb215c45629ce9",
+      "fixture_session_ttl_minutes": 40,
+      "sessions_revoked_after_suite": true,
+      "reason": "Four sequential runs can exceed 20-minute fixture authentication lifetime. Runtime 480/360 budgets and all acceptance gates unchanged. Candidate-only CLI, unique private case/outcome files, terminal-history refresh and cleanup finally added. Collect terminal failures without replacing them; stop suite if a run remains streaming. JSONL records explicitly distinguish case and final summary. Each final history is saved privately before verdict; observer requires matching run ID, one-message empty context and 480-second adapter input."
+    },
+    "source_bound_at": "2026-09-09T18:44:25.008345+00:00",
+    "identity": {
+      "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+      "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "build_sha256": "b7b158fbab79483af1dbde15029b9539c9971d3da46db6dbd03128300a5df9ee",
+      "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+      "diff_sha256": "c1f9997e9381e62c935cc134670424eef66343cbb3be8f092b6ebf202b6610df"
+    }
+  },
+  "extra_gate_is_required": true,
+  "status": "frozen_before_trials_not_business_pass"
+}
