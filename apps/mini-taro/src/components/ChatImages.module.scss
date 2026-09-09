@@ -8,3 +8,13 @@
 .status { display: block; margin: 5px 0; font-size: 12px; color: #71665d; }
 .action { display: inline-block; margin: 0 6px 0 0; padding: 3px 8px; border: 1px solid #c9bdb3; border-radius: 5px; background: #faf7f3; color: #6e4036; font-size: 12px; line-height: 1.6; }
 .row .action { color: #6e4036 !important; }
+
+.draftRow { display: flex; gap: 12px; flex-wrap: wrap; padding: 4px 4px 0; }
+.draftItem { position: relative; width: 80px; height: 80px; }
+.draftItem .thumbnail { width: 80px; height: 80px; margin: 0; border-radius: 10px; background: #f5f2ef; }
+.draftItem .remove { position: absolute; top: -5px; right: -5px; z-index: 1; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #d8cdc7; border-radius: 50%; background: #fff; color: #5b4b43; font: 17px/1 sans-serif; cursor: pointer; }
+.draftItem .retry, .uploading { position: absolute; bottom: 0; left: 0; width: 100%; padding: 4px 0; border: 0; border-radius: 0 0 10px 10px; background: rgba(40,32,28,.8); color: #fff; font-size: 11px; line-height: 1.5; text-align: center; }
+.draftItem .retry { cursor: pointer; }
+.draftItem button:disabled { opacity: .5; cursor: default; }
+.draftItem button:focus-visible { outline: 2px solid #aa5546; outline-offset: 2px; }
+.ready { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

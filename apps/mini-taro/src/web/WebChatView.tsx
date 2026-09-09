@@ -1,4 +1,5 @@
 import { ChatImages, ChatImageDrafts } from '../components/ChatImages'
+import { readChatImageFiles } from '../features/chat/image-picker'
 import { useChatImages } from '../features/chat/use-chat-images'
 import ChatReplyDetails from '../components/ChatReplyDetails'
 import ChatFeedback from '../components/ChatFeedback'
@@ -35,7 +36,10 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
   const imageDraft = useChatImages(() => auth, state.phase !== 'signed_out')
+  const textarea = useRef<HTMLTextAreaElement>(null)
   const composing = useRef(false)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
   const sending = state.phase === 'sending'
   const showWelcome = state.phase === 'ready' && !state.activeConversation?.messages.length
     && !state.pendingUserContent && !state.streamText && !state.streamProgress && !state.streamCompletedAt
@@ -57,6 +61,18 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
       model.dispose()
     }
   }, [model])
+
+  useEffect(() => {
+    const resize = () => {
+      const input = textarea.current
+      if (!input) return
+      input.style.height = '0px'
+      input.style.height = `${Math.min(132, Math.max(42, input.scrollHeight))}px`
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
+  }, [draft])
 
   const send = () => {
     if (!canSend || model.get().phase === 'sending') return
@@ -165,19 +181,60 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
             {paused && !showWelcome ? <button type="button" className={styles['jumpToLatest'] ?? ''} onClick={jumpToLatest}>
               ↓ 回到最新
             </button> : null}
-            <ChatImageDrafts items={imageDraft.items} disabled={sending} remove={imageDraft.remove} retry={imageDraft.retry} />
-            {imageDraft.error ? <Text>{imageDraft.error}</Text> : null}
-            <View className={styles['composerRow'] ?? ''} style={{ gridTemplateColumns: imageDraft.enabled ? '72px minmax(0, 1fr) 42px' : 'minmax(0, 1fr) 42px' }}>
-              <>{imageDraft.enabled ? <button className={styles['composerImageButton'] ?? ''} type="button" aria-label="添加图片" disabled={sending || imageDraft.items.length >= 3} onClick={() => void imageDraft.choose()}>＋ 图片</button> : null}</>
+            <div className={styles['composerRow']} aria-label="消息输入区" data-dragging={dragging}
+              onDragEnter={event => {
+                if (!event.dataTransfer.types.includes('Files')) return
+                event.preventDefault()
+                dragDepth.current += 1
+                if (imageDraft.enabled && !sending) setDragging(true)
+              }}
+              onDragOver={event => {
+                if (!event.dataTransfer.types.includes('Files')) return
+                event.preventDefault()
+                event.dataTransfer.dropEffect = imageDraft.enabled && !sending ? 'copy' : 'none'
+              }}
+              onDragLeave={event => {
+                if (!event.dataTransfer.types.includes('Files')) return
+                dragDepth.current = Math.max(0, dragDepth.current - 1)
+                if (!dragDepth.current) setDragging(false)
+              }}
+              onDrop={event => {
+                dragDepth.current = 0
+                setDragging(false)
+                const files = Array.from(event.dataTransfer.files)
+                if (!files.length) return
+                event.preventDefault()
+                if (imageDraft.enabled && !sending) void imageDraft.add(count => readChatImageFiles(files, count))
+              }}>
+              <ChatImageDrafts compact items={imageDraft.items} disabled={sending} remove={imageDraft.remove} retry={imageDraft.retry} />
+              {imageDraft.error ? <div role="alert" className={styles['composerError']}>{imageDraft.error}</div> : null}
+              {dragging ? <span className={styles['dropHint']} aria-hidden="true">松开即可添加图片</span> : null}
+              <div className={styles['composerControls']} style={{gridTemplateColumns: imageDraft.enabled ? '34px minmax(0, 1fr) 42px' : 'minmax(0, 1fr) 42px'}}>
+              {imageDraft.enabled ? <button className={styles['composerImageButton']} type="button" aria-label="添加图片" title="选择图片，也可粘贴或拖入" disabled={sending || imageDraft.items.length >= 3} onClick={() => void imageDraft.choose()}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.5"/><path d="m4 17 5-5 4 4 3-3 5 5"/></svg>
+              </button> : null}
               <textarea
+                ref={textarea}
                 className={styles['webTextarea'] ?? ''}
                 maxLength={4000}
                 rows={1}
                 aria-label="消息内容"
                 title="Enter 发送，Shift+Enter 换行"
-                placeholder="问问鸡哥"
+                placeholder={imageDraft.enabled ? "问问鸡哥，也可粘贴或拖入图片" : "问问鸡哥"}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onPaste={event => {
+                  const files = Array.from(event.clipboardData.files)
+                  if (!files.length) return
+                  event.preventDefault()
+                  if (!imageDraft.enabled || sending) return
+                  const text = event.clipboardData.getData('text/plain')
+                  if (text) {
+                    const {selectionStart, selectionEnd} = event.currentTarget
+                    setDraft(current => (current.slice(0, selectionStart) + text + current.slice(selectionEnd)).slice(0, 4000))
+                  }
+                  void imageDraft.add(count => readChatImageFiles(files, count))
+                }}
                 onCompositionStart={() => { composing.current = true }}
                 onCompositionEnd={() => { composing.current = false }}
                 onKeyDown={(event) => {
@@ -198,7 +255,8 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                 {sending ? <span className={styles['composerSpinner'] ?? ''} role="status" aria-label="正在回复" />
                   : <span aria-hidden="true">↑</span>}
               </button>
-            </View>
+              </div>
+            </div>
             {showWelcome ? (
               <View className={styles['quickPrompts'] ?? ''}>
                 {quickPrompts.map((prompt) => (

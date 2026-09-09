@@ -14,6 +14,7 @@ export function useChatImages(authProvider: () => ClientAuthContext, enabledSess
   const [enabled, setEnabled] = useState(false)
   const [items, setItems] = useState<DraftImage[]>([])
   const [error, setError] = useState('')
+  const [reading, setReading] = useState(false)
   const current = useRef(items)
   const alive = useRef(true)
   const selecting = useRef(false)
@@ -57,36 +58,43 @@ export function useChatImages(authProvider: () => ClientAuthContext, enabledSess
   }
   const remove = (key: string) => {
     const item = current.current.find(row => row.key === key)
+    setError('')
     change(current.current.filter(row => row.key !== key))
     if (item?.image) {
       try { void wowApi.chat.removeImage(item.image.id, {auth: auth.current()}).catch(() => undefined) } catch { /* Expiry cleans unattached images. */ }
     }
   }
+  const add = async (read: (count: number) => Promise<string[]>) => {
+    if (!enabled || !alive.current) return
+    if (selecting.current) { setError('图片正在读取，请稍候再试'); return }
+    if (current.current.length >= 3) { setError('每条消息最多三张图片，请先移除部分图片'); return }
+    selecting.current = true
+    setReading(true)
+    setError('')
+    try {
+      const selectedSession = auth.current()
+      const urls = await read(3 - current.current.length)
+      if (!alive.current) return
+      const latestSession = auth.current()
+      if (JSON.stringify(selectedSession) !== JSON.stringify(latestSession)) return
+      if (urls.length + current.current.length > 3) throw new Error('每条消息最多三张图片，请先移除部分图片')
+      const added: DraftImage[] = urls.map(dataUrl => ({
+        key: `chat-image-${Date.now()}-${++sequence}`, dataUrl, status: 'uploading',
+      }))
+      change([...current.current, ...added])
+      added.forEach(item => { void upload(item) })
+    } catch (failure) {
+      if (alive.current) setError(failure instanceof Error ? failure.message : '图片选择未完成')
+    } finally { selecting.current = false; if (alive.current) setReading(false) }
+  }
   return {
-    enabled, items, error, pending: items.some(item => item.status !== 'ready'),
+    enabled, items, error, pending: reading || items.some(item => item.status !== 'ready'),
     images: items.flatMap(item => item.image ? [item.image] : []),
     clear: () => { const sentKeys = new Set(items.map(item => item.key)); change(current.current.filter(item => !sentKeys.has(item.key))) },
     discard: () => current.current.forEach(item => remove(item.key)),
     remove,
-    retry: (key: string) => { const item = current.current.find(row => row.key === key); if (item?.status === 'failed') void upload(item) },
-    choose: async () => {
-      if (!enabled || selecting.current || current.current.length >= 3) return
-      selecting.current = true
-      setError('')
-      try {
-        const selectedSession = auth.current()
-        const urls = await chooseChatImages(3 - current.current.length)
-        if (!alive.current) return
-        const latestSession = auth.current()
-        if (JSON.stringify(selectedSession) !== JSON.stringify(latestSession)) return
-        const added: DraftImage[] = urls.slice(0, 3 - current.current.length).map(dataUrl => ({
-          key: `chat-image-${Date.now()}-${++sequence}`, dataUrl, status: 'uploading',
-        }))
-        change([...current.current, ...added])
-        added.forEach(item => { void upload(item) })
-      } catch (failure) {
-        if (alive.current) setError(failure instanceof Error ? failure.message : '图片选择未完成')
-      } finally { selecting.current = false }
-    },
+    retry: (key: string) => { const item = current.current.find(row => row.key === key); if (item?.status === 'failed') { setError(''); void upload(item) } },
+    add,
+    choose: () => add(chooseChatImages),
   }
 }

@@ -47,9 +47,15 @@ export function ChatImages({images, auth}: {images?: readonly ChatImage[] | unde
   return images?.length ? <View className={styles['row'] ?? ''}>{images.map(image =>
     <HistoryImage key={image.id} image={image} auth={auth} />)}</View> : null
 }
-export function ChatImageDrafts({items, disabled, remove, retry}: {
-  items: readonly DraftImage[]; disabled: boolean; remove: (key: string) => void; retry: (key: string) => void
+export function ChatImageDrafts({items, disabled, remove, retry, compact = false}: {
+  items: readonly DraftImage[]; disabled: boolean; remove: (key: string) => void; retry: (key: string) => void; compact?: boolean
 }) {
+  if (compact) return items.length ? <div className={styles['draftRow']} aria-label="待发送图片">{items.map(item => <div className={styles['draftItem']} key={item.key}>
+    <Preview src={item.dataUrl} />
+    <button type="button" className={styles['remove']} aria-label="移除图片" title="移除图片" disabled={disabled} onClick={() => remove(item.key)}>×</button>
+    {item.status === 'failed' ? <button type="button" className={styles['retry']} disabled={disabled} onClick={() => retry(item.key)}>重试上传</button>
+      : <span className={styles[item.status === 'ready' ? 'ready' : 'uploading']} role="status">{item.status === 'ready' ? '已就绪' : '上传中…'}</span>}
+  </div>)}</div> : null
   return items.length ? <View className={styles['row'] ?? ''}>{items.map(item => <View key={item.key}>
     <Preview src={item.dataUrl} />
     <Text className={styles['status'] ?? ''}>{item.status === 'uploading' ? '上传中…' : item.status === 'failed' ? '上传失败' : '已就绪'}</Text>

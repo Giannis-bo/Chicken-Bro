@@ -256,7 +256,13 @@
       "sourceCommit": "72e6224f21eb0d5fb0635237d454eebe8b845884",
       "productionEvidence": "artifacts/verification/2026-09-09-chat-images/deployment/README.md",
       "remoteConflictResolutionAuthorized": true,
-      "miniUpload": "not_run_this_task"
+      "miniUpload": "not_run_this_task",
+      "inlineComposer": {
+        "status": "live_verified",
+        "sourceCommit": "4a519c4c1882db9085fe5b4ad345cc1c062e522d",
+        "evidence": "artifacts/verification/2026-09-09-inline-chat-images/release/README.md",
+        "userClosureAuthorized": true
+      }
     }
   }
 }
