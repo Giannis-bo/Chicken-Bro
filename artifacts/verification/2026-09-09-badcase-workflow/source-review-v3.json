@@ -1,0 +1,15 @@
+{
+  "source_sha": "007074a8670fecf2bfa26a7aca4d076984aee344",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "reviewed_files": {
+    "server/app/chickenbro/agent/AGENTS.md": "5916a4170457f4a2c1c8c868e656fc0ad6f4865bc64968588d87f4a016b0e724",
+    "server/app/chickenbro/source_gateway.py": "8de4861c587b3908f3bced8568f9cbdf770281af02832b979f17fbb6ea11dbd5",
+    "server/app/chickenbro/wcl_rankings.py": "b2c77b54dfcc4bab6505c310fb978f14bd9c09a49e90f9654faf79136b466871",
+    "server/chickenbro_native_mcp.py": "c9dcb6a30decbab9971214804004ac2b95f3e4c922c9460328e76bf6a23d9cb3"
+  },
+  "runtime_change": "Exactly four generic rankings files; same contents as prior8c runtime Candidate. Admin backend files and service identities retained from current baseline. New operator connector fixes explicit service password-file passing, real read-only DB preflight, and safe phase/cause diagnostics.",
+  "case_specialization_findings": [],
+  "blocking_findings": [],
+  "review_status": "passed",
+  "verification": "558 backend /63 control /78 badcase checks. Root-cause reproduced read-only then fixed SELECT1 succeeds without global environment mutation. No service stop occurred in failed attempt."
+}
