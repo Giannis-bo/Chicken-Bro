@@ -1,0 +1,142 @@
+{
+  "source_sha": "f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "93d1a1006f7afdee306f0041f10b55287511d70553af7ecbeea4594540c9310b",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "b371b9a184e35ba60441a76e5a560f9167410233fde745aa6d998ce00c54bc33",
+  "status": "failed",
+  "batch_sha256": "201cd05a3a74bc0d94cf9105d57761edfd53b3e34921799bbf91ccc93d0b0052",
+  "stage": "live_ranking_smoke",
+  "reason": "The first production top10 run failed with CODEX_OUTPUT_INVALID at 268.755384 seconds; this was not a breach of the fixed 480-second limit. Candidate acceptance does not override this production failure.",
+  "top10": {
+    "runId": "6f16cb2e-dc61-4181-9cda-c8e486580402",
+    "status": "failed",
+    "error": "CODEX_OUTPUT_INVALID",
+    "started": "2026-09-10T01:56:07.620978+08:00",
+    "finished": "2026-09-10T02:00:36.376362+08:00",
+    "actualSeconds": 268.755384,
+    "toolCount": 36
+  },
+  "production_acceptance": "failed",
+  "workflow_complete": false,
+  "recovery": {
+    "status": "recovery_verified",
+    "stage": "ranking_smoke",
+    "errorCode": "STAGE_FAILED",
+    "errorType": "RuntimeError",
+    "causeTypes": [
+      "RuntimeError"
+    ],
+    "observed_at": "2026-09-09T18:00:38.207445+00:00",
+    "business": {
+      "mode": "production",
+      "source": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "checks": {
+        "retiredBearerAndEndpointCsrf": true,
+        "qqAuthorizationUrl": true,
+        "trueVision": true,
+        "detachedGeneration": true,
+        "accountConcurrency": true,
+        "ownerIsolation": true,
+        "idempotentReplay": true,
+        "realSimcQueueWorkerResult": true,
+        "simcProvenance": true,
+        "simcIdempotencyAndIsolation": true
+      },
+      "chatRunId": "e6e8398b-8c97-4368-be40-6165f0032512",
+      "jobId": "401158bf-4154-4d0e-a379-364d9ff89bf1",
+      "dps": 157845.43488594316,
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "passed": true,
+      "sessionsRevoked": true,
+      "productionIdentitiesCreated": 0
+    }
+  },
+  "independent_recovery": {
+    "observedAt": "2026-09-09T18:05:01.896642+00:00",
+    "backendCurrent": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "webCurrent": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+    "readiness": "ready",
+    "units": {
+      "chickenbro-api": {
+        "pid": 2557217,
+        "active": "active",
+        "cwd": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+        "environmentMatches": true
+      },
+      "chickenbro-worker": {
+        "pid": 2557182,
+        "active": "active",
+        "cwd": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+        "environmentMatches": true
+      }
+    },
+    "publicWeb": {
+      "files": 14,
+      "allHashesMatch": true
+    },
+    "recoveryChat": {
+      "runId": "e6e8398b-8c97-4368-be40-6165f0032512",
+      "status": "succeeded",
+      "error": "",
+      "started": "2026-09-10T02:00:43.574486+08:00",
+      "finished": "2026-09-10T02:00:50.305504+08:00"
+    },
+    "recoverySimc": {
+      "jobId": "401158bf-4154-4d0e-a379-364d9ff89bf1",
+      "status": "succeeded",
+      "metricName": "dps",
+      "metricValue": 157845.43488594316,
+      "provenancePresent": true,
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da"
+    }
+  },
+  "independent_recovery_evidence_sha256": "22811acfd10e1fb5215dd2fd39d436ea2b4de0a92452cf6404d367467d4f35c2",
+  "raw_evidence_sha256": {
+    "recovery-result.json": "52cb9344a790d558a140a472028bea384f900cb0dfd3f73bfd04038e3bc8fa58",
+    "recovery-general.jsonl": "f180dcf563bc711395a124ac602dd3e5bbd988d466c2df367efe5883cc3cc9e7",
+    "recovery-general.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "live-rankings.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "live-rankings.stderr": "a721db3585ef2d08ccc00fcb950725e08d45a370a1ee33543c70f1bc0e6ca3d4"
+  },
+  "diagnostic": {
+    "evidence_sha256": "89b9235c8b3f9dfd7b3aefb5d2d97a97cff2b4e33dd5295d77c0fa88ce4fcce5",
+    "source_receipt_sha256": "7852156c36d0166327e5db8e8426025ebdf1c333a77aed3f2c8bf4c4ad5432f0",
+    "tool_count": 36,
+    "completed_tool_count": 36,
+    "operation_counts": {
+      "source.warcraftlogs": 19,
+      "source.warcraftlogs_batch": 6,
+      "source.warcraftlogs_rankings": 11
+    },
+    "last_source_call_finished": "2026-09-10T01:58:36.64222+08:00",
+    "last_batch_http429_blocked_members": 3,
+    "persisted_draft_chars": 0,
+    "deterministic_evidence_reconstruction": {
+      "succeeded": true,
+      "repair_context_chars": 63600,
+      "repair_context_sha256": "3f976dcdaa53a8a1739226379965e20a7323a35e4ffbd860044e1e88bd7e3323",
+      "group_count": 9,
+      "report_count": 16,
+      "index_truncated": true,
+      "projection_truncated": true,
+      "references_truncated": false
+    },
+    "confirmed": [
+      "Three members of the final source batch were blocked by HTTP429, not OAuth/cache or Recorder-size error in those receipts.",
+      "The complete post-Recorder receipt list can be projected into bounded JSON successfully; no deterministic repair-context serialization or 64000-character overflow reproduced.",
+      "No answer delta was persisted (draft length zero).",
+      "A separate empty job directory appeared 59.979838 seconds before failure."
+    ],
+    "not_established": [
+      "The empty job directory has no persisted run ID or final-output file, so ownership and repair entry remain unproven from this inventory alone.",
+      "The directory timing is compatible with the repair60s limit, but does not prove a repair timeout or distinguish final validation vs patch/schema failure.",
+      "Exact primary final text, validation errors, repair text, primary process exit and repair duration were not saved for this production run.",
+      "HTTP429 is a real source gap; absent final/validation records it cannot be asserted as the direct cause of CODEX_OUTPUT_INVALID."
+    ],
+    "next_step": "Preparing one separately authorized exact-input synthetic HTTP Candidate diagnostic on unchanged source f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3. No diagnostic outcome or production retry is asserted."
+  },
+  "failed_source_blind_retry": "forbidden",
+  "historical_v9_failure": "production-v9-failure-recovery.json",
+  "original_feedback": "unchanged; G6 remains incomplete"
+}
