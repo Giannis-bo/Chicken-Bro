@@ -37,3 +37,5 @@
 ## 发布前新事实
 
 主分支与生产已由其他任务更新为图片输入与 Web-only QQ；当前 G2 验证基于旧版本，不可直接发布。须保护新合同并重新做组合 Candidate。详见本轮 evidence README。
+
+2026-09-09 用户明确授权解决冲突后验证发布。已合并最新 QQ 与图片合同；Worker 使用 Web Principal，图片参数与 owner-scoped 历史保留，并将图片开关同步至 Worker。组合后端 476、PG 102、控制面 62 通过；云端组合验证正在推进。原 Mini/Web 检查只表示此前旧基底 evidence，当前产品验收按 Web-only 进行。

@@ -73,10 +73,9 @@ function publicAuthPath(path: string): boolean {
   const route = pathname.slice(prefix.length)
   return route === '/health/readiness'
     || route === '/me'
-    || route === '/auth/wechat/mini/exchange'
-    || /^\/auth\/wechat\/web\/login-sessions(?:\/[^/]+(?:\/(?:exchange|cancel))?)?$/u.test(route)
+    || route === '/auth/qq/login'
     || (typeof __WOW_TEST_LOGIN__ === 'boolean' && __WOW_TEST_LOGIN__
-      && (route === '/auth/test/mini' || route === '/auth/test/web'))
+      && route === '/auth/test/web')
 }
 
 function hasExplicitCredentialHeader(header: Readonly<Record<string, string>> | undefined): boolean {

@@ -1,0 +1,71 @@
+{
+  "sourceCommit": "57db3afb32ded630dea2ae747f3d6a95515a1500",
+  "productionBuild": true,
+  "files": [
+    {
+      "path": "brand/gugu-v1-16.png",
+      "bytes": 915,
+      "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998"
+    },
+    {
+      "path": "brand/gugu-v1-32.png",
+      "bytes": 2840,
+      "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5"
+    },
+    {
+      "path": "brand/gugu-v1.ico",
+      "bytes": 87395,
+      "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d"
+    },
+    {
+      "path": "chunk/200.js",
+      "bytes": 5032,
+      "sha256": "7da2a91eca7677252178947790e1e5addb63b77fae31150bf2237bcd96be53f5"
+    },
+    {
+      "path": "chunk/200.js.LICENSE.txt",
+      "bytes": 460,
+      "sha256": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418"
+    },
+    {
+      "path": "chunk/477.js",
+      "bytes": 189,
+      "sha256": "c3310dcce8c7411044cf537ca61ed2cd055ae0aa462330e077a7f3f67c8ed44f"
+    },
+    {
+      "path": "css/app.css",
+      "bytes": 95461,
+      "sha256": "27ad5e46aa3e037184f2fa19ed5a52c1a6ada388a425a2d39a2093aa73e5439a"
+    },
+    {
+      "path": "index.html",
+      "bytes": 1287,
+      "sha256": "b5e1bfd5cc5a01456455af63f48c9edf02a165e737e64e14189dd0d309c3931a"
+    },
+    {
+      "path": "js/948.js",
+      "bytes": 130906,
+      "sha256": "e00f721050ccbb5f1927c609e3b515cd7b8c70dcb5d4279635257f3578084dbc"
+    },
+    {
+      "path": "js/948.js.LICENSE.txt",
+      "bytes": 129,
+      "sha256": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310"
+    },
+    {
+      "path": "js/app.js",
+      "bytes": 416977,
+      "sha256": "8113ac5b34193791916fe19a23cd4076c40b27fa252fb533f1948b31f7bc92dd"
+    },
+    {
+      "path": "js/app.js.LICENSE.txt",
+      "bytes": 1310,
+      "sha256": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af"
+    },
+    {
+      "path": "static/images/web/assets/gu-gu-mascot.png",
+      "bytes": 540748,
+      "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+    }
+  ]
+}

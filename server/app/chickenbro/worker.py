@@ -46,7 +46,7 @@ class ChatWorker:
                         started_at,finished_at,idempotency_key FROM chat.agent_runs
                         WHERE id=%s AND user_id=%s""", (run_id,claim['user_id']))
                     run = repository._agent_run_from_row(cur.fetchone())
-            principal = Principal(user_id=claim['user_id'], session_kind='mini_bearer')
+            principal = Principal(user_id=claim['user_id'], session_kind='web_cookie')
             codex = self.codex_factory(claim, connect) if self.codex_factory else self.codex
             application = ChatApplication(repository=repository, codex=codex)
             for event in application.execute_run(principal, run):

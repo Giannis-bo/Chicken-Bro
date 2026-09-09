@@ -148,10 +148,10 @@ class AppApiTest(unittest.TestCase):
                     "target": "rankings", "options": {"limit": value}})
                 self.assertEqual(response.status_code, 422)
 
-    def test_default_readiness_reports_wechat_configuration_without_network_calls(self):
+    def test_default_readiness_reports_qq_configuration_without_network_calls(self):
         settings = AppSettings(
             environment="test",
             database_url="postgresql://redacted",
         )
         states = default_readiness_registry(settings).check_all()
-        self.assertEqual(states["wechat_mini"], ComponentState("unconfigured", "WECHAT_NOT_CONFIGURED"))
+        self.assertEqual(states["qq_connect"], ComponentState("unconfigured", "QQ_NOT_CONFIGURED"))

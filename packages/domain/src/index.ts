@@ -1,11 +1,13 @@
 export * from './simc-workbench'
 export {
+  isChatImage,
   isChatEventEnvelope,
   isConversationDetail,
   isConversationPage,
   isConversationSummary,
 } from './chat'
 export type {
+  ChatImage,
   ChatEventEnvelope,
   ChatMessage,
   ChatMessageRole,
@@ -35,25 +37,18 @@ export type {
   SourceSnapshotView,
 } from './simc'
 export {
-  isConfirmResponse,
   isLogoutResponse,
   isMeResponse,
-  isMiniExchangeResponse,
-  isValidBrowserVerifier,
+  isOfficialQqAuthorizationUrl,
+  isQqLoginCreated,
   isValidIdempotencyKey,
-  isWebLoginCreated,
   isWebLoginExchangeResponse,
-  isWebLoginStatusResponse,
 } from './web-auth'
 export type {
-  ConfirmResponse,
   LogoutResponse,
   MeResponse,
-  MiniExchangeResponse,
-  WebLoginCreated,
+  QqLoginCreated,
   WebLoginExchangeResponse,
-  WebLoginSessionStatus,
-  WebLoginStatusResponse,
 } from './web-auth'
 
 export { isAvatarResponse } from './web-auth'

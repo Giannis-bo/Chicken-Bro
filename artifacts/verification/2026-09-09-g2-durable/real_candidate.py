@@ -23,7 +23,7 @@ from uuid import uuid4
 
 p=argparse.ArgumentParser()
 p.add_argument('--source',required=True)
-p.add_argument('--case',choices=['original','similar','short'],default='original')
+p.add_argument('--case',choices=['original','similar','short','image'],default='original')
 p.add_argument('--database',default='chickenbro_g2_candidate_live_20260909')
 a=p.parse_args()
 if not a.database.startswith('chickenbro_g2_candidate_'):
@@ -42,6 +42,7 @@ if 'PGPASSWORD' not in env:raise RuntimeError('configured role credential unavai
 env.update(WOW_DATABASE_URL=urlunsplit(dsn._replace(path='/'+a.database)),WOW_APP_ENV='test',
     WOW_API_V2_PORT='18790',WOW_CHAT_WORKER_TOOL_PORT='18794',WOW_CHAT_DURABLE_ENABLED='1',WOW_TEST_LOGIN_ENABLED='0',
     WOW_WORKER_V2_HEARTBEAT_PATH='/var/lib/chickenbro/g2-live-worker-heartbeat.json',PYTHONPATH=a.source)
+env['WOW_QQ_REDIRECT_URI']=env.get('WOW_WEB_ORIGIN','https://www.chickenbro.cloud').rstrip('/')+'/test/api/v2/auth/qq/callback'
 os.environ.update(env)
 from server.app.platform.postgres import PostgresConnectionFactory
 from server.app.platform.config import AppSettings
@@ -59,7 +60,7 @@ history=json.loads(subprocess.check_output(['sudo','-n','-u','postgres','psql','
 message=history[-1]['content'][:4000]
 if a.case=='similar':
     message='请基于上面的同一场战斗，复盘奶骑的美德与鸣钟衔接、血线危险窗口和主要治疗技能时机，给出最值得改进的三点。区分已核验事实与尚缺证据，不要把资源溢出直接换算成有效治疗损失。'
-if a.case=='short':
+if a.case in ('short','image'):
     history=[]
     message='请查询国服凤凰之神 Fusionbolt 的职业和专精，简短回答。'
 u=pwd.getpwnam('ubuntu')
@@ -89,12 +90,13 @@ owner,other=uuid4(),uuid4()
 mini,web,other_token=[secrets.token_urlsafe(32) for _ in range(3)]
 with connect() as conn:
     conn.execute('INSERT INTO identity.users(id) VALUES (%s),(%s)',(owner,other))
-    for token,user,kind in [(mini,owner,'mini_bearer'),(web,owner,'web_cookie'),(other_token,other,'mini_bearer')]:
+    for token,user,kind in [(mini,owner,'web_cookie'),(web,owner,'web_cookie'),(other_token,other,'web_cookie')]:
         conn.execute("INSERT INTO identity.auth_sessions(token_hash,user_id,kind,expires_at) VALUES (%s,%s,%s,now()+interval '20 minutes')",(hashlib.sha256(token.encode()).hexdigest(),user,kind))
 def request(path,body=None,key=None,transport='mini'):
-    headers={'Content-Type':'application/json'}
+    headers={'Content-Type':'application/json','Host':'www.chickenbro.cloud','Origin':'https://www.chickenbro.cloud','X-CSRF-Token':'g2-candidate-csrf'}
     if transport=='web':headers['Cookie']='__Host-chickenbro-session='+web
-    else:headers['Authorization']='Bearer '+(other_token if transport=='other' else mini)
+    else:headers['Cookie']='__Host-chickenbro-session='+(other_token if transport=='other' else mini)
+    headers['Cookie']+='; __Host-chickenbro-csrf=g2-candidate-csrf'
     if key:headers['Idempotency-Key']=key
     return urlopen(Request('http://127.0.0.1:18790/api/v2'+path,headers=headers,
         data=json.dumps(body,ensure_ascii=False).encode() if body is not None else None),timeout=30)
@@ -112,6 +114,15 @@ try:
             conn.execute('INSERT INTO chat.messages(id,conversation_id,user_id,role,content,created_at) VALUES (%s,%s,%s,%s,%s,%s)',
                 (uuid4(),conversation,owner,old['role'],old['content'][:4000],old['created_at']))
     body={'content':message,'clientMessageId':str(uuid4())}
+    if a.case=='image':
+        import io,base64
+        from PIL import Image,ImageDraw,ImageFont
+        code=secrets.token_hex(4).upper()
+        pic=Image.new('RGB',(850,250),'white')
+        ImageDraw.Draw(pic).text((30,60),code,fill='black',font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',100))
+        data=io.BytesIO();pic.save(data,format='PNG')
+        uploaded=api('/chat/images',{'dataUrl':'data:image/png;base64,'+base64.b64encode(data.getvalue()).decode()},key=str(uuid4()))
+        body.update(content='这是魔兽插件报错截图。只抄出八位错误码。',imageIds=[uploaded['id']])
     key=str(uuid4())
     started=time.monotonic()
     with request(path+'/messages/stream?includeProgress=true',body,key=key) as response:
@@ -124,7 +135,8 @@ try:
     def tool_started():
         with connect() as conn:
             return conn.execute('SELECT count(*) FROM chat.tool_results WHERE run_id=%s',(run_id,)).fetchone()[0]>0
-    wait(tool_started,120)
+    if a.case!='image':wait(tool_started,120)
+    else:time.sleep(2)
     with connect() as conn:
         assert conn.execute('SELECT status FROM chat.agent_runs WHERE id=%s',(run_id,)).fetchone()[0]=='streaming'
     kill(api_process)
@@ -159,6 +171,7 @@ try:
         assert mini_view==web_view
         answers=[m for m in web_view['messages'] if m['id']==str(state[1])]
         assert len(answers)==1 and answers[0]['content']
+        if a.case=='image':assert code in answers[0]['content'],'actual image code was not recognized'
         try:api(path,transport='other');raise RuntimeError('owner isolation missing')
         except HTTPError as error:assert error.code==404
         with request(path+'/messages/stream',body,key=key) as response:

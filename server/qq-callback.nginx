@@ -1,0 +1,18 @@
+# Insert only inside the www.chickenbro.cloud TLS server during an authorized
+# QQ release. The narrow callback prefix also covers trailing-slash redirects
+# and invalid suffixes, preventing code/state query logging by generic API rules.
+# Does not activate or deploy itself.
+location ^~ /api/v2/auth/qq/callback {
+    access_log off;
+    # Nginx upstream errors can include the full request URL as well.
+    error_log /dev/null;
+    proxy_pass http://127.0.0.1:8790;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_buffering off;
+    proxy_read_timeout 30s;
+}

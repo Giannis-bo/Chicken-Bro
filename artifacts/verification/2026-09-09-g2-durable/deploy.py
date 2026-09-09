@@ -129,7 +129,7 @@ if a.action in ('preflight','stage','promote'):
         raise SystemExit(0)
     selected={key:value for key,value in api_env.items() if key.startswith('WOW_WARCRAFTLOGS_') or key in {
         'CODEX_HOME','WOW_CODEX_HOME','WOW_CODEX_BIN','WOW_CODEX_JOBS_DIR','WOW_CODEX_PROFILE',
-        'WOW_CODEX_RUNTIME_REVISION','WOW_CHICKENBRO_CODEX_ENABLED',
+        'WOW_CODEX_RUNTIME_REVISION','WOW_CHICKENBRO_CODEX_ENABLED','CHICKENBRO_CHAT_IMAGES_ENABLED',
         'HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','NO_PROXY','http_proxy','https_proxy','all_proxy','no_proxy'}}
     if selected.get('WOW_CHICKENBRO_CODEX_ENABLED')!='1':raise RuntimeError('native model is not enabled')
     if any('\n' in value or '\0' in value for value in selected.values()):raise RuntimeError('invalid environment value')

@@ -18,17 +18,18 @@ const activePlans = [
   'docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md',
 ]
 
-test('project state names only the approved dual-client Chat and SimC product', () => {
+test('project state names the approved Web-only QQ Chat and SimC product', () => {
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.schemaVersion, 2)
-  assert.equal(state.activeMilestone, 'chickenbro_v1_0')
+  assert.equal(state.activeMilestone, 'chickenbro_web_only_qq')
   assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
-  assert.deepEqual(state.targetProduct.clients, ['wechat_mini_program', 'web'])
+  assert.deepEqual(state.targetProduct.clients, ['web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
-  assert.match(state.targetProduct.crossClientContract, /same internal user_id/)
-  assert.deepEqual(state.targetProduct.implementationPlans, activePlans)
-  assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, true)
+  assert.match(state.targetProduct.identityContract, /internal user_id/)
+  assert.deepEqual(state.targetProduct.implementationPlans, ['docs/plans/2026-09-09-web-only-qq.md'])
+  assert.deepEqual(state.historicalRebuild.targetProduct.implementationPlans, activePlans)
+  assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
   assert.ok(activePlans.every(exists))
 
   const serialized = JSON.stringify(state)

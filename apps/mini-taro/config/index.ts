@@ -4,7 +4,8 @@ import { defineConfig } from '@tarojs/cli'
 
 const appRoot = path.resolve(__dirname, '..')
 const repositoryRoot = path.resolve(appRoot, '../..')
-const target = process.env['TARO_ENV'] === 'h5' ? 'h5' : 'weapp'
+const target = process.env['TARO_ENV']
+if (target !== 'h5') throw new Error('微信小程序已停止交付；仅支持 H5 构建')
 const configuredOutputRoot = process.env['WOW_TARO_OUTPUT_ROOT']?.trim()
 const outputRoot = configuredOutputRoot || `dist/${target}`
 const isolatedBuild = process.env['WOW_TARO_ISOLATED_BUILD'] === '1'
@@ -37,8 +38,6 @@ const configuredH5PublicPath = process.env['WOW_H5_PUBLIC_PATH']?.trim() || '/'
 if (!/^\/[A-Za-z0-9._/-]*\/?$/u.test(configuredH5PublicPath) || configuredH5PublicPath.includes('//')) {
   throw new Error('WOW_H5_PUBLIC_PATH must be a safe slash-prefixed path')
 }
-const runtimeGitHead = process.env['WOW_WEAPP_RUNTIME_GIT_HEAD']?.trim() ?? ''
-const runtimeSourceHash = process.env['WOW_WEAPP_RUNTIME_SOURCE_HASH']?.trim() ?? ''
 const sharedCompileIncludes = [
   path.join(repositoryRoot, 'packages/domain/src'),
   path.join(repositoryRoot, 'packages/api-client/src'),
@@ -76,8 +75,6 @@ export default defineConfig<'webpack5'>({
     __WOW_API_V2_PREFIX__: JSON.stringify(configuredApiV2Prefix),
     __WOW_WEB_AUTH_API_PREFIX__: JSON.stringify(configuredWebAuthApiPrefix),
     __WOW_WEB_CSRF_COOKIE_NAME__: JSON.stringify(configuredWebCsrfCookieName),
-    __WOW_WEAPP_RUNTIME_GIT_HEAD__: JSON.stringify(runtimeGitHead),
-    __WOW_WEAPP_RUNTIME_SOURCE_HASH__: JSON.stringify(runtimeSourceHash),
   },
   csso: {
     config: {
@@ -99,7 +96,7 @@ export default defineConfig<'webpack5'>({
       mode: 'browser',
       basename: configuredH5PublicPath.replace(/\/+$/u, ''),
       customRoutes: {
-        '/pages/chickenbro/index': ['/', '/simc'],
+        '/pages/web/index': ['/', '/simc', '/pages/chickenbro/index', '/pages/simc/index'],
       },
     },
     devServer: {
@@ -125,26 +122,6 @@ export default defineConfig<'webpack5'>({
         config: {
           namingPattern: 'module',
           generateScopedName: '[name]__[local]___[hash:base64:5]',
-        },
-      },
-    },
-  },
-  mini: {
-    compile: {
-      include: sharedCompileIncludes,
-    },
-    postcss: {
-      cssModules: {
-        enable: true,
-        config: {
-          namingPattern: 'module',
-          generateScopedName: '[name]__[local]___[hash:base64:5]',
-        },
-      },
-      './config/postcss-weapp-compatible.cjs': {
-        enable: true,
-        config: {
-          childTags: ['view', 'text', 'image', 'button'],
         },
       },
     },

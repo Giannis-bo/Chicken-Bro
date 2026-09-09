@@ -50,19 +50,14 @@ describe('formal Taro transport', () => {
           resolveBaseUrl: () => 'https://api.chickenbro.cloud',
           resolveWebBaseUrl: () => 'https://www.chickenbro.cloud',
         }))
-        taro.request.mockResolvedValueOnce({ statusCode: 200, data: {
-          accessToken: 'test-mini-session', expiresAt: '2026-09-06T00:00:00Z',
-        } })
         taro.request.mockResolvedValueOnce({ statusCode: 200, data: { authenticated: true } })
         taro.request.mockResolvedValueOnce({ statusCode: 200, data: { connected: true, displayName: '测试账号 A' } })
-        const mini = await client.loginTestMini('A', 'a'.repeat(32))
         const web = await client.loginTestWeb('A', 'a'.repeat(32))
         const me = await client.me()
-        expect([mini.error, web.error, me.error]).toEqual(['', '', ''])
+        expect([web.error, me.error]).toEqual(['', ''])
         expect(taro.request.mock.calls.map(([request]) => ({
           url: request.url, credentials: request.credentials, header: request.header,
         }))).toEqual([
-          { url: `https://api.chickenbro.cloud${prefix}/auth/test/mini`, credentials: 'omit', header: {} },
           { url: `https://www.chickenbro.cloud${prefix}/auth/test/web`, credentials: 'include', header: {} },
           { url: `https://www.chickenbro.cloud${prefix}/me`, credentials: 'include', header: {} },
         ])
@@ -72,7 +67,7 @@ describe('formal Taro transport', () => {
 
   it('keeps test login disabled in formal builds', async () => {
     const client = createWebAuthClient(createTaroTransport({ resolveBaseUrl: () => 'https://api.chickenbro.cloud' }))
-    expect((await client.loginTestMini('A', 'a'.repeat(32))).fromFallback).toBe(true)
+    expect((await client.loginTestWeb('A', 'a'.repeat(32))).fromFallback).toBe(true)
     expect(taro.request).not.toHaveBeenCalled()
   })
 
@@ -232,12 +227,12 @@ describe('formal Taro transport', () => {
       fallback: () => ({ ready: false }),
       validate: () => true,
     })
-    const login = await transport.request('/api/v2/auth/wechat/web/login-sessions', {
+    const login = await transport.request('/api/v2/auth/qq/login', {
       method: 'POST',
       auth: { kind: 'public' },
       baseUrl: 'web-auth',
       credentials: 'include',
-      fallback: () => ({ sessionId: '' }),
+      fallback: () => ({ authorizationUrl: '' }),
       validate: () => true,
     })
     const rejected = await transport.request('/api/v2/chat/conversations', {

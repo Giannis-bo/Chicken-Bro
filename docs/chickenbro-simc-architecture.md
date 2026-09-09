@@ -1,6 +1,26 @@
+# Chickenbro Web-only / QQ 架构
+
+状态：2026-09-09 已授权重构，当前代码与真实上线验证状态见 [计划](plans/2026-09-09-web-only-qq.md)。
+
+## 当前目标与身份边界
+
+Web 是唯一产品客户端；保留 Taro H5、React、typed domain/API client 及服务端 Chat/SimC/Worker。小程序专用页面不进入 H5 可执行路由，微信换码和扫码确认入口退役。
+
+QQ 网站授权流程：用户点击登录 → 同源 POST 创建随机一次性 state 和 HttpOnly 浏览器绑定 → QQ 官方授权 → 固定后端 callback 校验 state、绑定、时效及应用身份 → 服务端映射 QQ OpenID → 签发 Web Session / CSRF Cookie → 返回网站。
+
+正式回调：`https://www.chickenbro.cloud/api/v2/auth/qq/callback`。错误只使用固定同源页面和有限错误码，不能由客户端任意指定跳转。授权码、AppKey、QQ token 不进入日志、前端响应或业务数据；登录尝试的消费必须在数据库中原子进行，跨进程也只能成功一次。
+
+`identity.users.id` 继续拥有 Chat/SimC 数据。QQ 按 provider/appid/openid 创建单独用户；旧微信历史保留但不迁移、不按昵称头像合并。旧微信认证和 Mini Bearer 不得获得 QQ Web 身份。已有测试账号仅限显式隔离环境。
+
+既有 Web Cookie 的 Secure、HttpOnly、SameSite=Lax、Path=/ 和 Origin/CSRF 写请求防护保留。保留账号级单回复互斥、Chat/SimC 幂等、队列租约、第二用户隔离及云端 SimC 语义验证。
+
+## 历史 1.0 双端架构参考
+
+以下内容解释 1.0 的实现与历史验收；其中 Mini、微信登录、跨端合同均已被上面的当前产品决定取代，不可用于恢复小程序产品或授权删除旧数据。
+
 # 炸鸡队长与 SimC 双端架构
 
-状态：当前执行权威
+状态：历史 1.0 实现参考，当前边界以上文 Web-only / QQ 为准
 
 本架构定义重构后的唯一产品边界：微信小程序和 Web 只提供炸鸡队长会话与 SimC 任务。两端使用不同的客户端会话，但服务端都把它们解析成同一个内部 `user_id`，因此共享同一份服务端业务历史。
 

@@ -6,7 +6,7 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from server.app.identity.application import WebAuthApplication
+from server.app.identity.qq_application import QqAuthApplication
 from server.app.identity.domain import digest
 from server.app.identity.ports import PublicUser
 from server.app.main import create_app
@@ -33,6 +33,12 @@ def settings(**overrides):
 
 
 class MemoryTestIdentity(InMemoryIdentityRepository):
+    def has_qq_identity(self, *, user_id, appid):
+        return False
+
+    def get_qq_profile(self, *, user_id, appid):
+        return {}
+
     def ensure_test_user(self, *, user_id, display_name, now):
         self.users.setdefault(user_id, PublicUser(user_id=user_id, display_name=display_name))
 
@@ -42,7 +48,7 @@ class TestLoginTest(unittest.TestCase):
         self.now = datetime.now(timezone.utc)
         self.repository = MemoryTestIdentity()
         self.config = settings()
-        self.auth = WebAuthApplication(repository=self.repository, wechat_gateway=object(),
+        self.auth = QqAuthApplication(repository=self.repository, qq_gateway=object(),
                                        settings=self.config, clock=lambda: self.now)
         previous, _, _ = build_chat_test_client()
         self.app = create_app(self.config, readiness_registry=ReadinessRegistry({}),
@@ -53,35 +59,33 @@ class TestLoginTest(unittest.TestCase):
         self.client = TestClient(self.app, base_url=ORIGIN)
         self.addCleanup(self.client.close)
 
-    def login(self, kind='mini', account='A', credential=KEY_A, **extra):
+    def login(self, kind='web', account='A', credential=KEY_A, **extra):
         return self.client.post('/api/v2/auth/test/' + kind,
                                 headers={'Origin': ORIGIN},
                                 json={'account': account, 'credential': credential, **extra})
 
-    def test_real_sessions_share_chat_owner_and_other_account_is_isolated(self):
-        mini = self.login()
-        self.assertEqual(mini.status_code, 200)
-        token = mini.json()['accessToken']
-        created = self.client.post('/api/v2/chat/conversations',
-                                  headers={'Authorization': 'Bearer ' + token, 'Idempotency-Key': 'test-login-chat-1'},
-                                  json={'title': '测试跨端历史'})
-        self.assertEqual(created.status_code, 201)
-        web = self.login('web')
+    def test_web_sessions_retain_chat_owner_and_other_account_is_isolated(self):
+        web = self.login()
         self.assertEqual(web.status_code, 200)
         self.assertNotIn('accessToken', web.json())
         self.assertIn('HttpOnly', web.headers['set-cookie'])
         self.assertIn('Secure', web.headers['set-cookie'])
+        csrf = self.client.cookies.get('__Host-chickenbro-csrf')
+        created = self.client.post('/api/v2/chat/conversations',
+            headers={'Origin': ORIGIN, 'X-CSRF-Token':csrf, 'Idempotency-Key':'test-login-chat-1'},
+            json={'title':'测试 Web 历史'})
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(self.login().status_code, 200)
         self.assertIn(created.json()['id'], [r['id'] for r in self.client.get('/api/v2/chat/conversations').json()['items']])
         self.assertEqual(self.client.get('/api/v2/me').json()['displayName'], '测试账号 A')
+        self.assertEqual(self.client.post('/api/v2/chat/conversations', json={'title':'no csrf'}).status_code, 403)
         csrf = self.client.cookies.get('__Host-chickenbro-csrf')
-        self.assertEqual(self.client.post('/api/v2/chat/conversations', json={'title': 'no csrf'}).status_code, 403)
-        self.assertEqual(self.client.post('/api/v2/auth/logout', headers={'Origin': ORIGIN, 'X-CSRF-Token': csrf}).status_code, 200)
+        self.assertEqual(self.client.post('/api/v2/auth/logout', headers={'Origin':ORIGIN, 'X-CSRF-Token':csrf}).status_code, 200)
         self.assertEqual(self.client.get('/api/v2/me').status_code, 401)
-        self.assertEqual(self.client.get('/api/v2/me', headers={'Authorization': 'Bearer ' + token}).status_code, 200)
-        other = self.login(account='B', credential=KEY_B).json()['accessToken']
-        self.assertEqual(self.client.get('/api/v2/chat/conversations/' + created.json()['id'],
-                                        headers={'Authorization': 'Bearer ' + other}).status_code, 404)
+        self.assertEqual(self.login(account='B', credential=KEY_B).status_code, 200)
+        self.assertEqual(self.client.get('/api/v2/chat/conversations/' + created.json()['id']).status_code, 404)
         self.assertEqual(len(self.repository.identities), 0)
+        self.assertEqual(self.login('mini').status_code, 404)
 
     def test_wrong_credential_unknown_account_and_client_owner_are_rejected_without_writes(self):
         for args in ({'credential': KEY_B}, {'account': 'real-user'}, {'user_id': str(uuid4())}):
@@ -98,22 +102,19 @@ class TestLoginTest(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.repository.auth_sessions, {})
 
-    def test_disabled_and_expired_test_sessions_fail_without_affecting_formal_sessions(self):
-        response = self.login()
-        self.assertEqual(response.status_code, 200)
-        token = response.json()['accessToken']
-        principal = self.auth.resolve_principal(token, 'mini_bearer')
-        self.assertIsNotNone(principal)
-        disabled = WebAuthApplication(repository=self.repository, wechat_gateway=object(),
-                                      settings=replace(self.config, test_login_enabled=False), clock=lambda: self.now)
-        self.assertIsNone(disabled.resolve_principal(token, 'mini_bearer'))
-        formal_user = uuid4()
-        self.repository.issue_auth_session(token_hash=digest('formal-token'), user_id=formal_user,
-                                           kind='mini_bearer', expires_at=self.now + timedelta(hours=1))
-        self.assertEqual(disabled.resolve_principal('formal-token', 'mini_bearer').user_id, formal_user)
-        self.assertIsNone(self.auth.resolve_principal(token, 'web_cookie'))
-        self.now += timedelta(days=2)
+    def test_disabled_and_expired_test_sessions_and_legacy_sessions_fail(self):
+        self.assertEqual(self.login().status_code, 200)
+        token = self.client.cookies.get('__Host-chickenbro-session')
+        self.assertIsNotNone(self.auth.resolve_principal(token, 'web_cookie'))
+        disabled = QqAuthApplication(repository=self.repository, qq_gateway=object(),
+            settings=replace(self.config, test_login_enabled=False), clock=lambda:self.now)
+        self.assertIsNone(disabled.resolve_principal(token, 'web_cookie'))
         self.assertIsNone(self.auth.resolve_principal(token, 'mini_bearer'))
+        self.repository.issue_auth_session(token_hash=digest('legacy-token'), user_id=uuid4(),
+            kind='web_cookie', expires_at=self.now + timedelta(hours=1))
+        self.assertIsNone(disabled.resolve_principal('legacy-token', 'web_cookie'))
+        self.now += timedelta(days=2)
+        self.assertIsNone(self.auth.resolve_principal(token, 'web_cookie'))
 
 
 class TestLoginConfigurationTest(unittest.TestCase):

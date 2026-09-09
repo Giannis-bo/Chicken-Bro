@@ -1,5 +1,17 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
+## Web-only / QQ 登录已发布（2026-09-09）
+
+用户已授权 Web-only 与 QQ 重构，并授权云端保存 QQ 凭据。`/etc/chickenbro-qq.env` 已创建，root-owned、mode 0600；包含 `WOW_QQ_APPID`、`WOW_QQ_APP_KEY`、`WOW_QQ_REDIRECT_URI`。已通过 QQ 专用 systemd drop-in 加载并完成正式切换，真实授权、Chat/SimC、数据保留与独立恢复验证见 [QQ 发布记录](../artifacts/verification/2026-09-09-qq-web/deployment/README.md)。不得打印该文件内容。
+
+正式 callback 固定为 `https://www.chickenbro.cloud/api/v2/auth/qq/callback`。后续已获发布授权时，先部署隔离 API/Web 版本并应用 additive QQ migration、保留回滚版本；通过 systemd `EnvironmentFile=/etc/chickenbro-qq.env` 给新 API 加载配置。不要复制密钥到 release 目录、Web 构建变量、Git 或日志。同站点的测试 callback 使用 `/test/api/v2/auth/qq/callback`，候选使用 `/api/v2-candidate/auth/qq/callback`，分别返回 `/test/` 和 `/web-candidate/`；需在 QQ 后台单独登记，Cookie 名称与正式环境隔离。不要把正式 callback 指向候选数据库。测试/候选的 callback 路径及尾斜杠、无效后缀同样必须关闭 query access log。
+
+QQ callback 携带授权码和 state，反向代理需为该 callback 路径前缀关闭 access log（包括尾斜杠重定向和无效后缀） 或采用不包含 query 的脱敏格式（部署片段 `server/qq-callback.nginx`），Nginx error log 也可能附带原始请求 URL，因此该窄路由同时屏蔽 error log，错误排查使用应用的固定错误码与脱敏状态；应用不得记录原始 URL/provider 响应。登录成功/失败响应使用 no-store 和 no-referrer，并重定向回固定站点页面。
+
+本地 fake-provider、配置存在和 readiness 都不证明 QQ 应用审核或真实登录。发布验收需要真实 QQ 授权回调、账号 A/B 隔离、Chat 和 SimC 实际业务。保留旧微信数据，不做绑定、迁移或数据库删除；Mini 不再作为新发布验收或上传对象。
+
+实施与状态见 [当前 QQ 计划](plans/2026-09-09-web-only-qq.md)。后文仍为各次历史部署和恢复记录。
+
 ## 1.0 运维入口（2026-09-08）
 
 1.0 当前实现已获用户验收，当前仓库状态见 [版本说明](releases/1.0.md)。下文带日期的 code/Web 路径、service readiness、容量与清理记录均是当时的快照；其中“当前/现指向”只相对于该记录日期成立。操作前必须重新读取有效 symlink、systemd WorkingDirectory、构建 manifest 和健康状态，不能直接使用最晚一段文字猜当前部署。
@@ -28,7 +40,7 @@
 
 ## 历史运行与操作记录
 
-状态：当前生产操作权威；Phase 5 accepted_write、生产 Chat/SimC 双端业务验收、首条新写入核对和稳定健康窗口均已通过。2026-09-04 用户明确授权不制作独立备份并直接永久清理旧目标；云端与本地旧服务/代码/数据已按精确清单完成清理，最终只剩 main/origin parity 与 WeApp 刷新收尾。
+历史状态（仅适用于 2026-09-04 六阶段退役，不构成本次授权）：Phase 5 accepted_write、生产 Chat/SimC 双端业务验收、首条新写入核对和稳定健康窗口均已通过。2026-09-04 用户明确授权不制作独立备份并直接永久清理旧目标；云端与本地旧服务/代码/数据已按精确清单完成清理，最终只剩 main/origin parity 与 WeApp 刷新收尾。
 
 本 Runbook 规定如何从 legacy `wow_test` 和旧运行单元迁移到干净 `chickenbro_prod`，如何验证双端数据一致，何时可以切流，以及何时仍然禁止删除。执行者必须同时阅读 [当前架构](chickenbro-simc-architecture.md)、[project-state.json](project-state.json) 和对应阶段的 Harness requirement。
 
@@ -572,3 +584,24 @@ Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenb
 正式原始 WCL 链接读取就绪并完成模拟任务 `2110bcab-27da-4614-a6cf-da07590f5c3b`；新天赋还原路径绑定 SimC 源 f50a2121 的节点目录，未知或不同 runtime 拒绝使用旧目录。
 
 回滚须先确认当前 code 指针仍为上述 wcl 目录、入口无流式 Chat 且模拟/队列已排空；停止 API、再次排空再停 Worker，将 `/opt/chickenbro` 原子切回 `/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13`，启动 API/Worker 并核对 readiness 与任务功能。Web 指针和所有现有配置不动。旧代码及新还原快照保留，不反向迁移或清理用户任务。
+
+## 截图输入部署与维护（2026-09-09，已部署）
+
+见 [截图任务](plans/2026-09-09-chat-images.md)。新增迁移 `0007_chat_images` 为私有图片 bytea 与消息 image_ids；禁止把私有图片迁入公共 COS/CDN。依赖 Pillow 12.3.0 已于本轮获准新增与安装，部署环境须先验证其存在和解码测试。默认 `CHICKENBRO_CHAT_IMAGES_ENABLED` 不设置，入口关闭；只有隔离 Candidate 的真实视觉、Web 上传/历史、服务端身份隔离与异常测试通过后方可设置为 `1`（2026-09-09 用户明确免验小程序端）。本机 PATH CLI 0.144.1 不能使用 Astra，本机已有 0.153.4 通过随机图片识别；不可推断服务器版本。
+
+API 网关需对 `/api/v2/chat/images` 上传允许 7 MiB JSON body（base64 膨胀后），应用持续计数拒绝过量 body，原图及规范化图各限 5 MiB。不扩大其他上传入口。图片读响应 `private,no-store`，不可缓存。图片总量限每用户 100 MiB/1000 个有效 payload。
+
+上线时经部署授权配置每日执行 `python -m server.purge_chat_images --apply`；不带 `--apply` 只统计到期 payload 数/字节。仅清空 expires_at 已到期图像字节，保留消息、图片 metadata 和幂等墓碑；未发送 24 小时过期，归档后 7 天到期，归档立即禁止读取。清理未执行不能宣称保留策略已在生产生效。数据库备份会含图片，沿用正式数据库备份与访问控制。
+
+回滚先关闭图片入口，保留迁移和现存图片数据。旧客户端不请求 includeImages，旧服务不查询 image_ids，但纯图消息 content 为空；回退到完全不理解图片的旧服务会丢失纯图问题的模型上下文，应排空活动运行并以保留新读取能力、仅关闭上传/新发送作为首选回滚。不做反向 schema 删除。
+
+当前截图运行源码 `72e6224f2`，服务器 Codex0.153.4 / Pillow12.3.0 通过真实图像识别。`chickenbro-image-retention.service` 必须带 `Environment=WOW_APP_ENV=production`、PYTHONPATH 及正式数据库 EnvironmentFile；其 timer 每日服务器时间04:30执行且 Persistent=true。首次发布因缺环境触发回滚，补齐并独立 dry-run 后上线。实际身份、备份与回滚边界见 [记录](../artifacts/verification/2026-09-09-chat-images/deployment/README.md)。
+
+
+## G2 独立 Chat Worker 发布流程（2026-09-09）
+
+实现与验证见 [G2 计划](plans/2026-09-09-g2-durable-generation.md) 和 [证据](../artifacts/verification/2026-09-09-g2-durable/README.md)。`WOW_CHAT_DURABLE_ENABLED=1` 必须在 API 与 Worker 同时配置；先应用 additive `0008_chat_durable_execution`。Worker 自有工具监听 127.0.0.1:8794，并继承原 API 的 Codex、WCL、代理与图片能力配置；Codex home 只允许既有目录读写。QQ 登录配置与现有 Web 构建保持当前生产身份。
+
+发布脚本绑定 source commit、当前基底、逐文件旧/新 SHA 与完整 staged manifest。持 SHARE 表锁确认 Chat/SimC/queue 均空后停止 API/Worker，应用迁移，再切换代码与本次 drop-in。API 开放准入前失败恢复旧拓扑；开放后需重新排空，不能直接杀掉新任务。回滚保留新增 schema/任务记录，移除仅本次 drop-in，恢复旧代码；API 无法启动时可使用仍运行 Worker 的数据库配置。readiness 之后仍须实际图片和文本生成、历史、隔离与幂等回归。
+
+故障语义：API 重启可继续生成；Worker/原生模型进程中断不声称恢复模型会话，租约过期后明确失败，由用户重试。正常发布必须排空，不把此失败策略当作可随意打断业务的授权。

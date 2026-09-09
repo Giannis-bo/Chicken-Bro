@@ -157,3 +157,16 @@ it('accepts emoji progress using the same Unicode character limit as PostgreSQL'
       progress: { text: '🐔'.repeat(16000), status: 'completed', completedAt: timestamp, durationMs: 0 },
     }] })).toBe(true)
 })
+
+it('accepts image-only user history and rejects malformed or ownership-bearing image metadata', () => {
+  const image = {id: 'image-one', mimeType: 'image/png', width: 2, height: 2}
+  const detail = (images: unknown, role = 'user') => ({
+    id: conversationId, title: '图片', status: 'active', createdAt: timestamp, updatedAt: timestamp,
+    messages: [{id: messageId, role, content: '', createdAt: timestamp, images}],
+  })
+  expect(isConversationDetail(detail([image]))).toBe(true)
+  for (const images of [[], [image, image], [{...image, owner: 'someone'}], [{...image, width: 9000}], [{...image, mimeType: 'image/svg+xml'}]]) {
+    expect(isConversationDetail(detail(images))).toBe(false)
+  }
+  expect(isConversationDetail(detail([image], 'assistant'))).toBe(false)
+})

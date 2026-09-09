@@ -92,6 +92,7 @@ if 'PGPASSWORD' not in env:
 env.update(WOW_DATABASE_URL=urlunsplit(dsn._replace(path='/'+a.database)),WOW_APP_ENV='test',
     WOW_API_V2_PORT='18790',WOW_CHAT_DURABLE_ENABLED='1',WOW_TEST_LOGIN_ENABLED='0',
     WOW_WORKER_V2_HEARTBEAT_PATH='/var/lib/chickenbro/g2-fault-worker-heartbeat.json',PYTHONPATH=a.source)
+env['WOW_QQ_REDIRECT_URI']=env.get('WOW_WEB_ORIGIN','https://www.chickenbro.cloud').rstrip('/')+'/test/api/v2/auth/qq/callback'
 os.environ.update(env)
 from server.app.platform.postgres import PostgresConnectionFactory
 from server.app.platform.config import AppSettings
@@ -125,12 +126,13 @@ owner,other=uuid4(),uuid4()
 mini,web,other_token=[secrets.token_urlsafe(32) for _ in range(3)]
 with connect() as conn:
     conn.execute('INSERT INTO identity.users(id) VALUES (%s),(%s)',(owner,other))
-    for token,user,kind in [(mini,owner,'mini_bearer'),(web,owner,'web_cookie'),(other_token,other,'mini_bearer')]:
+    for token,user,kind in [(mini,owner,'web_cookie'),(web,owner,'web_cookie'),(other_token,other,'web_cookie')]:
         conn.execute("INSERT INTO identity.auth_sessions(token_hash,user_id,kind,expires_at) VALUES (%s,%s,%s,now()+interval '15 minutes')",(hashlib.sha256(token.encode()).hexdigest(),user,kind))
 def request(path,body=None,key=None,transport='mini'):
-    headers={'Content-Type':'application/json'}
+    headers={'Content-Type':'application/json','Host':'www.chickenbro.cloud','Origin':'https://www.chickenbro.cloud','X-CSRF-Token':'g2-candidate-csrf'}
     if transport=='web':headers['Cookie']='__Host-chickenbro-session='+web
-    else:headers['Authorization']='Bearer '+(other_token if transport=='other' else mini)
+    else:headers['Cookie']='__Host-chickenbro-session='+(other_token if transport=='other' else mini)
+    headers['Cookie']+='; __Host-chickenbro-csrf=g2-candidate-csrf'
     if key:headers['Idempotency-Key']=key
     return urlopen(Request('http://127.0.0.1:18790/api/v2'+path,headers=headers,
         data=json.dumps(body).encode() if body is not None else None),timeout=20)

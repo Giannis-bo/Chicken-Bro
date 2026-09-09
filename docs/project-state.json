@@ -1,29 +1,23 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-08",
-  "activeMilestone": "chickenbro_v1_0",
-  "status": "complete",
+  "updatedAt": "2026-09-09",
+  "activeMilestone": "chickenbro_web_only_qq",
+  "status": "in_progress",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
       "simc"
     ],
     "clients": [
-      "wechat_mini_program",
       "web"
     ],
     "identityOwner": "identity.users.id",
-    "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; server-owned Chat and SimC records are therefore visible from both clients.",
-    "specification": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+    "specification": "docs/plans/2026-09-09-web-only-qq.md",
     "implementationPlans": [
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md",
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md",
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
-      "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
+      "docs/plans/2026-09-09-web-only-qq.md"
     ],
-    "candidateDatabaseProvisioningAuthorized": true
+    "candidateDatabaseProvisioningAuthorized": false,
+    "identityContract": "QQ website identities map to internal user_id. Web HttpOnly sessions only; old WeChat data retained without migration or automatic linking."
   },
   "delivery": {
     "phase1": "local_verified",
@@ -72,7 +66,8 @@
       "requiresPhase5Acceptance": false,
       "requiresWhitelistRestoreVerification": true,
       "protectsWowTest": true
-    }
+    },
+    "scope": "historical_six_phase_rebuild_only"
   },
   "refactorEvidence": {
     "localInventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
@@ -195,5 +190,73 @@
     "latestMiniVersion": "1.0.5",
     "latestMiniUpload": "succeeded",
     "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1"
+  },
+  "historicalRebuild": {
+    "asOf": "2026-09-08",
+    "targetProduct": {
+      "businessDomains": [
+        "chickenbro_chat",
+        "simc"
+      ],
+      "clients": [
+        "wechat_mini_program",
+        "web"
+      ],
+      "identityOwner": "identity.users.id",
+      "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; server-owned Chat and SimC records are therefore visible from both clients.",
+      "specification": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+      "implementationPlans": [
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
+      ],
+      "candidateDatabaseProvisioningAuthorized": true
+    },
+    "note": "Historical dual-client authorization and evidence; not authority for the QQ refactor or new deletion."
+  },
+  "qqWebRefactor": {
+    "status": "live_verified",
+    "implementationAuthorized": true,
+    "historyPolicy": "retain_without_migration",
+    "cloudSecretSaved": true,
+    "cloudSecretFile": "/etc/chickenbro-qq.env",
+    "applicationReview": "approved_verified_in_qq_console_2026-09-09",
+    "productionCutoverAuthorized": true,
+    "productionDeployed": true,
+    "realQqLoginVerified": true,
+    "miniProduct": "retired_from_live_runtime_and_build",
+    "plan": "docs/plans/2026-09-09-web-only-qq.md",
+    "verificationRecord": "artifacts/verification/2026-09-09-qq-web/deployment/README.md",
+    "localSourceCommit": "7a893c383d09f1a3a46e2d5cea66309bf7a74cff",
+    "candidateProvisioningAuthorized": true,
+    "registeredCallbacks": [
+      "https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
+      "https://www.chickenbro.cloud/api/v2/auth/qq/callback"
+    ],
+    "manualUserAcceptance": "not_claimed",
+    "avatarFix": {
+      "status": "live_verified",
+      "sourceCommit": "a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+      "evidence": "artifacts/verification/2026-09-09-qq-web/deployment/avatar-fix.json"
+    }
+  },
+  "incrementalWork": {
+    "chatImages": {
+      "status": "live_verified",
+      "plan": "docs/plans/2026-09-09-chat-images.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "userAcceptance": "not_run",
+      "evidence": "artifacts/verification/2026-09-09-chat-images/README.md",
+      "miniVerification": "user_waived_2026-09-09",
+      "dependencyInstallationAuthorized": true,
+      "sourceCommit": "72e6224f21eb0d5fb0635237d454eebe8b845884",
+      "productionEvidence": "artifacts/verification/2026-09-09-chat-images/deployment/README.md",
+      "remoteConflictResolutionAuthorized": true,
+      "miniUpload": "not_run_this_task"
+    }
   }
 }

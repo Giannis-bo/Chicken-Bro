@@ -246,10 +246,10 @@ def default_readiness_registry(
 ) -> ReadinessRegistry:
     source_env = os.environ if env is None else env
     database = database_probe(PostgresConnectionFactory(settings))
-    wechat = (
+    qq = (
         ComponentState("ready", "")
-        if settings.wechat_appid and settings.wechat_secret
-        else ComponentState("unconfigured", "WECHAT_NOT_CONFIGURED")
+        if settings.qq_appid and settings.qq_app_key and settings.qq_redirect_uri
+        else ComponentState("unconfigured", "QQ_NOT_CONFIGURED")
     )
     return ReadinessRegistry({
         "database": database,
@@ -258,5 +258,5 @@ def default_readiness_registry(
         "raiderio": raiderio_probe,
         "warcraftlogs": lambda: warcraftlogs_probe(source_env),
         "simc": lambda: simc_probe(source_env),
-        "wechat_mini": lambda: wechat,
+        "qq_connect": lambda: qq,
     })

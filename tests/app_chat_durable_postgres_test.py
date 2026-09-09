@@ -22,7 +22,7 @@ class DurableChatPostgresTest(unittest.TestCase):
         self.owner = uuid4()
         with self.connect() as conn:
             conn.execute('INSERT INTO identity.users(id) VALUES (%s)', (self.owner,))
-        self.principal = Principal(user_id=self.owner, session_kind='mini_bearer')
+        self.principal = Principal(user_id=self.owner, session_kind='web_cookie')
         self.repository = PostgresChatRepository(self.connect, durable=True)
         self.codex = FakeCodex([{'type': 'delta', 'text': '唯一回答'}, {'type': 'completed'}])
         self.app = ChatApplication(repository=self.repository, codex=self.codex)
@@ -73,6 +73,31 @@ class DurableChatPostgresTest(unittest.TestCase):
             self.app.load_conversation(other, self.conversation.id)
         with self.connect() as conn:
             self.assertEqual(conn.execute('SELECT stage FROM chat.executions WHERE run_id=%s', (run_id,)).fetchone(), ('succeeded',))
+
+    def test_image_admission_reaches_independent_worker_and_replays_once(self):
+        from server.app.chickenbro.images import NormalizedImage
+        from server.app.chickenbro.worker import ChatWorker
+        from unittest.mock import patch
+        image = self.repository.save_image(self.owner, 'durable-image',
+            NormalizedImage(b'pixels', 'image/png', 2, 3), datetime.now(timezone.utc))
+        seen = []
+        class Vision:
+            runtime_revision = 'vision-durable-test'
+            def stream(self, **kwargs):
+                seen.append(kwargs)
+                yield {'type':'completed', 'text':'持久化图片回答'}
+        app = ChatApplication(repository=self.repository, codex=Vision(), images_enabled=True)
+        args = dict(client_message_id='image-client', idempotency_key='image-message', image_ids=(image['id'],))
+        delivery = app.start_delivery(self.principal, self.conversation.id, '', **args)
+        next(delivery)
+        delivery.close()
+        self.assertEqual(seen, [])
+        with patch.dict(os.environ, {'CHICKENBRO_CHAT_IMAGES_ENABLED':'1'}):
+            ChatWorker(self.connect, Vision()).run_once()
+        self.assertEqual(seen[0]['images'], ['data:image/png;base64,cGl4ZWxz'])
+        self.assertEqual(list(app.start_delivery(self.principal, self.conversation.id, '', **args))[-1].text, '持久化图片回答')
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(app.load_conversation(self.principal,self.conversation.id)['messages'][0]['images'],[image])
 
     def test_expired_execution_fails_without_replaying_model_and_rejects_old_writer(self):
         from server.app.chickenbro.durable import PostgresChatExecutions, ChatLeaseLost

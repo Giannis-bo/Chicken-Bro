@@ -19,6 +19,24 @@
       ]
     },
     {
+      "id": "chat-image-input",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized private screenshot input and validation; not production accepted.",
+      "paths": [
+        "docs/plans/2026-09-09-chat-images.md",
+        "server/purge_chat_images.py",
+        "server/migrations/product/0007_chat_images.sql",
+        "tests/app_chat_images_test.py",
+        "tests/app_chat_images_postgres_test.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-chat-images/",
+        "artifacts/verification/2026-09-09-inline-chat-images/"
+      ]
+    },
+    {
       "id": "badcase-local-verification",
       "disposition": "keep",
       "category": "target-verification",
@@ -31,6 +49,27 @@
         "artifacts/verification/2026-09-09-badcase-g5/",
         "artifacts/verification/2026-09-09-badcase-inventory/",
         "artifacts/releases/2026-09-09-badcase/"
+      ]
+    },
+    {
+      "id": "web-only-qq-login",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "identity and web_client",
+      "reason": "User-approved Web-only QQ identity refactor; preserve historical WeChat data and new verification artifacts.",
+      "paths": [
+        "docs/plans/2026-09-09-web-only-qq.md",
+        "tests/app_qq_login_test.py",
+        "tests/app_qq_postgres_test.py",
+        "server/migrations/product/0007_qq_web_login.sql",
+        "server/qq-callback.nginx",
+        "server/app/identity/qq_application.py",
+        "server/app/integrations/qq_connect.py",
+        "apps/mini-taro/src/pages/web/index.tsx",
+        "apps/mini-taro/src/pages/web/index.config.ts"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-qq-web/"
       ]
     },
     {

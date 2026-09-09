@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "build:h5": "taro build --type h5",
-    "build:weapp": "node ../../scripts/build-weapp-safely.js",
+    "build:weapp": "node -e \"console.error('微信小程序已停止交付；仅支持 H5 构建'); process.exit(1)\"",
     "dev:h5": "taro build --type h5 --watch",
-    "dev:weapp": "taro build --type weapp --watch"
+    "dev:weapp": "node -e \"console.error('微信小程序已停止交付；仅支持 H5 开发'); process.exit(1)\""
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",

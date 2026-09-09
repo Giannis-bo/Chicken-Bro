@@ -111,28 +111,6 @@ describe('Web business tabs during a chat reply', () => {
     expect(container.querySelector('dialog')).toBeNull()
   })
 
-  it('enlarges the Mini Program artwork and restores focus after dismissal without changing the chat', async () => {
-    const trigger = container.querySelector<HTMLButtonElement>('button[aria-label="放大小程序码"]')!
-    expect(trigger).not.toBeNull()
-    trigger.focus()
-    await act(async () => trigger.click())
-    let dialog = container.querySelector<HTMLDialogElement>('dialog')!
-    expect(dialog.open).toBe(true)
-    expect(dialog.querySelector('img')?.src).toBe(trigger.querySelector('img')?.src)
-    await act(async () => dialog.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true })))
-    expect(container.querySelector('dialog')).toBeNull()
-    expect(document.activeElement).toBe(trigger)
-    await act(async () => trigger.click())
-    await click('关闭小程序码')
-    expect(container.querySelector('dialog')).toBeNull()
-    await act(async () => trigger.click())
-    dialog = container.querySelector<HTMLDialogElement>('dialog')!
-    await act(async () => dialog.click())
-    expect(container.querySelector('dialog')).toBeNull()
-    expect(api.get).toHaveBeenCalledTimes(1)
-    expect(abort).not.toHaveBeenCalled()
-  })
-
   it('refreshes the shared avatar on focus and keeps the menu usable after image failure', async () => {
     const image = 'data:image/png;base64,iVBORw0KGgoAAA=='
     expect(container.querySelector('button[aria-label="账户菜单"] svg')).not.toBeNull()

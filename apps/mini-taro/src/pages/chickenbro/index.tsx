@@ -1,3 +1,5 @@
+import { ChatImages, ChatImageDrafts } from '../../components/ChatImages'
+import { useChatImages } from '../../features/chat/use-chat-images'
 import ChatReplyDetails from '../../components/ChatReplyDetails'
 import ChatFeedback from '../../components/ChatFeedback'
 import { MiniHelpActions } from '../../components/MiniHelp'
@@ -21,6 +23,8 @@ function ChickenbroPage() {
   const model = useMemo(() => new ChatModel(wowApi.chat, () => sessions.createAuthContext()), [sessions])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
+  const imageAuth = useMemo(() => { try { return sessions.createAuthContext() } catch { return null } }, [sessions, state.phase])
+  const imageDraft = useChatImages(() => sessions.createAuthContext(), Boolean(imageAuth))
   const inputSession = useRef(0)
   const renderedInputSession = inputSession.current
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -86,7 +90,7 @@ function ChickenbroPage() {
   }, [state.phase])
 
   const send = async () => {
-    if (sending.current || busy || !draft.trim() || state.phase !== 'ready') return
+    if (sending.current || busy || (!draft.trim() && !imageDraft.items.length) || imageDraft.pending || state.phase !== 'ready') return
     sending.current = true
     setPreparing(true)
     const content = draft.trim()
@@ -95,14 +99,14 @@ function ChickenbroPage() {
         const created = await model.create(content.slice(0, 32))
         if (!created || !mounted.current) return
       }
-      const task = model.send(content)
-      if (task) {
+      model.send(content, imageDraft.images, () => {
         // Replace the native editor and reject late IME events from the sent draft.
         inputSession.current += 1
-        setDraft('')
+        setDraft(current => current.trim() === content ? '' : current)
+        imageDraft.clear()
         setFollowing(true)
         void Taro.hideKeyboard?.().catch(() => undefined)
-      }
+      })
     } finally { sending.current = false; if (mounted.current) setPreparing(false) }
   }
   const retry = () => {
@@ -114,14 +118,14 @@ function ChickenbroPage() {
   }
   const startNew = async () => {
     if (preparing || state.phase === 'loading') return
-    if (draft.trim()) {
+    if (draft.trim() || imageDraft.items.length) {
       const answer = await Taro.showModal({ title: '新建对话', content: '当前还有未发送的内容。新建后将清空输入框。', confirmText: '新建' })
       if (!answer.confirm || !mounted.current) return
     }
     setPreparing(true)
     try {
       const created = await model.create()
-      if (created && mounted.current) { setDraft(''); setHistoryOpen(false); setFollowing(true) }
+      if (created && mounted.current) { setDraft(''); imageDraft.discard(); setHistoryOpen(false); setFollowing(true) }
     } finally { if (mounted.current) setPreparing(false) }
   }
 
@@ -195,11 +199,13 @@ function ChickenbroPage() {
           {message.role === 'assistant' ? <ChatReplyDetails text={message.progress?.text ?? ''}
             status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
             durationMs={message.progress?.durationMs ?? null} /> : null}
+          {imageAuth ? <ChatImages images={message.images} auth={imageAuth} /> : null}
           <MiniMessage content={message.content} markdown={message.role !== 'user'} />
           {message.role === 'assistant' && message.resolved !== undefined ? <ChatFeedback
             resolved={message.resolved} onSubmit={choice => model.setFeedback(message.id, choice)} /> : null}
         </View>)}
-        {state.pendingUserContent ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
+        {state.pendingUserContent || state.pendingUserImages.length ? <View className={styles['userMessage'] ?? ''} data-persisted="false">
+          {imageAuth ? <ChatImages images={state.pendingUserImages} auth={imageAuth} /> : null}
           <Text className={styles['messageRole'] ?? ''}>我</Text><MiniMessage content={state.pendingUserContent} />
         </View> : null}
         {state.phase === 'sending' || state.streamProgress || state.streamText || state.streamCompletedAt ? <View className={styles['assistantMessage'] ?? ''} data-persisted="false">
@@ -226,13 +232,16 @@ function ChickenbroPage() {
       <Text>{state.errorMessage || '会话暂不可用'}</Text>
       <Button className={styles['secondaryButton'] ?? ''} onClick={retry}>{state.phase === 'signed_out' ? '重新登录' : '重新读取历史'}</Button>
     </View> : null}
+    <ChatImageDrafts items={imageDraft.items} disabled={busy} remove={imageDraft.remove} retry={imageDraft.retry} />
+    {imageDraft.error ? <Text>{imageDraft.error}</Text> : null}
+    {imageDraft.enabled ? <Button disabled={busy || imageDraft.items.length >= 3} onClick={() => void imageDraft.choose()}>＋ 图片</Button> : null}
     <View className={styles['composer'] ?? ''}>
       <Textarea key={renderedInputSession} className={styles['textarea'] ?? ''} maxlength={4000} placeholder="发消息给鸡哥…" value={draft}
         autoHeight adjustPosition cursorSpacing={24} holdKeyboard confirmType="send" showConfirmBar={false}
         disabled={preparing} onConfirm={() => void send()} onInput={(event) => {
           if (renderedInputSession === inputSession.current) setDraft(event.detail.value)
         }} />
-      <Button className={styles['sendButton'] ?? ''} disabled={busy || !draft.trim() || state.phase !== 'ready'}
+      <Button className={styles['sendButton'] ?? ''} disabled={busy || (!draft.trim() && !imageDraft.items.length) || imageDraft.pending || state.phase !== 'ready'}
         onClick={() => void send()}>{state.phase === 'sending' ? '回复中' : '发送'}</Button>
     </View>
     {draft.length > 3600 ? <Text className={styles['composerHint'] ?? ''}>{draft.length}/4000</Text> : null}

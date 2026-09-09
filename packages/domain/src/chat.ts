@@ -16,7 +16,24 @@ export interface ChatProgress {
   durationMs: number | null
 }
 
+export interface ChatImage {
+  id: string
+  mimeType: 'image/png' | 'image/jpeg'
+  width: number
+  height: number
+}
+
+export function isChatImage(value: unknown): value is ChatImage {
+  return record(value) && exactKeys(value, ['id', 'mimeType', 'width', 'height'])
+    && nonEmptyString(value['id'], 128)
+    && (value['mimeType'] === 'image/png' || value['mimeType'] === 'image/jpeg')
+    && positiveInteger(value['width']) && value['width'] <= 8192
+    && positiveInteger(value['height']) && value['height'] <= 8192
+    && value['width'] * value['height'] <= 20000000
+}
+
 export interface ChatMessage {
+  images?: readonly ChatImage[]
   // Present only when the server has a completed, feedback-eligible answer.
   resolved?: boolean | null
   progress?: ChatProgress
@@ -102,13 +119,18 @@ function isProgress(value: unknown): value is ChatProgress {
 function isChatMessage(value: unknown): value is ChatMessage {
   if (!record(value) || !exactKeys(value, ['id', 'role', 'content', 'createdAt',
     ...('resolved' in value ? ['resolved'] : []),
-    ...('progress' in value ? ['progress'] : [])])) return false
+    ...('progress' in value ? ['progress'] : []),
+    ...('images' in value ? ['images'] : [])])) return false
+  if ('images' in value && (value['role'] !== 'user' || !Array.isArray(value['images'])
+    || value['images'].length < 1 || value['images'].length > 3 || !value['images'].every(isChatImage)
+    || new Set(value['images'].map(image => image.id)).size !== value['images'].length)) return false
   if ('resolved' in value && (value['role'] !== 'assistant'
     || (value['resolved'] !== null && typeof value['resolved'] !== 'boolean'))) return false
   if ('progress' in value && (value['role'] !== 'assistant' || !isProgress(value['progress']))) return false
   return nonEmptyString(value['id'], 128)
     && (value['role'] === 'user' || value['role'] === 'assistant')
     && (nonEmptyString(value['content'], 100000)
+      || (value['content'] === '' && Array.isArray(value['images']) && value['images'].length > 0)
       || (value['content'] === '' && isProgress(value['progress']) && value['progress'].status === 'failed'))
     && isoDate(value['createdAt'])
 }

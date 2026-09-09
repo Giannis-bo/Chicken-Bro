@@ -22,6 +22,9 @@ class AppSettings:
     web_csrf_cookie_name: str = "__Host-chickenbro-csrf"
     web_login_ttl_seconds: int = 300
     web_session_ttl_seconds: int = 604800
+    qq_appid: str = ""
+    qq_app_key: str = field(default="", repr=False)
+    qq_redirect_uri: str = ""
     wechat_appid: str = ""
     wechat_secret: str = field(default="", repr=False)
     wechat_page: str = "pages/auth/web-login-confirm"
@@ -31,7 +34,28 @@ class AppSettings:
     test_login_a_sha256: str = field(default="", repr=False)
     test_login_b_sha256: str = field(default="", repr=False)
 
+    @property
+    def qq_callback_path(self) -> str:
+        prefix = {"test": "/test/api/v2", "candidate": "/api/v2-candidate"}.get(self.environment, "/api/v2")
+        return prefix + "/auth/qq/callback"
+
+    @property
+    def qq_landing_path(self) -> str:
+        return {"test": "/test/", "candidate": "/web-candidate/"}.get(self.environment, "/")
+
+    @property
+    def qq_binding_cookie_name(self) -> str:
+        return self.web_cookie_name + "-qq-login"
+
     def __post_init__(self) -> None:
+        if self.qq_appid and re.fullmatch(r"[0-9]{1,32}", self.qq_appid) is None:
+            raise ValueError("QQ appid must be numeric")
+        if self.qq_redirect_uri or self.qq_appid or self.qq_app_key:
+            origin = urlparse(self.web_origin)
+            if (origin.scheme != "https" or not origin.netloc or origin.username or origin.password
+                    or origin.path not in {"", "/"} or origin.query or origin.fragment
+                    or self.qq_redirect_uri != self.web_origin.rstrip("/") + self.qq_callback_path):
+                raise ValueError("QQ callback must be the exact HTTPS same-origin callback")
         if not self.test_login_enabled:
             return
         parsed = urlparse(self.database_url)
@@ -154,6 +178,9 @@ class AppSettings:
             web_csrf_cookie_name=web_csrf_cookie_name,
             web_login_ttl_seconds=web_login_ttl_seconds,
             web_session_ttl_seconds=web_session_ttl_seconds,
+            qq_appid=env.get("WOW_QQ_APPID", "").strip(),
+            qq_app_key=env.get("WOW_QQ_APP_KEY", "").strip(),
+            qq_redirect_uri=env.get("WOW_QQ_REDIRECT_URI", "").strip(),
             wechat_appid=env.get("WOW_WECHAT_APPID", "").strip(),
             wechat_secret=env.get("WOW_WECHAT_SECRET", "").strip(),
             wechat_page=wechat_page,

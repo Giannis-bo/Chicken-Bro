@@ -1,18 +1,12 @@
 import {
-  isConfirmResponse,
+  isQqLoginCreated,
   isLogoutResponse,
   isMeResponse,
-  isMiniExchangeResponse,
-  isWebLoginCreated,
   isWebLoginExchangeResponse,
-  isWebLoginStatusResponse,
-  type ConfirmResponse,
+  type QqLoginCreated,
   type MeResponse,
-  type MiniExchangeResponse,
   type LogoutResponse,
-  type WebLoginCreated,
   type WebLoginExchangeResponse,
-  type WebLoginStatusResponse,
 } from '@wow-mini/domain'
 
 import type { ApiResult, ApiTransport } from './transport'
@@ -23,16 +17,10 @@ import { apiV2Path } from './api-v2-prefix'
 declare const __WOW_WEB_CSRF_COOKIE_NAME__: string
 
 export interface WebAuthClient {
-  loginTestMini(account: 'A' | 'B', credential: string): Promise<ApiResult<MiniExchangeResponse>>
+  createQqLogin(): Promise<ApiResult<QqLoginCreated>>
   loginTestWeb(account: 'A' | 'B', credential: string): Promise<ApiResult<WebLoginExchangeResponse>>
-  createWebLoginSession(browserVerifier: string, idempotencyKey: string): Promise<ApiResult<WebLoginCreated>>
-  statusWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginStatusResponse>>
-  exchangeWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginExchangeResponse>>
-  cancelWebLoginSession(sessionId: string, browserVerifier: string): Promise<ApiResult<WebLoginStatusResponse>>
-  exchangeMiniCode(code: string): Promise<ApiResult<MiniExchangeResponse>>
-  confirmMiniWebLogin(sceneTicket: string, accessToken: string): Promise<ApiResult<ConfirmResponse>>
-  me(auth?: ClientAuthContext): Promise<ApiResult<MeResponse>>
-  logout(auth?: ClientAuthContext): Promise<ApiResult<LogoutResponse>>
+  me(auth?: Extract<ClientAuthContext, { kind: 'web' }>): Promise<ApiResult<MeResponse>>
+  logout(auth?: Extract<ClientAuthContext, { kind: 'web' }>): Promise<ApiResult<LogoutResponse>>
 }
 
 const DEFAULT_WEB_CSRF_COOKIE = '__Host-chickenbro-csrf'
@@ -88,11 +76,10 @@ function webRequest<T>(transport: ApiTransport, path: string, options: {
 
 export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
   return {
-    loginTestMini(account, credential) {
-      return webRequest(transport, apiV2Path('/auth/test/mini'), {
-        method: 'POST', data: { account, credential }, credentials: 'omit',
-        auth: { kind: 'public' }, baseUrl: 'default',
-        fallback: () => ({ accessToken: '', expiresAt: '' }), validate: isMiniExchangeResponse,
+    createQqLogin() {
+      return webRequest(transport, apiV2Path('/auth/qq/login'), {
+        method: 'POST', data: {}, credentials: 'include', auth: { kind: 'public' },
+        fallback: () => ({ authorizationUrl: '' }), validate: isQqLoginCreated,
       })
     },
     loginTestWeb(account, credential) {
@@ -102,84 +89,21 @@ export function createWebAuthClient(transport: ApiTransport): WebAuthClient {
         fallback: () => ({ authenticated: true }), validate: isWebLoginExchangeResponse,
       })
     },
-    createWebLoginSession(browserVerifier, idempotencyKey) {
-      return webRequest(transport, apiV2Path('/auth/wechat/web/login-sessions'), {
-        method: 'POST',
-        data: { browserVerifier },
-        header: { 'Idempotency-Key': idempotencyKey },
-        credentials: 'include',
-        auth: { kind: 'public' },
-        fallback: () => ({ sessionId: '', expiresAt: '', qrDataUrl: '' }),
-        validate: isWebLoginCreated,
-      })
-    },
-    statusWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}`), {
-        header: { 'X-Web-Login-Verifier': browserVerifier },
-        credentials: 'include',
-        auth: { kind: 'public' },
-        fallback: () => ({ status: 'expired', expiresAt: '' }),
-        validate: isWebLoginStatusResponse,
-      })
-    },
-    exchangeWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/exchange`), {
-        method: 'POST',
-        header: { 'X-Web-Login-Verifier': browserVerifier },
-        credentials: 'include',
-        auth: { kind: 'public' },
-        fallback: () => ({ authenticated: true }),
-        validate: isWebLoginExchangeResponse,
-      })
-    },
-    cancelWebLoginSession(sessionId, browserVerifier) {
-      return webRequest(transport, apiV2Path(`/auth/wechat/web/login-sessions/${encodeURIComponent(sessionId)}/cancel`), {
-        method: 'POST',
-        header: { 'X-Web-Login-Verifier': browserVerifier },
-        credentials: 'include',
-        auth: { kind: 'public' },
-        fallback: () => ({ status: 'cancelled', expiresAt: '' }),
-        validate: isWebLoginStatusResponse,
-      })
-    },
-    exchangeMiniCode(code) {
-      return webRequest(transport, apiV2Path('/auth/wechat/mini/exchange'), {
-        method: 'POST',
-        data: { code },
-        credentials: 'omit',
-        auth: { kind: 'public' },
-        baseUrl: 'default',
-        fallback: () => ({ accessToken: '', expiresAt: '' }),
-        validate: isMiniExchangeResponse,
-      })
-    },
-    confirmMiniWebLogin(sceneTicket, accessToken) {
-      return webRequest(transport, apiV2Path('/auth/wechat/mini/web-login-confirm'), {
-        method: 'POST',
-        data: { sceneTicket },
-        credentials: 'omit',
-        auth: { kind: 'mini', accessToken },
-        baseUrl: 'default',
-        fallback: () => ({ confirmed: true }),
-        validate: isConfirmResponse,
-      })
-    },
     me(auth) {
       return webRequest(transport, apiV2Path('/me'), {
-        credentials: auth?.kind === 'mini' ? 'omit' : 'include',
+        credentials: 'include',
         auth: auth ?? { kind: 'public' },
-        baseUrl: auth?.kind === 'mini' ? 'default' : 'web-auth',
+        baseUrl: 'web-auth',
         fallback: () => ({ connected: true, displayName: '' }),
         validate: isMeResponse,
       })
     },
     logout(auth = { kind: 'web', csrfToken: readWebCsrfCookie() }) {
-      const credentials = auth.kind === 'web' ? 'include' : 'omit'
       return webRequest(transport, apiV2Path('/auth/logout'), {
         method: 'POST',
-        credentials,
+        credentials: 'include',
         auth,
-        baseUrl: auth.kind === 'web' ? 'web-auth' : 'default',
+        baseUrl: 'web-auth',
         fallback: () => ({ loggedOut: true }),
         validate: isLogoutResponse,
       })

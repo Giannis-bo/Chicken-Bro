@@ -2,178 +2,99 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-vi.mock('@wow-mini/api-client', () => ({
-  wowApi: { webAuth: {} }, readWebCsrfCookie: () => 'test-csrf',
-}))
-vi.mock('./WebShell', () => ({ default: ({ onLogout }: { onLogout: () => void }) => createElement('div', {}, '已进入对话与模拟', createElement('button', { onClick: onLogout }, '退出登录')) }))
-vi.mock('../features/auth/TestLoginForm', () => ({ default: () => createElement('div', {}, '测试账号入口') }))
-vi.mock('@tarojs/components', async () => {
-  const { createElement: element } = await import('react')
-  const host = (tag: string) => (props: Record<string, unknown>) => element(tag,
-    Object.fromEntries(Object.entries(props).filter(([key]) =>
-      ['children', 'onClick', 'disabled', 'className', 'id', 'src', 'alt'].includes(key)
-      || key.startsWith('data-') || key.startsWith('aria-'))))
-  return { View: host('div'), Text: host('span'), Button: host('button'), Image: host('img') }
-})
-
-import WebApp from './WebApp'
 import type { WebAuthClient } from '@wow-mini/api-client'
 
-const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
+vi.mock('@wow-mini/api-client', () => ({
+  readWebCsrfCookie: () => 'csrf-value',
+  wowApi: { webAuth: {} },
+}))
+vi.mock('./WebShell', () => ({ default: ({ accountLabel, avatarUrl, onLogout }: { accountLabel: string; avatarUrl?: string; onLogout: () => void }) => createElement('div', {}, accountLabel, avatarUrl ? createElement('img', { src: avatarUrl }) : null, createElement('button', { onClick: onLogout }, '退出登录')) }))
+vi.mock('../features/auth/TestLoginForm', () => ({ default: () => createElement('div', {}, '测试账号入口') }))
+vi.mock('@tarojs/components', async () => { const { createElement: h } = await import('react'); return { View: (p: object) => h('div', p), Text: (p: object) => h('span', p), Button: (p: object) => h('button', p) } })
+
+import WebApp from './WebApp'
+
+const ok = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
 const signedOut = { payload: null, fromFallback: true, error: '', httpStatus: 401, problemCode: 'AUTH_REQUIRED' }
-const qrDataUrl = 'data:image/jpeg;base64,/9j/2Q=='
-const sessionId = '12345678-1234-4234-8234-123456789012'
+const officialUrl = 'https://graph.qq.com/oauth2.0/authorize?client_id=1905584243&state=abc'
 
-describe('unauthenticated Web home', () => {
-  let container: HTMLDivElement
-  let root: Root
-  let auth: WebAuthClient
-  let expiresAt: string
-
+describe('Web QQ login home', () => {
+  let container: HTMLDivElement; let root: Root; let auth: WebAuthClient; let navigate: (url: string) => void
   beforeEach(() => {
-    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-    vi.stubGlobal('__WOW_TEST_LOGIN__', false)
-    vi.useFakeTimers()
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); vi.stubGlobal('__WOW_TEST_LOGIN__', false)
+    document.cookie = '__Host-chickenbro-csrf=csrf-value; path=/'
     window.history.replaceState(null, '', '/')
-    sessionStorage.clear()
-    expiresAt = new Date(Date.now() + 300000).toISOString()
     auth = {
-      me: vi.fn().mockResolvedValue(signedOut),
-      createWebLoginSession: vi.fn().mockResolvedValue(success({ sessionId, expiresAt, qrDataUrl })),
-      statusWebLoginSession: vi.fn().mockResolvedValue(success({ status: 'pending', expiresAt })),
-      exchangeWebLoginSession: vi.fn().mockResolvedValue(success({ authenticated: true })),
-      cancelWebLoginSession: vi.fn().mockResolvedValue(success({ status: 'cancelled', expiresAt })),
-      logout: vi.fn(), loginTestMini: vi.fn(), loginTestWeb: vi.fn(),
-      exchangeMiniCode: vi.fn(), confirmMiniWebLogin: vi.fn(),
+      me: vi.fn().mockResolvedValue(signedOut), createQqLogin: vi.fn().mockResolvedValue(ok({ authorizationUrl: officialUrl, requestId: 'r1' })),
+      logout: vi.fn().mockResolvedValue(ok({ loggedOut: true })), loginTestWeb: vi.fn(),
     }
-    container = document.createElement('div')
-    document.body.append(container)
-    root = createRoot(container)
+    navigate = vi.fn<(url: string) => void>(); container = document.createElement('div'); document.body.append(container); root = createRoot(container)
   })
-  afterEach(async () => {
-    await act(async () => root.unmount())
-    container.remove()
-    vi.useRealTimers()
-    vi.unstubAllGlobals()
-  })
-  const render = async () => { await act(async () => root.render(createElement(WebApp, { authClient: auth }))) }
-  const click = async (label: string) => {
-    const button = Array.from(container.querySelectorAll('button')).find(item => item.textContent === label)
-    expect(button).toBeDefined()
-    await act(async () => button!.click())
-  }
+  afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals() })
+  const render = async () => { await act(async () => root.render(createElement(WebApp, { authClient: auth, navigateToProvider: navigate }))) }
+  const click = async (label: string) => { const button = Array.from(container.querySelectorAll('button')).find(node => node.textContent === label); expect(button).toBeDefined(); await act(async () => button!.click()) }
 
-  it('shows the public home and automatically creates one complete QR in the login region', async () => {
+  it('shows one explicit QQ action without creating or polling a QR', async () => {
     await render()
-    expect(auth.createWebLoginSession).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('h1')).not.toBeNull()
-    expect(document.documentElement.classList.contains('web-login-fixed')).toBe(true)
-    expect(container.querySelector('footer')?.textContent).toBe('Powered By Lighthouse&Codex')
-    expect(container.textContent).not.toContain('魔兽世界 · 对话与模拟')
-    expect(container.textContent).not.toMatch(/有问题，找鸡哥|有想法，模拟一下|为每一次更好的战斗/)
-    expect(container.querySelector('aside[aria-label="微信扫码登录"] img')?.getAttribute('src')).toBe(qrDataUrl)
-    expect(container.textContent).not.toMatch(/Cookie|Bearer|token|内部用户/)
-    await act(async () => vi.advanceTimersByTimeAsync(4000))
-    expect(auth.createWebLoginSession).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('aside[aria-label="QQ 登录"]')).not.toBeNull()
+    expect(container.textContent).toContain('QQ登录')
+    expect(auth.createQqLogin).not.toHaveBeenCalled()
+    expect(Object.hasOwn(auth, 'createWebLoginSession')).toBe(false)
+    const logo = container.querySelector('img[src*="Connect_logo_1.png"]')
+    expect(logo?.getAttribute('referrerpolicy')).toBe('no-referrer')
   })
 
-  it('returns to the redesigned home with a new complete QR after logout', async () => {
-    vi.mocked(auth.me).mockResolvedValue(success({ connected: true, displayName: '队长' }) as never)
-    vi.mocked(auth.logout).mockResolvedValue(success({ loggedOut: true }) as never)
-    await render()
-    await click('退出登录')
-    expect(auth.logout).toHaveBeenCalledOnce()
-    expect(container.querySelector('h1')?.textContent).toContain('先问鸡哥')
-    expect(container.querySelector('aside[aria-label="微信扫码登录"] img')?.getAttribute('src')).toBe(qrDataUrl)
-    expect(auth.createWebLoginSession).toHaveBeenCalledOnce()
-    expect(container.textContent).not.toMatch(/Cookie|Bearer|内部用户|已进入对话与模拟/)
+  it('redirects only after a validated official QQ response', async () => { await render(); await click('QQ登录'); expect(navigate).toHaveBeenCalledWith(officialUrl) })
+
+  it('blocks an invalid provider URL and offers an explicit retry', async () => {
+    vi.mocked(auth.createQqLogin).mockResolvedValueOnce(ok({ authorizationUrl: 'https://evil.example/oauth2.0/authorize' }) as never)
+    await render(); await click('QQ登录')
+    expect(navigate).not.toHaveBeenCalled(); expect(container.textContent).toContain('QQ 登录入口暂不可用'); expect(container.textContent).toContain('QQ登录')
   })
 
-  it('restores document scrolling when the home unmounts', async () => {
-    await render()
-    expect(document.body.classList.contains('web-login-fixed')).toBe(true)
-    await act(async () => root.render(null))
-    expect(document.body.classList.contains('web-login-fixed')).toBe(false)
-    expect(document.documentElement.classList.contains('web-login-fixed')).toBe(false)
+  it('uses fallback copy for inherited problem keys without crashing', async () => {
+    vi.mocked(auth.createQqLogin).mockResolvedValueOnce({ ...signedOut, httpStatus: 503, problemCode: '__proto__' } as never)
+    await render(); await click('QQ登录')
+    expect(container.textContent).toContain('QQ 登录入口暂不可用，请稍后重试')
   })
 
-  it('does not create a QR for an authenticated visitor or expose the public home', async () => {
-    vi.mocked(auth.me).mockResolvedValue(success({ connected: true, displayName: '队长' }) as never)
-    await render()
-    expect(auth.createWebLoginSession).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('已进入对话与模拟')
-    expect(document.documentElement.classList.contains('web-login-fixed')).toBe(false)
-    expect(container.querySelector('aside')).toBeNull()
+  it('revalidates a persisted page restored after returning from QQ', async () => {
+    await render(); await click('QQ登录')
+    expect(container.textContent).toContain('正在跳转…')
+    const event = new Event('pageshow')
+    Object.defineProperty(event, 'persisted', { value: true })
+    await act(async () => window.dispatchEvent(event))
+    expect(auth.me).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('QQ登录')
+    expect(container.querySelector('button')?.hasAttribute('disabled')).toBe(false)
   })
 
-  it('lets cancellation stop the flow without automatically issuing another QR', async () => {
-    await render()
-    await click('取消登录')
-    await act(async () => vi.advanceTimersByTimeAsync(6000))
-    expect(auth.cancelWebLoginSession).toHaveBeenCalledTimes(1)
-    expect(auth.createWebLoginSession).toHaveBeenCalledTimes(1)
-    expect(container.querySelector('aside img')).toBeNull()
-    await click('重新扫码')
-    expect(auth.createWebLoginSession).toHaveBeenCalledTimes(2)
+  it('does not navigate from a stale login response after BFCache recovery', async () => {
+    let finish: (value: ReturnType<typeof ok>) => void = () => undefined
+    vi.mocked(auth.createQqLogin).mockReturnValueOnce(new Promise(resolve => { finish = resolve }) as never)
+    await render(); await click('QQ登录')
+    const event = new Event('pageshow')
+    Object.defineProperty(event, 'persisted', { value: true })
+    await act(async () => window.dispatchEvent(event))
+    await act(async () => finish(ok({ authorizationUrl: officialUrl })))
+    expect(navigate).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('QQ登录')
   })
 
-  it('removes an expired QR and offers an explicit refresh', async () => {
+  it('shows a fixed cancelled callback message, clears only that query and does not auto-login', async () => {
+    window.history.replaceState(null, '', '/simc?keep=1&loginError=QQ_LOGIN_CANCELLED')
     await render()
-    await act(async () => vi.advanceTimersByTimeAsync(301000))
-    expect(container.querySelector('aside img')).toBeNull()
-    expect(container.textContent).toContain('二维码已过期')
-    await click('刷新二维码')
-    expect(auth.createWebLoginSession).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('你已取消 QQ 授权，可以重新登录。')
+    expect(window.location.pathname + window.location.search).toBe('/simc?keep=1')
+    expect(auth.createQqLogin).not.toHaveBeenCalled()
   })
 
-  it('keeps the home visible during provider failure and retries on request', async () => {
-    vi.mocked(auth.createWebLoginSession).mockResolvedValueOnce({
-      ...signedOut, httpStatus: 502, problemCode: 'WECHAT_PROVIDER_UNAVAILABLE',
-    } as never)
+  it('loads an authenticated QQ account and its allowlisted avatar, then logs out', async () => {
+    vi.mocked(auth.me).mockResolvedValue(ok({ connected: true, displayName: 'QQ 队长', avatarUrl: 'https://q.qlogo.cn/headimg_dl?dst_uin=1' }) as never)
     await render()
-    expect(container.querySelector('h1')).not.toBeNull()
-    expect(container.textContent).toContain('微信服务暂不可用')
-    await click('重新扫码')
-    expect(container.querySelector('aside img')).not.toBeNull()
+    expect(container.textContent).toContain('QQ 队长'); expect(container.querySelector('img')?.src).toContain('q.qlogo.cn')
+    await click('退出登录'); expect(auth.logout).toHaveBeenCalledOnce(); expect(container.textContent).toContain('QQ登录')
   })
 
-  it('reuses the request identity after an ambiguous network failure and hides transport details', async () => {
-    vi.mocked(auth.createWebLoginSession).mockResolvedValueOnce({
-      payload: null, fromFallback: true, error: 'internal transport diagnostic',
-    } as never)
-    await render()
-    expect(container.textContent).toContain('二维码生成失败，请稍后重试')
-    expect(container.textContent).not.toContain('internal transport diagnostic')
-    const firstAttempt = vi.mocked(auth.createWebLoginSession).mock.calls[0]
-    await click('重新扫码')
-    expect(vi.mocked(auth.createWebLoginSession).mock.calls[1]).toEqual(firstAttempt)
-  })
-
-  it('shortens a legacy chat fragment opened in the current document', async () => {
-    await render()
-    window.history.replaceState(null, '', '/#/pages/chickenbro/index')
-    await act(async () => window.dispatchEvent(new HashChangeEvent('hashchange')))
-    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/')
-  })
-
-  it('preserves a legacy SimC destination through Mini confirmation and login', async () => {
-    window.history.replaceState(null, '', '/?view=simc#/pages/chickenbro/index')
-    await render()
-    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/simc')
-    expect(auth.exchangeWebLoginSession).not.toHaveBeenCalled()
-    vi.mocked(auth.statusWebLoginSession).mockResolvedValue(success({ status: 'confirmed', expiresAt }) as never)
-    vi.mocked(auth.me).mockResolvedValue(success({ connected: true, displayName: '队长' }) as never)
-    await act(async () => vi.advanceTimersByTimeAsync(1500))
-    expect(auth.exchangeWebLoginSession).toHaveBeenCalledTimes(1)
-    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/simc')
-    expect(container.textContent).toContain('已进入对话与模拟')
-  })
-
-  it('keeps the explicit test account build on its existing login path', async () => {
-    vi.stubGlobal('__WOW_TEST_LOGIN__', true)
-    await render()
-    expect(auth.createWebLoginSession).not.toHaveBeenCalled()
-    expect(container.textContent).toContain('测试账号入口')
-  })
+  it('retains the nonproduction test login path', async () => { vi.stubGlobal('__WOW_TEST_LOGIN__', true); await render(); expect(container.textContent).toContain('测试账号入口'); expect(auth.createQqLogin).not.toHaveBeenCalled() })
 })

@@ -1,0 +1,13 @@
+{
+  "status": "live_verified",
+  "sourceCommit": "72e6224f21eb0d5fb0635237d454eebe8b845884",
+  "candidateVisionPassed": true,
+  "candidateWebPassed": true,
+  "productionSwitched": true,
+  "pillowInstalled": "12.3.0",
+  "officialWheelSha256": "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91",
+  "installedFilesVerified": 132,
+  "productionCodeObserved": "/opt/chickenbro-releases/images-72e6224f21eb0d5fb0635237d454eebe8b845884",
+  "reason": "User authorized conflict resolution; merged published fixes, verified and deployed.",
+  "mini": "waived_by_user"
+}

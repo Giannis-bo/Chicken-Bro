@@ -1,5 +1,7 @@
 """Bounded, private App Server stdio protocol; never forwards provider envelopes."""
 
+import base64
+import binascii
 import json
 import os
 import selectors
@@ -18,7 +20,26 @@ def invalid():
     return CodexStreamError("CODEX_OUTPUT_INVALID")
 
 
-def read_messages(process, deadline):
+def validate_images(images):
+    # Only normalized, server-owned image bytes may cross the model boundary.
+    # Remote URLs and local paths must never trigger provider-side fetches.
+    if not isinstance(images, (list, tuple)) or len(images) > 9:
+        raise invalid()
+    for url in images:
+        if not isinstance(url, str) or len(url) > 7 * 1024 * 1024:
+            raise invalid()
+        header, separator, payload = url.partition(',')
+        if not separator or header not in {'data:image/png;base64', 'data:image/jpeg;base64'} or not payload:
+            raise invalid()
+        try:
+            if len(base64.b64decode(payload, validate=True)) > 5 * 1024 * 1024:
+                raise invalid()
+        except (ValueError, binascii.Error):
+            raise invalid() from None
+    return tuple(images)
+
+
+def read_messages(process, deadline, max_line_bytes=_MAX_LINE_BYTES):
     """Read raw bytes so buffered readline cannot strand already-read JSON lines."""
     source = process.stdout
     if source is None:
@@ -47,7 +68,7 @@ def read_messages(process, deadline):
                 if not chunk:
                     raise invalid()
                 buffered += chunk
-                if len(buffered) > _MAX_LINE_BYTES:
+                if len(buffered) > max_line_bytes:
                     raise invalid()
                 continue
             line, buffered = buffered.split(b"\n", 1)
@@ -66,6 +87,7 @@ def read_messages(process, deadline):
 class CodexStdioSession:
     def __init__(self, process, deadline):
         self.process = process
+        self.deadline = deadline
         self.messages = read_messages(process, deadline)
         self.deferred = deque()
         self.thread_id = None
@@ -79,13 +101,45 @@ class CodexStdioSession:
         source = self.process.stdin
         if source is None:
             raise invalid()
-        # FileIO writes can be partial, especially for a large conversation prompt.
-        while payload:
-            written = source.write(payload)
-            if not written:
-                raise invalid()
-            payload = payload[written:]
-        source.flush()
+        payload = memoryview(payload)
+        try:
+            descriptor = source.fileno()
+        except (OSError, ValueError, AttributeError):
+            # In-memory test transports have no OS pipe to wait on.
+            while payload:
+                if time.monotonic() >= self.deadline:
+                    raise CodexStreamError("CODEX_TIMEOUT")
+                written = source.write(payload)
+                if not written:
+                    raise invalid()
+                payload = payload[written:]
+            source.flush()
+            return
+
+        # A runtime that stops consuming stdin must not hold an account run
+        # forever. Nonblocking writes also bound stdout/stdin backpressure cycles.
+        was_blocking = os.get_blocking(descriptor)
+        selector = selectors.DefaultSelector()
+        try:
+            os.set_blocking(descriptor, False)
+            selector.register(descriptor, selectors.EVENT_WRITE)
+            while payload:
+                remaining = self.deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    raise CodexStreamError("CODEX_TIMEOUT")
+                try:
+                    written = os.write(descriptor, payload[:65536])
+                except BlockingIOError:
+                    continue
+                if not written:
+                    raise invalid()
+                payload = payload[written:]
+        finally:
+            selector.close()
+            try:
+                os.set_blocking(descriptor, was_blocking)
+            except OSError:
+                pass
 
     def _check_request(self, message):
         if "id" in message and "method" in message:
@@ -122,8 +176,13 @@ class CodexStdioSession:
                 self.deferred.append(message)
         raise invalid()
 
-    def stream(self, *, prompt, job_dir, developer_instructions, profile_config):
+    def stream(self, *, prompt, job_dir, developer_instructions, profile_config, images=()):
         try:
+            images = validate_images(images)
+            # App Server may echo all input images in a single userMessage line.
+            self.messages.close()
+            self.messages = read_messages(
+                self.process, self.deadline, _MAX_LINE_BYTES + sum(len(url) for url in images))
             self.request(1, "initialize", {"clientInfo": {"name": "chickenbro_chat", "version": "1.0"}})
             self.send({"method": "initialized", "params": {}})
             result = self.request(2, "thread/start", {
@@ -133,7 +192,10 @@ class CodexStdioSession:
             })
             self.thread_id = self._id(result.get("thread", {}).get("id"))
             result = self.request(3, "turn/start", {
-                "threadId": self.thread_id, "summary": "auto", "input": [{"type": "text", "text": prompt}],
+                "threadId": self.thread_id, "summary": "auto", "input": [
+                    {"type": "text", "text": prompt},
+                    *[{"type": "image", "url": url} for url in images],
+                ],
             })
             self.turn_id = self._id(result.get("turn", {}).get("id"))
             while True:

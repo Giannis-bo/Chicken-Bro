@@ -33,3 +33,14 @@ class TestLoginRuntimeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare_environment({'WOW_DATABASE_URL': 'postgresql://wow_app@localhost/chickenbro_prod',
                                  'PGPASSFILE': '/existing'}, lambda _: '')
+
+    def test_qq_callback_is_fixed_to_test_without_fabricating_credentials(self):
+        source = {'WOW_DATABASE_URL':'postgresql://wow_app:fixture@localhost/chickenbro_prod',
+                  'WOW_QQ_APPID':'1905584243', 'WOW_QQ_APP_KEY':'fixture-key',
+                  'WOW_QQ_REDIRECT_URI':'https://www.chickenbro.cloud/api/v2/auth/qq/callback'}
+        env = prepare_environment(source)
+        self.assertEqual(env['WOW_QQ_REDIRECT_URI'], 'https://www.chickenbro.cloud/test/api/v2/auth/qq/callback')
+        self.assertEqual(env['WOW_QQ_APP_KEY'], 'fixture-key')
+        del source['WOW_QQ_APP_KEY']
+        self.assertNotIn('WOW_QQ_APP_KEY', prepare_environment(source))
+        self.assertNotIn('WOW_QQ_REDIRECT_URI', prepare_environment({'WOW_DATABASE_URL':source['WOW_DATABASE_URL']}))

@@ -1,0 +1,5 @@
+{
+  "/api/v2/auth/wechat/mini/exchange": 404,
+  "/api/v2/auth/wechat/web/login-sessions": 404,
+  "/api/v2/auth/test/mini": 404
+}

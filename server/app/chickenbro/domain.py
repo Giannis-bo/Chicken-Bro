@@ -51,6 +51,7 @@ class Message:
     content: str
     client_message_id: str | None
     created_at: datetime
+    image_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -135,6 +135,7 @@ class OwnerIsolationTest(unittest.TestCase):
             "同一问题",
             "client-idempotent",
             now,
+            [],
         )])
         repository = PostgresChatRepository(lambda: RecordingConnection(cursor))
 

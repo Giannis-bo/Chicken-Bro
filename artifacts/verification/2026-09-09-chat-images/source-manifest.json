@@ -1,0 +1,493 @@
+{
+  "baselineCommit": "7dcc4e0ddc6e75a918671dea48dffd8b05b5cf2e",
+  "branch": "codex/chat-image-input",
+  "workingTreeDirty": true,
+  "files": [
+    {
+      "path": "apps/mini-taro/src/components/ChatImageOverlay.tsx",
+      "sha256": "d92604b57dcb6b7a8be97bee865c098acdc22c79d902873d4d579f6cd32f4762"
+    },
+    {
+      "path": "apps/mini-taro/src/components/ChatImageOverlay.weapp.tsx",
+      "sha256": "b3ce6d086061228956119570328c9ec4ebfb0398311aa7caec456c64482011cf"
+    },
+    {
+      "path": "apps/mini-taro/src/components/ChatImages.module.scss",
+      "sha256": "ccd823e696d32eb17afb8be482e9f9a4672bb979f80c5ed13b8413057d496ecd"
+    },
+    {
+      "path": "apps/mini-taro/src/components/ChatImages.tsx",
+      "sha256": "77849915b98bf0f49815e0693f6ec79353d0cc3a0d62860c81e29d163bd99855"
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx",
+      "sha256": "10adcbe13b5474d552c8de25306a3eebbc27247cad5e9490c0ba9ac609cf39db"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-images.test.tsx",
+      "sha256": "4229357cbeb1fef52ee1c062dca2eb31d9e3c8195274b90a1f3e97ab27c0428c"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-model.test.ts",
+      "sha256": "f13bc8e4b7f15d946d8595a1cbdf01e1d7ec16f43e87b6fad7fc385731f8c588"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-model.ts",
+      "sha256": "c4a051adecc00fdf612c777b56ad59b56fbe6eda3f97ee42acebd8a261b2f36e"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/image-picker.ts",
+      "sha256": "00bbe202fd1179ee642f3b97dd872ebbcbec760b1bae1599af56c2bea6b5123e"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/image-picker.weapp.ts",
+      "sha256": "8bb2a025de41ca2aed5a61f1d307cbd18dee56775ef3583d7a0202afae98507d"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/image-source.test.tsx",
+      "sha256": "cf073aff73f8b3a4c8460420e12eb4a39a0401627418a979d7445c198a498198"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/use-chat-images.ts",
+      "sha256": "eb69a84ace7351fa19af3fd921bc6b06550a188748f6503d7092efd67b48b335"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/use-image-source.ts",
+      "sha256": "0cc332bffc2e7f5be2b7dc8a010b2e5a082ceb67a8ccb0829808cec7321fff04"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/use-image-source.weapp.ts",
+      "sha256": "7b6f4f8a94449aed546ff1286a9c6bc1cea36ff157bd1d9f1e8c30b14b808b86"
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/history-interactions.test.tsx",
+      "sha256": "4b945c8098bea4f97b7fa8bca36d6ce2bc1f559ac92d094650416034225ff73c"
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/index.tsx",
+      "sha256": "98f3cfdb6efff5323a198c60db1fb32daca8d4c28e241ca235975219a62584a9"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebApp.module.scss",
+      "sha256": "b17f91edfb8a2e299c426320f6992c2ad7292af169dfe895ef2bc6dce7c4f041"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebChatView.tsx",
+      "sha256": "e26ff9d9e18068dc972ff7c09ae9ac91fa5522de5138c1eb531302188185678c"
+    },
+    {
+      "path": "apps/mini-taro/src/web/web-chat-composer.test.tsx",
+      "sha256": "511f742ffd1041bd86e7638361bff22da220829dcbc038bbd323c3358877f969"
+    },
+    {
+      "path": "docs/backend-owner-map.json",
+      "sha256": "6da7e01f6e7bf489ec6f71b5a0c8ca661b9e7f5dcc9baebc46d0053e25c26c1c"
+    },
+    {
+      "path": "docs/chickenbro-simc-production-runbook.md",
+      "sha256": "f4e8ba20d3aa468d7aa1b7478e931ca2023dcfb1721ead45222548eb7b5ae421"
+    },
+    {
+      "path": "docs/plans/2026-09-09-chat-images.md",
+      "sha256": "edc8d4c9c07a866ad8eea3e8add81634ed136a16299d4fe59336c7a04341ce6a"
+    },
+    {
+      "path": "docs/plans/README.md",
+      "sha256": "291d7cc714435c8ce4c11484f3f6ce87916674ef22f0e863d68c787dcf8280e4"
+    },
+    {
+      "path": "docs/project-state.json",
+      "sha256": "8f9b6e79ce8dcd9bde421508c576e517348a59af2bad5bec537f546aa7760857"
+    },
+    {
+      "path": "docs/refactor/chickenbro-simc-disposition-rules.json",
+      "sha256": "cb635705b9dbcc1eed54dc64a1618e4cd233dfd7fef09c5b04a0da705f6d0637"
+    },
+    {
+      "path": "docs/roadmap.md",
+      "sha256": "098e727f3ee6f3a7668dcb44d049c92a36721dfa64c2ec63793c6d2979351380"
+    },
+    {
+      "path": "docs/verification-matrix.md",
+      "sha256": "05863ee9058592c705f11710ab87d4a3a6a84c34409efd29382e6adae7681064"
+    },
+    {
+      "path": "package.json",
+      "sha256": "858762e617b8c5abebcc48a01ac01cd73e5e408a88b72b146bc68a6057c5f853"
+    },
+    {
+      "path": "packages/api-client/src/chat.test.ts",
+      "sha256": "8848e5c1d789f33a9521915ee75b3fd3995c20a062918e2f9579a9e93291639c"
+    },
+    {
+      "path": "packages/api-client/src/chat.ts",
+      "sha256": "5dd803c3bc1e31d818f606084c3dba6fb58184423527f3b0b1bbf5e6137969eb"
+    },
+    {
+      "path": "packages/domain/src/chat.test.ts",
+      "sha256": "ab3b67176874594af4ee13feca3662c495e5efcc81b9cb72581807011a928720"
+    },
+    {
+      "path": "packages/domain/src/chat.ts",
+      "sha256": "763c1dbc4973fa20be4dbb27fcc83f70a128868396e616c4d125eff8d80bc559"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "sha256": "ae159a1c86734104e3bf2e57b9c63b98bc3afe4baa50844270eec57a6c4b0f4f"
+    },
+    {
+      "path": "server/app/api/routes/chat.py",
+      "sha256": "aac89115070506d82725d29deaf369d02b9e2de17e5450f3a8d00eec5a91b538"
+    },
+    {
+      "path": "server/app/chickenbro/application.py",
+      "sha256": "4df49235ff39c495cbff2b3a950615135e246645d3e143be512cbee1d36fe0c5"
+    },
+    {
+      "path": "server/app/chickenbro/codex_adapter.py",
+      "sha256": "9413bb034196a3651a2d4b71616652d1c634e8dfe4e6b35f13312ee52316859e"
+    },
+    {
+      "path": "server/app/chickenbro/codex_stdio.py",
+      "sha256": "7716aac4d6f5e814cb0c523c78896f2035603c74151a5e9e0b1536e154ce4b75"
+    },
+    {
+      "path": "server/app/chickenbro/domain.py",
+      "sha256": "5125a8877e17e4ceac0bc22b12834265d801bb63b6339c091b089d19a536e8a3"
+    },
+    {
+      "path": "server/app/chickenbro/image_repository.py",
+      "sha256": "1a164d07e02aa9951482b5360fa24584fe1a50546492fe983e2dcfc0f6ec5b97"
+    },
+    {
+      "path": "server/app/chickenbro/images.py",
+      "sha256": "da3435e539ebdd5043546bed2eae380551c0bd7ae4e60f5a48fe5e67a251fc30"
+    },
+    {
+      "path": "server/app/chickenbro/repository.py",
+      "sha256": "58fbacadfdad3bec7cf65e91a7290cdd861235334c6142fddd025376cbffb79c"
+    },
+    {
+      "path": "server/migrations/product/0007_chat_images.sql",
+      "sha256": "24cde9e95ffa2acd70399593f3febace31492a14d7a3b430737183e525e8593f"
+    },
+    {
+      "path": "server/purge_chat_images.py",
+      "sha256": "90e521b0bf0ca93400467127d54f61b712fdc5139632a638aaa54c41b64fb4c6"
+    },
+    {
+      "path": "tests/app_chat_images_postgres_test.py",
+      "sha256": "12223af9b3504e06a48747a4fc16c1cf6cd570368d261e0092d2ffa1eb04c3f7"
+    },
+    {
+      "path": "tests/app_chat_images_test.py",
+      "sha256": "0711e4234f05d9e7354b13a1aba55bad13f336b6f63b393e876fc3e6dc93ae6e"
+    },
+    {
+      "path": "tests/app_chickenbro_application_test.py",
+      "sha256": "e721458102759f68e97c069274514787b539a2143d87df6a7428693a31a9285e"
+    },
+    {
+      "path": "tests/app_chickenbro_codex_adapter_test.py",
+      "sha256": "fcf53291337628d42d1aa4ce45920b2c765b6cf1bd285ca74d5f7d788041caab"
+    },
+    {
+      "path": "tests/app_chickenbro_owner_isolation_test.py",
+      "sha256": "863060e8fd2cb59751aecec2160c39022a3dfc24e66e1446e7801f3eb9f03d91"
+    },
+    {
+      "path": "tests/product_schema_test.py",
+      "sha256": "c04e5aad24a28b030975a7dc8ebefd78adeae1b75115df8cc32d8fb4e513a983"
+    },
+    {
+      "path": "tests/retained-client-boundary.test.js",
+      "sha256": "c45c285aba21fe27c06a01b1672bdfe25f6b98a8c41aae1a1fd74b2641a0faa1"
+    }
+  ],
+  "builds": {
+    "h5": [
+      {
+        "path": "apps/mini-taro/dist/h5/brand/gugu-v1-16.png",
+        "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/brand/gugu-v1-32.png",
+        "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/brand/gugu-v1.ico",
+        "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/137.js",
+        "sha256": "739725a689462007fa59ebf73448f02d0375273a4ec83711f16e30a5e717087b"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/137.js.LICENSE.txt",
+        "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/399.js",
+        "sha256": "27e7ef7a01caab1a07606c1220a0324aca4a2068a44df1aa1128a5a228d203e2"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/468.js",
+        "sha256": "2e722404cae6ecaa4f1f24ebede23839b53d495f532580fbbefc8e242c23576f"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/468.js.LICENSE.txt",
+        "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/580.js",
+        "sha256": "6cd99bac1a6d4a2ebf1dcebca97026641b1e35dfe8476da6ecae84272154f417"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/580.js.LICENSE.txt",
+        "sha256": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/772.js",
+        "sha256": "a5b674640f69d73828c7913942005cf839094ec30a6e36327fd932c13a1da53e"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/772.js.LICENSE.txt",
+        "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/819.js",
+        "sha256": "917760fca10f639d2fd88291da0449a9b00ce2610d19dc1a5be7ca0692f6bdf4"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/chunk/819.js.LICENSE.txt",
+        "sha256": "99fb2f5c269921817aac8be3b7036ed49af0bb4833555f406283ff59579c3819"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/137.css",
+        "sha256": "15247cee39e37e4cf482e076d8c97c62d827e13ed509b899bc3318df3c55e54b"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/399.css",
+        "sha256": "9b071ed0527e7f561e840acb720ef31525464cc700b2f4248e84138e527c1dac"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/468.css",
+        "sha256": "fb6a3e174c6f63c2edcaa18aba716094dfebdc557625022afbc8ff794c7edbb6"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/772.css",
+        "sha256": "011f04c0589e1af36ff57148e911e42ce1ec2c6a2b1d287cc653011f6721e019"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/819.css",
+        "sha256": "8194b348229c96c9866d3d74f23eece38c4b4852d14af928a6ca4bedc21fde31"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/css/app.css",
+        "sha256": "802b7a8c5b028b5ee505d01bb95401266254361eb013e27849bf81e50a3d7e49"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/index.html",
+        "sha256": "dbb2ddf22ca4a4b9cde3f6c321de5668a63cad5edbfb8113dd69af5aa9b849ac"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/js/587.js",
+        "sha256": "990ed078d68c9f3f65a6946abd0862fe8a23fce4a27b447f230f92eeddc7d295"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/js/587.js.LICENSE.txt",
+        "sha256": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/js/app.js",
+        "sha256": "5d3617f79087450d0a0330ead43c024b5f21be7ddb0221fec7ea7708ea0be982"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/js/app.js.LICENSE.txt",
+        "sha256": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/static/images/web/assets/gu-gu-mascot.png",
+        "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+      },
+      {
+        "path": "apps/mini-taro/dist/h5/static/images/web/assets/mini-program-promo.png",
+        "sha256": "32ddca80ca1279b34f337eda5ff864bb236d75ee7f37aa32c3ca9ca66a1d0d4a"
+      }
+    ],
+    "weapp": [
+      {
+        "path": "apps/mini-taro/dist/weapp/app-origin.wxss",
+        "sha256": "af7543b58860c5e439108967d2f48422dbeaf8703fa21e6b7d04a70ce9ad2fa0"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/app.js",
+        "sha256": "9c61a3fef479cc9bc148615f309fb941c2c3b81a5fdde5d4bfabafe6a9c9b98a"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/app.js.LICENSE.txt",
+        "sha256": "08604636b38ae83699d7a95fc32255f871cbee504511ee89fdef4f98cdfcc356"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/app.json",
+        "sha256": "55062e09be2542ead34efe4f924704541983ee8fce12c8f72ec66e252233def0"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/app.wxss",
+        "sha256": "376e2cf0ff73ce300bd1704f920e9247676fea1c42e60a9e0e963eb0a1255bc7"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/base.wxml",
+        "sha256": "b32bfa905f7543d73ae3526a76e84ecf3ba6e441b1f8de990687ca16f044d8e6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/common.js",
+        "sha256": "1e4e25119f431f0aece2413ec7c5e144f0ef7231c7f71e3a1b646b66933b5829"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/common.wxss",
+        "sha256": "43f359d750579222196a32f1fe7ea3c0c8c3f6113d054684d31ac86bcf6f5e39"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/comp.js",
+        "sha256": "19a84fdc7dee25ceb7397ee00bc897d5229f5d6cd1fa240229aa7d098ef28562"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/comp.json",
+        "sha256": "0ffa23661c3005b00e0167f3eb2b2cac516bd754223e8b0fa4d51e68e66d7dc0"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/comp.wxml",
+        "sha256": "904495b6e07f81d74f23d713c7f42a7450189f56879e329e5353e18d08201165"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/custom-tab-bar/index.js",
+        "sha256": "e7fd0e0abe32f10074e4bcafc1c7ac9c4b6c037c7f3e5071370df49701a24e51"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/custom-tab-bar/index.json",
+        "sha256": "9f421750a1d3b328fdfd44ccf6528797fe5f99a088954d50e97f43bcb3da26db"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/custom-tab-bar/index.wxml",
+        "sha256": "87c1424e97e337ff4dec776846d4e5986c75aae191cc9d510ce5db2ae11ecefb"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/custom-tab-bar/index.wxss",
+        "sha256": "e74eeec323b2be632d46719f08d72c67fa13ec37db9fedb5e80f84e770b8443e"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/auth/web-login-confirm.js",
+        "sha256": "64afd02827037f8729f66a29c1030f541dcd6d8eb0a3efea898bf0a01109fe04"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/auth/web-login-confirm.json",
+        "sha256": "4a1df6475a54d39992cdc8d3d41661f8c91387462ae735a77eadeb627b2ac137"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/auth/web-login-confirm.wxml",
+        "sha256": "38b0088b8c33e0f5dd9b2a934df461c91ad48cc818bb5dce849a336fae6e7ff6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/auth/web-login-confirm.wxss",
+        "sha256": "127adc4e9eecbc2644ff5cdaca90f4f3d6fe1516a59cc2e728cdef15e97ca329"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/chickenbro/index.js",
+        "sha256": "673b768b219e14112cfb611552c2e584e77aee16604ca0154eba1bfc40951cb5"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/chickenbro/index.json",
+        "sha256": "51573bd736e2b9e23bf46d0a4fc58530a687b1c7566ad6d136c2dc60d30037a4"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/chickenbro/index.wxml",
+        "sha256": "38b0088b8c33e0f5dd9b2a934df461c91ad48cc818bb5dce849a336fae6e7ff6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/chickenbro/index.wxss",
+        "sha256": "522b882d6b6167564752f4c8e3b252ddd05e31ee92d1d606cdd1b73fcbb9edaf"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/index.js",
+        "sha256": "13106c98cab6b6ce896a1a2748cc6b15ca0c145498d6a63893dc1d83792830af"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/index.json",
+        "sha256": "d73bf9af535a6ab43bcf7c7957b3500acf846182e031e9eed8695e18b2cd0770"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/index.wxml",
+        "sha256": "38b0088b8c33e0f5dd9b2a934df461c91ad48cc818bb5dce849a336fae6e7ff6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/index.wxss",
+        "sha256": "0ea755c31ccd4e3f107c4ffc29bec8243f90d13a4d3ad2b5a249585643353809"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/task-detail.js",
+        "sha256": "ec8c601db6630949043e464f7c3f28ec15e64c75f576e4732956f181db23b697"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/task-detail.json",
+        "sha256": "78b565fd972b84488a6d3185be953e4d5804c4760ffbab6dd85e1a156e0beb02"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/task-detail.wxml",
+        "sha256": "38b0088b8c33e0f5dd9b2a934df461c91ad48cc818bb5dce849a336fae6e7ff6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/task-detail.wxss",
+        "sha256": "a04a6d032c1581eda3df2be060807b21f81fc93dfcb365a31ad946416f9a2c18"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/tasks.js",
+        "sha256": "3038e53162a6f6c3c15ee248e939d2dc967048282b2fcb136b0653d134242a23"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/tasks.json",
+        "sha256": "78b565fd972b84488a6d3185be953e4d5804c4760ffbab6dd85e1a156e0beb02"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/tasks.wxml",
+        "sha256": "38b0088b8c33e0f5dd9b2a934df461c91ad48cc818bb5dce849a336fae6e7ff6"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/pages/simc/tasks.wxss",
+        "sha256": "8d33bda6404c2d2e8e0a7444036c430391358c584a17a0ee2417e32d28ce28c3"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/project.config.json",
+        "sha256": "9dcff1c1c458d0d2d9fe1f49c7513b4b7169c206ecc593ecca7f0978d33c4562"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/runtime.js",
+        "sha256": "aa601044cbc475753d3578d178160bdf0ec7a0c9b4fd41701e706c7eece04bcd"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/taro.js",
+        "sha256": "54618a2e06b82047a0a02e8387eb37c7884d34773417734c3e4e7ec1ef6c745e"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/utils.wxs",
+        "sha256": "e4ebe8c13a8ed5d58ae32d378f1f1947d51d796a620987d43bfc438631372728"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/vendors.js",
+        "sha256": "658b4dc4917a427da62725cf008082c5857c42cc8321c6107d8979248568628d"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/vendors.js.LICENSE.txt",
+        "sha256": "784f801887c62e7fca78a248e53a4d12adaa07e92a30941269d1f6408e95584f"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/web/assets/gu-gu-mascot.png",
+        "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+      },
+      {
+        "path": "apps/mini-taro/dist/weapp/wow-build.json",
+        "sha256": "d34b879e7533dd61c88aff4996fc4c72e4cde942d2d564404b2536f04e0547cb"
+      }
+    ]
+  }
+}

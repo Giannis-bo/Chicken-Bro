@@ -113,7 +113,7 @@ function DeleteDialog({ conversation, onDelete, onClose }: {
   return <dialog ref={ref} className={deleteStyles['dialog']} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); if (!inFlight.current) onClose() }}>
     <h2 id={titleId}>删除会话？</h2>
-    <p>“{conversation.title || '炸鸡队长对话'}”及其消息将从网页和小程序历史中移除。</p>
+    <p>“{conversation.title || '炸鸡队长对话'}”及其消息将从当前 QQ 账号的历史中移除。</p>
     {error ? <p role="alert" className={deleteStyles['error']}>{error}</p> : null}
     <div className={deleteStyles['actions']}>
       <button ref={cancel} className={deleteStyles['actionButton']} type="button" disabled={busy} onClick={onClose}>取消</button>

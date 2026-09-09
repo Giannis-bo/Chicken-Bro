@@ -12,12 +12,6 @@ export default defineConfig({
     include: [
       'apps/mini-taro/src/features/**/*.test.ts',
       'apps/mini-taro/src/features/**/*.test.tsx',
-      'apps/mini-taro/src/pages/auth/**/*.test.ts',
-      'apps/mini-taro/src/pages/auth/**/*.test.tsx',
-      'apps/mini-taro/src/pages/chickenbro/**/*.test.ts',
-      'apps/mini-taro/src/pages/chickenbro/**/*.test.tsx',
-      'apps/mini-taro/src/pages/simc/**/*.test.ts',
-      'apps/mini-taro/src/pages/simc/**/*.test.tsx',
       'apps/mini-taro/src/web/**/*.test.ts',
       'apps/mini-taro/src/web/**/*.test.tsx',
       'apps/mini-taro/src/tab-bar-items.test.ts',
@@ -31,6 +25,14 @@ export default defineConfig({
       'packages/domain/src/chat.test.ts',
       'packages/domain/src/simc*.test.ts',
       'packages/domain/src/web-auth.test.ts',
+    ],
+    exclude: [
+      '**/node_modules/**', '**/dist/**',
+      'apps/mini-taro/src/features/auth/mini-*.test.ts',
+      'apps/mini-taro/src/features/auth/mini-*.test.tsx',
+      'apps/mini-taro/src/features/help/mini-help.test.tsx',
+      'apps/mini-taro/src/features/theme/mini-*.test.ts',
+      'apps/mini-taro/src/features/theme/mini-*.test.tsx',
     ],
     coverage: {
       reporter: ['text', 'json-summary'],

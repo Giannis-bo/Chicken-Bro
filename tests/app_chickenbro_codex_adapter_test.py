@@ -2,6 +2,8 @@ import io
 import json
 import os
 import subprocess
+import sys
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,6 +64,87 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_images_are_ordered_native_blocks_and_not_written_to_job_files(self):
+        images = ['data:image/png;base64,aGVsbG8=', 'data:image/jpeg;base64,d29ybGQ=']
+        process = FakeProcess(answer())
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=lambda *a, **k: process)
+            result = list(adapter.stream_for_chat(principal=None, conversation_id='chat', run_id='run',
+                prompt='inspect attached images', timeout_seconds=2, images=images))
+            for path in Path(directory).rglob('*'):
+                if path.is_file():
+                    self.assertNotIn(images[0], path.read_text())
+        self.assertEqual(result[-1], dict(type='completed', text='answer'))
+        self.assertEqual(process.sent()[-1]['params']['input'], [
+            {'type': 'text', 'text': 'inspect attached images'},
+            *[{'type': 'image', 'url': url} for url in images],
+        ])
+
+    def test_large_input_reaches_reading_runtime_without_truncation(self):
+        from server.app.chickenbro.codex_stdio import CodexStdioSession
+        process = subprocess.Popen([sys.executable, '-c',
+            'import json,sys; value=json.loads(sys.stdin.buffer.readline()); print(len(value["input"]), flush=True)'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
+        session = CodexStdioSession(process, time.monotonic() + 3)
+        try:
+            session.send({'input': '鸡' * (1024 * 1024)})
+            self.assertEqual(process.stdout.readline(), b'1048576\n')
+            self.assertEqual(process.wait(timeout=2), 0)
+            self.assertTrue(os.get_blocking(process.stdin.fileno()))
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            process.stdin.close()
+            process.stdout.close()
+            session.messages.close()
+
+    def test_nonreading_runtime_input_times_out_before_child_exit(self):
+        from server.app.chickenbro.codex_stdio import CodexStdioSession
+        process = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(1.5)'],
+                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
+        started = time.monotonic()
+        session = CodexStdioSession(process, started + 0.15)
+        try:
+            with self.assertRaises(CodexStreamError) as caught:
+                session.send({'input': 'x' * (2 * 1024 * 1024)})
+            self.assertEqual(caught.exception.code, 'CODEX_TIMEOUT')
+            self.assertLess(time.monotonic() - started, 1.0)
+            self.assertIsNone(process.poll())
+        finally:
+            process.kill()
+            process.wait()
+            process.stdin.close()
+            process.stdout.close()
+            session.messages.close()
+
+    def test_large_image_echo_is_bounded_and_not_forwarded(self):
+        url = 'data:image/png;base64,' + 'YWJj' * 300000
+        process = FakeProcess(transcript(
+            note('item/started', threadId='thread', turnId='turn',
+                 item={'id': 'user', 'type': 'userMessage', 'content': [{'type': 'image', 'url': url}]}),
+            item('item/started'), delta('answer'), item('item/completed', 'answer')))
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=lambda *a, **k: process)
+            result = list(adapter.stream(prompt='inspect', timeout_seconds=2, images=[url]))
+        self.assertEqual(result, [{'type': 'delta', 'text': 'answer'}, {'type': 'completed', 'text': 'answer'}])
+
+    def test_invalid_images_fail_before_starting_runtime(self):
+        bad_inputs = [['https://example.com/private.png'], ['file:///private.png'],
+                      ['data:image/svg+xml;base64,aGVsbG8='], ['data:image/png;base64,!'],
+                      ['data:image/png;base64,aGVsbG8='] * 10, 'data:image/png;base64,aGVsbG8=']
+        for images in bad_inputs:
+            with self.subTest(images=images), tempfile.TemporaryDirectory() as directory:
+                def popen(*args, **kwargs):
+                    self.fail('invalid image input started runtime')
+                adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=popen)
+                with self.assertRaises(CodexStreamError):
+                    list(adapter.stream(prompt='inspect', timeout_seconds=2, images=images))
+
+    def test_text_only_turn_input_remains_unchanged(self):
+        _, process = self.run_stream()
+        self.assertEqual(process.sent()[-1]['params']['input'], [{'type': 'text', 'text': 'hello'}])
+
     def test_simulation_capability_uses_server_context_and_is_revoked(self):
         from uuid import uuid4
         from server.app.identity.domain import Principal
