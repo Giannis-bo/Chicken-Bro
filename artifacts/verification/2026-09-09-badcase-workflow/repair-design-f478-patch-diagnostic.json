@@ -1,0 +1,46 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-f4782bf96ec41ef48946ddba82595523b9170a21",
+  "initialErrors": [
+    "WCL_GROUP_OBSERVATION_EMPTY",
+    "WCL_REFERENCE_MALFORMED"
+  ],
+  "toolEvents": [],
+  "capabilityEnvironmentAbsent": true,
+  "repairReasoningEffort": "low",
+  "repairModel": "gpt-6-astra",
+  "repairProfileSha256": "010ac480fcf469323ddf416f4b50f29fcd473ce97f4a9e81ab1cf65a1c4ab082",
+  "repairInstructionSha256": "770e434c25af3c5085f2d1e1e78af9f321a39d83644b20419811f355e102f604",
+  "actualToolPolicy": {
+    "webSearch": "disabled",
+    "shellToolEnabled": false,
+    "configuredMcpServerCount": 1,
+    "enabledMcpServerCount": 0,
+    "appsEnabled": false,
+    "pluginsEnabled": false
+  },
+  "rawPatchChars": 378,
+  "applyEntered": true,
+  "jsonParseSucceeded": true,
+  "applySucceeded": true,
+  "patchedChars": 3154,
+  "patchedSha256": "cdafba71487a2342e23126c2c1454890c237f0172b3268efa31a7ad1174041b5",
+  "patchedValidationErrors": [
+    "WCL_REFERENCE_MALFORMED"
+  ],
+  "passed": false,
+  "errorCode": "CODEX_OUTPUT_INVALID",
+  "seconds": 11.7,
+  "spawnCount": 1,
+  "processWait": [
+    {
+      "at": 11.63,
+      "timeout": 5,
+      "returnCode": 0,
+      "endedAt": 11.694
+    }
+  ],
+  "receiptSha256": "7d5b08ef591a1f97468f7b02844742cfbd15cb942e2dbac526bbbd4ec82f394f",
+  "design_only": true,
+  "production_attempted": false,
+  "diagnosis": "Valid Markdown close-parenthesis followed by fullwidth separator was consumed into source query values. Parsing/applying sparse patch completed within11.70s; the remaining failure is reference extraction. Exact source identity checks remain required."
+}

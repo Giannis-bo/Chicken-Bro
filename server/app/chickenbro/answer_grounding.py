@@ -15,7 +15,7 @@ MAX_REPORTS = 2048
 MAX_INDEX = 512000
 MAX_GROUPS = 100
 _CODE = re.compile(r'^[A-Za-z0-9]{16}$')
-_URL = re.compile(r'https?://[^\s<>\[\]"\u3000]+', re.I)
+_URL = re.compile(r'https?://[^\s<>\[\]()"\u3000]+', re.I)
 
 
 def _small(value):

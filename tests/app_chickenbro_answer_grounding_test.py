@@ -45,6 +45,13 @@ class GroundingTests(unittest.TestCase):
         token=h.issue_capability();h.query(token,'warcraftlogs',URL)
         self.assertFalse(h._answer_evidence)
 
+    def test_markdown_links_end_before_fullwidth_separator(self):
+        e=collect_evidence({},result())
+        good=URL+'?fight=73&source=91'
+        self.assertEqual(validate_answer('[a]('+good+')／[b]('+good+')',e),[])
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer('[a]('+good+')／[b]('+URL+'?fight=73&source=92)',e))
+        self.assertIn('WCL_REFERENCE_MALFORMED',validate_answer('[a]('+good+')／[b]('+URL+'BAD?fight=73&source=91)',e))
+
     def test_html_entities_and_duplicates(self):
         e=collect_evidence({},result())
         for query in ['?fight=73&amp;source=92', '?source=91&#38;fight=74']:
