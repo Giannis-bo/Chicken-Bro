@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "scope": "local workflow CLI only; frozen runtime/harness unchanged",
+  "mechanism": "A released group/report could previously be wrapped in a new timestamp batch and become eligible again.",
+  "change": "Derive consumed group/report versions from SHA-verified immutable successful batches. Reject duplicate freeze/prefrozen or mixed repeats before executor; preserve approval history and expose effective released status. Corrupt/missing successful history fails closed.",
+  "verification": {
+    "tdd_red_log_sha256": "b7b1b01357aac9ed8fca0f659a33557b587bc7b39f625cfcfd6315da9df21240",
+    "independent_related_tests": 92,
+    "root_full_backend_tests": 630,
+    "root_full_log_sha256": "a857a34a9cb35012d766292f46bbaf259ec555220b468da0973660305286f68e",
+    "cases": [
+      "new timestamp duplicate",
+      "prefrozen duplicate",
+      "mixed old/new groups",
+      "new report needs fresh approval",
+      "failed/publishing do not consume",
+      "missing/corrupt successful batch all entrypoints fail closed",
+      "same original successful batch remains noop"
+    ]
+  },
+  "root_review": "Confirmed fail-closed report consumption and retained exact-batch idempotency; status reuses one verified consumed index under the same state lock to avoid quadratic historical rereads. No migration or real-state mutation."
+}

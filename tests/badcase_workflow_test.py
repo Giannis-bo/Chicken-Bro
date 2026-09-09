@@ -203,6 +203,72 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(calls, ['preflight','release'])
         with self.assertRaises(w.WorkflowError): self.flow.write(f'batches/{batch}.json', {'changed':True}, immutable=True)
 
+    def release_fixture(self, batch):
+        def executor(mode, envelope):
+            identity = envelope['batch']
+            if mode == 'preflight':
+                return dict(batch_sha256=batch, baseline_sha=identity['baseline_sha'],
+                            clean=True, diff_sha256=identity['diff_sha256'])
+            return dict(batch_sha256=batch, source_sha=identity['source_sha'],
+                        build_sha256=identity['build_sha256'], config_sha256=identity['config_sha256'],
+                        status='passed', observed_at=w.utc_now(), checks={key:True for key in w.LIVE_CHECKS})
+        return self.flow.release(batch, executor)
+
+    def test_released_report_cannot_refreeze_with_new_timestamp_and_status_preserves_approval(self):
+        manifest=self.prepared();batch=self.flow.freeze(manifest);self.release_fixture(batch)
+        manifest['created_at']=w.utc_now()
+        with self.assertRaisesRegex(w.WorkflowError, 'already released'):self.flow.freeze(manifest)
+        status=self.flow.status()
+        self.assertEqual(status['groups']['G1']['decision'],'approved')
+        self.assertEqual(status['groups']['G1']['effective_status'],'released')
+        self.assertEqual(status['released_groups']['G1'][manifest['groups']['G1']],[batch])
+        self.assertEqual(self.flow.release(batch,lambda *_:self.fail('released batch is noop'))['status'],'released')
+
+    def test_prefrozen_duplicate_report_is_ineligible_and_never_calls_executor(self):
+        manifest=self.prepared();first=self.flow.freeze(manifest)
+        manifest['created_at']=w.utc_now();second=self.flow.freeze(manifest)
+        self.assertNotEqual(first,second);self.release_fixture(first)
+        self.assertEqual(self.flow.status()['batches'][second]['status'],'ineligible')
+        with self.assertRaisesRegex(w.WorkflowError,'already released'):
+            self.flow.release(second,lambda *_:self.fail('must reject before preflight'))
+
+    def test_mixed_released_and_new_groups_rejected(self):
+        manifest=self.prepared();batch=self.flow.freeze(manifest);self.release_fixture(batch)
+        g=self.flow.group('G2',[self.row()['run_id']],'another mechanism','scope')
+        self.flow.decide('G2',g['report_sha256'],'approved','new authorization')
+        manifest['groups']['G2']=g['report_sha256'];manifest['created_at']=w.utc_now()
+        with self.assertRaisesRegex(w.WorkflowError,'already released'):self.flow.freeze(manifest)
+
+    def test_new_report_requires_new_approval_and_is_not_consumed_by_previous_release(self):
+        manifest=self.prepared();batch=self.flow.freeze(manifest);self.release_fixture(batch)
+        g=self.flow.group('G1',[self.row()['run_id']],'rankings query','new scope')
+        manifest['groups']['G1']=g['report_sha256'];manifest['created_at']=w.utc_now()
+        with self.assertRaisesRegex(w.WorkflowError,'not approved'):self.flow.freeze(manifest)
+        self.flow.decide('G1',g['report_sha256'],'approved','new report authorization')
+        second=self.flow.freeze(manifest)
+        self.assertEqual(self.flow.status()['batches'][second]['status'],'eligible')
+        self.assertEqual(self.flow.status()['groups']['G1']['effective_status'],'approved')
+
+    def test_failed_and_publishing_batches_do_not_consume_report(self):
+        manifest=self.prepared();batch=self.flow.freeze(manifest)
+        for status in ('failed','publishing'):
+            state=self.flow.state();state['releases'][batch]={'status':status,'source_sha':'a'*40}
+            self.flow.write('state.json',state)
+            self.assertEqual(self.flow.status()['released_groups'],{})
+            self.assertEqual(self.flow.status()['groups']['G1']['effective_status'],'approved')
+
+    def test_missing_or_corrupt_released_batch_fails_closed_in_all_entrypoints(self):
+        manifest=self.prepared();batch=self.flow.freeze(manifest);self.release_fixture(batch)
+        path=self.root/'batches'/(batch+'.json');original=path.read_bytes()
+        for contents in (None,b'{}',b'not json'):
+            if contents is None:path.unlink()
+            else:path.write_bytes(contents)
+            try:
+                for call in (self.flow.status,lambda:self.flow.freeze(manifest),
+                             lambda:self.flow.release(batch,lambda *_:self.fail('must not execute'))):
+                    with self.assertRaises(w.WorkflowError):call()
+            finally:path.write_bytes(original)
+
     def test_release_does_not_hold_state_lock_during_executor(self):
         batch = self.flow.freeze(self.prepared())
         def executor(mode, envelope):

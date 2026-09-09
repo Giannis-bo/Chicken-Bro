@@ -459,7 +459,36 @@ class Workflow:
             self.write('state.json', state)
             return {'group':gid, **state['groups'][gid]}
 
-    def validate_batch(self, batch, state):
+    def released_groups(self, state):
+        """Derive consumed report versions from immutable successful batches.
+
+        Keep decisions as approval history; failed/publishing attempts consume no
+        report. Missing history is an integrity error, never an empty index.
+        Caller holds the state lock, including while finalizing another release.
+        """
+        released = {}
+        for batch_sha, result in state['releases'].items():
+            if result.get('status') != 'released':
+                continue
+            try:
+                valid_sha(batch_sha)
+                batch = self.read(f'batches/{batch_sha}.json')
+                require(isinstance(batch, dict) and digest(batch) == batch_sha,
+                        'released batch missing or hash differs')
+                groups = batch.get('groups')
+                require(isinstance(groups, dict) and groups, 'released batch groups missing')
+                for gid, report_sha in groups.items():
+                    group_id(gid)
+                    valid_sha(report_sha)
+                    released.setdefault(gid, {}).setdefault(report_sha, []).append(batch_sha)
+            except (OSError, ValueError, TypeError) as exc:
+                raise WorkflowError('released batch is unreadable or corrupt') from exc
+        return {gid:{report:sorted(batches) for report,batches in reports.items()}
+                for gid,reports in released.items()}
+
+    def validate_batch(self, batch, state, *, released=None):
+        if released is None:
+            released = self.released_groups(state)
         for key in IDENTITY: valid_sha(batch.get(key), 40 if key.endswith('_sha') else 64)
         fresh(batch.get('created_at'))
         require(batch.get('backend_only') is True and batch.get('excluded_impacts') == [], 'batch outside automatic backend scope')
@@ -467,6 +496,7 @@ class Workflow:
         require(isinstance(groups,dict) and groups, 'empty release batch')
         for gid, report in groups.items():
             group_id(gid)
+            require(report not in released.get(gid, {}), 'group report version already released')
             approved = state['groups'].get(gid,{})
             require(approved.get('decision') == 'approved' and approved.get('report_sha256') == report, 'group not approved at this report version')
         evidence = batch.get('evidence',{})
@@ -515,6 +545,7 @@ class Workflow:
         with self.lock('release'):
             with self.lock('state'):
                 state = self.state()
+                self.released_groups(state)
                 previous = state['releases'].get(batch_sha)
                 if previous:
                     require(previous['status'] == 'released', 'batch already attempted; fresh fix and evidence required')
@@ -559,6 +590,7 @@ class Workflow:
     def status(self):
         with self.lock('state'):
             state = self.state()
+            released = self.released_groups(state)
             batches = {}
             for path in sorted(self.path('batches').glob('*.json')):
                 sha = path.stem
@@ -570,7 +602,7 @@ class Workflow:
                     if previous:
                         batches[sha] = {'status':previous['status']}
                         continue
-                    self.validate_batch(batch, state)
+                    self.validate_batch(batch, state, released=released)
                     require(not any(item.get('source_sha') == batch['source_sha'] and item['status'] in ('failed','publishing')
                                     for item in state['releases'].values()), 'failed source requires new fix')
                     batches[sha] = {'status':'eligible', 'groups':sorted(batch['groups']),
@@ -578,7 +610,10 @@ class Workflow:
                 except (WorkflowError, KeyError, TypeError, ValueError):
                     batches[sha] = {'status':'ineligible'}
             return {'batches':batches, 'cursor':state['cursor'], 'feedback_count':len(state['seen']),
-                    'groups':{gid:{k:value[k] for k in ('report_sha256','decision')} for gid,value in state['groups'].items()},
+                    'groups':{gid:{**{k:value[k] for k in ('report_sha256','decision')},
+                                   'effective_status':'released' if value['report_sha256'] in released.get(gid,{}) else value['decision']}
+                              for gid,value in state['groups'].items()},
+                    'released_groups':released,
                     'releases':state['releases']}
 
 
