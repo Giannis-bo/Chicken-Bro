@@ -605,3 +605,5 @@ API 网关需对 `/api/v2/chat/images` 上传允许 7 MiB JSON body（base64 膨
 发布脚本绑定 source commit、当前基底、逐文件旧/新 SHA 与完整 staged manifest。持 SHARE 表锁确认 Chat/SimC/queue 均空后停止 API/Worker，应用迁移，再切换代码与本次 drop-in。API 开放准入前失败恢复旧拓扑；开放后需重新排空，不能直接杀掉新任务。回滚保留新增 schema/任务记录，移除仅本次 drop-in，恢复旧代码；API 无法启动时可使用仍运行 Worker 的数据库配置。readiness 之后仍须实际图片和文本生成、历史、隔离与幂等回归。
 
 故障语义：API 重启可继续生成；Worker/原生模型进程中断不声称恢复模型会话，租约过期后明确失败，由用户重试。正常发布必须排空，不把此失败策略当作可随意打断业务的授权。
+
+最终 G2 runtime `08404a091` 已上线，12 文件和迁移身份匹配，公网真实图片/来源查询回归通过；Web 保留 inline-images-4a519c4c 版本且 13 个文件哈希匹配。首轮端口冲突已实际回滚验证，最终工具端口为 28794；发布记录详见上述 G2 evidence。

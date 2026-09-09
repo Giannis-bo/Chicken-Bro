@@ -1,6 +1,6 @@
 # G2 持久化生成与查询耗时
 
-状态：`正在推进`；用户已授权定位、通用修复、测试、提交、合入、推送和后端发布。
+状态：`已完成 / 后端已发布`；用户已授权定位、通用修复、测试、提交、合入、推送和后端发布。
 
 **Goal:** API 重启不终止生成，Worker 中断有确定终态，复杂研究以实测改进耗时并保留质量。
 
@@ -25,8 +25,8 @@
 - [x] 持久化：`repository.py`、新 product migration、`application.py` 分离 admission/execution；真实 PostgreSQL 测试证明 admission 原子性、单账号约束、事件有界、终态唯一与过期写入拒绝。
 - [x] Worker：`server/app/chickenbro/worker.py` 与现有 Worker bootstrap；工具网关脱离 API 内存，租约心跳、未执行接管、执行中断明确失败。先测试重启/失租不得重复模型及副作用。
 - [x] 本地复核：后端、迁移、控制面和相关 ops；审查 owner/dependency 与协议；无客户端变更则不宣称新客户端验收。
-- [ ] Candidate：独立数据库/API/Worker，生成中重启 API、杀 Worker、失租写入、单回答/单 SimC、跨端读取与隔离；原问题和同类问题计时及答案证据比较。
-- [ ] 已授权发布：精确 commit/manifest，排空与回滚保护，合入推送并刷新线上身份，公网业务回归，更新路线图/发布证据；未完成门禁不宣称闭环。
+- [x] Candidate：独立数据库/API/Worker，生成中重启 API、杀 Worker、失租写入、单回答/单 SimC、跨端读取与隔离；原问题和同类问题计时及答案证据比较。
+- [x] 已授权发布：精确 commit/manifest，排空与回滚保护，合入推送并刷新线上身份，公网业务回归，更新路线图/发布证据；未完成门禁不宣称闭环。
 
 ## 初始核实
 
@@ -39,3 +39,5 @@
 主分支与生产已由其他任务更新为图片输入与 Web-only QQ；当前 G2 验证基于旧版本，不可直接发布。须保护新合同并重新做组合 Candidate。详见本轮 evidence README。
 
 2026-09-09 用户明确授权解决冲突后验证发布。已合并最新 QQ 与图片合同；Worker 使用 Web Principal，图片参数与 owner-scoped 历史保留，并将图片开关同步至 Worker。组合后端 476、PG 102、控制面 62 通过；云端组合验证正在推进。原 Mini/Web 检查只表示此前旧基底 evidence，当前产品验收按 Web-only 进行。
+
+最终 runtime `08404a091` 已发布，QQ/图片组合及公网真实模型通过；最终清单与完整边界见 evidence README。

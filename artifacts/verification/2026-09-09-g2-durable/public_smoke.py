@@ -93,8 +93,9 @@ with httpx.Client(base_url=base,timeout=510) as client:
  done=next((e for e in events if e.get('type')=='completed'),None)
  assert done and done.get('text'),'source generation did not complete'
  with psycopg.connect(env['WOW_DATABASE_URL']) as conn:
-  tools=conn.execute("SELECT result_json FROM chat.tool_results WHERE run_id=%s AND operation LIKE 'source.%' AND state='completed'",(done['runId'],)).fetchall()
- assert tools and any(row[0].get('status')=='verified' for row in tools),'no verified real source result'
+  tools=conn.execute("SELECT result_json FROM chat.tool_results WHERE run_id=%s AND operation LIKE 'source.%%' AND state='completed'",(done['runId'],)).fetchall()
+ assert tools and any(fact.get('character',{}).get('name')=='Fusionbolt' and fact.get('character',{}).get('className')=='shaman' and fact.get('character',{}).get('spec')=='elemental' for row in tools for fact in row[0].get('facts',[])), 'source facts missing'
+ assert '萨满' in done['text'] and '元素' in done['text'],'answer does not match retrieved facts'
  report['checks']['realSourceToolAndAnswer']=True
  report['sourceAnswerChars']=len(done['text'])
 report.update(conversationId=conversation['id'],imageId=image['id'],passed=True)
