@@ -226,6 +226,14 @@ class QqLoginTest(unittest.TestCase):
                 AppSettings(environment='production', database_url='postgresql://redacted', qq_appid='1905584243', qq_app_key='secret', qq_redirect_uri=callback)
 
 
+    def test_official_qq_http_avatar_is_upgraded_to_https(self):
+        for host in ('thirdqq.qlogo.cn', 'q.qlogo.cn'):
+            self.profile_reply = {'ret': 0, 'nickname': 'QQ', 'figureurl_qq_2': f'http://{host}/g?b=qq&k=example&s=100'}
+            state, _ = self.start()
+            self.callback(state)
+            self.assertEqual(self.client.get('/api/v2/me').json().get('avatarUrl'),
+                             f'https://{host}/g?b=qq&k=example&s=100')
+
     def test_profile_is_sanitized_optional_and_unsafe_avatar_not_exposed(self):
         self.profile_reply = {'ret':0, 'nickname':'  QQ\x00用户  ', 'figureurl_qq_2':'https://thirdqq.qlogo.cn/g?b=qq&k=public&s=100'}
         state, _ = self.start()
@@ -233,7 +241,7 @@ class QqLoginTest(unittest.TestCase):
         me = self.client.get('/api/v2/me').json()
         self.assertEqual(me.get('avatarUrl'), self.profile_reply['figureurl_qq_2'])
         self.assertEqual(self.repository.profile['nickname'], 'QQ用户')
-        for avatar in ['http://q.qlogo.cn/x', 'https://q.qlogo.cn.evil.example/x', 'https://user@q.qlogo.cn/x', 'data:image/png;base64,AAAA']:
+        for avatar in ['http://q.qlogo.cn.evil.example/x', 'http://user@thirdqq.qlogo.cn/x', 'https://q.qlogo.cn.evil.example/x', 'https://user@q.qlogo.cn/x', 'data:image/png;base64,AAAA']:
             self.profile_reply = {'ret':0, 'nickname':'ok', 'figureurl_qq_2':avatar}
             state, _ = self.start()
             self.assertEqual(self.callback(state).headers['location'], ORIGIN + '/')

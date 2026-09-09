@@ -27,9 +27,9 @@ def sanitize_qq_profile(profile: dict) -> dict[str, str]:
     if isinstance(avatar, str) and len(avatar) <= 2048 and not any(c.isspace() or ord(c) < 32 for c in avatar):
         try:
             url = urlsplit(avatar)
-            if (url.scheme == 'https' and url.netloc in {'q.qlogo.cn', 'thirdqq.qlogo.cn'}
+            if (url.scheme in {'http', 'https'} and url.netloc in {'q.qlogo.cn', 'thirdqq.qlogo.cn'}
                     and not url.fragment and not url.username and not url.password):
-                public['avatarUrl'] = avatar
+                public['avatarUrl'] = url._replace(scheme='https').geturl()
         except ValueError:
             pass
     return public
