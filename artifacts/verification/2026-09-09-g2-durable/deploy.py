@@ -188,7 +188,7 @@ if a.action in ('preflight','stage','promote'):
             service('start','chickenbro-worker')
             service('start','chickenbro-api')
         raise
-    if not ready() or Path('/opt/chickenbro').resolve()!=target or subprocess.run(['systemctl','is-active','--quiet','chickenbro-api','chickenbro-worker']).returncode:
+    if not ready() or Path('/opt/chickenbro').resolve()!=target or any(subprocess.run(['systemctl','is-active','--quiet',unit]).returncode for unit in ('chickenbro-api','chickenbro-worker')):
         raise RuntimeError('readiness failed; inspect active admissions before the explicit rollback action')
     print(json.dumps({'promoted':True,'sourceCommit':commit,'runtimeFiles':len(m['files']),
         'pointer':str(Path('/opt/chickenbro').resolve()),'readiness':'ready','businessRegression':'required'}),flush=True)
