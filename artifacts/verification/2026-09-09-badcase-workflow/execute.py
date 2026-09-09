@@ -13,7 +13,7 @@ REPO = Path('/Users/boyuan/Documents/wow_mini_program')
 ROOT = Path('/Users/boyuan/.codex/badcase/chickenbro/release')
 REMOTE_ROOT = '/var/tmp/chickenbro-badcase-release-20260909'
 # Operator fills the final exact digests, then freezes THIS wrapper's digest.
-PAYLOAD_SHA256 = {'manifest.json': 'ce8c1913ee89f0bcc0a85073cbc50d1d46102c83067b749df7ad568f05c2c5bf', 'deploy.py': 'f8b5a8664abe4d4afc950eac42638d294921f14af51e8a077a114ee171b48a0b', 'execute-remote.py': '44b76a4862af8bc19580c9bda8bb8fc9f5cf1e378f30343d16d3f06294ac5bae', 'http-smoke.py': '566fd7716a6870dc889f151630b8cf99d954e5c370c3e814a265146898089c1a', 'general-smoke.py': '172eeeceafdea5b65a4b8c7b4655c704c9e95ff022dfc41db5b8ae8d395ac0ff'}
+PAYLOAD_SHA256 = {'manifest.json': 'f73af515ae812d9e3140a6a890d97c19a5784f5e70850ced19e05e739176d6cd', 'deploy.py': 'f8b5a8664abe4d4afc950eac42638d294921f14af51e8a077a114ee171b48a0b', 'execute-remote.py': 'ef19e5e675d6503e0045cb53ea659e0d983c04ef8f2293b3104f4ebc4fbd491c', 'http-smoke.py': '566fd7716a6870dc889f151630b8cf99d954e5c370c3e814a265146898089c1a', 'general-smoke.py': '172eeeceafdea5b65a4b8c7b4655c704c9e95ff022dfc41db5b8ae8d395ac0ff'}
 BOOTSTRAP = r'''
 import hashlib,json,os,stat,sys
 from pathlib import Path
