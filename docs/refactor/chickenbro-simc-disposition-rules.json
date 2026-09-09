@@ -15,7 +15,8 @@
         "tests/app_chat_images_postgres_test.py"
       ],
       "prefixes": [
-        "artifacts/verification/2026-09-09-chat-images/"
+        "artifacts/verification/2026-09-09-chat-images/",
+        "artifacts/verification/2026-09-09-inline-chat-images/"
       ]
     },
     {

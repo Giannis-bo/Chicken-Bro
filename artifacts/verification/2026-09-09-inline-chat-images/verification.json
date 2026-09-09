@@ -1,0 +1,53 @@
+{
+  "baseline": "036aca2b7b2dd177f7c887c50e0e8bdd137c3943",
+  "status": "local_verified",
+  "frontendTests": 278,
+  "targetedTests": 24,
+  "controlTests": 62,
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5": {
+    "status": "passed",
+    "sizeWarnings": 2
+  },
+  "browser": "real Chrome keyboard clipboard; synthetic file drag; actual file picker; mocked API contract",
+  "backendChanges": false,
+  "productionDeployment": "not_run",
+  "manualAcceptance": "pending",
+  "sourceSha256": {
+    "apps/mini-taro/src/components/ChatImages.module.scss": "cfa1b4baa7d45cd809e13150cccc75257061db1ea98a3d5763530f7a1745b568",
+    "apps/mini-taro/src/components/ChatImages.tsx": "f6c71e03273fc7d1a4670c63909f9e5ed8f892b1625a193b82a472dac8630bb4",
+    "apps/mini-taro/src/features/chat/chat-images.test.tsx": "c02fc380a2a3ae6accd6934f83b171af60d6dd79b908407a4e8cdb9e1f2eee5d",
+    "apps/mini-taro/src/features/chat/image-picker.ts": "d612de5fae51a4d3681dabd1dd245845b272a5055b2a25395e0bf9cc6363468f",
+    "apps/mini-taro/src/features/chat/use-chat-images.ts": "ac7750617bc53d960b4edb20341c537128b0b109a9a5e15ee8267b98ba92f9ff",
+    "apps/mini-taro/src/web/WebApp.module.scss": "7f8402f60a59ca832de963e2eb89160249e2c9061d98923f6e10989bae7ad789",
+    "apps/mini-taro/src/web/WebChatView.tsx": "70224e2f4b8d941925b62f3a7183ea733c31d39981b31a99d45d08e4e829dfc1",
+    "apps/mini-taro/src/web/web-chat-composer.test.tsx": "6c2a8056487e4b1b7a23dd738ea9a1fd94cf6739b9d9f62f0e41bd6c930ca27a"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/chat-inline-tests.log",
+      "sha256": "bc558bc7d1357a5a3bb11cabad34d889e16bbeb770446c3b46742fd7923c7a11"
+    },
+    "full-web": {
+      "path": "/tmp/chat-inline-full-web.log",
+      "sha256": "b73d1b1b12d6b6a8283879b682b4328837819b9b79112f4a6a453d68150630f2"
+    },
+    "types": {
+      "path": "/tmp/chat-inline-types.log",
+      "sha256": "aed6ee8223eab6eee7861699d11283b125d9920f42e78fa6697ed006341ea1b4"
+    },
+    "lint": {
+      "path": "/tmp/chat-inline-lint.log",
+      "sha256": "91faf224832361458110331ca907132b7f7c5945fddde6c4bf3a0e9e71d56fd4"
+    },
+    "build": {
+      "path": "/tmp/chat-inline-build.log",
+      "sha256": "c91515e058dc9d4dd0014747a325106eb6ca12d50d681be4fdb27e2f674b4244"
+    },
+    "control": {
+      "path": "/tmp/chat-inline-control.log",
+      "sha256": "ec65384b7ba5e281cbb15a5d7197d1e61c548277d97b29c15b82fd96e3c8257c"
+    }
+  }
+}

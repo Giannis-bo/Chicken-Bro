@@ -4,13 +4,13 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), streamMessage: vi.fn(), imageCapabilities: vi.fn(), uploadImage: vi.fn(), getImage: vi.fn(), removeImage: vi.fn(), choose: vi.fn() }))
-vi.mock('../features/chat/image-picker', () => ({ chooseChatImages: api.choose }))
+vi.mock('../features/chat/image-picker', async importOriginal => ({ ...await importOriginal<Record<string, unknown>>(), chooseChatImages: api.choose }))
 vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api } }))
 vi.mock('@tarojs/components', async () => {
   const { createElement: element } = await import('react')
   const host = (tag: string) => (props: Record<string, unknown>) => element(tag,
     Object.fromEntries(Object.entries(props).filter(([key]) =>
-      ['children', 'onClick', 'disabled', 'className', 'id'].includes(key) || key.startsWith('data-'))))
+      ['children', 'onClick', 'disabled', 'className', 'id'].includes(key) || key.startsWith('data-') || key.startsWith('aria-'))))
   return { Image: host('img'), View: host('div'), Text: host('span'), Button: host('button'), ScrollView: host('div'),
     Textarea: (props: { value: string; onInput: (event: { detail: { value: string } }) => void }) =>
       element('textarea', { value: props.value, onChange: (event: { target: { value: string } }) =>
@@ -144,9 +144,65 @@ describe('Web chat composer interactions', () => {
     await enter()
     expect(api.streamMessage.mock.calls[0]?.[1]).toMatchObject({content: '', imageIds: ['image-one']})
     await act(async () => api.streamMessage.mock.calls[0]?.[2].onFailure('CHAT_ACCOUNT_BUSY'))
-    expect(container.textContent).toContain('移除图片')
+    expect(container.querySelector('[aria-label="移除图片"]')).not.toBeNull()
     expect(container.textContent).toContain('鸡哥正在回复你的另一条消息')
     expect(api.removeImage).not.toHaveBeenCalled()
+  })
+
+  async function transfer(kind: 'paste' | 'drop', files: File[], text = '') {
+    const event = new Event(kind, { bubbles: true, cancelable: true })
+    const data = { files, items: files.map(file => ({kind: 'file', type: file.type, getAsFile: () => file})), types: files.length ? ['Files'] : ['text/plain'], getData: () => text }
+    Object.defineProperty(event, kind === 'paste' ? 'clipboardData' : 'dataTransfer', { value: data })
+    await act(async () => { input().dispatchEvent(event); await new Promise(resolve => setTimeout(resolve, 20)) })
+    return event
+  }
+  it.each(['paste', 'drop'] as const)('accepts an image by %s into the composer and sends its uploaded ID', async kind => {
+    api.uploadImage.mockResolvedValue({fromFallback: false, payload: {id: 'direct-image', mimeType: 'image/png', width: 2, height: 2}})
+    await draft('看看这张图')
+    const event = await transfer(kind, [new File(['pixels'], 'screenshot.png', {type: 'image/png'})])
+    expect(event.defaultPrevented).toBe(true)
+    const composer = input().closest('[aria-label="消息输入区"]')!
+    expect(composer.querySelector('[aria-label="移除图片"]')).not.toBeNull()
+    expect(input().value).toBe('看看这张图')
+    await enter()
+    expect(api.streamMessage.mock.calls[0]?.[1]).toMatchObject({content: '看看这张图', imageIds: ['direct-image']})
+  })
+  it('retries a failed pasted image with the same key, then removes it', async () => {
+    api.uploadImage.mockResolvedValueOnce({fromFallback: true, error: '网络暂不可用'})
+      .mockResolvedValueOnce({fromFallback: false, payload: {id: 'retry-image', mimeType: 'image/png', width: 2, height: 2}})
+    api.removeImage.mockResolvedValue({fromFallback: false, payload: {deleted: true}})
+    await transfer('paste', [new File(['pixels'], 'screenshot.png', {type: 'image/png'})])
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(true)
+    await act(async () => Array.from(container.querySelectorAll('button')).find(button => button.textContent === '重试上传')!.click())
+    expect(api.uploadImage.mock.calls[0]?.[1].idempotencyKey).toBe(api.uploadImage.mock.calls[1]?.[1].idempotencyKey)
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(false)
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="移除图片"]')!.click())
+    expect(container.querySelector('[aria-label="移除图片"]')).toBeNull()
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(true)
+  })
+  it('keeps accompanying clipboard text at the current selection', async () => {
+    api.uploadImage.mockResolvedValue({fromFallback: false, payload: {id: 'mixed-image', mimeType: 'image/png', width: 2, height: 2}})
+    await draft('前后')
+    input().setSelectionRange(1, 1)
+    await transfer('paste', [new File(['pixels'], 'screenshot.png', {type: 'image/png'})], '截图')
+    expect(input().value).toBe('前截图后')
+  })
+
+  it('does not intercept text-only paste', async () => {
+    expect((await transfer('paste', [], '普通文字')).defaultPrevented).toBe(false)
+    expect(api.uploadImage).not.toHaveBeenCalled()
+  })
+  it.each([
+    [new File(['x'], 'unsupported.gif', {type: 'image/gif'})],
+    [new File([new Uint8Array(5242881)], 'large.png', {type: 'image/png'})],
+    Array.from({length: 4}, (_, i) => new File(['x'], `${i}.png`, {type: 'image/png'})),
+  ])('rejects invalid dropped images without uploading or clearing text: %j', async (...files) => {
+    await draft('保留文字')
+    await transfer('drop', files)
+    expect(api.uploadImage).not.toHaveBeenCalled()
+    expect(container.querySelector('[role="alert"]')?.textContent).toMatch(/PNG|三张|5 MiB/)
+    expect(input().value).toBe('保留文字')
   })
 
   it('keeps Shift+Enter as a newline without sending', async () => {

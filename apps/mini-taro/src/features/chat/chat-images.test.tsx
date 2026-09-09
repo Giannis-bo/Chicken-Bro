@@ -51,3 +51,16 @@ it('hides and blocks the picker when capability is disabled', async () => {
   await act(async () => value.choose())
   expect(api.choose).not.toHaveBeenCalled()
 })
+
+it('blocks sending while reading direct input and rejects a fourth image', async () => {
+  let finish!: (urls: string[]) => void
+  let pending!: Promise<void>
+  await act(async () => { pending = value.add(() => new Promise(resolve => { finish = resolve })) })
+  expect(value.pending).toBe(true)
+  api.uploadImage.mockResolvedValue(success(image))
+  await act(async () => { finish(['data:image/png;base64,eA==']); await pending })
+  expect(value.items).toHaveLength(1)
+  await act(async () => value.add(async () => ['a', 'b', 'c']))
+  expect(value.items).toHaveLength(1)
+  expect(value.error).toContain('三张')
+})
