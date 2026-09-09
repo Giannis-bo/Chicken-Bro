@@ -267,6 +267,33 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(self.r.link.resolve(), self.r.base)
             self.assertEqual(snapshot.read_bytes(), before)
 
+    def test_passwordless_dsn_uses_captured_passfile_without_global_env_change(self):
+        import sys
+        fake = Mock()
+        env = {'PGPASSFILE': '/private/service.pgpass'}
+        before = dict(d.os.environ)
+        with patch.dict(sys.modules, {'psycopg': fake}):
+            connector = d.database_connector(env)
+            connector('postgresql://app@127.0.0.1/chickenbro_prod', autocommit=False)
+        fake.connect.assert_called_once_with('postgresql://app@127.0.0.1/chickenbro_prod',
+                                            autocommit=False, passfile='/private/service.pgpass')
+        self.assertEqual(dict(d.os.environ), before)
+
+    def test_preflight_really_connects_and_failure_never_stops_services(self):
+        conn = Mock()
+        @contextmanager
+        def connect():
+            yield conn
+        self.r.connect = connect
+        conn.execute.return_value.fetchone.return_value = (1,)
+        with patch.object(self.r, 'runtime'), patch.object(d, 'service') as service:
+            self.r.run('preflight')
+            conn.execute.assert_called_once_with('SELECT 1')
+            conn.execute.side_effect = RuntimeError('simulated connection failure')
+            with self.assertRaisesRegex(RuntimeError, 'connection failure'):
+                self.r.run('preflight')
+            service.assert_not_called()
+
     def test_environment_hash_preserves_non_app_config(self):
         self.assertEqual(d.env_digest({'X': '1', 'INVOCATION_ID': 'old'}),
                          d.env_digest({'X': '1', 'INVOCATION_ID': 'new'}))

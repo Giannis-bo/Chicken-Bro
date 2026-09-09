@@ -179,6 +179,25 @@ def web_verify(manifest, budget):
     return len(manifest['webFiles'])
 
 
+def safe_failure(error, stage):
+    # Never serialize exception text, args, SQL, DSNs, paths or traceback locals.
+    types_seen, seen = [], set()
+    current = error
+    while current is not None and id(current) not in seen and len(types_seen) < 8:
+        seen.add(id(current))
+        name = type(current).__name__
+        types_seen.append(name if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}', name) else 'Exception')
+        current = current.__cause__ or current.__context__
+    code = 'STAGE_FAILED'
+    if 'OperationalError' in types_seen:
+        code = 'DATABASE_CONNECTION_FAILED'
+    elif any(name in types_seen for name in ('DeadlineExceeded', 'TimeoutExpired')):
+        code = 'DEADLINE_EXCEEDED'
+    elif 'AssertionError' in types_seen:
+        code = 'ACCEPTANCE_CHECK_FAILED'
+    return {'stage': stage, 'errorCode': code, 'errorType': types_seen[0], 'causeTypes': types_seen}
+
+
 def execute(envelope, mode, payload):
     budget = Budget()
     budget.arm()
@@ -196,18 +215,26 @@ def execute(envelope, mode, payload):
                 'diff_sha256': digest({'files': manifest['files'], 'baseHashes': manifest['baseHashes']})}
     assert mode in ('preflight', 'release')
     assert all(envelope['batch'][key] == value for key, value in identity.items()), 'batch/manifest identities differ'
+    stage = 'preflight'
     with open('/run/lock/chickenbro-release.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         try:
             checked_run('preflight')
-            release.runtime()
             if mode == 'preflight':
                 return {'batch_sha256': envelope['batch_sha256'], 'baseline_sha': identity['baseline_sha'], 'diff_sha256': identity['diff_sha256'], 'clean': True}
+            stage = 'promote'
             checked_run('promote')
-            cases = validate_cases(run_smoke('http-smoke.py', release.target, 'live-rankings', payload, budget), release)
+            stage = 'ranking_smoke'
+            ranking_result = run_smoke('http-smoke.py', release.target, 'live-rankings', payload, budget)
+            stage = 'ranking_validation'
+            cases = validate_cases(ranking_result, release)
+            stage = 'general_smoke'
             general = run_smoke('general-smoke.py', release.target, 'live-general', payload, budget)
+            stage = 'runtime_verify'
             checked_run('verify')
+            stage = 'web_verify'
             count = web_verify(manifest, budget)
+            stage = 'observation'
             observation_start = time.monotonic()
             for _ in range(4):
                 checked_run('verify')
@@ -220,22 +247,27 @@ def execute(envelope, mode, payload):
                       'details': {'cases': cases, 'general': {k: v for k, v in general.items() if k != 'cases'},
                                   'publicWebFiles': count, 'observationSeconds': round(time.monotonic() - observation_start, 2),
                                   'source': str(release.target), 'web': str(release.web)}}
+            stage = 'evidence_write'
             private_output('live-evidence.json', result)
             return result
         except BaseException as failure:
             if mode == 'preflight':
-                raise
-            recovery = {'status': 'failed', 'errorType': type(failure).__name__, 'observed_at': stamp()}
+                private_output('preflight-failure.json', {'status': 'failed', **safe_failure(failure, stage), 'observed_at': stamp()})
+                raise RuntimeError('preflight failed; inspect private failure evidence') from None
+            recovery = {'status': 'failed', **safe_failure(failure, stage), 'observed_at': stamp()}
             try:
+                stage = 'recovery_admission'
                 budget.arm(recovery=True)
                 if release.link.resolve() == release.target:
+                    stage = 'recovery_rollback'
                     checked_run('rollback')
                 else:
                     assert release.link.resolve() == release.base, 'foreign pointer prevents recovery'
+                stage = 'recovery_smoke'
                 recovery['business'] = run_smoke('general-smoke.py', release.base, 'recovery-general', payload, budget)
                 recovery['status'] = 'recovery_verified'
             except BaseException as error:
-                recovery['recoveryErrorType'] = type(error).__name__
+                recovery['recoveryFailure'] = safe_failure(error, stage)
             private_output('recovery-result.json', recovery)
             raise RuntimeError('release did not pass; inspect private recovery result') from None
         finally:

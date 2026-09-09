@@ -105,6 +105,18 @@ def switch(link, destination):
         temporary.unlink(missing_ok=True)
 
 
+def database_connector(env):
+    # libpq does not see AppSettings or the captured service environment.
+    # Pass its configured password file explicitly; never mutate process env.
+    passfile = env.get('PGPASSFILE')
+    def connect(dsn, **kwargs):
+        import psycopg
+        if passfile:
+            kwargs['passfile'] = passfile
+        return psycopg.connect(dsn, **kwargs)
+    return connect
+
+
 class Release:
     def __init__(self, manifest, connect=None):
         self.path = Path(manifest)
@@ -227,7 +239,8 @@ class Release:
             sys.path.insert(0, str(self.base))
             from server.app.platform.config import AppSettings
             from server.app.platform.postgres import PostgresConnectionFactory
-            self.connect = PostgresConnectionFactory(AppSettings.from_env(self.envs[UNITS[0]])).connection
+            self.connect = PostgresConnectionFactory(AppSettings.from_env(self.envs[UNITS[0]]),
+                connector=database_connector(self.envs[UNITS[0]])).connection
 
     def active(self, conn):
         queries = {'chat': "chat.agent_runs WHERE status='streaming'",
@@ -332,6 +345,9 @@ class Release:
                 self.verify(self.target)
         else:
             require(inventory(self.overlay) == self.m['files'], 'overlay inventory drift')
+            self.runtime()
+            with self.connect() as conn:
+                require(conn.execute('SELECT 1').fetchone() == (1,), 'database preflight failed')
         return {'action': action, 'sourceCommit': self.m['sourceCommit'],
                 'backend': str(self.link.resolve()), 'web': str(self.web),
                 'businessSmoke': 'required'}

@@ -1,0 +1,25 @@
+{
+  "batch_sha256": "398da44b4394cbeb42d1a93d46e877904fee39ae1651168e690af67791238287",
+  "source_sha": "8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+  "status": "failed",
+  "failure_stage": "promote idle-fence connection before service stop",
+  "cause": "Release helper did not pass captured service PGPASSFILE to libpq; passwordless DSN could not authenticate. Read-only diagnosis reproduced connection failure. No service stop or backend pointer switch occurred.",
+  "baseline": "7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb",
+  "recovery_business": {
+    "passed": true,
+    "chatRunId": "6de2361f-18b8-4925-a871-65b15d326eeb",
+    "simcJobId": "3e3fa925-76e5-4240-b7f6-ee12fe2b4d8f",
+    "positiveDps": 158729.5355426226,
+    "checks": [
+      "trueVision",
+      "detachedGeneration",
+      "ownerIsolation",
+      "accountConcurrency",
+      "idempotency",
+      "realSimcQueueWorkerResult",
+      "simcProvenance"
+    ],
+    "pointerRollbackPerformed": false
+  },
+  "next_step": "Fix connection/preflight diagnostics; new commit, real new Candidate trials, new batch. Never delete failed record or relabel old trials."
+}

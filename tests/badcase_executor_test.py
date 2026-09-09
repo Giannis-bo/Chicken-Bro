@@ -217,6 +217,18 @@ class ExecutorTest(unittest.TestCase):
             self.assertEqual(private.call_args_list[0].args[1], 'partial')
             self.assertIn('network', private.call_args_list[1].args[1])
 
+    def test_safe_failure_records_cause_code_without_exception_secrets(self):
+        OperationalError = type('OperationalError', (Exception,), {})
+        original = OperationalError('password=secret dsn=postgres://private')
+        outer = RuntimeError('private failure details')
+        outer.__cause__ = original
+        result = remote.safe_failure(outer, 'promote')
+        self.assertEqual(result['errorCode'], 'DATABASE_CONNECTION_FAILED')
+        self.assertEqual(result['causeTypes'], ['RuntimeError', 'OperationalError'])
+        self.assertEqual(result['stage'], 'promote')
+        self.assertNotIn('secret', json.dumps(result))
+        self.assertNotIn('private', json.dumps(result))
+
     def test_system_exit_after_promotion_runs_recovery(self):
         manifest = {'sourceCommit': 'a' * 40, 'expectedBackend': '/base-' + 'b' * 40,
                     'baseInventory': {}, 'files': {}, 'baseHashes': {}, 'environmentHashes': {}}
