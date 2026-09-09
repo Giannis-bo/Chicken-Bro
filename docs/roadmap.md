@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- [运营后台](plans/2026-09-09-admin-ops.md)：QQ唯一管理员、只读用户/Chat/SimC数据、北京时间趋势；已发布并完成真实本人权限、非管理员拒绝、业务和SQL对账。[证据](../artifacts/verification/2026-09-09-admin-ops/README.md)。
+
 - [SimC 场景实验](plans/2026-09-09-simc-scenario-experiments.md)：已合入推送并发布（`7ef8a5dfd`）；天赋节点/整套替换、同进度饰品候选、预检重跑和对照已通过隔离及公网真实模型验收。[发布证据](../artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md)。制造/特殊装备版本仍未全面覆盖。
 
 - Web 是唯一产品客户端；QQ 网站授权登录已上线，用户本轮确认已顺利使用 QQ 登录。服务端内部账号拥有 Chat/SimC 历史，跨用户隔离，不自动绑定旧微信账号。

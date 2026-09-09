@@ -1,0 +1,7 @@
+{
+  "stage": "image_answer_assertion",
+  "cause": "Out-of-domain fixture was correctly refused by the WoW-only product prompt.",
+  "actualAnswer": "鸡哥主要帮忙研究魔兽，暂不处理无关图片的文字转录。",
+  "resolution": "Changed only the verification image/prompt to a WoW Shaman DPS screenshot; reran full Candidate checks successfully.",
+  "productionModified": false
+}

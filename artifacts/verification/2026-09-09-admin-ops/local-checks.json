@@ -1,0 +1,14 @@
+{
+  "sourceRuntime": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "sourceWeb": "8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+  "backendBeforeMerge": 470,
+  "backendAfterMerge": 555,
+  "frontEndFinal": 269,
+  "adminPostgres": "passed_real_local_postgresql",
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5Build": "passed_with_existing_size_warnings",
+  "controlInIsolatedWorktree": "62 passed, 1 inherited missing untracked evidence link",
+  "controlAfterMainIntegration": "63 passed",
+  "review": "Local contract, authorization, aggregation and generated CSS review; no external CodeRabbit review"
+}

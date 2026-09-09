@@ -302,5 +302,16 @@
     "candidateVerified": true,
     "liveBusinessVerified": true,
     "manualQqLoginThisRelease": "not_repeated_existing_session_verified"
+  },
+  "adminAnalytics": {
+    "status": "live_verified",
+    "plan": "docs/plans/2026-09-09-admin-ops.md",
+    "verificationRecord": "artifacts/verification/2026-09-09-admin-ops/README.md",
+    "backendSourceCommit": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "webSourceCommit": "8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+    "singleVerifiedQqOwner": true,
+    "browserVerified": true,
+    "secondAccountDenied": true,
+    "productionRollbackDrill": "not_run"
   }
 }
