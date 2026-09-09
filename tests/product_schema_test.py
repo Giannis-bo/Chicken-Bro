@@ -315,6 +315,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0004_chat_public_progress",
                     "0005_chat_account_concurrency",
                     "0006_chat_resolution_feedback",
+                    "0007_chat_images",
                     "0007_qq_web_login",
                 ),
             )
@@ -334,6 +335,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                 by_schema.setdefault(schema, set()).add(table)
             expected = {schema: set(tables) for schema, tables in EXPECTED_TABLES.items()}
             expected["identity"].add("qq_login_attempts")
+            expected["chat"].add("images")
             self.assertEqual(by_schema, expected)
         finally:
             connection.rollback()

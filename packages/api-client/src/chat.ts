@@ -1,4 +1,6 @@
 import {
+  isChatImage,
+  type ChatImage,
   isChatEventEnvelope,
   isConversationDetail,
   isConversationPage,
@@ -36,6 +38,7 @@ export interface ChatCreateRequest {
 }
 
 export interface ChatMessageRequest {
+  imageIds?: readonly string[]
   content: string
   clientMessageId?: string
 }
@@ -47,6 +50,10 @@ export interface ChatStreamOptions extends ChatRequestOptions {
 }
 
 export interface ChatClient {
+  imageCapabilities(options: ChatRequestOptions): Promise<ApiResult<{enabled: boolean; maxImages: number; maxBytes: number}>>
+  uploadImage(body: {dataUrl: string}, options: ChatCreateOptions): Promise<ApiResult<ChatImage>>
+  getImage(id: string, options: ChatRequestOptions): Promise<ApiResult<{dataUrl: string}>>
+  removeImage(id: string, options: ChatRequestOptions): Promise<ApiResult<{deleted: boolean}>>
   setFeedback(conversationId: string, messageId: string, resolved: boolean,
     options: ChatRequestOptions): Promise<ApiResult<{ resolved: boolean }>>
   remove(conversationId: string, options: ChatRequestOptions): Promise<ApiResult<{ deleted: boolean }>>
@@ -112,6 +119,39 @@ export function createChatClient(transport: ApiTransport): ChatClient {
   }
 
   return {
+    imageCapabilities(options) {
+      return request(apiV2Path('/chat/image-capabilities'), undefined, options, {
+        mutating: false, fallback: () => ({enabled: false, maxImages: 3, maxBytes: 5242880}),
+        validate: value => typeof value === 'object' && value !== null && 'enabled' in value
+          && typeof value.enabled === 'boolean' && 'maxImages' in value && value.maxImages === 3
+          && 'maxBytes' in value && value.maxBytes === 5242880,
+      })
+    },
+    uploadImage(body, options) {
+      if (!isValidIdempotencyKey(options.idempotencyKey)) throw new TypeError('idempotency key is invalid')
+      if (!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/u.test(body.dataUrl)
+        || body.dataUrl.length > 6990532) throw new TypeError('请选择不超过 5 MiB 的 PNG/JPEG 图片')
+      return request(apiV2Path('/chat/images'), body, options, {
+        method: 'POST', mutating: true, idempotencyKey: options.idempotencyKey,
+        fallback: () => ({id: '', mimeType: 'image/png', width: 0, height: 0}), validate: isChatImage,
+      })
+    },
+    getImage(imageId, options) {
+      const id = boundedIdentifier(imageId, 'image id')
+      return request(apiV2Path('/chat/images/' + encodeURIComponent(id)), undefined, options, {
+        mutating: false, fallback: () => ({dataUrl: ''}),
+        validate: value => typeof value === 'object' && value !== null && 'dataUrl' in value
+          && typeof value.dataUrl === 'string' && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/u.test(value.dataUrl)
+          && value.dataUrl.length <= 6990532,
+      })
+    },
+    removeImage(imageId, options) {
+      const id = boundedIdentifier(imageId, 'image id')
+      return request(apiV2Path('/chat/images/' + encodeURIComponent(id)), undefined, options, {
+        method: 'DELETE', mutating: true, fallback: () => ({deleted: false}),
+        validate: value => typeof value === 'object' && value !== null && 'deleted' in value && value.deleted === true,
+      })
+    },
     setFeedback(conversationId, messageId, resolved, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       const message = boundedIdentifier(messageId, 'message id')
@@ -164,7 +204,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     get(conversationId, options) {
       const id = boundedIdentifier(conversationId, 'conversation id')
       return request(
-        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}?includeProgress=true&includeFeedback=true`),
+        apiV2Path(`/chat/conversations/${encodeURIComponent(id)}?includeProgress=true&includeFeedback=true&includeImages=true`),
         undefined,
         options,
         {
@@ -185,7 +225,13 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       let clientMessageId: string | undefined
       try {
         id = boundedIdentifier(conversationId, 'conversation id')
-        if (!message.content.trim() || message.content.length > 4000) {
+        if (message.imageIds !== undefined && (!Array.isArray(message.imageIds)
+          || message.imageIds.length < 1 || message.imageIds.length > 3
+          || new Set(message.imageIds).size !== message.imageIds.length
+          || message.imageIds.some(imageId => boundedIdentifier(imageId, 'image id') !== imageId))) {
+          throw new TypeError('message images are invalid')
+        }
+        if ((!message.content.trim() && !message.imageIds?.length) || message.content.length > 4000) {
           throw new TypeError('message content is invalid')
         }
         if (message.clientMessageId !== undefined) {
@@ -206,6 +252,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
           method: 'POST',
           data: {
             content: message.content,
+            ...(message.imageIds?.length ? {imageIds: [...message.imageIds]} : {}),
             ...(clientMessageId === undefined ? {} : { clientMessageId }),
           },
           auth: options.auth,

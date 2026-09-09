@@ -66,7 +66,7 @@ describe('formal Chat client', () => {
     expect(transport.requests.map((call) => call.path)).toEqual([
       '/api/v2/chat/conversations?limit=20',
       '/api/v2/chat/conversations',
-      '/api/v2/chat/conversations/conversation%2Fone?includeProgress=true&includeFeedback=true',
+      '/api/v2/chat/conversations/conversation%2Fone?includeProgress=true&includeFeedback=true&includeImages=true',
     ])
     for (const call of transport.requests) {
       expect(call.path).not.toContain('/prototype/')
@@ -277,4 +277,23 @@ it('submits a boolean feedback choice with the current transport auth and valida
   expect(call.options.validate?.({ resolved: false })).toBe(true)
   expect(call.options.validate?.({ resolved: true })).toBe(false)
   expect(call.options.validate?.({ resolved: 'false' })).toBe(false)
+})
+
+it('uploads authenticated images and accepts image-only messages without exposing URLs', async () => {
+  const transport = new RecordingTransport()
+  const client = createChatClient(transport)
+  const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+  await client.uploadImage({ dataUrl: 'data:image/png;base64,aGVsbG8=' }, { auth, idempotencyKey: 'image-request-one' })
+  expect(transport.requests[0]?.options.auth).toEqual(auth)
+  expect(transport.requests[0]?.options.header).toEqual({ 'Idempotency-Key': 'image-request-one' })
+  const onFailure = vi.fn()
+  client.streamMessage('conversation-one', { content: '', imageIds: ['image-one'] }, {
+    auth, idempotencyKey: 'message-request-one', onFailure, onEvent: vi.fn(),
+  })
+  expect(onFailure).not.toHaveBeenCalled()
+  expect(transport.streams[0]?.options.data).toMatchObject({ content: '', imageIds: ['image-one'] })
+  client.streamMessage('conversation-one', { content: '', imageIds: ['one', 'one'] }, {
+    auth, idempotencyKey: 'message-request-two', onFailure, onEvent: vi.fn(),
+  })
+  expect(onFailure).toHaveBeenCalled()
 })

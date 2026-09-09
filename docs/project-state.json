@@ -236,5 +236,17 @@
       "https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
       "https://www.chickenbro.cloud/api/v2/auth/qq/callback"
     ]
+  },
+  "incrementalWork": {
+    "chatImages": {
+      "status": "deployment_in_progress",
+      "plan": "docs/plans/2026-09-09-chat-images.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "userAcceptance": "not_run",
+      "evidence": "artifacts/verification/2026-09-09-chat-images/README.md",
+      "miniVerification": "user_waived_2026-09-09",
+      "dependencyInstallationAuthorized": true
+    }
   }
 }

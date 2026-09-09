@@ -132,7 +132,8 @@ it('keeps history and draft when the server rejects deletion of a replying conve
   expect(node.querySelector('textarea')!.value).toBe('草稿')
 })
 it('switches history during a reply, retains the draft and ignores background deltas in the selected view', async () => {
-  await input('开始回复'); await click('发送'); await input('下一条草稿')
+  await input('开始回复'); await click('发送')
+  await act(async () => api.stream!.onEvent({type: 'started', conversationId: 'A', requestId: 'request-a', runId: 'run-a', sequence: 1})); await input('下一条草稿')
   expect(button('历史对话').disabled).toBe(false)
   await click('历史对话'); await click('会话B')
   expect(node.textContent).toContain('B历史消息')
@@ -157,6 +158,7 @@ it('keeps the selected history on a network deletion failure and allows retry', 
 
 it('creates an empty Mini conversation during a reply without aborting the original stream', async () => {
   await input('开始回复'); await click('发送')
+  await act(async () => api.stream!.onEvent({type: 'started', conversationId: 'A', requestId: 'request-a', runId: 'run-a', sequence: 1}))
   expect(button('新对话').disabled).toBe(false)
   await click('新对话')
   expect(node.textContent).toContain('今天想和鸡哥聊什么')
@@ -206,6 +208,8 @@ it('clears a sent Mini draft and ignores delayed input from the previous keyboar
   await input('你好')
   const delayedInput = api.textareaInput!
   await click('发送')
+  expect(node.querySelector('textarea')!.value).toBe('你好')
+  await act(async () => api.stream!.onEvent({type: 'started', conversationId: 'A', requestId: 'request-a', runId: 'run-a', sequence: 1}))
   expect(node.querySelector('textarea')!.value).toBe('')
   await act(async () => delayedInput({ detail: { value: '你好' } }))
   expect(node.querySelector('textarea')!.value).toBe('')

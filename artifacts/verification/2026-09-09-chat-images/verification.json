@@ -1,0 +1,42 @@
+{
+  "baselineCommit": "7dcc4e0dd",
+  "branch": "codex/chat-image-input",
+  "committed": false,
+  "backend": {
+    "passed": 427,
+    "log": "/tmp/chat-images-backend-final.log"
+  },
+  "imageDecoder": {
+    "passed": 4,
+    "runtime": "bundled Python 3.12 / Pillow 12.3.0"
+  },
+  "migration": {
+    "passed": 89,
+    "skipped": 0,
+    "log": "/tmp/chat-images-migration-final.log",
+    "database": "isolated local chat_images_verified"
+  },
+  "control": {
+    "passed": 62,
+    "log": "/tmp/chat-images-control-final.log"
+  },
+  "frontend": {
+    "passed": 346,
+    "files": 48,
+    "log": "/tmp/chat-image-client-tests.log"
+  },
+  "realModel": "local_passed",
+  "fullIntegration": "not_verified",
+  "miniRealDevice": "user_waived",
+  "candidate": "not_deployed",
+  "production": "not_deployed",
+  "wechatPublicRelease": "not_uploaded",
+  "dependencyAuthorization": "pending_pillow",
+  "sourceWorkspaceWip": "not_integrated",
+  "miniVerificationWaiver": {
+    "date": "2026-09-09",
+    "instruction": "不需要验证微信小程序端了",
+    "scope": "remaining_mini_client_verification",
+    "previousEvidenceRetained": true
+  }
+}

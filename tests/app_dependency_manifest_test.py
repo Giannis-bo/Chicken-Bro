@@ -22,6 +22,7 @@ class AppDependencyManifestTest(unittest.TestCase):
                 "psycopg[binary]==3.3.4",
                 "pydantic==2.13.5",
                 "uvicorn==0.52.4",
+                "Pillow==12.3.0",
             ],
         )
         lowered = "\n".join(lines).lower()

@@ -1,3 +1,5 @@
+import { ChatImages, ChatImageDrafts } from '../components/ChatImages'
+import { useChatImages } from '../features/chat/use-chat-images'
 import ChatReplyDetails from '../components/ChatReplyDetails'
 import ChatFeedback from '../components/ChatFeedback'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
@@ -32,6 +34,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
   const model = useMemo(() => new ChatModel(wowApi.chat, () => auth), [auth])
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
+  const imageDraft = useChatImages(() => auth, state.phase !== 'signed_out')
   const composing = useRef(false)
   const sending = state.phase === 'sending'
   const showWelcome = state.phase === 'ready' && !state.activeConversation?.messages.length
@@ -42,7 +45,8 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
     [state.streamText, state.streamProgress, state.activeConversation?.messages])
   const { paused, jumpToLatest } = useChatAutoScroll(messageList, messageContent,
     state.activeConversation?.id ?? '', sending, scrollRevision)
-  const canSend = Boolean(draft.trim() && state.activeConversation)
+  const canSend = Boolean((draft.trim() || imageDraft.items.length) && state.activeConversation)
+    && !imageDraft.pending
     && !sending && state.phase !== 'loading' && state.phase !== 'signed_out'
 
   useEffect(() => {
@@ -56,8 +60,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
 
   const send = () => {
     if (!canSend || model.get().phase === 'sending') return
-    const task = model.send(draft)
-    if (task) setDraft('')
+    model.send(draft, imageDraft.images, () => { setDraft(current => current === draft ? '' : current); imageDraft.clear() })
   }
 
   return (
@@ -110,14 +113,16 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                 {message.role === 'assistant' ? <ChatReplyDetails text={message.progress?.text ?? ''}
                   status={message.progress?.status ?? 'completed'} completedAt={message.progress?.completedAt ?? message.createdAt}
                   durationMs={message.progress?.durationMs ?? null} /> : null}
+                <ChatImages images={message.images} auth={auth} />
                 <WebMessage content={message.content} markdown={message.role !== 'user'} />
                 {message.role === 'assistant' && message.resolved !== undefined ? <ChatFeedback
                   resolved={message.resolved} onSubmit={choice => model.setFeedback(message.id, choice)} /> : null}
               </View>
             ))}
-            {state.pendingUserContent ? (
+            {state.pendingUserContent || state.pendingUserImages.length ? (
               <View className={styles['webUserMessage'] ?? ''} data-persisted="false">
                 <Text className={styles['messageRole'] ?? ''}>发送中</Text>
+                <ChatImages images={state.pendingUserImages} auth={auth} />
                 <WebMessage content={state.pendingUserContent} />
               </View>
             ) : null}
@@ -160,8 +165,10 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
             {paused && !showWelcome ? <button type="button" className={styles['jumpToLatest'] ?? ''} onClick={jumpToLatest}>
               ↓ 回到最新
             </button> : null}
-            <View className={styles['composerRow'] ?? ''}>
-              <Text className={styles['composerAdd'] ?? ''}>＋</Text>
+            <ChatImageDrafts items={imageDraft.items} disabled={sending} remove={imageDraft.remove} retry={imageDraft.retry} />
+            {imageDraft.error ? <Text>{imageDraft.error}</Text> : null}
+            <View className={styles['composerRow'] ?? ''} style={{ gridTemplateColumns: imageDraft.enabled ? '72px minmax(0, 1fr) 42px' : 'minmax(0, 1fr) 42px' }}>
+              <>{imageDraft.enabled ? <button className={styles['composerImageButton'] ?? ''} type="button" aria-label="添加图片" disabled={sending || imageDraft.items.length >= 3} onClick={() => void imageDraft.choose()}>＋ 图片</button> : null}</>
               <textarea
                 className={styles['webTextarea'] ?? ''}
                 maxLength={4000}
