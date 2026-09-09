@@ -13,10 +13,6 @@ test('the retained app shell has no legacy design asset runtime', () => {
   const retainedSources = [
     'apps/mini-taro/src/app.tsx',
     'apps/mini-taro/src/app.scss',
-    'apps/mini-taro/src/custom-tab-bar/index.tsx',
-    'apps/mini-taro/src/platform/AppTabBar.h5.tsx',
-    'apps/mini-taro/src/pages/auth/web-login-confirm.tsx',
-    'apps/mini-taro/src/tab-bar-items.ts',
   ].map(read).join('\n')
 
   assert.doesNotMatch(retainedSources, /@wow-mini\/(?:assets-manifest|design-system)/)
@@ -85,10 +81,7 @@ test('the root workspace and CI expose only retained product workflows', () => {
   const workspace = JSON.parse(read('package.json'))
   assert.deepEqual(Object.keys(workspace.scripts), [
     'build:h5',
-    'build:weapp',
     'dev:h5',
-    'dev:weapp',
-    'refresh:weapp',
     'typecheck',
     'lint',
     'test:taro',
@@ -112,4 +105,24 @@ test('the root workspace and CI expose only retained product workflows', () => {
   for (const command of ['npm run test:control', 'npm run test:backend', 'npm run test:taro', 'npm run build:h5']) {
     assert.match(workflow, new RegExp(command.replaceAll(':', '\\:')))
   }
+})
+
+
+test('Mini source, provider and platform build dependencies remain absent', () => {
+  for (const relative of [
+    'apps/mini-taro/project.config.json',
+    'apps/mini-taro/src/pages/auth/web-login-confirm.tsx',
+    'apps/mini-taro/src/pages/chickenbro/index.tsx',
+    'apps/mini-taro/src/pages/simc/index.tsx',
+    'apps/mini-taro/src/web/WebMiniProgramPromo.tsx',
+    'server/app/integrations/wechat_mini.py',
+    'scripts/build-weapp-safely.js',
+  ]) assert.equal(fs.existsSync(path.join(root, relative)), false, relative)
+  const app = JSON.parse(read('apps/mini-taro/package.json'))
+  assert.equal(app.devDependencies['@tarojs/plugin-platform-weapp'], undefined)
+  assert.equal(JSON.parse(read('package-lock.json')).packages['node_modules/@tarojs/plugin-platform-weapp'], undefined)
+  for (const relative of ['server/app/identity/application.py', 'server/app/identity/ports.py', 'server/app/identity/repository.py']) {
+    assert.doesNotMatch(read(relative), /WechatMiniGateway|upsert_wechat_mini_identity|create_web_login_session/)
+  }
+  assert.doesNotMatch(read('packages/api-client/src/transport.ts'), /getAccountInfoSync|onChunkReceived|enableChunked/)
 })

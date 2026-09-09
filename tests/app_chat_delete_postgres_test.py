@@ -67,7 +67,7 @@ class ChatDeletePostgresTest(unittest.TestCase):
         else:
             self.assertEqual((deletion,stream),('deleted','CONVERSATION_NOT_FOUND'))
 
-    def test_delete_api_requires_owner_and_web_csrf_and_hides_mini_detail(self):
+    def test_delete_api_requires_owner_and_web_csrf_and_hides_other_browser_detail(self):
         from fastapi.testclient import TestClient
         from server.app.main import create_app
         from server.app.platform.config import AppSettings
@@ -82,7 +82,7 @@ class ChatDeletePostgresTest(unittest.TestCase):
         route = f'/api/v2/chat/conversations/{self.a}'
         with TestClient(app, base_url='https://www.chickenbro.cloud') as client:
             self.assertEqual(client.delete(route).status_code,401)
-            self.assertEqual(client.delete(route,headers={'Authorization':'Bearer other'}).status_code,404)
+            self.assertEqual(client.delete(route,headers={'Cookie': '__Host-chickenbro-session=other; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf'}).status_code,404)
             client.cookies.set('__Host-chickenbro-session','owner')
             self.assertEqual(client.delete(route,headers={'Origin':'https://www.chickenbro.cloud'}).status_code,403)
             client.cookies.set('__Host-chickenbro-csrf','csrf')
@@ -98,4 +98,4 @@ class ChatDeletePostgresTest(unittest.TestCase):
             self.assertEqual(client.delete(route,headers=headers).json(),{'deleted':True})
             self.assertEqual(client.delete(route,headers=headers).status_code,200)
             client.cookies.clear()
-            self.assertEqual(client.get(route,headers={'Authorization':'Bearer owner'}).status_code,404)
+            self.assertEqual(client.get(route,headers={'Cookie': '__Host-chickenbro-session=owner; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf'}).status_code,404)

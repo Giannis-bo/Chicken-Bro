@@ -160,16 +160,7 @@ test('manual systemd unit needs an ephemeral reviewed trigger and is never enabl
   assert.doesNotMatch(service, /^\[Install\]$/m)
   assert.doesNotMatch(service, /\/opt\/wow-mini-program|\/etc\/wow-backend\.env|wow-mini-program-sync\.lock/)
 
-  const cutover = read('server/cutover_chickenbro_lighthouse.sh')
-  assert.match(cutover, /server\/chickenbro_simc_runtime_update\.sh/)
-  assert.match(cutover, /server\/chickenbro-simc-runtime-update\.service/)
-  assert.match(cutover, /SIMC_UPDATE_SERVICE="chickenbro-simc-runtime-update"/)
-  assert.match(cutover, /\/etc\/systemd\/system\/\$\{SIMC_UPDATE_SERVICE\}\.service/)
-  assert.match(cutover, /simc-runtime-update\.service:simc-runtime-update\.service|\$\{SIMC_UPDATE_SERVICE\}\.service:simc-runtime-update\.service/)
-  assert.match(cutover, /restore_file[^\n]*\$\{SIMC_UPDATE_SERVICE\}\.service[^\n]*simc-runtime-update\.service/)
-  assert.match(cutover, /simcUpdateServiceIdentity/)
-  assert.doesNotMatch(cutover, /systemctl enable[^\n]*chickenbro-simc-runtime-update/)
-  assert.doesNotMatch(cutover, /systemctl (?:start|restart)[^\n]*chickenbro-simc-runtime-update/)
+
 })
 
 test('legacy retirement protects the replacement updater and names it in the manifest', () => {

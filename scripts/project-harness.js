@@ -1220,7 +1220,7 @@ function buildManifest(options) {
     },
     uiRuntimeEvidence: {
       status: 'not_collected',
-      note: 'Attach real mini-program screenshots or DevTools ledger when applicable.'
+      note: 'Attach real Web browser screenshots or an interaction ledger when applicable.'
     },
     dataHealth: {
       status: 'not_collected',
@@ -1248,8 +1248,8 @@ function buildManifest(options) {
     },
     safety: {
       noNetwork: true,
-      repositoryRemoteSyncPreapproved: true,
-      repositoryRemoteSyncScope: 'configured_project_remote_only',
+      repositoryRemoteSyncPreapproved: false,
+      repositoryRemoteSyncScope: 'requires_current_user_authorization',
       autonomousProgressionEnabled: true,
       noDeploy: true,
       noSsh: true,

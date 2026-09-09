@@ -25,11 +25,6 @@ class AppSettings:
     qq_appid: str = ""
     qq_app_key: str = field(default="", repr=False)
     qq_redirect_uri: str = ""
-    wechat_appid: str = ""
-    wechat_secret: str = field(default="", repr=False)
-    wechat_page: str = "pages/auth/web-login-confirm"
-    wechat_env_version: str = "release"
-    wechat_check_path: bool = True
     test_login_enabled: bool = False
     test_login_a_sha256: str = field(default="", repr=False)
     test_login_b_sha256: str = field(default="", repr=False)
@@ -152,16 +147,6 @@ class AppSettings:
             15,
             300,
         )
-        wechat_page = env.get("WOW_WECHAT_PAGE", "pages/auth/web-login-confirm").strip()
-        if not wechat_page or wechat_page.startswith("/") or any(character.isspace() for character in wechat_page):
-            raise ValueError("WOW_WECHAT_PAGE must be a non-empty page path without a leading slash")
-        wechat_env_version = env.get("WOW_WECHAT_ENV_VERSION", "release").strip()
-        if wechat_env_version not in {"develop", "trial", "release"}:
-            raise ValueError("WOW_WECHAT_ENV_VERSION must be develop, trial or release")
-        wechat_check_path_raw = env.get("WOW_WECHAT_CHECK_PATH", "1").strip()
-        if wechat_check_path_raw not in {"0", "1"}:
-            raise ValueError("WOW_WECHAT_CHECK_PATH must be 0 or 1")
-
         return cls(
             test_login_enabled=test_login == "1",
             test_login_a_sha256=env.get("WOW_TEST_LOGIN_A_SHA256", "").strip(),
@@ -181,9 +166,4 @@ class AppSettings:
             qq_appid=env.get("WOW_QQ_APPID", "").strip(),
             qq_app_key=env.get("WOW_QQ_APP_KEY", "").strip(),
             qq_redirect_uri=env.get("WOW_QQ_REDIRECT_URI", "").strip(),
-            wechat_appid=env.get("WOW_WECHAT_APPID", "").strip(),
-            wechat_secret=env.get("WOW_WECHAT_SECRET", "").strip(),
-            wechat_page=wechat_page,
-            wechat_env_version=wechat_env_version,
-            wechat_check_path=wechat_check_path_raw == "1",
         )

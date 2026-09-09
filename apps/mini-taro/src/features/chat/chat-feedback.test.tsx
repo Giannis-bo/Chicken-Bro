@@ -10,7 +10,6 @@ vi.mock('@tarojs/components', async () => {
   return { Button: host('button'), Text: host('span'), View: host('div') }
 })
 import ChatFeedback from '../../components/ChatFeedback'
-import NativeFeedbackConfirm from '../../components/ChatFeedbackConfirm.weapp'
 
 let root: Root
 let container: HTMLDivElement
@@ -76,15 +75,4 @@ it('cancelling confirmation never submits feedback', async () => {
   await act(async () => Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === '取消')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
   expect(onSubmit).not.toHaveBeenCalled()
   expect(document.querySelector('dialog')).toBeNull()
-})
-
-it.each([true, false])('Mini confirmation routes the user choice: confirm=%s', async confirm => {
-  native.showModal.mockResolvedValue({ confirm, cancel: !confirm })
-  const onConfirm = vi.fn(), onCancel = vi.fn()
-  await act(async () => root.render(createElement(NativeFeedbackConfirm, { resolved: false, onConfirm, onCancel })))
-  expect(native.showModal).toHaveBeenLastCalledWith(expect.objectContaining({
-    content: '您的反馈会让鸡哥变得更好。', confirmText: '确认', cancelText: '取消',
-  }))
-  expect(onConfirm).toHaveBeenCalledTimes(confirm ? 1 : 0)
-  expect(onCancel).toHaveBeenCalledTimes(confirm ? 0 : 1)
 })

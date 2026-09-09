@@ -6,16 +6,16 @@ from unittest.mock import patch
 
 from server.app.simulation.domain import SimulationJobStatus, SimulationResult
 from tests.app_simc_api_test import build_simc_test_client
-from tests.app_chat_api_test import mini_headers, web_cookies
+from tests.app_chat_api_test import browser_session_headers, web_cookies
 
 
 class WorkbenchApiTest(unittest.TestCase):
     def test_localized_names_share_owner_scoped_results_and_keep_legacy_shape(self):
         from tests.app_simulation_report_test import report_fixture
         from server.app.simulation.report import normalize_simc_report
-        snapshot = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json={
+        snapshot = self.client.post('/api/v2/simc/snapshots', headers=browser_session_headers(), json={
             'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}).json()
-        self.client.post('/api/v2/simc/jobs', headers={**mini_headers(), 'Idempotency-Key': 'localized-test'},
+        self.client.post('/api/v2/simc/jobs', headers={**browser_session_headers(), 'Idempotency-Key': 'localized-test'},
             json={'snapshotId': snapshot['id'], 'scenario': {'iterations': 100}})
         job = next(iter(self.repository.jobs.values()))
         source = self.repository.get_snapshot(job.user_id, job.snapshot_id)
@@ -32,12 +32,12 @@ class WorkbenchApiTest(unittest.TestCase):
             compiler_revision=job.compiler_revision, runtime_revision=job.runtime_revision,
             provenance=provenance, created_at=job.created_at))
         path = f'/api/v2/simc/jobs/{job.id}?view=workbench'
-        old = self.client.get(path, headers=mini_headers())
+        old = self.client.get(path, headers=browser_session_headers())
         self.assertEqual(old.status_code, 200, old.text)
         self.assertEqual(old.json()['result']['report']['schemaVersion'], 1)
         self.assertNotIn('localization', old.json()['result']['report'])
         new_path = path + '&reportLocale=zhCN'
-        mini = self.client.get(new_path, headers=mini_headers())
+        mini = self.client.get(new_path, headers=browser_session_headers())
         web = self.client.get(new_path, cookies=web_cookies())
         self.assertEqual(mini.status_code, 200, mini.text)
         self.assertEqual(web.status_code, 200, web.text)
@@ -47,7 +47,7 @@ class WorkbenchApiTest(unittest.TestCase):
         self.assertEqual(projected['abilities'], report['abilities'])
         self.assertNotIn('reportIdentity', mini.text)
         self.client.cookies.clear()
-        self.assertEqual(self.client.get(new_path, headers=mini_headers(other=True)).status_code, 404)
+        self.assertEqual(self.client.get(new_path, headers=browser_session_headers(other=True)).status_code, 404)
         self.assertEqual(self.client.get(new_path).status_code, 401)
 
     def setUp(self):
@@ -58,28 +58,28 @@ class WorkbenchApiTest(unittest.TestCase):
 
     def test_opt_in_character_and_task_context_preserves_old_contract(self):
         body = {'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}
-        old = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json=body).json()
-        snapshot = self.client.post('/api/v2/simc/snapshots?view=workbench', headers=mini_headers(), json=body).json()
+        old = self.client.post('/api/v2/simc/snapshots', headers=browser_session_headers(), json=body).json()
+        snapshot = self.client.post('/api/v2/simc/snapshots?view=workbench', headers=browser_session_headers(), json=body).json()
         self.assertNotIn('character', old)
         self.assertEqual(snapshot['character']['name'], 'Stormsample')
         response = self.client.post('/api/v2/simc/jobs?view=workbench',
-            headers={**mini_headers(), 'Idempotency-Key': 'workbench-create-1'},
+            headers={**browser_session_headers(), 'Idempotency-Key': 'workbench-create-1'},
             json={'snapshotId':snapshot['id'], 'scenario':{'iterations':100}})
         self.assertEqual(response.status_code, 202, response.text)
         job = response.json()
         self.assertEqual(job['character']['name'], 'Stormsample')
         self.assertEqual(job['scenario']['iterations'], 100)
         self.assertIsNone(job['metric'])
-        legacy = self.client.get('/api/v2/simc/jobs/' + job['id'], headers=mini_headers()).json()
+        legacy = self.client.get('/api/v2/simc/jobs/' + job['id'], headers=browser_session_headers()).json()
         self.assertNotIn('scenario', legacy)
         self.assertNotIn('character', legacy)
 
-    def test_equipment_scenario_is_opt_in_for_existing_mini_clients(self):
+    def test_equipment_scenario_is_opt_in_for_older_web_clients(self):
         from server.app.api.routes.simc import _job_summary
         from server.app.simulation.application import SimulationJobView
-        snapshot = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json={
+        snapshot = self.client.post('/api/v2/simc/snapshots', headers=browser_session_headers(), json={
             'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}).json()
-        self.client.post('/api/v2/simc/jobs', headers={**mini_headers(), 'Idempotency-Key': 'equipment-contract'},
+        self.client.post('/api/v2/simc/jobs', headers={**browser_session_headers(), 'Idempotency-Key': 'equipment-contract'},
             json={'snapshotId': snapshot['id'], 'scenario': {'iterations': 100}})
         job = next(iter(self.repository.jobs.values()))
         scenario = {'iterations': 100, 'equipmentOverrides': {'trinket1': {
@@ -94,14 +94,14 @@ class WorkbenchApiTest(unittest.TestCase):
         with patch('server.app.simulation.application.get_simc_runtime_info', return_value={
             'status':'available','version':'1210-01','gameVersion':'12.1.0','build':'69299',
             'sourceCommit':'a'*40,'runtimeRevision':'simc:test'}):
-            response = self.client.get('/api/v2/simc/runtime', headers=mini_headers())
+            response = self.client.get('/api/v2/simc/runtime', headers=browser_session_headers())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['version'], '1210-01')
 
     def test_workbench_preserves_valid_legacy_metric_error_without_expanding_legacy_response(self):
-        snapshot = self.client.post('/api/v2/simc/snapshots', headers=mini_headers(), json={
+        snapshot = self.client.post('/api/v2/simc/snapshots', headers=browser_session_headers(), json={
             'sourceUrl': 'https://raider.io/characters/us/area-52/Stormsample'}).json()
-        created = self.client.post('/api/v2/simc/jobs', headers={**mini_headers(), 'Idempotency-Key': 'legacy-error-test'},
+        created = self.client.post('/api/v2/simc/jobs', headers={**browser_session_headers(), 'Idempotency-Key': 'legacy-error-test'},
             json={'snapshotId': snapshot['id'], 'scenario': {'iterations': 100}}).json()
         job = next(iter(self.repository.jobs.values()))
         source = self.repository.get_snapshot(job.user_id, job.snapshot_id)
@@ -119,12 +119,12 @@ class WorkbenchApiTest(unittest.TestCase):
                     compiler_revision=job.compiler_revision, runtime_revision=job.runtime_revision,
                     provenance=provenance, created_at=job.created_at))
                 path = '/api/v2/simc/jobs/' + created['id']
-                legacy = self.client.get(path, headers=mini_headers()).json()
+                legacy = self.client.get(path, headers=browser_session_headers()).json()
                 self.assertNotIn('metricError', legacy['result'])
-                response = self.client.get(path + '?view=workbench', headers=mini_headers())
+                response = self.client.get(path + '?view=workbench', headers=browser_session_headers())
                 self.assertEqual(response.status_code, 200, response.text)
                 result = response.json()['result']
                 self.assertIn('metricError', result)
                 self.assertEqual(result['metricError'], expected)
                 self.assertIsNone(result['report'])
-        self.assertEqual(self.client.get(path + '?view=workbench', headers=mini_headers(other=True)).status_code, 404)
+        self.assertEqual(self.client.get(path + '?view=workbench', headers=browser_session_headers(other=True)).status_code, 404)

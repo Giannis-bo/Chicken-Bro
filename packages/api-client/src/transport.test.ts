@@ -83,31 +83,6 @@ describe('formal Taro transport', () => {
     },
   )
 
-  it('derives Mini Bearer credentials over HTTPS without legacy analytics identity', async () => {
-    const transport = createTaroTransport({
-      storage: new MemoryStorage(),
-      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
-    })
-
-    const result = await transport.request('/api/v2/chat/conversations', {
-      auth: { kind: 'mini', accessToken: 'mini-token' },
-      fallback: () => ({ ok: false }),
-      validate: () => true,
-    })
-
-    const request = taro.request.mock.calls[0]?.[0] as {
-      credentials?: string
-      header?: Record<string, string>
-      url?: string
-    }
-    expect(result.fromFallback).toBe(false)
-    expect(request.url).toBe('https://api.chickenbro.cloud/api/v2/chat/conversations')
-    expect(request.credentials).toBe('omit')
-    expect(request.header).toEqual({ Authorization: 'Bearer mini-token' })
-    expect(request.header?.['X-Wow-Client-Id']).toBeUndefined()
-    expect(request.header?.['X-Wow-Session-Id']).toBeUndefined()
-  })
-
   it('derives Web Cookie credentials and adds CSRF only to mutations', async () => {
     const transport = createTaroTransport({
       storage: new MemoryStorage(),
@@ -153,11 +128,11 @@ describe('formal Taro transport', () => {
   it('rejects authenticated HTTP before a request can leave the client', async () => {
     const transport = createTaroTransport({
       storage: new MemoryStorage(),
-      resolveBaseUrl: () => 'http://example.test',
+      resolveWebBaseUrl: () => 'http://example.test',
     })
 
     const result = await transport.request('/api/v2/simc/jobs', {
-      auth: { kind: 'mini', accessToken: 'mini-token' },
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       fallback: () => ({ items: [] }),
     })
 
@@ -169,11 +144,11 @@ describe('formal Taro transport', () => {
   it.each(['ftp://example.test', 'not-a-url'])('rejects every non-HTTPS authenticated origin: %s', async (origin) => {
     const transport = createTaroTransport({
       storage: new MemoryStorage(),
-      resolveBaseUrl: () => origin,
+      resolveWebBaseUrl: () => origin,
     })
 
     const result = await transport.request('/api/v2/simc/jobs', {
-      auth: { kind: 'mini', accessToken: 'mini-token' },
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       fallback: () => ({ items: [] }),
     })
 
@@ -189,7 +164,7 @@ describe('formal Taro transport', () => {
     })
 
     const result = await transport.request('/api/v2/chat/conversations', {
-      auth: { kind: 'mini', accessToken: 'mini-token' },
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       header: { Authorization: 'Bearer shadow-token' },
       fallback: () => ({ items: [] }),
     })
@@ -264,45 +239,6 @@ describe('formal Taro transport', () => {
     }
   })
 
-  it.each(['release', 'trial'])('ignores local overrides in %s and accepts only a named HTTPS build origin', (envVersion) => {
-    const storage = new MemoryStorage()
-    storage.set('wow_backend_api_base_url', 'http://124.223.51.33')
-    taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion } })
-    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', 'https://api.chickenbro.cloud')
-    try {
-      expect(configuredApiBaseUrl(storage)).toBe('https://api.chickenbro.cloud')
-    } finally {
-      vi.unstubAllGlobals()
-    }
-  })
-
-  it.each([
-    'http://api.chickenbro.cloud',
-    'https://124.223.51.33',
-    'https://api.chickenbro.cloud/path',
-    'not-a-url',
-  ])('fails closed in release when the build origin is not an HTTPS named origin: %s', (origin) => {
-    taro.getAccountInfoSync.mockReturnValue({ miniProgram: { envVersion: 'release' } })
-    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', origin)
-    try {
-      expect(configuredApiBaseUrl(new MemoryStorage())).toBe('')
-    } finally {
-      vi.unstubAllGlobals()
-    }
-  })
-
-  it('fails closed when the mini-program environment cannot be identified', () => {
-    taro.getAccountInfoSync.mockImplementation(() => {
-      throw new Error('account info unavailable')
-    })
-    vi.stubGlobal('__WOW_BACKEND_API_BASE_URL__', 'https://api.chickenbro.cloud')
-    try {
-      expect(configuredApiBaseUrl(new MemoryStorage())).toBe('')
-    } finally {
-      vi.unstubAllGlobals()
-    }
-  })
-
   it('preserves structured problem codes without accepting a fallback as success', async () => {
     taro.request.mockResolvedValue({
       statusCode: 409,
@@ -315,7 +251,7 @@ describe('formal Taro transport', () => {
 
     const result = await transport.request('/api/v2/simc/jobs', {
       method: 'POST',
-      auth: { kind: 'mini', accessToken: 'mini-token' },
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       responseMode: 'structured-problem',
       fallback: () => ({ id: '' }),
     })
@@ -340,54 +276,6 @@ describe('formal Taro transport', () => {
     expect(() => new SseDecoder().push(encoded('data: {not-json}\n\n'))).toThrow(
       'malformed SSE payload',
     )
-  })
-
-  it('derives Mini auth for chunked SSE and emits complete events', async () => {
-    let receive: ((value: { data: ArrayBuffer }) => void) | undefined
-    const abort = vi.fn()
-    const requestTask = Object.assign(Promise.resolve({ statusCode: 200 }), {
-      abort,
-      onChunkReceived: vi.fn((listener: (value: { data: ArrayBuffer }) => void) => {
-        receive = listener
-      }),
-    })
-    taro.request.mockReturnValue(requestTask)
-    const events: unknown[] = []
-    const failures: string[] = []
-    const onEnd = vi.fn()
-    const transport = createTaroTransport({
-      storage: new MemoryStorage(),
-      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
-    })
-
-    transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
-      method: 'POST',
-      auth: { kind: 'mini', accessToken: 'mini-token' },
-      data: { content: 'hello' },
-      header: { 'Idempotency-Key': 'stream-one' },
-      onEvent: (event) => events.push(event),
-      onFailure: (error) => failures.push(error),
-      onEnd,
-    })
-    receive?.({ data: encoded('data: {"type":"started","sequence":1}\n\n') })
-    await requestTask
-    await Promise.resolve()
-
-    const request = taro.request.mock.calls[0]?.[0] as {
-      credentials?: string
-      enableChunked?: boolean
-      header?: Record<string, string>
-    }
-    expect(request.credentials).toBe('omit')
-    expect(request.enableChunked).toBe(true)
-    expect(request.header).toEqual({
-      Accept: 'text/event-stream',
-      'Idempotency-Key': 'stream-one',
-      Authorization: 'Bearer mini-token',
-    })
-    expect(events).toEqual([{ type: 'started', sequence: 1 }])
-    expect(failures).toEqual([])
-    expect(onEnd).toHaveBeenCalledTimes(1)
   })
 
   it('uses same-origin Web Cookie and CSRF credentials for browser SSE', async () => {
@@ -447,114 +335,35 @@ describe('formal Taro transport', () => {
     }
   })
 
-  it('does not report a natural end after the caller aborts a Mini stream', async () => {
-    let resolveRequest: ((value: { statusCode: number }) => void) | undefined
-    const requestPromise = new Promise<{ statusCode: number }>((resolve) => {
-      resolveRequest = resolve
-    })
-    const abort = vi.fn()
-    const requestTask = Object.assign(requestPromise, {
-      abort,
-      onChunkReceived: vi.fn(),
-    })
-    taro.request.mockReturnValue(requestTask)
-    const failures: string[] = []
-    const onEnd = vi.fn()
-    const transport = createTaroTransport({
-      storage: new MemoryStorage(),
-      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
-    })
 
-    const stream = transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
-      method: 'POST',
-      auth: { kind: 'mini', accessToken: 'mini-token' },
-      data: { content: 'hello' },
-      onEvent: () => {},
-      onFailure: (error) => failures.push(error),
-      onEnd,
-    })
-    stream?.abort()
-    resolveRequest?.({ statusCode: 200 })
-    await requestPromise
-    await Promise.resolve()
-
-    expect(abort).toHaveBeenCalledTimes(1)
-    expect(failures).toEqual([])
-    expect(onEnd).not.toHaveBeenCalled()
-  })
-
-  it('aborts and fails once when a Mini stream consumer rejects an event', async () => {
-    let receive: ((value: { data: ArrayBuffer }) => void) | undefined
-    const abort = vi.fn()
-    const requestTask = Object.assign(Promise.resolve({ statusCode: 200 }), {
-      abort,
-      onChunkReceived: vi.fn((listener: (value: { data: ArrayBuffer }) => void) => {
-        receive = listener
-      }),
-    })
-    taro.request.mockReturnValue(requestTask)
-    const failures: string[] = []
-    const onEnd = vi.fn()
-    const transport = createTaroTransport({
-      storage: new MemoryStorage(),
-      resolveBaseUrl: () => 'https://api.chickenbro.cloud',
-    })
-
-    transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
-      method: 'POST',
-      auth: { kind: 'mini', accessToken: 'mini-token' },
-      data: { content: 'hello' },
-      onEvent: () => {
-        throw new Error('consumer rejected event')
-      },
-      onFailure: (error) => failures.push(error),
-      onEnd,
-    })
-    receive?.({ data: encoded('data: {"type":"started","sequence":1}\n\n') })
-    await requestTask
-    await Promise.resolve()
-
-    expect(abort).toHaveBeenCalledTimes(1)
-    expect(failures).toEqual(['invalid stream event'])
-    expect(onEnd).not.toHaveBeenCalled()
-  })
-})
-
-it.each(['WEB', 'WEAPP'])('preserves the account-busy problem code for %s streams', async (runtime) => {
-  taro.getEnv.mockReturnValue(runtime)
-  const failures: string[] = []
-  const problem = { error: { code: 'CHAT_ACCOUNT_BUSY', message: '请等待回复结束' } }
-  let receive: ((value: { data: ArrayBuffer }) => void) | undefined
-  if (runtime === 'WEB') {
-    vi.stubGlobal('window', { location: { origin: 'https://www.chickenbro.cloud' } })
-    vi.stubGlobal('document', {})
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409,
-      json: async () => problem }))
-  } else {
-    taro.request.mockReturnValue(Object.assign(Promise.resolve({ statusCode: 409 }), {
-      abort: vi.fn(), onChunkReceived: (listener: typeof receive) => { receive = listener },
+  it.each(['abort', 'consumer', 'timeout'] as const)('browser SSE %s never reports normal completion', async mode => {
+    taro.getEnv.mockReturnValue('WEB')
+    const onEnd = vi.fn(), onFailure = vi.fn()
+    let resolveRead!: (value: { done: boolean; value?: Uint8Array }) => void
+    let signal!: AbortSignal
+    const reader = { read: vi.fn(() => new Promise<{done: boolean; value?: Uint8Array}>(resolve => { resolveRead = resolve })) }
+    vi.stubGlobal('fetch', vi.fn((_url: string, options: RequestInit) => {
+      signal = options.signal as AbortSignal
+      return Promise.resolve({ ok: true, body: { getReader: () => reader } })
     }))
-  }
-  const transport = createTaroTransport({ storage: new MemoryStorage(),
-    resolveBaseUrl: () => 'https://api.chickenbro.cloud' })
-  transport.requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
-    auth: runtime === 'WEB' ? { kind: 'web', csrfToken: 'csrf-token' } : { kind: 'mini', accessToken: 'mini-token' },
-    onEvent: () => { throw new Error('rejected request must not emit events') },
-    onFailure: (error) => failures.push(error),
+    try {
+      const task = createTaroTransport({ resolveWebBaseUrl: () => 'https://www.chickenbro.cloud' }).requestSse?.('/api/v2/chat/conversations/id/messages/stream', {
+        auth: { kind: 'web', csrfToken: 'csrf' }, timeoutMs: mode === 'timeout' ? 5 : 1000,
+        onEvent: () => { if (mode === 'consumer') throw new Error('invalid event') }, onFailure, onEnd,
+      })
+      await Promise.resolve()
+      if (mode === 'abort') task?.abort()
+      if (mode === 'consumer') {
+        resolveRead({ done: false, value: new TextEncoder().encode('data: {"type":"delta","text":"x"}\n\n') })
+        await Promise.resolve()
+      }
+      if (mode === 'timeout') await new Promise(resolve => setTimeout(resolve, 15))
+      resolveRead({ done: true })
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(signal.aborted).toBe(true)
+      expect(onEnd).not.toHaveBeenCalled()
+      expect(onFailure).toHaveBeenCalledTimes(mode === 'abort' ? 0 : 1)
+    } finally { vi.unstubAllGlobals() }
   })
-  receive?.({ data: encoded(JSON.stringify(problem)) })
-  await vi.waitFor(() => expect(failures).toEqual(['CHAT_ACCOUNT_BUSY']))
-  vi.unstubAllGlobals()
-})
 
-it('decodes Chinese and emoji SSE across every byte split without a browser TextDecoder', () => {
-  const bytes = new TextEncoder().encode('data: {"text":"你好🐔"}\n\n')
-  vi.stubGlobal('TextDecoder', undefined)
-  try {
-    for (let split = 0; split <= bytes.length; split += 1) {
-      const decoder = new SseDecoder()
-      expect([...decoder.push(bytes.slice(0, split).buffer), ...decoder.push(bytes.slice(split).buffer), ...decoder.finish()])
-        .toEqual([{ text: '你好🐔' }])
-    }
-  } finally { vi.unstubAllGlobals() }
 })

@@ -23,7 +23,7 @@ afterEach(async () => {
   container.remove()
   vi.unstubAllGlobals()
 })
-it('shares Mini/Web progressive expansion, manual control and failed-history restoration', async () => {
+it('preserves Web progressive expansion, manual control and failed-history restoration', async () => {
   const render = async (text: string, status: 'thinking' | 'failed') => act(async () => root.render(
     createElement(ChatReplyDetails, { text, status, ...(status === 'failed'
       ? { completedAt: '2026-09-07T06:32:00Z', durationMs: 18500 } : {}) })))

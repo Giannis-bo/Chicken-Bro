@@ -103,20 +103,6 @@ function isWebRuntime(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
-type MiniProgramEnvVersion = 'develop' | 'trial' | 'release' | 'unknown'
-
-function miniProgramEnvVersion(): MiniProgramEnvVersion {
-  if (isWebRuntime()) return 'develop'
-  try {
-    const value = Taro.getAccountInfoSync().miniProgram?.envVersion
-    return value === 'develop' || value === 'trial' || value === 'release'
-      ? value
-      : 'unknown'
-  } catch {
-    return 'unknown'
-  }
-}
-
 function buildTimeApiBaseUrl(): string {
   return typeof __WOW_BACKEND_API_BASE_URL__ === 'string'
     ? __WOW_BACKEND_API_BASE_URL__
@@ -128,37 +114,12 @@ function h5ApiBaseUrl(): string {
   return window.location.origin
 }
 
-function productionApiBaseUrl(value: string): string {
-  try {
-    const parsed = new URL(value)
-    const isIpv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/u.test(parsed.hostname)
-    const isIpv6 = parsed.hostname.includes(':')
-    const isNamedHost = parsed.hostname.includes('.') && !isIpv4 && !isIpv6
-    const isOriginOnly = parsed.pathname === '/' && !parsed.search && !parsed.hash
-      && !parsed.username && !parsed.password
-    return parsed.protocol === 'https:' && isNamedHost && isOriginOnly
-      ? parsed.origin
-      : ''
-  } catch {
-    return ''
-  }
-}
-
 export function configuredApiBaseUrl(storage: StorageAdapter = taroStorage): string {
-  if (isWebRuntime()) {
-    return storage.get<string>(API_BASE_STORAGE_KEY) || buildTimeApiBaseUrl() || h5ApiBaseUrl()
-  }
-  const envVersion = miniProgramEnvVersion()
-  if (envVersion === 'unknown') return ''
-  if (envVersion === 'release' || envVersion === 'trial') {
-    return productionApiBaseUrl(buildTimeApiBaseUrl())
-  }
-  return storage.get<string>(API_BASE_STORAGE_KEY) || buildTimeApiBaseUrl() || DEV_API_BASE_URL
+  return storage.get<string>(API_BASE_STORAGE_KEY) || buildTimeApiBaseUrl() || h5ApiBaseUrl() || DEV_API_BASE_URL
 }
 
 export function configuredWebAuthBaseUrl(storage: StorageAdapter = taroStorage): string {
-  if (isWebRuntime()) return window.location.origin
-  return productionApiBaseUrl(buildTimeApiBaseUrl()) || configuredApiBaseUrl(storage)
+  return h5ApiBaseUrl() || configuredApiBaseUrl(storage)
 }
 
 function errorMessage(error: unknown): string {
@@ -185,40 +146,8 @@ function responseProblemCode(value: unknown): string | undefined {
   return undefined
 }
 
-// Mini runtimes may lack the browser Encoding API. Keep incomplete UTF-8
-// bytes between chunks; decoding each network chunk independently corrupts text.
-class Utf8StreamDecoder {
-  private pending = new Uint8Array(0)
-
-  decode(input = new Uint8Array(0), options: { stream?: boolean } = {}): string {
-    const bytes = new Uint8Array(this.pending.length + input.length)
-    bytes.set(this.pending)
-    bytes.set(input, this.pending.length)
-    let end = bytes.length
-    if (options.stream && end) {
-      let start = end - 1
-      while (start > 0 && (bytes[start]! & 0xc0) === 0x80) start -= 1
-      const lead = bytes[start]!
-      const length = lead >= 0xf0 && lead <= 0xf4 ? 4
-        : lead >= 0xe0 && lead <= 0xef ? 3
-          : lead >= 0xc2 && lead <= 0xdf ? 2 : 1
-      if (end - start < length) end = start
-    }
-    this.pending = bytes.slice(end)
-    let encoded = ''
-    for (let index = 0; index < end; index += 1) {
-      encoded += '%' + bytes[index]!.toString(16).padStart(2, '0')
-    }
-    return decodeURIComponent(encoded)
-  }
-}
-
-function utf8Decoder() {
-  return typeof TextDecoder === 'function' ? new TextDecoder('utf-8') : new Utf8StreamDecoder()
-}
-
 export class SseDecoder {
-  private readonly decoder = utf8Decoder()
+  private readonly decoder = new TextDecoder('utf-8')
   private buffered = ''
 
   push(data: ArrayBuffer): unknown[] {
@@ -493,68 +422,8 @@ export function createTaroTransport(config: TransportConfig = {}): ApiTransport 
       return { abort }
     }
 
-    // Retain a bounded prefix for non-SSE problem responses on Mini chunked requests.
-    const problemPrefix = new Uint8Array(16384)
-    let problemBytes = 0
-    const task = Taro.request<unknown>({
-      url,
-      method: options.method ?? 'POST',
-      data: options.data,
-      header,
-      timeout: options.timeoutMs ?? 90000,
-      credentials: authRequest.credentials,
-      enableChunked: true,
-      responseType: 'arraybuffer',
-    }) as unknown as Promise<{ statusCode: number; data?: unknown }> & {
-      abort?: () => void
-      onChunkReceived?: (callback: (payload: { data: ArrayBuffer }) => void) => void
-    }
-    const abort = () => {
-      aborted = true
-      task.abort?.()
-    }
-    if (typeof task.onChunkReceived !== 'function') {
-      fail('chunked response is unavailable')
-      abort()
-    } else {
-      task.onChunkReceived(({ data }) => {
-        if (failed || aborted || ended) return
-        try {
-          const prefix = new Uint8Array(data).subarray(0, problemPrefix.length - problemBytes)
-          problemPrefix.set(prefix, problemBytes)
-          problemBytes += prefix.length
-          decoder.push(data).forEach((event) => emit(event, abort))
-        } catch {
-          fail('malformed SSE payload')
-          abort()
-        }
-      })
-    }
-    void task.then((response) => {
-      if (failed || aborted || ended) return
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        let problem = response.data
-        try {
-          if (problem instanceof ArrayBuffer) problem = utf8Decoder().decode(new Uint8Array(problem))
-          if (problem === undefined || problem === '') {
-            problem = utf8Decoder().decode(problemPrefix.subarray(0, problemBytes))
-          }
-          if (typeof problem === 'string') problem = JSON.parse(problem)
-        } catch { /* Non-JSON HTTP errors keep their status. */ }
-        fail(responseProblemCode(problem) || `HTTP ${response.statusCode}`)
-        return
-      }
-      try {
-        decoder.finish().forEach((event) => emit(event, abort))
-        end()
-      } catch {
-        fail('malformed SSE payload')
-        abort()
-      }
-    }).catch((error) => {
-      if (!aborted) fail(errorMessage(error))
-    })
-    return { abort }
+    fail('Web streaming is unavailable')
+    return { abort() {} }
   }
 
   return { request, requestSse }

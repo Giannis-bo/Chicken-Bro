@@ -4,9 +4,7 @@
   "private": true,
   "scripts": {
     "build:h5": "taro build --type h5",
-    "build:weapp": "node -e \"console.error('微信小程序已停止交付；仅支持 H5 构建'); process.exit(1)\"",
-    "dev:h5": "taro build --type h5 --watch",
-    "dev:weapp": "node -e \"console.error('微信小程序已停止交付；仅支持 H5 开发'); process.exit(1)\""
+    "dev:h5": "taro build --type h5 --watch"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
@@ -28,7 +26,6 @@
     "@tarojs/helper": "4.2.0",
     "@tarojs/plugin-framework-react": "4.2.0",
     "@tarojs/plugin-platform-h5": "4.2.0",
-    "@tarojs/plugin-platform-weapp": "4.2.0",
     "@tarojs/webpack5-runner": "4.2.0",
     "babel-preset-taro": "4.2.0",
     "react-refresh": "^0.14.2",

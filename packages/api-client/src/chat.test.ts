@@ -37,7 +37,7 @@ describe('formal Chat client', () => {
     try {
       const transport = new RecordingTransport()
       const client = createChatClient(transport)
-      const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+      const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
 
       await client.list({}, { auth })
       await client.create({}, { auth, idempotencyKey: 'create-request-one' })
@@ -51,10 +51,10 @@ describe('formal Chat client', () => {
     }
   })
 
-  it('uses only formal paths and delegates Mini credentials to the transport', async () => {
+  it('uses only formal paths and delegates Web credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createChatClient(transport)
-    const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+    const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
 
     await client.list({ limit: 20 }, { auth })
     await client.create(
@@ -111,7 +111,7 @@ describe('formal Chat client', () => {
     expect(() => client.create(
       { title: '不会发送' },
       {
-        auth: { kind: 'mini', accessToken: 'mini-token' },
+        auth: { kind: 'web', csrfToken: 'web-csrf' },
         idempotencyKey: 'contains whitespace',
       },
     )).toThrow('idempotency key is invalid')
@@ -158,7 +158,7 @@ describe('formal Chat client', () => {
       'conversation-one',
       { content: '问题', clientMessageId: 'client-one' },
       {
-        auth: { kind: 'mini', accessToken: 'mini-token' },
+        auth: { kind: 'web', csrfToken: 'web-csrf' },
         idempotencyKey: 'request-one',
         onEvent: (event) => events.push(event),
         onFailure: (error) => failures.push(error),
@@ -166,7 +166,7 @@ describe('formal Chat client', () => {
     )
     const stream = transport.streams[0]
     expect(stream?.options).toMatchObject({
-      auth: { kind: 'mini', accessToken: 'mini-token' },
+      auth: { kind: 'web', csrfToken: 'web-csrf' },
       header: {
         'Idempotency-Key': 'request-one',
       },
@@ -200,7 +200,7 @@ describe('formal Chat client', () => {
       'conversation-one',
       { content: '问题', clientMessageId: 'client-one' },
       {
-        auth: { kind: 'mini', accessToken: 'mini-token' },
+        auth: { kind: 'web', csrfToken: 'web-csrf' },
         idempotencyKey: 'request-one',
         onEvent: () => {},
         onFailure: (error) => failures.push(error),
@@ -282,7 +282,7 @@ it('submits a boolean feedback choice with the current transport auth and valida
 it('uploads authenticated images and accepts image-only messages without exposing URLs', async () => {
   const transport = new RecordingTransport()
   const client = createChatClient(transport)
-  const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+  const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
   await client.uploadImage({ dataUrl: 'data:image/png;base64,aGVsbG8=' }, { auth, idempotencyKey: 'image-request-one' })
   expect(transport.requests[0]?.options.auth).toEqual(auth)
   expect(transport.requests[0]?.options.header).toEqual({ 'Idempotency-Key': 'image-request-one' })

@@ -6,7 +6,7 @@ from server.app.api.errors import ApiProblem
 from server.app.chickenbro.application import ChatApplication
 from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
 from server.app.simulation.application import SimulationApplication
-from server.app.identity.application import WebAuthApplication
+from server.app.identity.qq_application import QqAuthApplication
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.domain import Principal
 from server.app.identity.request_auth import (
@@ -18,7 +18,7 @@ from server.app.platform.csrf import CsrfRejectedError
 from server.app.platform.origin import OriginRejectedError, require_web_origin
 
 
-def web_auth_application(request: Request) -> WebAuthApplication:
+def web_auth_application(request: Request) -> QqAuthApplication:
     return request.app.state.web_auth_application
 
 
@@ -150,10 +150,6 @@ def require_principal(request: Request) -> Principal:
 
 def require_mutating_principal(request: Request) -> Principal:
     return _formal_principal(request, mutating=True)
-
-
-def require_mini_principal(request: Request) -> Principal:
-    return _formal_principal(request, mutating=False, expected_kind="mini_bearer")
 
 
 def require_web_principal(request: Request) -> Principal:

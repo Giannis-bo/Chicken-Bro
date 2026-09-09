@@ -29,22 +29,6 @@ def _header(request: AuthRequest, name: str) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _bearer_credential(authorization: str) -> str:
-    parts = authorization.split(" ")
-    if (
-        len(parts) != 2
-        or parts[0].lower() != "bearer"
-        or not parts[1]
-        or any(character.isspace() for character in parts[1])
-    ):
-        raise CredentialTransportError(
-            status_code=401,
-            code="AUTH_REQUIRED",
-            message="authentication is required",
-        )
-    return parts[1]
-
-
 def _web_credential(request: AuthRequest, web_cookie_name: str) -> str:
     value = request.cookies.get(web_cookie_name, "")
     if not isinstance(value, str) or not value or any(character.isspace() for character in value):
@@ -72,11 +56,12 @@ def resolve_request_principal(
         )
 
     if authorization:
-        credential = _bearer_credential(authorization)
-        kind: SessionKind = "mini_bearer"
+        raise CredentialTransportError(
+            status_code=401, code="AUTH_REQUIRED", message="Web authentication is required",
+        )
     elif cookie_present:
         credential = _web_credential(request, web_cookie_name)
-        kind = "web_cookie"
+        kind: SessionKind = "web_cookie"
     else:
         raise CredentialTransportError(
             status_code=401,
@@ -115,8 +100,6 @@ def credential_for_principal(
     principal: Principal,
     web_cookie_name: str,
 ) -> str:
-    if principal.session_kind == "mini_bearer":
-        return _bearer_credential(_header(request, "authorization"))
     if principal.session_kind == "web_cookie":
         return _web_credential(request, web_cookie_name)
     raise CredentialTransportError(

@@ -13,7 +13,7 @@ from server.app.main import create_app
 from server.app.platform.config import AppSettings
 from server.app.platform.health import ReadinessRegistry
 from tests.app_chat_api_test import build_chat_test_client
-from tests.app_identity_application_test import InMemoryIdentityRepository
+from tests.identity_fakes import InMemoryIdentityRepository
 
 
 KEY_A = 'test-only-credential-A-' + 'a' * 32

@@ -42,33 +42,17 @@ class AppConfigTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "HEARTBEAT_PATH"):
             AppSettings.from_env({**base, "WOW_WORKER_V2_HEARTBEAT_PATH": "relative.json"})
 
-    def test_web_and_wechat_settings_are_bounded_and_secret_redacted(self):
+    def test_web_settings_remain_bounded_and_wechat_configuration_is_retired(self):
         settings = AppSettings.from_env({
             "WOW_APP_ENV": "candidate",
             "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
             "WOW_WEB_ORIGIN": "https://www.chickenbro.cloud",
-            "WOW_WEB_COOKIE_NAME": "__Host-wow_v2",
-            "WOW_WEB_LOGIN_TTL_SECONDS": "300",
-            "WOW_WEB_SESSION_TTL_SECONDS": "604800",
-            "WOW_WECHAT_APPID": "wx-test",
-            "WOW_WECHAT_SECRET": "secret-value",
-            "WOW_WECHAT_PAGE": "pages/auth/web-login-confirm",
-            "WOW_WECHAT_ENV_VERSION": "trial",
-            "WOW_WECHAT_CHECK_PATH": "0",
+            "WOW_WECHAT_SECRET": "unused-legacy-secret",
+            "WOW_WECHAT_CHECK_PATH": "obsolete",
         })
         self.assertEqual(settings.web_origin, "https://www.chickenbro.cloud")
-        self.assertEqual(settings.web_login_ttl_seconds, 300)
-        self.assertEqual(settings.web_session_ttl_seconds, 604800)
-        self.assertEqual(settings.wechat_appid, "wx-test")
-        self.assertFalse(settings.wechat_check_path)
-        self.assertNotIn("secret-value", repr(settings))
-
-        with self.assertRaisesRegex(ValueError, "WOW_WECHAT_CHECK_PATH"):
-            AppSettings.from_env({
-                "WOW_APP_ENV": "candidate",
-                "WOW_DATABASE_URL": "postgresql://user@db.example/wow",
-                "WOW_WECHAT_CHECK_PATH": "maybe",
-            })
+        self.assertFalse(hasattr(settings, "wechat_secret"))
+        self.assertNotIn("unused-legacy-secret", repr(settings))
 
     def test_removed_prototype_environment_has_no_runtime_owner(self):
         settings = AppSettings.from_env({

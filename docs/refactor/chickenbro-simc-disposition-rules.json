@@ -2,6 +2,25 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "mini-source-retirement",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "control_and_cleanup",
+      "reason": "Current user-authorized Mini source retirement and data evidence; historical prose archived without execution authority.",
+      "paths": [
+        "docs/plans/2026-09-09-mini-retirement.md",
+        "tests/identity_fakes.py",
+        "docs/chickenbro-simc-architecture-pre-mini-retirement.md",
+        "docs/chickenbro-simc-production-runbook-pre-mini-retirement.md",
+        "docs/verification-matrix-pre-mini-retirement.md",
+        "docs/roadmap-pre-mini-retirement.md",
+        "docs/harness-pre-mini-retirement.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-mini-retirement/"
+      ]
+    },
+    {
       "id": "simc-all-specs",
       "disposition": "keep",
       "category": "current-control-plane",
@@ -300,7 +319,8 @@
       "owner": "chickenbro_chat",
       "reason": "User-approved runtime instruction policy and verification.",
       "paths": [
-        "docs/plans/2026-09-05-chickenbro-agent-rules.md"
+        "docs/plans/2026-09-05-chickenbro-agent-rules.md",
+        "artifacts/verification/2026-09-09-cloud-codex-cleanup/report.json"
       ],
       "prefixes": [
         "artifacts/releases/2026-09-05-chickenbro-agent-rules/"

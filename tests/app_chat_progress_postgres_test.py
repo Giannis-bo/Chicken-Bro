@@ -25,7 +25,7 @@ class ChatProgressPostgresTest(unittest.TestCase):
         owner, other = uuid4(), uuid4()
         with connect() as connection:
             connection.execute('INSERT INTO identity.users (id) VALUES (%s), (%s)', (owner, other))
-        principal = Principal(user_id=owner, session_kind='mini_bearer')
+        principal = Principal(user_id=owner, session_kind='web_cookie')
         release = Event()
         class SlowCodex(FakeCodex):
             def stream(self, **kwargs):
@@ -71,7 +71,7 @@ class ChatProgressPostgresTest(unittest.TestCase):
             connection.execute('INSERT INTO identity.users (id) VALUES (%s), (%s)', (owner, other))
         now = datetime(2026, 9, 7, 9, 0, tzinfo=timezone.utc)
         clock = [now]
-        principal = Principal(user_id=owner, session_kind='mini_bearer')
+        principal = Principal(user_id=owner, session_kind='web_cookie')
         repository = PostgresChatRepository(connect)
         class ProgressCodex(FakeCodex):
             def stream(self, **kwargs):

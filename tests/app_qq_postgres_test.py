@@ -46,7 +46,11 @@ class QqPostgresTest(unittest.TestCase):
     def test_concurrent_identity_upsert_has_one_owner_and_never_merges_wechat(self):
         self.assertTrue(hasattr(self.repository, 'upsert_qq_identity'), 'QQ repository must support identity')
         subject = uuid4().hex
-        old = self.repository.upsert_wechat_mini_identity(app_context='1905584243', provider_subject=subject, union_id=None, now=self.now)
+        # Historical rows remain valid migration input; no retired provider code is invoked.
+        old = uuid4()
+        with self.connect() as connection:
+            connection.execute("INSERT INTO identity.users(id,status) VALUES (%s,'active')", (old,))
+            connection.execute("INSERT INTO identity.user_identities(id,user_id,provider,app_context,provider_subject) VALUES (%s,%s,'wechat_mini','1905584243',%s)", (uuid4(), old, subject))
         barrier = Barrier(2)
         def create(_):
             barrier.wait(timeout=5)

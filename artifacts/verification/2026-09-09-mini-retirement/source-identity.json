@@ -1,0 +1,555 @@
+{
+  "baseCommit": "58885c183b55cf8b17941436c94dab0498a6305b",
+  "deployment": "not_run",
+  "dataApplied": false,
+  "files": [
+    {
+      "path": "apps/mini-taro/config/postcss-weapp-compatible.cjs",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/package.json",
+      "sha256": "08c13500a63110af3035ca9047b717eb64ae34a46852cd5b8b6c63a0cf398c3d"
+    },
+    {
+      "path": "apps/mini-taro/project.config.json",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/ChatFeedbackConfirm.weapp.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/ChatImageOverlay.weapp.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/CoreTabBar.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/CoreTabBar.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniHelp.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniHelp.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniMessage.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniMessage.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniSimcReport.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniSimcReport.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniSimcTaskId.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/components/MiniSimcTaskId.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/custom-tab-bar/index.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/custom-tab-bar/index.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/env.d.ts",
+      "sha256": "4762c709a9b4dc38073ddd8027816e4a311a0525f2a9a73badadbc084e9a327d"
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/MiniAccountAvatar.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/MiniAccountAvatar.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/mini-account-avatar.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/mini-session.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/mini-session.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/auth/with-mini-test-login.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-feedback.test.tsx",
+      "sha256": "1d887ab01c38413e0aef0de5c0964288af60970984ff14f8fabb74f0022ad8e2"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-model.test.ts",
+      "sha256": "69b24ad0960f6858b1c01093ca76f45d9ee168f39af122f6196ddddca6b82796"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-reply-details.test.tsx",
+      "sha256": "098129eb67fc318df8d18095d9dc213720b8afcb39bb73849e645addc56fb95d"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/image-picker.weapp.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/image-source.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/mini-markdown.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/mini-markdown.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/use-chat-images.ts",
+      "sha256": "f9f2b9c637a8b694fb61b580077e2994da77a2c3eb4935c738bbb2e17ee4c8b3"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/use-image-source.weapp.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/help/faq-content.ts",
+      "sha256": "ff40b2dfd963c718b920947edfe80fcffae3dcc189f59775ade85f54c29d4bd7"
+    },
+    {
+      "path": "apps/mini-taro/src/features/help/mini-help.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/simc/simc-model.test.ts",
+      "sha256": "7fe3ad3d92c0dde123c677045dda4d19d396e8dc535e9381065746c393ab3592"
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/MiniThemePicker.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/MiniThemePicker.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/mini-theme-picker.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/mini-theme-store.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/mini-theme.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/features/theme/use-mini-theme.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/auth/web-login-avatar.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/auth/web-login-confirm.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/auth/web-login-confirm.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/auth/web-login-confirm.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/auth/web-login-confirm.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/history-interactions.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/index.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/index.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/index.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/chickenbro/index.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/index.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/index.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/index.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/index.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/mini-task-id.test.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/task-detail.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/task-detail.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/task-detail.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/task-detail.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/tasks.config.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/tasks.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/tasks.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/pages/simc/tasks.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/platform/AppTabBar.h5.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/platform/AppTabBar.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/tab-bar-items.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/tab-bar-items.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/tab-bar-state.test.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/tab-bar-state.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/use-tab-root-identity.ts",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebApp.weapp.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebMiniProgramPromo.module.scss",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebMiniProgramPromo.tsx",
+      "sha256": null
+    },
+    {
+      "path": "apps/mini-taro/src/web/assets/mini-program-promo.png",
+      "sha256": null
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "6c42db0b499f7e0076962f63b2ff3114606d558e79a5084f9a16e745889248a7"
+    },
+    {
+      "path": "package.json",
+      "sha256": "b6004f6d109a87dd91d10740b085dec6e37dd310f6cc4f35a0bc32e831b4a67a"
+    },
+    {
+      "path": "packages/api-client/src/auth-context.test.ts",
+      "sha256": "6f2f2dd8635e48e4ca37ba1d45a5adffbdacefdc5ef007fd34dd8f58f86c1413"
+    },
+    {
+      "path": "packages/api-client/src/auth-context.ts",
+      "sha256": "4f67752e7812e28e12764846eaae2ac320e9bc021d95c8d4d83c142335e85d4c"
+    },
+    {
+      "path": "packages/api-client/src/avatar.test.ts",
+      "sha256": "a67a7c5c97fb1ce6362bb3f35ff652f270951ad4f497918b5097f287af97c576"
+    },
+    {
+      "path": "packages/api-client/src/avatar.ts",
+      "sha256": "d91eb73969c73d1c1e13b1347a5662a654cb4a25041ca6450b85371bf49c89a9"
+    },
+    {
+      "path": "packages/api-client/src/chat.test.ts",
+      "sha256": "d187442176c837fb4037175f5bbc5502b2c710f9e67913c07789f0a5bc9fb5a4"
+    },
+    {
+      "path": "packages/api-client/src/simc.test.ts",
+      "sha256": "6e1fd8de20cc2235035c149b036e2f5e2e35b8a603879c0140b7c26448fc49c0"
+    },
+    {
+      "path": "packages/api-client/src/transport.test.ts",
+      "sha256": "99a8a256beb8d7bb7e73295149bbf80abbf8006eb9a589af1436af549a518c9a"
+    },
+    {
+      "path": "packages/api-client/src/transport.ts",
+      "sha256": "34c2aad180116e7aa94c545adf17c86fffee09f5f826d6e64b2a27f6a1789ee4"
+    },
+    {
+      "path": "packages/domain/src/web-auth.test.ts",
+      "sha256": "8b7461b263dc62c1a099237a3031a0409fafb2cdeb7deb45e7ad9292ef1564f0"
+    },
+    {
+      "path": "packages/domain/src/web-auth.ts",
+      "sha256": "dd97433b234798bceea62c9d4dd3963854b070fe99b5b1b09fdbf47cd9b447ef"
+    },
+    {
+      "path": "scripts/build-weapp-safely.js",
+      "sha256": null
+    },
+    {
+      "path": "scripts/finalize-weapp-build.js",
+      "sha256": null
+    },
+    {
+      "path": "scripts/project-harness.js",
+      "sha256": "937f1d648da426ad5472aded04855add2ca77c599391b7195b7b92295004d609"
+    },
+    {
+      "path": "scripts/refresh-weapp-preview.js",
+      "sha256": null
+    },
+    {
+      "path": "scripts/weapp-build-identity.js",
+      "sha256": null
+    },
+    {
+      "path": "server/app/api/dependencies.py",
+      "sha256": "3e6b26e54eef36f14e3fd579a279d6ac9c4f3c85164e7b9ea5bdd1d57169ca9a"
+    },
+    {
+      "path": "server/app/identity/application.py",
+      "sha256": "1918e159d7a1f13bacc85efd66809de7f4dfe6a698d63e47538f3d001d47d234"
+    },
+    {
+      "path": "server/app/identity/avatar.py",
+      "sha256": null
+    },
+    {
+      "path": "server/app/identity/domain.py",
+      "sha256": "f042491e0c6b9663619c60d8551754daaebe63a7de37e2bfaf1a22d2b74eeb91"
+    },
+    {
+      "path": "server/app/identity/ports.py",
+      "sha256": "5fdd061fcf88e2249256d578c83c00c25462ff777a1a9b81c4007eb17559efa9"
+    },
+    {
+      "path": "server/app/identity/repository.py",
+      "sha256": "eace6f59fb05584053ba037bfe73b5ca7a114acb85ae0a1c32cd11c5113f3b8b"
+    },
+    {
+      "path": "server/app/identity/request_auth.py",
+      "sha256": "9d6bf2b64eae5d7e54be6f81aa996b66da6cce2afa3fe51cb75cb259be3a14cf"
+    },
+    {
+      "path": "server/app/identity/test_accounts.py",
+      "sha256": "5b12b6bfdaba71281faf8ee1302d90be3e4ec9d5ca7630684e789a5728b57e59"
+    },
+    {
+      "path": "server/app/integrations/wechat_mini.py",
+      "sha256": null
+    },
+    {
+      "path": "server/app/platform/config.py",
+      "sha256": "6e44013cd2b8bfa08701164f5968f20bbc9615b8ee9ff12e418c8f6103f83c54"
+    },
+    {
+      "path": "server/cutover_chickenbro_lighthouse.sh",
+      "sha256": "22c271b12323daacf3b4a43a6b2c73b5628ec6bae5196863dd8b6825d6e6ae20"
+    },
+    {
+      "path": "server/deploy_chickenbro_candidate_lighthouse.sh",
+      "sha256": "22c271b12323daacf3b4a43a6b2c73b5628ec6bae5196863dd8b6825d6e6ae20"
+    },
+    {
+      "path": "tests/app_avatar_test.py",
+      "sha256": "7238abf8c4591cd8dd91739b306d4409fd16aab086b1937443244034fbf6f38e"
+    },
+    {
+      "path": "tests/app_chat_account_limit_postgres_test.py",
+      "sha256": "7fe421fbb2d5f8c05d87690d11ad662576ec0227c08e9afaa89627154da4daa4"
+    },
+    {
+      "path": "tests/app_chat_api_test.py",
+      "sha256": "6956261b432079eca2236fac6fba22486bbc800432366483cbb4f3ef5a9e42ec"
+    },
+    {
+      "path": "tests/app_chat_cross_client_test.py",
+      "sha256": "36776fe4b2cda39ab60a538c923e951c1b0033f78e9219cb0ea02c7e881369fe"
+    },
+    {
+      "path": "tests/app_chat_delete_postgres_test.py",
+      "sha256": "dbe79619627652e6db4e2aa8aa1457d582330748a50bee0891ebdfc1b8d1e70e"
+    },
+    {
+      "path": "tests/app_chat_feedback_postgres_test.py",
+      "sha256": "dd4f87661dd31736acc1e2040fffc72ccc1d28a479f4d46c7ed9ed0e3644727d"
+    },
+    {
+      "path": "tests/app_chat_images_postgres_test.py",
+      "sha256": "f489d67ebc825c0256406ead0fbb581c7feb2795c4407b3ba04d1cd824dacdd4"
+    },
+    {
+      "path": "tests/app_chat_progress_postgres_test.py",
+      "sha256": "b3ae5edbd6688454563a617f0967d721981f9a7be3de2f71910653b627eb0cc1"
+    },
+    {
+      "path": "tests/app_chickenbro_application_test.py",
+      "sha256": "a1ef1fc8af487ef55965f5f328073587bcc332221604e5ba9c00ca036dd5ebc0"
+    },
+    {
+      "path": "tests/app_chickenbro_native_mcp_test.py",
+      "sha256": "91b3c57129d5957ae63e55b7e7ade27cfa6aa33e87bd7979c355ccaef7fe1e9e"
+    },
+    {
+      "path": "tests/app_config_test.py",
+      "sha256": "6201f30d7da43bde4cd1ff9484dcf5f368b7c23de527db95d3f3151d4d9f5f27"
+    },
+    {
+      "path": "tests/app_identity_api_test.py",
+      "sha256": "b845271f957ea1f1b5b91f5c56a4a605c025ecf8b113c55248a41a50b7d0e4c6"
+    },
+    {
+      "path": "tests/app_identity_application_test.py",
+      "sha256": null
+    },
+    {
+      "path": "tests/app_identity_repository_test.py",
+      "sha256": "d0f9e312ee29c42a1e4bb4fb2da186663266ef28cff6ae2f821686ac97157237"
+    },
+    {
+      "path": "tests/app_qq_postgres_test.py",
+      "sha256": "96decd2eb44f2c6a56162ca2f83a3de5f77d3e694d680320239bb188c18e256d"
+    },
+    {
+      "path": "tests/app_simc_api_test.py",
+      "sha256": "304f4664420863faec2710f24495c1c3dd638693834c786ba51b94ef2a466748"
+    },
+    {
+      "path": "tests/app_simc_cross_client_test.py",
+      "sha256": "78ceb4791a54b0a773a441039f3cb72b6d5915d3adec22625cd3388e78ac2a9d"
+    },
+    {
+      "path": "tests/app_simc_workbench_api_test.py",
+      "sha256": "5f830bfbb81d9f30fa497b944f7f801221d041de1e8d37ed09b8d2e3ab27c81d"
+    },
+    {
+      "path": "tests/app_simulation_application_test.py",
+      "sha256": "b3cc3ae63150275c6bb5f838921400343a043b251eb46be54f1114f423587007"
+    },
+    {
+      "path": "tests/app_test_login_test.py",
+      "sha256": "762a121b1ec362ca200ddb825514b42910728f0ac72911abb7e8777a88badd61"
+    },
+    {
+      "path": "tests/app_wechat_mini_test.py",
+      "sha256": null
+    },
+    {
+      "path": "tests/build-weapp-safely.test.js",
+      "sha256": null
+    },
+    {
+      "path": "tests/chickenbro-simc-runtime-update.test.js",
+      "sha256": "4cb87feb2642b0174eb2f50a6d5d97515fb22cdce836bc59e280cfa3ff1d4e34"
+    },
+    {
+      "path": "tests/cutover-chickenbro.test.js",
+      "sha256": "f2a81e3489beccd0c520da8c1595643b90041da8302b8df913bdd6a3f3f204c4"
+    },
+    {
+      "path": "tests/deploy-chickenbro-candidate.test.js",
+      "sha256": "f09681d848c0ce0391c2d5260dcad8acfe06056761b0557a5b1ccbe94c6a9804"
+    },
+    {
+      "path": "tests/finalize-weapp-build.test.js",
+      "sha256": null
+    },
+    {
+      "path": "tests/identity_fakes.py",
+      "sha256": "bf8badc908ef5781ce7ab2d225ab4bb24a4bf1fadde00c90acf5c81d75f3ba5e"
+    },
+    {
+      "path": "tests/project-harness.test.js",
+      "sha256": "7d554a2837dbe66f4a4729b778fffc479ecee8ad494f84b4aee6aafb5dee9ada"
+    },
+    {
+      "path": "tests/refresh-weapp-preview.test.js",
+      "sha256": null
+    },
+    {
+      "path": "tests/retained-client-boundary.test.js",
+      "sha256": "4665976cbb0cf9c45b92ab527b9d578c73be9f4233a8b63ec6f43135dfd7528d"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "732527bcebbfac550266ddd4d7f1d6a5fa75ea3a6158d6c4efb544271f3a7f60"
+    }
+  ]
+}

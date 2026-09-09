@@ -138,7 +138,7 @@ class SimulationApplicationTest(unittest.TestCase):
         self.now = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
         self.owner = Principal(
             user_id=UUID("00000000-0000-4000-8000-000000000001"),
-            session_kind="mini_bearer",
+            session_kind="web_cookie",
         )
         self.other = Principal(
             user_id=UUID("00000000-0000-4000-8000-000000000003"),

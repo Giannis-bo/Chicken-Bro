@@ -21,10 +21,10 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
-  it('opts into the same zhCN report for Mini and Web without putting ownership in the URL', async () => {
+  it('opts into the same zhCN report for Web sessions without putting ownership in the URL', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)
-    for (const auth of [{ kind: 'mini' as const, accessToken: 'mini' }, { kind: 'web' as const, csrfToken: 'csrf' }]) {
+    for (const auth of [{ kind: 'web' as const, csrfToken: 'mini' }, { kind: 'web' as const, csrfToken: 'csrf' }]) {
       await client.getJob('job-one', { auth, workbench: true, localizedReport: true })
     }
     expect(transport.requests.map(call => call.path)).toEqual(Array(2).fill('/api/v2/simc/jobs/job-one?view=workbench&scenarioVersion=2&reportLocale=zhCN'))
@@ -56,7 +56,7 @@ describe('formal SimC client', () => {
     try {
       const transport = new RecordingTransport()
       const client = createSimcClient(transport)
-      const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+      const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
 
       await client.listJobs({}, { auth })
 
@@ -66,10 +66,10 @@ describe('formal SimC client', () => {
     }
   })
 
-  it('uses only formal paths and delegates Mini credentials to the transport', async () => {
+  it('uses only formal paths and delegates Web credentials to the transport', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)
-    const auth = { kind: 'mini' as const, accessToken: 'mini-token' }
+    const auth = { kind: 'web' as const, csrfToken: 'web-csrf' }
 
     await client.createSnapshot(
       { sourceUrl: 'https://raider.io/characters/us/area-52/Stormsample' },

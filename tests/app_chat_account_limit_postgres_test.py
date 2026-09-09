@@ -21,7 +21,7 @@ class ChatAccountLimitPostgresTest(unittest.TestCase):
         with psycopg.connect(os.environ['WOW_PG_TEST_DSN_V2'], autocommit=True) as connection:
             importlib.import_module('server.migrations.product.apply').apply_product_migrations(
                 connection, Path(__file__).resolve().parents[1] / 'server/migrations/product')
-        self.owner = Principal(user_id=uuid4(), session_kind='mini_bearer')
+        self.owner = Principal(user_id=uuid4(), session_kind='web_cookie')
         self.web = Principal(user_id=self.owner.user_id, session_kind='web_cookie')
         self.other = Principal(user_id=uuid4(), session_kind='web_cookie')
         with self.connect() as connection:

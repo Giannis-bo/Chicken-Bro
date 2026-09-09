@@ -356,7 +356,7 @@ class ChatApplicationTest(unittest.TestCase):
         self.user_id = UUID("00000000-0000-0000-0000-000000000011")
         self.principal = Principal(
             user_id=self.user_id,
-            session_kind="mini_bearer",
+            session_kind="web_cookie",
         )
         self.repository = MemoryChatRepository()
         conversation = self.repository.create_conversation(
@@ -1199,7 +1199,7 @@ class FormalChatPaginationTest(unittest.TestCase):
         self.now = datetime(2026, 9, 3, 10, 0, tzinfo=timezone.utc)
         self.owner_a = Principal(
             user_id=UUID("00000000-0000-0000-0000-000000000031"),
-            session_kind="mini_bearer",
+            session_kind="web_cookie",
         )
         self.owner_b = Principal(
             user_id=UUID("00000000-0000-0000-0000-000000000032"),

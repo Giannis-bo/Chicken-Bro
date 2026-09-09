@@ -3,15 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { clientAuthRequest, type ClientAuthContext } from './auth-context'
 
 
-describe('formal dual-client auth context', () => {
-  it('keeps Mini Bearer explicit and never enables Cookie credentials', () => {
-    const auth: ClientAuthContext = { kind: 'mini', accessToken: 'mini-token' }
-
-    expect(clientAuthRequest(auth, { mutating: true })).toEqual({
-      header: { Authorization: 'Bearer mini-token' },
-      credentials: 'omit',
-      baseUrl: 'default',
-    })
+describe('Web auth context', () => {
+  it('rejects retired auth contexts before transport', () => {
+    expect(() => clientAuthRequest({ kind: 'mini', accessToken: 'old-token' } as unknown as ClientAuthContext, { mutating: true })).toThrow()
   })
 
   it('uses Web Cookie credentials and adds CSRF only for mutations', () => {
@@ -30,7 +24,7 @@ describe('formal dual-client auth context', () => {
   })
 
   it('rejects empty or whitespace-bearing credentials before transport', () => {
-    expect(() => clientAuthRequest({ kind: 'mini', accessToken: '' }, { mutating: false })).toThrow()
+    expect(() => clientAuthRequest({ kind: 'web', csrfToken: '' }, { mutating: false })).toThrow()
     expect(() => clientAuthRequest({ kind: 'web', csrfToken: 'bad token' }, { mutating: true })).toThrow()
   })
 })

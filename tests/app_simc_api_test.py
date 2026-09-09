@@ -13,7 +13,7 @@ from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeC
 from server.app.simulation.sources import CharacterSourceRouter
 from tests.app_chat_api_test import (
     FakeFormalAuthApplication,
-    mini_headers,
+    browser_session_headers,
     web_cookies,
     web_write_headers,
 )
@@ -67,7 +67,7 @@ class FormalSimcApiTest(unittest.TestCase):
     def create_snapshot(self):
         return self.client.post(
             "/api/v2/simc/snapshots",
-            headers=mini_headers(),
+            headers=browser_session_headers(),
             json={"sourceUrl": "https://raider.io/characters/us/area-52/Stormsample"},
         )
 
@@ -126,12 +126,12 @@ class FormalSimcApiTest(unittest.TestCase):
 
         missing = self.client.post(
             "/api/v2/simc/jobs",
-            headers=mini_headers(),
+            headers=browser_session_headers(),
             json=body,
         )
         invalid = self.client.post(
             "/api/v2/simc/jobs",
-            headers={**mini_headers(), "Idempotency-Key": "contains space"},
+            headers={**browser_session_headers(), "Idempotency-Key": "contains space"},
             json=body,
         )
 

@@ -78,20 +78,17 @@ class AppIdentityApiTest(unittest.TestCase):
         self.assertEqual(self.application.calls, [])
 
     def test_each_transport_resolves_only_its_session_kind(self):
-        mini = resolve_request_principal(
-            request(authorization="Bearer mini-token"),
-            application=self.application,
-            web_cookie_name="__Host-chickenbro-session",
-        )
+        with self.assertRaises(CredentialTransportError):
+            resolve_request_principal(request(authorization="Bearer mini-token"), application=self.application,
+                                      web_cookie_name="__Host-chickenbro-session")
+        self.assertEqual(self.application.calls, [])
         web = resolve_request_principal(
             request(cookie="web-token"),
             application=self.application,
             web_cookie_name="__Host-chickenbro-session",
         )
 
-        self.assertEqual(mini.session_kind, "mini_bearer")
         self.assertEqual(web.session_kind, "web_cookie")
-        self.assertEqual(credential_for_principal(request(authorization="Bearer mini-token"), mini, "__Host-chickenbro-session"), "mini-token")
         self.assertEqual(credential_for_principal(request(cookie="web-token"), web, "__Host-chickenbro-session"), "web-token")
 
         for cross_transport in (
@@ -125,13 +122,10 @@ class AppIdentityApiTest(unittest.TestCase):
                 self.assertEqual(caught.exception.code, "AUTH_REQUIRED")
                 self.assertEqual(caught.exception.status_code, 401)
 
-    def test_mutating_web_auth_requires_csrf_but_mini_bearer_does_not(self):
-        mini = resolve_mutating_request_principal(
-            request(authorization="Bearer mini-token"),
-            application=self.application,
-            settings=self.settings,
-        )
-        self.assertEqual(mini.session_kind, "mini_bearer")
+    def test_mutating_web_requires_csrf_and_bearer_is_rejected(self):
+        with self.assertRaises(CredentialTransportError):
+            resolve_mutating_request_principal(request(authorization="Bearer mini-token"),
+                                               application=self.application, settings=self.settings)
 
         with self.assertRaises(CsrfRejectedError):
             resolve_mutating_request_principal(

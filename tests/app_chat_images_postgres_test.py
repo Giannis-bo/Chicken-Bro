@@ -123,13 +123,13 @@ class ChatImagesPostgresTest(unittest.TestCase):
         with TestClient(app,base_url='https://www.chickenbro.cloud') as client:
             route='/api/v2/chat/images'
             self.assertEqual(client.post(route,json={'dataUrl':'x'}).status_code,401)
-            headers={'Authorization':'Bearer owner','Idempotency-Key':'api-image-upload'}
+            headers={'Cookie': '__Host-chickenbro-session=owner; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf', 'Idempotency-Key':'api-image-upload'}
             with patch('server.app.chickenbro.application.normalize_image',return_value=NormalizedImage(b'pixels','image/png',2,3)):
                 response=client.post(route,headers=headers,json={'dataUrl':'test'})
             self.assertEqual(response.status_code,201,response.text)
             image=response.json()
             path=route+'/'+image['id']
-            self.assertEqual(client.get(path,headers={'Authorization':'Bearer other'}).status_code,404)
+            self.assertEqual(client.get(path,headers={'Cookie': '__Host-chickenbro-session=other; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf'}).status_code,404)
             self.assertEqual(client.get(path).status_code,401)
             client.cookies.set('__Host-chickenbro-session','owner')
             response=client.get(path)

@@ -14,8 +14,6 @@ export default defineConfig({
       'apps/mini-taro/src/features/**/*.test.tsx',
       'apps/mini-taro/src/web/**/*.test.ts',
       'apps/mini-taro/src/web/**/*.test.tsx',
-      'apps/mini-taro/src/tab-bar-items.test.ts',
-      'apps/mini-taro/src/tab-bar-state.test.ts',
       'packages/api-client/src/avatar.test.ts',
       'packages/api-client/src/auth-context.test.ts',
       'packages/api-client/src/chat.test.ts',
@@ -28,11 +26,6 @@ export default defineConfig({
     ],
     exclude: [
       '**/node_modules/**', '**/dist/**',
-      'apps/mini-taro/src/features/auth/mini-*.test.ts',
-      'apps/mini-taro/src/features/auth/mini-*.test.tsx',
-      'apps/mini-taro/src/features/help/mini-help.test.tsx',
-      'apps/mini-taro/src/features/theme/mini-*.test.ts',
-      'apps/mini-taro/src/features/theme/mini-*.test.tsx',
     ],
     coverage: {
       reporter: ['text', 'json-summary'],

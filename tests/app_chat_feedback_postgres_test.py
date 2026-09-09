@@ -83,8 +83,8 @@ class ChatFeedbackPostgresTest(unittest.TestCase):
         route = f'/api/v2/chat/conversations/{self.a}/messages/{message}/feedback'
         with TestClient(app, base_url='https://www.chickenbro.cloud') as client:
             self.assertEqual(client.post(route, json={'resolved': False}).status_code, 401)
-            self.assertEqual(client.post(route, headers={'Authorization': 'Bearer other'}, json={'resolved': False}).status_code, 404)
-            headers = {'Authorization': 'Bearer owner'}
+            self.assertEqual(client.post(route, headers={'Cookie': '__Host-chickenbro-session=other; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf'}, json={'resolved': False}).status_code, 404)
+            headers = {'Cookie': '__Host-chickenbro-session=owner; __Host-chickenbro-csrf=csrf', 'Origin': 'https://www.chickenbro.cloud', 'X-CSRF-Token': 'csrf'}
             for body in ({'resolved': 'false'}, {'resolved': 0}, {'resolved': None}, {}, {'resolved': False, 'user_id': str(other)}):
                 self.assertEqual(client.post(route, headers=headers, json=body).status_code, 422)
             self.assertEqual(client.post(route, headers=headers, json={'resolved': False}).json(), {'resolved': False})

@@ -1,0 +1,322 @@
+[
+  {
+    "path": "apps/mini-taro/config/postcss-weapp-compatible.cjs",
+    "originalSha256": "7077fcb477f51c9cb2964febbb823c7e141537bdcf2a6d58dd4d98490e73393f"
+  },
+  {
+    "path": "apps/mini-taro/project.config.json",
+    "originalSha256": "ec3a733fcbc4dc98fe9c919509bdf7848af0ef2dc5fc419c6ab20416ea2a5440"
+  },
+  {
+    "path": "apps/mini-taro/src/components/ChatFeedbackConfirm.weapp.tsx",
+    "originalSha256": "4ce7e8ca367e334b2fdefce0bfe7fb188ba10d83bbd4da1ae51450be1e7f0ce2"
+  },
+  {
+    "path": "apps/mini-taro/src/components/ChatImageOverlay.weapp.tsx",
+    "originalSha256": "b3ce6d086061228956119570328c9ec4ebfb0398311aa7caec456c64482011cf"
+  },
+  {
+    "path": "apps/mini-taro/src/components/CoreTabBar.module.scss",
+    "originalSha256": "e2dbc5957982abb276a21d9598b0c3f1d3e3d824b2989eecc5fc8c7b69766936"
+  },
+  {
+    "path": "apps/mini-taro/src/components/CoreTabBar.tsx",
+    "originalSha256": "1a9bf9f6fcf8847521ea2f0d63b2f745b97f2d98d8026a0bb14e38309aac4e9a"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniHelp.module.scss",
+    "originalSha256": "9eb57b829817f7d59f7a9635ffe53bc684d8783d3b5d2b1c398dbf0decf8ec25"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniHelp.tsx",
+    "originalSha256": "3d29f9c200a565e35652e5cc95d79f5030c7bb361f4a0a55ea361a0ed24dad01"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniMessage.module.scss",
+    "originalSha256": "e5967f12845c93db6ed7475a61d5cdecc4082f3388d4188bb992f2f1ce3d0d00"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniMessage.tsx",
+    "originalSha256": "5d601a283af8bce25e67759d0a67c941a3fd3bcc9b2219ba624767085eb065ad"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniSimcReport.module.scss",
+    "originalSha256": "385aa1ec41244de09a51cd6dbdee8ee392056f87547c91baeafe788b196fd6c0"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniSimcReport.tsx",
+    "originalSha256": "e4e8f164f64f7d18f275ac8c81f4a48b888a976c896a816dae6d1c8d0e3668e0"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniSimcTaskId.module.scss",
+    "originalSha256": "5fc5ab70d9a8866780c43683da989eb8e386af76bd010509b8d2ffb663ad0470"
+  },
+  {
+    "path": "apps/mini-taro/src/components/MiniSimcTaskId.tsx",
+    "originalSha256": "7c34970e0fbcd8d2b580ee40dc2287c9b79460715ceda5e7f15a8f6c7e682664"
+  },
+  {
+    "path": "apps/mini-taro/src/custom-tab-bar/index.config.ts",
+    "originalSha256": "997b12b70200d0df37da27dd797b335c645a2309a1fc603203902e03740ecc28"
+  },
+  {
+    "path": "apps/mini-taro/src/custom-tab-bar/index.tsx",
+    "originalSha256": "316057b890d1322da9073b9583675d84a53bb4c79215842f19298ba88fd8dd27"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/MiniAccountAvatar.module.scss",
+    "originalSha256": "fbdae03173b998aac4e9213d6b587da662136231fde8092f31ae256a0e4f4aca"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/MiniAccountAvatar.tsx",
+    "originalSha256": "a5f9ff7c1df4ca53d864b55ca39c26622f2cd568af72217be40520b800ed6f65"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/mini-account-avatar.test.tsx",
+    "originalSha256": "6d2dbca6226c9c3a92d7249cb7725d93e37b817c802ac0b015ed37e07e9025ed"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/mini-session.test.ts",
+    "originalSha256": "36f045ce466830de56707640d0d73378786bb4183d5b9387e0c0aa5c71e169e1"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/mini-session.ts",
+    "originalSha256": "1de9b285bfec390c638e69d301dd805987775cb44bcd695ce25d76e145bfd5ab"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx",
+    "originalSha256": "10adcbe13b5474d552c8de25306a3eebbc27247cad5e9490c0ba9ac609cf39db"
+  },
+  {
+    "path": "apps/mini-taro/src/features/auth/with-mini-test-login.tsx",
+    "originalSha256": "3314bdd522c06c5bb7a0ea6ff7079047ee16bc2d57559175b7fc9b5d8ded0dff"
+  },
+  {
+    "path": "apps/mini-taro/src/features/chat/image-picker.weapp.ts",
+    "originalSha256": "8bb2a025de41ca2aed5a61f1d307cbd18dee56775ef3583d7a0202afae98507d"
+  },
+  {
+    "path": "apps/mini-taro/src/features/chat/image-source.test.tsx",
+    "originalSha256": "cf073aff73f8b3a4c8460420e12eb4a39a0401627418a979d7445c198a498198"
+  },
+  {
+    "path": "apps/mini-taro/src/features/chat/mini-markdown.test.ts",
+    "originalSha256": "608384670fa7eccef6bdff55bdbdb219cbd91e148171d129a872d210baa68f20"
+  },
+  {
+    "path": "apps/mini-taro/src/features/chat/mini-markdown.ts",
+    "originalSha256": "30ba38a1ab326d53e1256cd5d0be66744325282b0301ef14ea1c82b9bf6384de"
+  },
+  {
+    "path": "apps/mini-taro/src/features/chat/use-image-source.weapp.ts",
+    "originalSha256": "7b6f4f8a94449aed546ff1286a9c6bc1cea36ff157bd1d9f1e8c30b14b808b86"
+  },
+  {
+    "path": "apps/mini-taro/src/features/help/mini-help.test.tsx",
+    "originalSha256": "78b257626ace3f56875996528a8c972071a563b4334d1275aa3b971663cbf838"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/MiniThemePicker.module.scss",
+    "originalSha256": "2d2df1e1c5dc0d026648fab5ffc0afe4e430ce29bd57f3f6b6a0caf88039ccbe"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/MiniThemePicker.tsx",
+    "originalSha256": "b9320a7052be1499fbbdf960e22c57bdc057969d98e99b21308a0a489670a8bc"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/mini-theme-picker.test.tsx",
+    "originalSha256": "8657c74c5702d8419f571baa9a17ba8b845f93cb92ad4a05fb3145627f7c698f"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/mini-theme-store.ts",
+    "originalSha256": "42be5698b87d53c7ca870bba544a19a913de1a49f422e170ef6c8039becd90da"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/mini-theme.test.ts",
+    "originalSha256": "7db77cbaa726d6ca78933debbbefeac7b9720867f6699587e6301eda5d065cef"
+  },
+  {
+    "path": "apps/mini-taro/src/features/theme/use-mini-theme.ts",
+    "originalSha256": "8bd7c0783883d562edfcefb76f8dcad0bdae790fb430dcfa0ee377c137775721"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/auth/web-login-avatar.test.tsx",
+    "originalSha256": "78be04d8399a270569076612d4beeb9275b9d44dfefd4a125b27063ac1450b3c"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/auth/web-login-confirm.config.ts",
+    "originalSha256": "253e446156e00ed51b4ed21695cb8a72eae475a2f0f82bb68701a826ef68b756"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/auth/web-login-confirm.module.scss",
+    "originalSha256": "63aa4bd86a4442b62dffa81a9bd256e4602edb63983b0ff68f46fc86b5345969"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/auth/web-login-confirm.test.ts",
+    "originalSha256": "7b31821059b0b8fd41243ac7268ffc7b334fe5d85dc7cb28f69dbf498346819d"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/auth/web-login-confirm.tsx",
+    "originalSha256": "478f52b0aa4ab4709f00f33cfe3d3c76c40c9ff0fb7fc20b8968ac706cdda9c8"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/chickenbro/history-interactions.test.tsx",
+    "originalSha256": "4b945c8098bea4f97b7fa8bca36d6ce2bc1f559ac92d094650416034225ff73c"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/chickenbro/index.config.ts",
+    "originalSha256": "8f25f9550fb4c3dc858216b9318b65309146b3071d403623ef453dd828c20e39"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/chickenbro/index.module.scss",
+    "originalSha256": "f70b42d1da5a489e61d32fea9db91c23bb13c72f6e05c9746067dd704c95109d"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/chickenbro/index.test.ts",
+    "originalSha256": "e2695fb6e51a9b4d890580e7ceb31272c93c2b47aa3b27e40885d27989706593"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/chickenbro/index.tsx",
+    "originalSha256": "98f3cfdb6efff5323a198c60db1fb32daca8d4c28e241ca235975219a62584a9"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/index.config.ts",
+    "originalSha256": "6d748c61041e0137e6a4ffd82348924445ecb679124244497007e7f33a8f3bf5"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/index.module.scss",
+    "originalSha256": "5ffdda33a8e91c9fb78b326cd3f6b697956178245638a7324b6a62fd24ccb69b"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/index.test.ts",
+    "originalSha256": "c5fac6b08e7343dca5487972cc020390739838a72d6015d46d9bd5565e77873a"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/index.tsx",
+    "originalSha256": "693b353e9717d401774c686805a43b8dafe9a3d85404d6820af648ea0fdf59d3"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/mini-task-id.test.tsx",
+    "originalSha256": "6f37d72a1701a4f1e37a80015a62096d82e333be5920fe9936c20c4a327de2f5"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/task-detail.config.ts",
+    "originalSha256": "7724563555bb5fd9ed21d3e2e2f68a43d03f41bd63a8a943d4074284213cb5ed"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/task-detail.module.scss",
+    "originalSha256": "1b30bf112430c0b512c9613a58490691ecfe8b76dce22722054c10df0248d429"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/task-detail.test.ts",
+    "originalSha256": "9a2cc3835da0fce0374311224fc3ef923963ed67bd65cb1b89b244de20fcd024"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/task-detail.tsx",
+    "originalSha256": "63581209318fa9ce63416ea2245f3d862addd888f9a92bac3342a9996f0f7dc2"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/tasks.config.ts",
+    "originalSha256": "7724563555bb5fd9ed21d3e2e2f68a43d03f41bd63a8a943d4074284213cb5ed"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/tasks.module.scss",
+    "originalSha256": "832b7a989745f6dd3ee7cd16a165dfd3c0a042583329d4edc7fd96f36485ec9a"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/tasks.test.ts",
+    "originalSha256": "c1c114e264897f26c85f8460e782bb6166431309849f28a324df82c209b31bdf"
+  },
+  {
+    "path": "apps/mini-taro/src/pages/simc/tasks.tsx",
+    "originalSha256": "c5fe2204b5254105fccb51475909bb0913c6453b265ab982484987ba1556ea9e"
+  },
+  {
+    "path": "apps/mini-taro/src/platform/AppTabBar.h5.tsx",
+    "originalSha256": "ec3e3f5e8efe21fcc92e0394e06b11c0beff74a11d48bdb1cc2316b95d7b7bb4"
+  },
+  {
+    "path": "apps/mini-taro/src/platform/AppTabBar.tsx",
+    "originalSha256": "8ee230641b99c2b5108efc6e724d362033c81145067a4e214138206ee1ef3b79"
+  },
+  {
+    "path": "apps/mini-taro/src/tab-bar-items.test.ts",
+    "originalSha256": "a2920ff1e551acc9fc083f2f3bb0736cedec780c92c9e5c4a7d4e0cd677aed63"
+  },
+  {
+    "path": "apps/mini-taro/src/tab-bar-items.ts",
+    "originalSha256": "9d30f70d0d2c7b52f0e034c2357f173f4cfbcc2f2204303d00769dd464387ed7"
+  },
+  {
+    "path": "apps/mini-taro/src/tab-bar-state.test.ts",
+    "originalSha256": "791a5f9d6a54628ae986e623dfe9f12b187029434d41b1a2a2b9b33587b289ce"
+  },
+  {
+    "path": "apps/mini-taro/src/tab-bar-state.ts",
+    "originalSha256": "f863a119779182c578a1e235a4fb1e3681eda649ac706c45fa89d14e95a4cfd7"
+  },
+  {
+    "path": "apps/mini-taro/src/use-tab-root-identity.ts",
+    "originalSha256": "8d8aafa6d280e395ab6442d518f582ef1c49564a4f9096a01b598f8c9561ff85"
+  },
+  {
+    "path": "apps/mini-taro/src/web/WebApp.weapp.tsx",
+    "originalSha256": "eee19d9141ad3a6a25c641b7a1d260f86b2b0e9f060ed06a03c0cf584bd57522"
+  },
+  {
+    "path": "apps/mini-taro/src/web/WebMiniProgramPromo.module.scss",
+    "originalSha256": "ead7128c279eb128b14bc70ffb2d9dfe9e51065ba8b18415b2d1718f877b7878"
+  },
+  {
+    "path": "apps/mini-taro/src/web/WebMiniProgramPromo.tsx",
+    "originalSha256": "ac4b837b00ab12e689996b2c86f7cb760a0c6eb95f5747ce459a9a312c54633d"
+  },
+  {
+    "path": "apps/mini-taro/src/web/assets/mini-program-promo.png",
+    "originalSha256": "32ddca80ca1279b34f337eda5ff864bb236d75ee7f37aa32c3ca9ca66a1d0d4a"
+  },
+  {
+    "path": "scripts/build-weapp-safely.js",
+    "originalSha256": "e15070e1186b82657a84e3859afc3d1db8497df0aba2794d9df84bd9c39defba"
+  },
+  {
+    "path": "scripts/finalize-weapp-build.js",
+    "originalSha256": "5534ed4d1a3e3dfb5d65199ad80bf581b21bcf2f0956a499e03948c05dbbf313"
+  },
+  {
+    "path": "scripts/refresh-weapp-preview.js",
+    "originalSha256": "0f5a799d6955557c01991339f324d3473c26fd9d4ca4d41840f7b76aec33d2fa"
+  },
+  {
+    "path": "scripts/weapp-build-identity.js",
+    "originalSha256": "35d64ba163d7a47f0aab6adfa949646db4687afb8bc44169892ffbfbaf61e8c5"
+  },
+  {
+    "path": "server/app/identity/avatar.py",
+    "originalSha256": "3a79363aee914c1fc6833a86f5e3c19a795152e258a9d0417fc399e1346c7e73"
+  },
+  {
+    "path": "server/app/integrations/wechat_mini.py",
+    "originalSha256": "13ee3f47afdbca233dc293ea0322685b6f8b176cce2a9b2d72b5236e62d90935"
+  },
+  {
+    "path": "tests/app_identity_application_test.py",
+    "originalSha256": "2a4243c8df8a41b0fd09832647a5fb574b61bae81a9d414469f37e6aed4eb2c9"
+  },
+  {
+    "path": "tests/app_wechat_mini_test.py",
+    "originalSha256": "e7aa46e28f9dc44a11a67bffe96ab0fdef40bba9638221da8f1ea0233948bc19"
+  },
+  {
+    "path": "tests/build-weapp-safely.test.js",
+    "originalSha256": "0d9b530bc5d65ff32e74e9ba53b308a5f3e16fc6f935c2b465e557d453b08944"
+  },
+  {
+    "path": "tests/finalize-weapp-build.test.js",
+    "originalSha256": "463ec2014182140cbe71cd4dd4afcee7d50060f19121d92d34a45ecbabe51388"
+  },
+  {
+    "path": "tests/refresh-weapp-preview.test.js",
+    "originalSha256": "bbb4309feabb716ca5d3cb5fbe55236dec233400a61e1bcb6b086034cffe8580"
+  }
+]

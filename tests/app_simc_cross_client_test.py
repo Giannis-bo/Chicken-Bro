@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from tests.app_chat_api_test import mini_headers, web_cookies, web_write_headers
+from tests.app_chat_api_test import browser_session_headers, web_cookies, web_write_headers
 from tests.app_simc_api_test import build_simc_test_client
 
 
@@ -10,14 +10,14 @@ class FormalSimcCrossClientTest(unittest.TestCase):
         self.client, self.repository, self.queue = build_simc_test_client()
         self.snapshot = self.client.post(
             "/api/v2/simc/snapshots",
-            headers=mini_headers(),
+            headers=browser_session_headers(),
             json={"sourceUrl": "https://raider.io/characters/us/area-52/Stormsample"},
         ).json()
 
     def tearDown(self):
         self.client.close()
 
-    def test_job_created_by_web_is_visible_to_mini_same_user(self):
+    def test_job_created_by_web_is_visible_to_browser_same_user(self):
         created = self.client.post(
             "/api/v2/simc/jobs",
             headers={**web_write_headers(), "Idempotency-Key": "cross-simc-1"},
@@ -27,7 +27,7 @@ class FormalSimcCrossClientTest(unittest.TestCase):
                 "scenario": {"fightStyle": "Patchwerk", "desiredTargets": 1},
             },
         )
-        listed = self.client.get("/api/v2/simc/jobs", headers=mini_headers())
+        listed = self.client.get("/api/v2/simc/jobs", headers=browser_session_headers())
 
         self.assertEqual(created.status_code, 202)
         self.assertEqual(listed.status_code, 200)
@@ -38,7 +38,7 @@ class FormalSimcCrossClientTest(unittest.TestCase):
     def test_other_user_cannot_read_snapshot_job_or_enumerate_history(self):
         created = self.client.post(
             "/api/v2/simc/jobs",
-            headers={**mini_headers(), "Idempotency-Key": "cross-simc-owner"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-simc-owner"},
             json={
                 "snapshotId": self.snapshot["id"],
                 "scenario": {"fightStyle": "Patchwerk", "desiredTargets": 1},
@@ -47,13 +47,13 @@ class FormalSimcCrossClientTest(unittest.TestCase):
 
         snapshot_read = self.client.get(
             f"/api/v2/simc/snapshots/{self.snapshot['id']}",
-            headers=mini_headers(other=True),
+            headers=browser_session_headers(other=True),
         )
         job_read = self.client.get(
             f"/api/v2/simc/jobs/{created['id']}",
-            headers=mini_headers(other=True),
+            headers=browser_session_headers(other=True),
         )
-        listed = self.client.get("/api/v2/simc/jobs", headers=mini_headers(other=True))
+        listed = self.client.get("/api/v2/simc/jobs", headers=browser_session_headers(other=True))
 
         self.assertEqual(snapshot_read.status_code, 404)
         self.assertEqual(snapshot_read.json()["error"]["code"], "SNAPSHOT_NOT_FOUND")
@@ -65,7 +65,7 @@ class FormalSimcCrossClientTest(unittest.TestCase):
     def test_job_detail_is_bounded_and_hides_queue_worker_and_owner_fields(self):
         created = self.client.post(
             "/api/v2/simc/jobs",
-            headers={**mini_headers(), "Idempotency-Key": "cross-simc-public"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-simc-public"},
             json={
                 "snapshotId": self.snapshot["id"],
                 "scenario": {"fightStyle": "Patchwerk", "desiredTargets": 1},

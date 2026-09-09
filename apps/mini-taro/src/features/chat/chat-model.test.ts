@@ -122,7 +122,7 @@ it('locks saved feedback without interrupting chat', async () => {
   expect(model.get().phase).toBe('ready')
 })
 
-const auth: ClientAuthContext = { kind: 'mini', accessToken: 'mini-token' }
+const auth: ClientAuthContext = { kind: 'web', csrfToken: 'web-csrf' }
 
 it('restores the locked server choice when the other client has already confirmed', async () => {
   const client = new FakeChatClient()
@@ -462,7 +462,7 @@ it('does not relabel a completed reply when its history refresh fails', async ()
 
 it('explains account contention and permits a later retry without a phantom message', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   client.streamFailure = 'CHAT_ACCOUNT_BUSY'
   model.send('另一个问题')
@@ -477,7 +477,7 @@ it('explains account contention and permits a later retry without a phantom mess
 
 it('keeps a reply running when switching conversations and ignores its events in the new view', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   model.send('A问题')
   const aStream = client.streamOptions!
@@ -494,7 +494,7 @@ it('keeps a reply running when switching conversations and ignores its events in
 
 it('closes background reply connections when the chat model is disposed', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   model.send('A问题')
   await model.create('B')
@@ -505,7 +505,7 @@ it('closes background reply connections when the chat model is disposed', async 
 
 it('does not let background completion override an in-flight conversation navigation', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   model.send('A问题')
   const aStream = client.streamOptions!
@@ -522,7 +522,7 @@ it('does not let background completion override an in-flight conversation naviga
 
 it('refreshes A after completion arrives while a stale A history response is in flight', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   model.send('A问题')
   const aStream = client.streamOptions!
@@ -546,7 +546,7 @@ it('refreshes A after completion arrives while a stale A history response is in 
 
 it('removes the current conversation only after server success and returns to a blank view', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   client.remove = vi.fn(async () => ({ payload: { deleted: false }, fromFallback: true,
     error: 'HTTP 409', problemCode: 'CHAT_CONVERSATION_BUSY', httpStatus: 409 }))
@@ -559,7 +559,7 @@ it('removes the current conversation only after server success and returns to a 
 
 it('clears deleted A even when an in-flight navigation to B subsequently fails', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   let finish!: (value: ApiResult<ConversationDetail>) => void
   client.get = () => new Promise(resolve => { finish = resolve })
@@ -573,7 +573,7 @@ it('clears deleted A even when an in-flight navigation to B subsequently fails',
 it('does not restore a deleted conversation from an older pagination response', async () => {
   const client = new FakeChatClient()
   client.list = async () => success({ items: [conversation], nextCursor: 'next-page' })
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'token' }))
   await model.load()
   let finish!: (value: ApiResult<ConversationPage>) => void
   client.list = () => new Promise(resolve => { finish = resolve })
@@ -600,7 +600,7 @@ it('keeps the selected reply sending when loading more history', async () => {
 
 it('leaves sending state when the transport throws during startup', async () => {
   const client = new FakeChatClient()
-  const model = new ChatModel(client, () => ({ kind: 'mini', accessToken: 'mini-token' }))
+  const model = new ChatModel(client, () => ({ kind: 'web', csrfToken: 'web-csrf' }))
   await model.open(conversation.id)
   vi.spyOn(client, 'streamMessage').mockImplementation(() => { throw new Error('native transport unavailable') })
   expect(() => model.send('你好')).not.toThrow()

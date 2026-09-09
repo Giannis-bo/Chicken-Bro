@@ -2,7 +2,6 @@ import type { RequestBase, RequestCredentials } from './transport'
 
 
 export type ClientAuthContext =
-  | { kind: 'mini'; accessToken: string }
   | { kind: 'web'; csrfToken: string }
 
 export interface ClientAuthRequest {
@@ -23,14 +22,7 @@ export function clientAuthRequest(
   auth: ClientAuthContext,
   options: { mutating: boolean },
 ): ClientAuthRequest {
-  if (auth.kind === 'mini') {
-    const accessToken = boundedCredential(auth.accessToken, 'Mini access token')
-    return {
-      header: { Authorization: `Bearer ${accessToken}` },
-      credentials: 'omit',
-      baseUrl: 'default',
-    }
-  }
+  if (auth.kind !== 'web') throw new TypeError('only Web authentication is supported')
   const csrfToken = boundedCredential(auth.csrfToken, 'Web CSRF token')
   return {
     header: options.mutating ? { 'X-CSRF-Token': csrfToken } : {},

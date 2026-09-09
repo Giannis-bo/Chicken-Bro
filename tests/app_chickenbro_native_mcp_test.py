@@ -107,27 +107,13 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         self.assertNotIn("news_backend", source)
         self.assertNotIn("inspect_current_mythic_plus_snapshot", source)
 
-    def test_candidate_and_cutover_packages_own_the_toolbox_and_profile(self):
-        for relative_path, profile_name in (
-            (
-                "server/deploy_chickenbro_candidate_lighthouse.sh",
-                "chickenbro-candidate",
-            ),
-            (
-                "server/cutover_chickenbro_lighthouse.sh",
-                "chickenbro-production",
-            ),
+    def test_runtime_toolbox_and_profile_sources_are_retained(self):
+        for relative_path in (
+            "server/chickenbro_native_mcp.py",
+            "server/chickenbro_public_web_research.py",
+            "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template",
         ):
-            source = (ROOT / relative_path).read_text(encoding="utf-8")
-            self.assertIn("server/chickenbro_native_mcp.py", source, relative_path)
-            self.assertIn("server/chickenbro_public_web_research.py", source, relative_path)
-            self.assertIn(
-                "scripts/chickenbro-native-agent/chickenbro-native.config.toml.template",
-                source,
-                relative_path,
-            )
-            self.assertIn(f"{profile_name}.config.toml", source, relative_path)
-            self.assertIn("CODEX_PROFILE_IDENTITY", source, relative_path)
+            self.assertTrue((ROOT / relative_path).is_file(), relative_path)
 
     def test_candidate_and_production_services_use_isolated_profiles(self):
         candidate = (ROOT / "server/chickenbro-api-candidate.service").read_text(

@@ -2,7 +2,7 @@ import unittest
 
 from tests.app_chat_api_test import (
     build_chat_test_client,
-    mini_headers,
+    browser_session_headers,
     web_cookies,
     web_write_headers,
 )
@@ -15,10 +15,10 @@ class FormalChatCrossClientTest(unittest.TestCase):
     def tearDown(self):
         self.client.close()
 
-    def test_conversation_created_by_mini_is_visible_to_web_same_user(self):
+    def test_conversation_created_by_browser_is_visible_to_web_same_user(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers={**mini_headers(), "Idempotency-Key": "cross-mini-create-1"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-mini-create-1"},
             json={"title": "小程序创建"},
         )
         listed = self.client.get(
@@ -33,7 +33,7 @@ class FormalChatCrossClientTest(unittest.TestCase):
             [row["id"] for row in listed.json()["items"]],
         )
 
-    def test_conversation_created_by_web_is_visible_to_mini_same_user(self):
+    def test_conversation_created_by_web_is_visible_to_browser_same_user(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
             headers={**web_write_headers(), "Idempotency-Key": "cross-web-create-1"},
@@ -42,7 +42,7 @@ class FormalChatCrossClientTest(unittest.TestCase):
         )
         listed = self.client.get(
             "/api/v2/chat/conversations",
-            headers=mini_headers(),
+            headers=browser_session_headers(),
         )
 
         self.assertEqual(created.status_code, 201)
@@ -52,16 +52,16 @@ class FormalChatCrossClientTest(unittest.TestCase):
             [row["id"] for row in listed.json()["items"]],
         )
 
-    def test_message_sent_by_mini_is_persisted_for_web_history(self):
+    def test_message_sent_by_browser_is_persisted_for_web_history(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers={**mini_headers(), "Idempotency-Key": "cross-mini-create-2"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-mini-create-2"},
             json={"title": "跨端消息"},
         ).json()
 
         streamed = self.client.post(
             f"/api/v2/chat/conversations/{created['id']}/messages/stream",
-            headers={**mini_headers(), "Idempotency-Key": "cross-stream-1"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-stream-1"},
             json={"content": "跨端问题", "clientMessageId": "cross-client-1"},
         )
         history = self.client.get(
@@ -79,22 +79,22 @@ class FormalChatCrossClientTest(unittest.TestCase):
     def test_other_user_gets_not_found_and_cannot_enumerate_owner_history(self):
         created = self.client.post(
             "/api/v2/chat/conversations",
-            headers={**mini_headers(), "Idempotency-Key": "cross-mini-create-3"},
+            headers={**browser_session_headers(), "Idempotency-Key": "cross-mini-create-3"},
             json={"title": "仅 owner 可见"},
         ).json()
 
         detail = self.client.get(
             f"/api/v2/chat/conversations/{created['id']}",
-            headers=mini_headers(other=True),
+            headers=browser_session_headers(other=True),
         )
         listed = self.client.get(
             "/api/v2/chat/conversations",
-            headers=mini_headers(other=True),
+            headers=browser_session_headers(other=True),
         )
         streamed = self.client.post(
             f"/api/v2/chat/conversations/{created['id']}/messages/stream",
             headers={
-                **mini_headers(other=True),
+                **browser_session_headers(other=True),
                 "Idempotency-Key": "cross-other-stream",
             },
             json={"content": "越权", "clientMessageId": "cross-other-client"},

@@ -19,7 +19,6 @@
         "tests/app_qq_postgres_test.py",
         "tests/app_csrf_test.py",
         "tests/app_avatar_test.py",
-        "tests/app_identity_application_test.py",
         "tests/app_identity_api_test.py",
         "tests/app_test_login_test.py"
       ]

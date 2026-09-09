@@ -1,0 +1,67 @@
+identity.user_identities|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+identity.auth_sessions|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+identity.web_login_sessions|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+chat.conversations|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+chat.messages|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+chat.messages|chat.conversations|FOREIGN KEY (conversation_id, user_id) REFERENCES chat.conversations(id, user_id) ON DELETE CASCADE
+chat.agent_runs|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+chat.agent_runs|chat.conversations|FOREIGN KEY (conversation_id, user_id) REFERENCES chat.conversations(id, user_id) ON DELETE CASCADE
+chat.agent_runs|chat.messages|FOREIGN KEY (user_message_id, user_id) REFERENCES chat.messages(id, user_id) ON DELETE RESTRICT
+chat.agent_runs|chat.messages|FOREIGN KEY (assistant_message_id, user_id) REFERENCES chat.messages(id, user_id) ON DELETE RESTRICT
+simc.source_snapshots|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+simc.simulation_jobs|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+simc.simulation_jobs|simc.source_snapshots|FOREIGN KEY (snapshot_id, user_id) REFERENCES simc.source_snapshots(id, user_id) ON DELETE RESTRICT
+simc.simulation_attempts|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+simc.simulation_attempts|simc.simulation_jobs|FOREIGN KEY (job_id, user_id) REFERENCES simc.simulation_jobs(id, user_id) ON DELETE CASCADE
+ops.usage_counters|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+simc.simulation_results|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+simc.simulation_results|simc.simulation_jobs|FOREIGN KEY (job_id, user_id) REFERENCES simc.simulation_jobs(id, user_id) ON DELETE RESTRICT
+ops.audit_events|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE SET NULL
+chat.images|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE
+chat.images|chat.messages|FOREIGN KEY (message_id, user_id) REFERENCES chat.messages(id, user_id) ON DELETE CASCADE
+chat.executions|chat.agent_runs|FOREIGN KEY (run_id) REFERENCES chat.agent_runs(id)
+chat.executions|identity.users|FOREIGN KEY (user_id) REFERENCES identity.users(id)
+chat.tool_results|chat.executions|FOREIGN KEY (run_id) REFERENCES chat.executions(run_id)
+chat|tool_results|run_id|uuid
+identity|user_identities|user_id|uuid
+identity|auth_sessions|user_id|uuid
+identity|web_login_sessions|user_id|uuid
+ops|audit_events|created_at|timestamp with time zone
+ops|usage_counters|user_id|uuid
+ops|usage_counters|window_start|timestamp with time zone
+ops|usage_counters|window_end|timestamp with time zone
+ops|usage_counters|value|bigint
+ops|usage_counters|updated_at|timestamp with time zone
+chat|images|user_id|uuid
+chat|images|message_id|uuid
+chat|executions|run_id|uuid
+chat|executions|user_id|uuid
+chat|executions|execution_started_at|timestamp with time zone
+chat|conversations|user_id|uuid
+chat|messages|conversation_id|uuid
+chat|messages|user_id|uuid
+chat|agent_runs|user_id|uuid
+chat|agent_runs|conversation_id|uuid
+chat|agent_runs|user_message_id|uuid
+chat|agent_runs|assistant_message_id|uuid
+simc|source_snapshots|user_id|uuid
+simc|simulation_jobs|user_id|uuid
+simc|simulation_attempts|job_id|uuid
+simc|simulation_attempts|user_id|uuid
+simc|simulation_results|job_id|uuid
+simc|simulation_results|user_id|uuid
+ops|job_queue|payload_json|jsonb
+ops|audit_events|id|uuid
+ops|audit_events|user_id|uuid
+ops|audit_events|payload_json|jsonb
+identity|web_login_sessions|status|text
+ops|job_queue|status|text
+chat|conversations|status|text
+ops|audit_events|subject_key|text
+simc|simulation_jobs|status|text
+chat|messages|client_message_id|text
+ops|job_queue|lease_owner|text
+identity|users|status|text
+ops|usage_counters|counter_key|text
+ops|audit_events|event_type|text
+chat|agent_runs|status|text

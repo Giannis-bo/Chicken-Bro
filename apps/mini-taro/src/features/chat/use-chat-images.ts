@@ -9,7 +9,7 @@ export function useChatImages(authProvider: () => ClientAuthContext, enabledSess
   let sessionKey = ''
   try {
     const context = authProvider()
-    sessionKey = context.kind === 'web' ? context.csrfToken : context.kind === 'mini' ? context.accessToken : ''
+    sessionKey = context.csrfToken
   } catch { /* No active session. */ }
   const [enabled, setEnabled] = useState(false)
   const [items, setItems] = useState<DraftImage[]>([])

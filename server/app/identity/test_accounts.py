@@ -1,4 +1,4 @@
-"""Reserved test owners: never map them to real WeChat identities."""
+"""Reserved test owners: never map them to production provider identities."""
 from uuid import NAMESPACE_URL, uuid5
 
 

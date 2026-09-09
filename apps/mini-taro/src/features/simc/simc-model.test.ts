@@ -134,7 +134,7 @@ class FakeSimcClient implements SimcClient {
   }
 }
 
-const auth: ClientAuthContext = { kind: 'mini', accessToken: 'mini-token' }
+const auth: ClientAuthContext = { kind: 'web', csrfToken: 'web-csrf' }
 
 describe('SimcModel', () => {
   it.each(['#', '?'])('rejects a WCL report with %s parameters before calling the source API', async (separator) => {
