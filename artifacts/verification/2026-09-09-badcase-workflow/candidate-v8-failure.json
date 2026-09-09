@@ -1,0 +1,24 @@
+{
+  "source_sha": "4e8f1b7b70e622a30fc5809b5a8f43d0a629bad0",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c0e9784b832343c9f994fea3b7a4b5756ff4ab0de51a17b4e2ee16ebe09734b5",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "fba95d61a00df5315a12f4f965f7bb9084eacbb4d8e7eba6dbe57ed037a340a5",
+  "kind": "candidate",
+  "status": "failed",
+  "observed_at": "2026-09-09T15:55:12.322819+00:00",
+  "checks": {
+    "native_model_generalization": "passed",
+    "http_original_top10": "failed",
+    "http_original_top100": "not_run",
+    "general_business": "not_run"
+  },
+  "production_attempted": false,
+  "run_id": "00681d55-19b1-4c91-a4fa-59e0b5e53a85",
+  "error_code": "CODEX_OUTPUT_INVALID",
+  "execution_seconds": 475.134,
+  "details": "V8 full24 native/model trials passed fixed criteria; actual HTTP original top10 failed. Three batch results were wholly replaced by transport size-limit responses. Control flow entered repair around421.6s; exact primary validation and inner repair failure remain unobserved. No claim of exact timeout cause. Observational design replay is separate from acceptance. No production attempted.",
+  "http-v8-original10-00681d55-diagnostic-receipts.json_sha256": "90c2d73d250d30fc467f4796c0c3f131e633c3f42aa692fe1b91fdbec2a6de76",
+  "http-v8-original10-00681d55-diagnostic-summary.json_sha256": "97829b1df1dc3ba5735e2c0618e8ca1d2f94c20b32fc88af779f74bd8db045dc",
+  "full_generalization_gate_sha256": "52ea1041f8b89e963fc9520a98d7f7ded41ec6e54c1ab81e80a051bc7253055f"
+}
