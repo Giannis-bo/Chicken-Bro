@@ -29,6 +29,7 @@ WARCRAFTLOGS_TOOL_NAME = "query_warcraftlogs_report"
 RAIDERIO_TOOL_NAME = "query_raiderio_character"
 RAIDERIO_RANKINGS_TOOL_NAME = "query_raiderio_rankings"
 RAIDERIO_BATCH_TOOL_NAME = "query_raiderio_characters"
+WCL_CHARACTER_TOOL_NAME = "query_warcraftlogs_character"
 SOURCE_GATEWAY_URL_ENV = "CHICKENBRO_SOURCE_GATEWAY_URL"
 SOURCE_GATEWAY_TOKEN_ENV = "CHICKENBRO_SOURCE_GATEWAY_TOKEN"
 SIMULATION_GATEWAY_URL_ENV = "CHICKENBRO_SIMULATION_GATEWAY_URL"
@@ -155,8 +156,24 @@ RAIDERIO_BATCH_TOOL_DEFINITION = {
     },
     "annotations": {"readOnlyHint": True},
 }
+WCL_CHARACTER_TOOL_DEFINITION = {
+    "name": WCL_CHARACTER_TOOL_NAME,
+    "description": "Find a named character's recent public Warcraft Logs reports by name, realm and region. "
+        "Accepts localized realm names or canonical slugs. Use when the user gives a character name instead of a report link. "
+        "Continue with pagination.nextPage. Then query_warcraftlogs_report and match both actor name and server to participating fights. "
+        "An empty report list is not proof the character never logged; hidden/unavailable records are not accessible.",
+    "inputSchema": {"type": "object", "additionalProperties": False,
+        "required": ["name", "realm", "region"], "properties": {
+            "name": {"type":"string", "minLength":1, "maxLength":100},
+            "realm": {"type":"string", "minLength":1, "maxLength":100},
+            "region": {"type":"string", "enum":["cn","us","eu","tw","kr"]},
+            "page": {"type":"integer", "minimum":1, "maximum":20},
+            "limit": {"type":"integer", "minimum":1, "maximum":10}}},
+    "annotations": {"readOnlyHint": True},
+}
 TOOL_DEFINITIONS = [
     TOOL_DEFINITION,
+    WCL_CHARACTER_TOOL_DEFINITION,
     WARCRAFTLOGS_TOOL_DEFINITION,
     RAIDERIO_TOOL_DEFINITION,
     RAIDERIO_RANKINGS_TOOL_DEFINITION,
@@ -384,6 +401,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
         elif tool_name in SIMULATION_OPERATIONS:
             result = query_simulation_gateway(SIMULATION_OPERATIONS[tool_name], arguments)
+        elif tool_name == WCL_CHARACTER_TOOL_NAME:
+            result = query_source_gateway("warcraftlogs_character", "character", options=arguments)
         elif tool_name in {RAIDERIO_RANKINGS_TOOL_NAME, RAIDERIO_BATCH_TOOL_NAME}:
             provider, target = (("raiderio_rankings", "rankings") if tool_name == RAIDERIO_RANKINGS_TOOL_NAME
                                 else ("raiderio_batch", "characters"))

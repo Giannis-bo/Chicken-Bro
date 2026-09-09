@@ -1,0 +1,33 @@
+{
+  "status": "local_and_isolated_model_verified_not_deployed",
+  "sources": {
+    "server/app/chickenbro/wcl_source.py": "76905dff059b639e87e459ba40cd869c914bb14fecc80ab26dc1feb1587385eb",
+    "server/app/chickenbro/source_gateway.py": "3a6dddc1026dc0298aabde756cc85eae94f92eba53349a9c485dfcd5c5031a44",
+    "server/app/chickenbro/character_discovery.py": "79390b66b1db5ac601487882efc643e544059ab41d134b05902419c2cb3d68a3",
+    "server/app/chickenbro/raiderio_research.py": "50a48bf7c27ecde92f3c495028e98d67b8da5ae4861d7d5b2332125879e6d8ab",
+    "server/chickenbro_native_mcp.py": "9075d7c7dbaef959352d51d4caf92cf63b2eb47c2d2d83b2eb2d27556c82317f",
+    "server/app/chickenbro/agent/AGENTS.md": "a8c2eb1b1071af78d3618d584c32140a1dd832c23d5d638d04c76e1415516aa4"
+  },
+  "backendTests": 444,
+  "controlTests": 62,
+  "realRegression": [
+    {
+      "case": "wcl-name",
+      "seconds": 54.99,
+      "statuses": [
+        "source_reference",
+        "verified",
+        "verified",
+        "verified"
+      ]
+    },
+    {
+      "case": "rio-name",
+      "seconds": 21.55,
+      "statuses": [
+        "source_reference"
+      ]
+    }
+  ],
+  "dependency": "G1 pending WCL bare-report fixes included in final combined source snapshot; G2 delivery not exercised."
+}

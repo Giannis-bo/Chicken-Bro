@@ -1,0 +1,19 @@
+{
+  "status": "local_and_isolated_model_verified_not_deployed",
+  "rulesPath": "server/app/chickenbro/agent/AGENTS.md",
+  "rulesSha256": "8eb76b5074d415d880b8975948354c6db3d20aa1caa54d02f0e152a983b3762e",
+  "bytes": 13447,
+  "backendTests": 435,
+  "controlTests": 62,
+  "scenarioReview": "scenario-review.json",
+  "originalReplay": {
+    "seconds": 92.77,
+    "contextMessages": 9,
+    "contextChars": 3129,
+    "successfulQueries": 2,
+    "protocol": "completed",
+    "processExit": 0,
+    "acceptance": "Resource fact retained; prior unsupported operation advice proactively corrected, no specific replacement asserted without demand evidence.",
+    "limitations": "No independent re-audit of every healing number; no production session writes; no full original-context A/B on current model. Historical failure used as baseline, current explicit-condition scenarios pass both rule versions."
+  }
+}

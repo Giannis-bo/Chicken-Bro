@@ -40,6 +40,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
             {
                 "research_public_web",
                 "query_warcraftlogs_report",
+                "query_warcraftlogs_character",
                 "query_raiderio_character",
                 "query_raiderio_rankings",
                 "query_raiderio_characters",
