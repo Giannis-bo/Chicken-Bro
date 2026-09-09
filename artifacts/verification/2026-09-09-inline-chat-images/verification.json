@@ -1,6 +1,6 @@
 {
   "baseline": "036aca2b7b2dd177f7c887c50e0e8bdd137c3943",
-  "status": "local_verified",
+  "status": "live_verified",
   "frontendTests": 278,
   "targetedTests": 24,
   "controlTests": 62,
@@ -12,8 +12,8 @@
   },
   "browser": "real Chrome keyboard clipboard; synthetic file drag; actual file picker; mocked API contract",
   "backendChanges": false,
-  "productionDeployment": "not_run",
-  "manualAcceptance": "pending",
+  "productionDeployment": "passed",
+  "manualAcceptance": "user_authorized_closure_after_preview_2026-09-09",
   "sourceSha256": {
     "apps/mini-taro/src/components/ChatImages.module.scss": "cfa1b4baa7d45cd809e13150cccc75257061db1ea98a3d5763530f7a1745b568",
     "apps/mini-taro/src/components/ChatImages.tsx": "f6c71e03273fc7d1a4670c63909f9e5ed8f892b1625a193b82a472dac8630bb4",
@@ -49,5 +49,7 @@
       "path": "/tmp/chat-inline-control.log",
       "sha256": "ec65384b7ba5e281cbb15a5d7197d1e61c548277d97b29c15b82fd96e3c8257c"
     }
-  }
+  },
+  "sourceCommit": "4a519c4c1882db9085fe5b4ad345cc1c062e522d",
+  "productionEvidence": "release/README.md"
 }

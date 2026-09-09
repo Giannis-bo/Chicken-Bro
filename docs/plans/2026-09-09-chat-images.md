@@ -53,3 +53,5 @@ Codex turn/start 用 type=image、url=data:image/... 的实际图像块。最近
 用户确认 Web 直接粘贴/拖入图片、缩略图框内显示，并保留图标选图。沿用图片上传和历史接口；本轮局部实现与验证完成，未新增部署授权。278 项前端、62 控制面、类型/lint/H5 及 Chrome 交互通过，详见 [本地预览](../../artifacts/verification/2026-09-09-inline-chat-images/README.md)。
 
 2026-09-09 用户明确“OK，提交，合入，发布。”，授权输入框改进提交、整合、推送及 Web 发布。
+
+输入框发布完成：源码 `4a519c4c1882db9085fe5b4ad345cc1c062e522d` 已合入并推送 main；Web 原子切换并逐文件验证 13 个公网资源 SHA。候选和公网均完成真实模型三图识别、刷新历史及跨账号隔离。后端保留 QQ 发布版本 `a89dc8a334d892a826e80fcb2e1decdeadbdee47`，未迁移生产数据库。见 [发布证据](../../artifacts/verification/2026-09-09-inline-chat-images/release/README.md)。
