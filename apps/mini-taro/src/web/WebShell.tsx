@@ -23,11 +23,12 @@ const modes: Array<{ id: BusinessView; number: string; label: string }> = [
 
 export interface WebShellProps {
   accountLabel: string
+  avatarUrl?: string
   auth: WebClientAuth
   onLogout: () => void
 }
 
-export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps) {
+export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: WebShellProps) {
   const [themeId, setThemeId] = useState(readWebTheme)
   const [themeSaveFailed, setThemeSaveFailed] = useState(false)
   const theme = resolveWebTheme(themeId)
@@ -45,7 +46,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
     window.addEventListener('storage', restore)
     return () => window.removeEventListener('storage', restore)
   }, [])
-  const [avatar, setAvatar] = useState<string | null>(null)
+  const [avatar, setAvatar] = useState<string | null>(avatarUrl ?? null)
   const refreshAvatar = useRef<() => void>(() => undefined)
   useEffect(() => {
     let alive = true
@@ -54,7 +55,7 @@ export default function WebShell({ accountLabel, auth, onLogout }: WebShellProps
       const current = ++generation
       try {
         const result = await wowApi.avatar.get(auth)
-        if (alive && current === generation && !result.fromFallback) setAvatar(result.payload.avatarDataUrl)
+        if (alive && current === generation && !result.fromFallback && result.payload.avatarDataUrl) setAvatar(result.payload.avatarDataUrl)
       } catch { /* Avatar availability does not affect the authenticated workspace. */ }
     }
     const visible = () => { if (document.visibilityState === 'visible') void refresh() }

@@ -12,17 +12,15 @@ describe('Chickenbro Web shell contract', () => {
     const appSource = read('apps/mini-taro/src/app.tsx')
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
 
-    expect(appSource).toContain('Taro.ENV_TYPE.WEB')
     expect(appSource).toContain('<WebApp />')
-    expect(appSource).toContain('<AppTabBar />')
+    expect(appSource).not.toContain('AppTabBar')
     expect(webSource).not.toContain('AppTabBar')
-    expect(webSource).toContain('webAuth.me()')
-    expect(webSource).toContain('webAuth.createWebLoginSession')
-    expect(webSource).toContain('webAuth.statusWebLoginSession')
-    expect(webSource).toContain('webAuth.exchangeWebLoginSession')
+    expect(webSource).toContain('authClient.me()')
+    expect(webSource).toContain('authClient.createQqLogin()')
+    expect(webSource).not.toMatch(/createWebLoginSession|statusWebLoginSession|exchangeWebLoginSession/)
     expect(webSource).toContain('WebShell')
     expect(webSource).toContain('readWebCsrfCookie')
-    expect(webSource).toContain('createSession(true)')
+    expect(webSource).toContain('navigateToProvider')
   })
 
   it('keeps the Taro H5 page mount alive behind the standalone shell', () => {
@@ -45,12 +43,12 @@ describe('Chickenbro Web shell contract', () => {
     expect(appStyle).toContain('max-height: none !important')
   })
 
-  it('makes formal QR login the only Web entry and keeps credentials separated', () => {
+  it('makes explicit QQ login the only Web entry and keeps credentials separated', () => {
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
 
     expect(webSource).toContain('credentials')
-    expect(webSource).toContain('WEB_LOGIN_ALREADY_CONSUMED')
-    expect(webSource).not.toContain('WEB_LOGIN_ALREADY_EXCHANGED')
+    expect(webSource).toContain('QQ登录')
+    expect(webSource).not.toMatch(/qrDataUrl|扫码|微信/)
     expect(webSource).toContain('WebShell')
     expect(webSource).not.toContain('wowApi.auth')
     expect(webSource).not.toContain('/api/auth/wechat-login')
@@ -59,15 +57,11 @@ describe('Chickenbro Web shell contract', () => {
     expect(webSource).not.toMatch(/PrototypePanel|prototypeClient|formalLoginVisible|返回 Web 原型|demo owner/iu)
   })
 
-  it('renders the QR directly without the Taro image positioning wrapper', () => {
+  it('renders the official QQ mark without referrer data', () => {
     const webSource = read('apps/mini-taro/src/web/WebApp.tsx')
-    const webStyle = read('apps/mini-taro/src/web/WebLoginCard.module.scss')
-
-    expect(webSource).toContain('alt="微信扫码登录二维码"')
+    expect(webSource).toContain('Connect_logo_1.png')
+    expect(webSource).toContain('referrerPolicy="no-referrer"')
     expect(webSource).not.toContain('<Image')
-    expect(webStyle).toContain('position: static')
-    expect(webStyle).toContain('object-fit: contain')
-    expect(webStyle).toContain('transform: none')
   })
 
   it('uses only the formal same-origin /api development proxy', () => {

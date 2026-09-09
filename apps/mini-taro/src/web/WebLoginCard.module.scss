@@ -10,7 +10,8 @@
 .quietButton { padding: 6px 14px; border: 0; border-radius: 6px; background: transparent; color: #91816f; font-size: 11px !important; }
 .quietButton:hover { background: #f5f0e8; color: #6c5848; }
 .quietButton:disabled { opacity: 0.5; }
-.primaryButton { padding: 9px 25px; border: 1px solid #a4513f; border-radius: 8px; background: #a4513f; color: #fff; font-size: 12px !important; }
+.primaryButton { display: inline-flex; padding: 9px 25px; border: 1px solid #a4513f; border-radius: 8px; align-items: center; justify-content: center; gap: 7px; background: #a4513f; color: #fff; font-size: 12px !important; }
+.qqLogo { display: block; width: 16px; height: 16px; }
 .primaryButton:hover { background: #8f4434; }
 @keyframes turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

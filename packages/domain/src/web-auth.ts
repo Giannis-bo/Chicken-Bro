@@ -37,11 +37,17 @@ export interface ConfirmResponse {
 export interface MeResponse {
   connected: true
   displayName: string
+  avatarUrl?: string
   requestId?: string
 }
 
 export interface LogoutResponse {
   loggedOut: true
+  requestId?: string
+}
+
+export interface QqLoginCreated {
+  authorizationUrl: string
   requestId?: string
 }
 
@@ -69,6 +75,20 @@ function isIsoDate(value: unknown): value is string {
 
 function isRequestId(value: unknown): value is string | undefined {
   return value === undefined || (typeof value === 'string' && value.length > 0 && value.length <= 128)
+}
+
+export function isOfficialQqAuthorizationUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 4096) return false
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname === 'graph.qq.com' && url.port === ''
+      && url.username === '' && url.password === '' && url.pathname === '/oauth2.0/authorize' && url.hash === ''
+  } catch { return false }
+}
+
+export function isQqLoginCreated(value: unknown): value is QqLoginCreated {
+  return isRecord(value) && hasExactResponseKeys(value, ['authorizationUrl'])
+    && isOfficialQqAuthorizationUrl(value['authorizationUrl']) && isRequestId(value['requestId'])
 }
 
 export function isValidBrowserVerifier(value: unknown): value is string {
@@ -128,10 +148,20 @@ export function isConfirmResponse(value: unknown): value is ConfirmResponse {
 export function isMeResponse(value: unknown): value is MeResponse {
   if (!isRecord(value)) return false
   const displayName = value['displayName']
-  return hasExactResponseKeys(value, ['connected', 'displayName'])
+  const avatarUrl = value['avatarUrl']
+  let validAvatar = avatarUrl === undefined
+  if (typeof avatarUrl === 'string' && avatarUrl.length <= 4096) {
+    try {
+      const url = new URL(avatarUrl)
+      validAvatar = url.protocol === 'https:' && url.port === '' && url.username === '' && url.password === ''
+        && (url.hostname === 'q.qlogo.cn' || url.hostname === 'thirdqq.qlogo.cn') && url.hash === ''
+    } catch { validAvatar = false }
+  }
+  return Object.keys(value).every(key => ['connected', 'displayName', 'avatarUrl', 'requestId'].includes(key))
     && value['connected'] === true
     && typeof displayName === 'string'
     && displayName.length <= 256
+    && validAvatar
     && isRequestId(value['requestId'])
 }
 

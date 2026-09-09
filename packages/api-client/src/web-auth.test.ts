@@ -19,26 +19,19 @@ class RecordingTransport implements ApiTransport {
 }
 
 describe('WebAuthClient', () => {
-  it('reads Mini account details with Bearer and no Web cookies', async () => {
+  it('starts QQ login with an empty same-origin POST', async () => {
     const transport = new RecordingTransport()
-    await createWebAuthClient(transport).me({ kind: 'mini', accessToken: 'mini-token' })
-    expect(transport.calls[0]).toMatchObject({path: '/api/v2/me', options: {
-      auth: {kind: 'mini', accessToken: 'mini-token'}, credentials: 'omit', baseUrl: 'default',
-    }})
+    await createWebAuthClient(transport).createQqLogin()
+    expect(transport.calls[0]).toMatchObject({ path: '/api/v2/auth/qq/login', options: {
+      method: 'POST', credentials: 'include', auth: { kind: 'public' }, data: {},
+    } })
   })
-
-  it('issues test sessions with separated credential transports and no client owner', async () => {
+  it('issues retained test Web sessions with cookie credentials and no client owner', async () => {
     const transport = new RecordingTransport()
     const client = createWebAuthClient(transport)
-    await client.loginTestMini('A', 'test-credential')
     await client.loginTestWeb('B', 'other-test-credential')
-    expect(transport.calls[0]?.path).toBe('/api/v2/auth/test/mini')
+    expect(transport.calls[0]?.path).toBe('/api/v2/auth/test/web')
     expect(transport.calls[0]?.options).toMatchObject({
-      credentials: 'omit', baseUrl: 'default', auth: { kind: 'public' },
-      data: { account: 'A', credential: 'test-credential' },
-    })
-    expect(transport.calls[1]?.path).toBe('/api/v2/auth/test/web')
-    expect(transport.calls[1]?.options).toMatchObject({
       credentials: 'include', baseUrl: 'web-auth', auth: { kind: 'public' },
       data: { account: 'B', credential: 'other-test-credential' },
     })
@@ -48,15 +41,12 @@ describe('WebAuthClient', () => {
     const client = createWebAuthClient(transport)
 
     await client.me()
-    await client.createWebLoginSession('A'.repeat(43), 'request-key')
-    await client.statusWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
-    await client.exchangeWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
-    await client.cancelWebLoginSession('00000000-0000-4000-8000-000000000000', 'A'.repeat(43))
+    await client.createQqLogin()
     vi.stubGlobal('document', { cookie: '__Host-chickenbro-csrf=web-csrf' })
     await client.logout()
     vi.unstubAllGlobals()
 
-    expect(transport.calls).toHaveLength(6)
+    expect(transport.calls).toHaveLength(3)
     for (const call of transport.calls) {
       expect(call.options.auth).toEqual(
         call.path === '/api/v2/auth/logout'
@@ -67,37 +57,6 @@ describe('WebAuthClient', () => {
       expect(call.options.header?.['Authorization']).toBeUndefined()
       expect(call.options.baseUrl).toBe('web-auth')
     }
-    expect(transport.calls[1]?.options.header?.['Idempotency-Key']).toBe('request-key')
-  })
-
-  it('sends the mini Bearer explicitly and never includes browser Cookie credentials', async () => {
-    const transport = new RecordingTransport()
-    const client = createWebAuthClient(transport)
-
-    await client.confirmMiniWebLogin('scene-ticket', 'mini-token')
-
-    const call = transport.calls[0]
-    expect(call).toBeDefined()
-    if (!call) throw new Error('expected a recorded request')
-    expect(call.path).toBe('/api/v2/auth/wechat/mini/web-login-confirm')
-    expect(call.options.auth).toEqual({ kind: 'mini', accessToken: 'mini-token' })
-    expect(call.options.credentials).toBe('omit')
-    expect(call.options.header?.['Authorization']).toBeUndefined()
-    expect(call.options.baseUrl).toBe('default')
-  })
-
-  it('revokes a Mini bearer independently of the Web cookie session', async () => {
-    const transport = new RecordingTransport()
-    const client = createWebAuthClient(transport)
-
-    await client.logout({ kind: 'mini', accessToken: 'mini-token' })
-
-    expect(transport.calls[0]?.path).toBe('/api/v2/auth/logout')
-    expect(transport.calls[0]?.options.auth).toEqual({
-      kind: 'mini',
-      accessToken: 'mini-token',
-    })
-    expect(transport.calls[0]?.options.credentials).toBe('omit')
   })
 
   it('reads only the exact Web CSRF cookie and rejects ambiguity', () => {

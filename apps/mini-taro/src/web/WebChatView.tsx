@@ -12,7 +12,6 @@ import WebThemeArt from './WebThemeArt'
 import type { WebThemeId } from './web-themes'
 import WebReplyStatus from './WebReplyStatus'
 import WebConversationHistory from './WebConversationHistory'
-import WebMiniProgramPromo from './WebMiniProgramPromo'
 import { useChatAutoScroll } from './use-chat-auto-scroll'
 
 
@@ -91,7 +90,6 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
               <Text className={styles['emptyCopy'] ?? ''}>还没有服务端会话。</Text>
             ) : null}
           </ScrollView>
-          <WebMiniProgramPromo />
         </View>
 
         <View className={styles['chatPane'] ?? ''}>
@@ -151,7 +149,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
 
           {state.phase === 'blocked' || state.phase === 'signed_out' ? (
             <View className={styles['inlineError'] ?? ''} data-error-code={state.errorCode}>
-              <Text>{state.phase === 'signed_out' ? 'Web 登录已失效，请重新扫码登录' : state.errorMessage}</Text>
+              <Text>{state.phase === 'signed_out' ? 'Web 登录已失效，请重新使用 QQ 登录' : state.errorMessage}</Text>
               <Button className={styles['secondaryButton'] ?? ''} size="mini" onClick={() => void model.recover()}>
                 重新读取历史
               </Button>

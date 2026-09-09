@@ -28,10 +28,10 @@ export default function WebLoginHome({ children }: { children: ReactNode }) {
           <p className={styles['eyebrow']}><span /> 你的艾泽拉斯冒险搭档</p>
           <h1 id="home-title">开打之前，<br />先问<span>鸡哥。</span></h1>
           <p className={styles['intro']}>从一场战斗，到下一次提升。<br />聊清思路，让模拟帮你做选择。</p>
-          <a className={styles['heroLink']} href="#wechat-login" onClick={(event) => {
+          <a className={styles['heroLink']} href="#qq-login" onClick={(event) => {
             event.preventDefault()
-            document.getElementById('wechat-login')?.focus({ preventScroll: true })
-          }}>扫码登录，和鸡哥聊聊 <span aria-hidden="true">↗</span></a>
+            document.getElementById('qq-login')?.focus({ preventScroll: true })
+          }}>QQ 登录，和鸡哥聊聊 <span aria-hidden="true">↗</span></a>
           <div className={styles['mascotScene']} aria-hidden="true">
             <span className={styles['orbit']} />
             <span className={styles['hello']}>队长，等你开聊！</span>
@@ -40,10 +40,10 @@ export default function WebLoginHome({ children }: { children: ReactNode }) {
           </div>
         </section>
 
-        <aside id="wechat-login" className={styles['login']} aria-label="微信扫码登录" tabIndex={-1}>
+        <aside id="qq-login" className={styles['login']} aria-label="QQ 登录" tabIndex={-1}>
           <div className={styles['loginHeading']}>
             <span className={styles['loginDot']} />
-            <span>微信扫码登录</span>
+            <span>QQ 登录</span>
             <span className={styles['loginArrow']} aria-hidden="true">↙</span>
           </div>
           <h2>鸡哥已就位</h2>

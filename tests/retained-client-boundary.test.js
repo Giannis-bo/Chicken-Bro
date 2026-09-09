@@ -32,20 +32,12 @@ test('the retained app shell has no legacy design asset runtime', () => {
   assert.equal(lockedMiniDependencies['@wow-mini/design-system'], undefined)
 })
 
-test('the mini-program manifest exposes only Chat, SimC and the QR confirmation page', () => {
+test('the H5 manifest exposes one inert Web entry and no Mini product pages', () => {
   const appConfig = read('apps/mini-taro/src/app.config.ts')
 
-  for (const page of [
-    'pages/chickenbro/index',
-    'pages/simc/index',
-    'pages/simc/tasks',
-    'pages/simc/task-detail',
-    'pages/auth/web-login-confirm',
-  ]) {
-    assert.match(appConfig, new RegExp(page.replaceAll('/', '\\/')))
-  }
-  assert.doesNotMatch(appConfig, /pages\/(?:news|builds|profile|simulator)\//)
-  assert.equal((appConfig.match(/pagePath:/g) ?? []).length, 2)
+  assert.match(appConfig, /pages\/web\/index/)
+  assert.doesNotMatch(appConfig, /pages\/(?:auth|chickenbro|simc|news|builds|profile|simulator)\//)
+  assert.equal((appConfig.match(/'pages\//g) ?? []).length, 1)
 })
 
 test('the retained build control plane has no legacy UI or news compatibility hooks', () => {
@@ -116,7 +108,7 @@ test('the root workspace and CI expose only retained product workflows', () => {
 
   const workflow = read('.github/workflows/project-harness.yml')
   assert.doesNotMatch(workflow, /verify-project/)
-  for (const command of ['npm run test:control', 'npm run test:backend', 'npm run test:taro', 'npm run build:weapp']) {
+  for (const command of ['npm run test:control', 'npm run test:backend', 'npm run test:taro', 'npm run build:h5']) {
     assert.match(workflow, new RegExp(command.replaceAll(':', '\\:')))
   }
 })

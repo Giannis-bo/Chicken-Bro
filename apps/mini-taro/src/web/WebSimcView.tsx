@@ -162,7 +162,7 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
     </nav>
 
     {state.phase === 'blocked' || state.phase === 'signed_out' ? <div className={styles['error']} role="alert" data-error-code={state.errorCode}>
-      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新扫码登录' : state.errorCode === 'INVALID_LINK' ? '链接无效：仅支持 HTTPS 的 Raider.IO 角色链接。请参考输入框下方示例，修改后重新读取。' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
+      <span>{state.phase === 'signed_out' ? '网页登录已失效，请重新使用 QQ 登录' : state.errorCode === 'INVALID_LINK' ? '链接无效：仅支持 HTTPS 的 Raider.IO 角色链接。请参考输入框下方示例，修改后重新读取。' : simcDiagnosticMessage(state.errorCode, state.errorMessage)}</span>
       {state.retryable && state.phase !== 'signed_out' ? <button data-simc-button="" className={styles['textButton']} onClick={() => {
         if (page === 'report' && selectedJobId) void openJob(selectedJobId)
         else if (page === 'tasks') void model.loadJobs()
@@ -231,7 +231,7 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
     </> : null}
 
     {page === 'tasks' ? <section>
-      <div className={styles['pageIntro']}><div><h2>模拟任务</h2><p>查看本账号在网页与小程序提交的模拟。</p></div><button data-simc-button="" className={styles['secondaryButton']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs()}>刷新任务</button></div>
+      <div className={styles['pageIntro']}><div><h2>模拟任务</h2><p>查看当前 QQ 账号提交的模拟。</p></div><button data-simc-button="" className={styles['secondaryButton']} disabled={state.phase === 'loading'} onClick={() => void model.loadJobs()}>刷新任务</button></div>
       <div className={styles['taskToolbar']}><div className={styles['filters']} aria-label="任务状态筛选">
         {(['all', 'queued', 'running', 'succeeded', 'failed', 'cancelled'] as const).map((status) => <button data-simc-button="" key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{status === 'all' ? '全部' : simcStatuses[status]}</button>)}
       </div><span className={styles['muted']}>已加载 {state.jobs.length} 项</span></div>
