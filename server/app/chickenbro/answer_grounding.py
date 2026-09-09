@@ -1,10 +1,12 @@
 """Bounded, run-local reference checks. Source strings are data, never instructions.
 
 This is not a semantic verifier: it cannot establish causal validity or complete
-natural-language coverage. Only successful gateway receipts enter this index.
+natural-language coverage. Positive references require returned source evidence;
+failed receipts retain only allowlisted identities and controlled failure codes.
 """
 import copy
 import html
+import hashlib
 import json
 import re
 from collections.abc import Mapping
@@ -48,9 +50,165 @@ def _identity(code, fight=None, source=None):
             (('?fight=' + fight) if fight else '') + (('&source=' + source) if source and fight else '')}
 
 
+_SCOPE_FIELDS = ('zoneId','encounterId','encounterName','difficulty','partition','className','specName','region','metric')
+_COVERAGE_LISTS = ('directories','rankingSnapshots','reportReceipts','failures')
+_COVERAGE_BOUNDARY = 'Independent source receipts, not stitched snapshots. Detail projection omission is not source failure. Nonempty casts are fetched data, not proof of a valid written analysis.'
+
+
+def _encoded(value):
+    return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+
+
+def _coverage_add(out, collection, record):
+    coverage = out['coverage']
+    records = coverage[collection]
+    if record in records:
+        return
+    if len(records) >= 512:
+        coverage['sourceIndexTruncated'] = True
+        return
+    records.append(record)
+
+
+def _coverage_items(out, value, limit):
+    items = _items(value)
+    if len(items) > limit:
+        out['coverage']['sourceIndexTruncated'] = True
+    return items[:limit]
+
+
+def _receipt_coverage(out, packet):
+    """Record receipt completeness separately from any later detail projection."""
+    source, status = packet.get('sourceKey'), packet.get('status')
+    success = status in ('verified', 'source_reference', 'partial')
+    if source == 'warcraftlogs_rankings' and success:
+        for fact in _coverage_items(out, packet.get('facts'), 100):
+            if not isinstance(fact, Mapping) or type(fact.get('id')) is not int:
+                continue
+            directory = _fields(fact, ('id','name'))
+            for field in ('encounters','partitions','difficulties'):
+                directory[field] = [_fields(v, ('id','name','default')) for v in _coverage_items(out, fact.get(field), 200)]
+            _coverage_add(out, 'directories', directory)
+        if isinstance(packet.get('rankings'), list):
+            rows = []
+            snapshot_rows = []
+            for row in _coverage_items(out, packet['rankings'], 200):
+                if not isinstance(row, Mapping) or type(row.get('rank')) is not int or row['rank'] < 1:
+                    continue
+                ref = _mapping(row.get('report'))
+                identity = _identity(ref.get('code'), ref.get('fightID'))
+                if identity:
+                    rows.append([row['rank'], identity['code'], identity['fight']])
+                    snapshot_rows.append({**_fields(row, ('rank','name','class','spec','amount','durationMs','startTime')),
+                        'report':identity, 'server':_fields(row.get('server'), ('id','name','region'))})
+            ranks = sorted({r[0] for r in rows})
+            ranges = []
+            for rank in ranks:
+                if ranges and ranges[-1][1] + 1 == rank:
+                    ranges[-1][1] = rank
+                else:
+                    ranges.append([rank, rank])
+            pagination = _fields(packet.get('pagination'), ('page','offset','limit','returned','skippedInvalid','hasMore','nextPage','nextOffset','paginationCapReached'))
+            page, offset, limit = (pagination.get(k) for k in ('page','offset','limit'))
+            valid_slice = (type(page) is int and page > 0 and type(offset) is int and offset >= 0 and type(limit) is int and 0 < limit <= 200)
+            complete = bool(valid_slice and status == 'source_reference' and pagination.get('skippedInvalid') == 0 and
+                            len(rows) == len(ranks) == len(packet['rankings']) == pagination.get('returned') == limit and
+                            ranks == list(range((page-1)*100+offset+1, (page-1)*100+offset+limit+1)))
+            scope = _fields(packet.get('scope'), _SCOPE_FIELDS)
+            queried = _small(packet.get('queriedAt'))
+            snapshot = hashlib.sha256(_encoded([scope, queried, pagination, snapshot_rows]).encode()).hexdigest()
+            _coverage_add(out, 'rankingSnapshots', {'snapshotId':snapshot, 'scope':scope, 'queriedAt':queried,
+                'status':status, 'pagination':pagination, 'returnedIdentityCount':len(rows), 'rankRanges':ranges,
+                'requestedSliceComplete':complete})
+    if source != 'warcraftlogs':
+        return
+    if success:
+        for fact in _coverage_items(out, packet.get('facts'), 100):
+            if not isinstance(fact, Mapping):
+                continue
+            identity = _identity(fact.get('reportCode'),fact.get('fightId'),fact.get('sourceId'))
+            if not identity:
+                continue
+            casts = _mapping(fact.get('casts'))
+            entries = casts.get('entries')
+            state = ('returned_nonempty' if entries else 'returned_empty') if isinstance(entries,list) else 'absent'
+            receipt = {**identity, 'status':status, 'castsState':state, 'castRowsReturned':len(entries) if isinstance(entries,list) else None,
+                'castsRowsTruncated':_small(casts.get('rowsTruncated')), 'fightScope':_fields(fact.get('fight'),('name','startTime','endTime')),
+                'eventPage':_fields(fact.get('eventPage'),('count','complete','startTime','endTime','nextPageTimestamp','fieldsTruncated'))}
+            _coverage_add(out, 'reportReceipts', receipt)
+    if status not in ('verified','source_reference') and not packet.get('results'):
+        # No provider exception text, free-form messages, URLs or credentials survive.
+        error_code = 'WCL_SOURCE_PARTIAL' if status == 'partial' else 'WCL_SOURCE_UNAVAILABLE'
+        if status == 'blocked':
+            error_code = 'WCL_SOURCE_BLOCKED'
+        if 'Warcraft Logs OAuth provider failed' in _items(packet.get('limitations')):
+            error_code = 'WCL_OAUTH_PROVIDER_FAILED'
+        for item in _coverage_items(out, packet.get('evidence'), 100):
+            if not isinstance(item, Mapping):
+                continue
+            identity = _identity(item.get('reportCode'),item.get('fightId'))
+            if not identity:
+                continue
+            try:
+                url = urlsplit(str(item.get('sourceUrl','')))
+                query = parse_qs(url.query + '&' + url.fragment)
+                if url.hostname in ('www.warcraftlogs.com','warcraftlogs.com') and url.path == '/reports/'+identity['code']:
+                    source_ids = query.get('source', [])
+                    if len(source_ids) == 1 and query.get('fight') == [identity['fight']]:
+                        identity = _identity(identity['code'],identity['fight'],source_ids[0]) or identity
+            except ValueError:
+                pass
+            _coverage_add(out, 'failures', {**identity,'stage':'source_query','errorCode':error_code})
+
+
+def _bounded_coverage(coverage, budget):
+    """Fairly retain summaries; omitted summaries mean unknown, never source failure."""
+    result = {k: [] for k in _COVERAGE_LISTS}
+    result.update(sourceIndexTruncated=bool(coverage.get('sourceIndexTruncated')), projectionTruncated=False,
+        boundary=_COVERAGE_BOUNDARY)
+    # Use round-robin scope buckets within each kind and across receipt kinds.
+    buckets = {kind:{} for kind in _COVERAGE_LISTS}
+    touched_zones = {_mapping(r.get('scope')).get('zoneId') for r in _items(coverage.get('rankingSnapshots'))}
+    for kind in _COVERAGE_LISTS:
+        for original in _items(coverage.get(kind)):
+            record = copy.deepcopy(original)
+            if kind == 'directories' and record.get('id') not in touched_zones:
+                # Keep discovery identity, but spend detailed directory space on
+                # scopes actually queried. The source receipt remains in the index.
+                for field in ('encounters','partitions','difficulties'):
+                    record[field+'Count'] = len(_items(record.pop(field, [])))
+                record['detailProjectionOmitted'] = True
+                result['projectionTruncated'] = True
+            group = _mapping(record.get('scope')).get('encounterId', _mapping(record.get('fightScope')).get('name', record.get('id','')))
+            buckets[kind].setdefault(str(group), []).append(record)
+    # Interleave receipt kinds as well as groups: catalogs must not displace
+    # actual report coverage or failure receipts.
+    queues = {kind:[] for kind in _COVERAGE_LISTS}
+    for kind, groups in buckets.items():
+        while any(groups.values()):
+            for records in groups.values():
+                if records:
+                    queues[kind].append(records.pop(0))
+    size = len(_encoded(result))
+    while any(queues.values()):
+        for kind, records in queues.items():
+            if not records:
+                continue
+            record = records.pop(0)
+            cost = len(_encoded(record))+1
+            if size+cost <= budget-256:
+                result[kind].append(record)
+                size += cost
+            else:
+                result['projectionTruncated'] = True
+    result['omittedCounts'] = {k:len(_items(coverage.get(k)))-len(result[k]) for k in _COVERAGE_LISTS}
+    return result
+
+
 def collect_evidence(previous, result):
     """Project allowlisted receipt fields; bounded independently of raw payload size."""
     out = copy.deepcopy(previous) if previous else {'reports': [], 'groups': [], 'truncated': False, 'attemptedWcl': False}
+    out.setdefault('coverage', {**{k: [] for k in _COVERAGE_LISTS}, 'sourceIndexTruncated': False, 'projectionTruncated': False, 'boundary': _COVERAGE_BOUNDARY})
     def add(record):
         if not record:
             return
@@ -88,6 +246,7 @@ def collect_evidence(previous, result):
             out['reports'].append(record)
         else:
             out['truncated'] = True
+            out['coverage']['sourceIndexTruncated'] = True
     def ingest(r):
         if not isinstance(r, Mapping):
             return
@@ -96,6 +255,7 @@ def collect_evidence(previous, result):
             ingest(member)
         if str(r.get('sourceKey', '')).startswith('warcraftlogs'):
             out['attemptedWcl'] = True
+        _receipt_coverage(out, r)
         if r.get('status') not in ('verified', 'source_reference', 'partial'):
             return
         if r.get('rankings') and str(r.get('sourceKey', '')).startswith('warcraftlogs'):
@@ -166,8 +326,25 @@ def collect_evidence(previous, result):
                     if field in ranking:
                         rec[field] = copy.deepcopy(ranking[field])
                 break
+    for kind in ('reportReceipts','failures'):
+        for receipt in out['coverage'][kind]:
+            matches = [r for r in out['reports'] if r['code']==receipt['code'] and r['fight']==receipt['fight']]
+            groups = []
+            for rec in matches:
+                if rec.get('group') and rec['group'] not in groups:
+                    groups.append(rec['group'])
+                if receipt['source'] and rec['source']==receipt['source'] and rec.get('player'):
+                    receipt['player'] = copy.deepcopy(rec['player'])
+                    if rec.get('group') and rec.get('name'):
+                        receipt['matchedRankingActor'] = True
+                        receipt['rank'] = rec.get('rank')
+            receipt['rankingGroups'] = copy.deepcopy(groups[:MAX_GROUPS])
     # Keep identities first. Remove detail before dropping an identity; never silently
     # pretend missing evidence is complete when the bounded index overflowed.
+    # Reserve bounded receipt metadata independently of detailed report excerpts.
+    if len(_encoded(out['coverage'])) > 128000:
+        out['coverage'] = _bounded_coverage(out['coverage'], 128000)
+        out['coverage']['sourceIndexTruncated'] = True
     size = len(json.dumps(out, ensure_ascii=False))
     if size > MAX_INDEX:
         out['truncated'] = True
@@ -182,6 +359,7 @@ def collect_evidence(previous, result):
                 break
     while size > MAX_INDEX - 16 and out['reports']:
         size -= len(json.dumps(out['reports'].pop(), ensure_ascii=False)) + 2
+        out['coverage']['sourceIndexTruncated'] = True
     return out
 
 
@@ -231,12 +409,15 @@ def validate_answer(text, evidence):
 def repair_context(evidence):
     """Serialize bounded factual data only; caller supplies trusted repair policy."""
     safe = copy.deepcopy(evidence) if isinstance(evidence, Mapping) else {}
+    safe['projectionTruncated'] = bool(safe.get('truncated'))
     encoded = json.dumps(safe,ensure_ascii=False,separators=(',',':'))
     if len(encoded) <= MAX_CONTEXT:
         return encoded
     bounded = {'attemptedWcl': bool(safe.get('attemptedWcl')), 'reports': [], 'groups': [_fields(g, ('zoneId','encounterId','encounterName','difficulty','partition','className','specName','region','metric')) for g in _items(safe.get('groups'))[:MAX_GROUPS]], 'truncated': True}
-    while len(json.dumps(bounded, ensure_ascii=False, separators=(',',':'))) > MAX_CONTEXT - 32 and bounded['groups']:
+    while len(json.dumps(bounded, ensure_ascii=False, separators=(',',':'))) > 8000 and bounded['groups']:
         bounded['groups'].pop()
+    bounded['projectionTruncated'] = True
+    bounded['coverage'] = _bounded_coverage(_mapping(safe.get('coverage')), 32000)
     size = len(json.dumps(bounded, ensure_ascii=False, separators=(',',':')))
     # An actual scoped report is more useful for repair than a leaderboard row.
     records = []

@@ -1,0 +1,55 @@
+{
+  "source_sha": "3215b3f796d50542b530cbd4a6c27cdbfc1ad0f1",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "3f64a2c47479d55b8d0468cc41b35b74b9d81ab095276377c42567f8d89a9a40",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "7e86831cd0eb802a5bdd7cece88efaab15735908d109eb9dac6af87dd01b1d0d",
+  "status": "failed",
+  "production_attempted": false,
+  "reason": "V4 repeated original10-2 analysis failed. Passing later HTTP cases cannot override it.",
+  "http": [
+    {
+      "case": "top10",
+      "runId": "49f94e0e-9efb-4191-8167-10e462037a24",
+      "seconds": 327.83,
+      "answer_sha256": "a7a6988dbf88750d2465fd91caf086cc45645ad0e6000f808026e74e14a63bf6",
+      "raw_receipt_sha256": "c10103b9730b6dd5204d2bd7191ea7afe42e048d399d8c8a413c67ab779e0035",
+      "semantic": "passed",
+      "tool_result_count": 31
+    },
+    {
+      "case": "top100",
+      "runId": "058e7c3b-b692-45cb-9d63-0af56bc529b9",
+      "seconds": 449.89,
+      "answer_sha256": "15489619e9dff84f39fb1689a9970050ccf6185fa2043a68efa3db49544bc7e5",
+      "raw_receipt_sha256": "14f74a619f46b2dae71e5885e8f7d745332eeeacebf7485d7d67e88c041dc3ca",
+      "semantic": "passed",
+      "tool_result_count": 49
+    }
+  ],
+  "semantic_review_sha256": "73cfd8b5ba0bfffcf6dc5222a0a6dd79c66ff494fe9de0cac872f42c3906e4bb",
+  "general": {
+    "mode": "candidate",
+    "source": "/opt/chickenbro-releases/badcase-3215b3f796d50542b530cbd4a6c27cdbfc1ad0f1",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "28a833f8-a270-4f6c-8e73-55671a302336",
+    "jobId": "e35a40c4-8f24-4c2c-bbe8-783e1d61fff3",
+    "dps": 159059.25805942115,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "general_receipt_sha256": "42522fd5513288c629038c3ae834280a1c78bdbc0f42ae0ad0d6c13bcbac1f37"
+}

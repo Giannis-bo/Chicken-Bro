@@ -13,16 +13,19 @@ import threading
 from contextvars import ContextVar
 from copy import deepcopy
 from collections.abc import Mapping
-from math import ceil, isfinite
+from math import isfinite
 from time import monotonic
 from typing import Any
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 from server.app.simulation.sources import parse_character_source_url, InvalidSourceLink
 
 from server.app.integrations.warcraftlogs import (
     warcraftlogs_credentials_state as configured_warcraftlogs_credentials_state,
-    warcraftlogs_oauth_token,
+    chat_warcraftlogs_oauth_token,
+    invalidate_chat_warcraftlogs_oauth_token,
+    WarcraftLogsProviderError,
     warcraftlogs_timeout_seconds,
 )
 
@@ -141,7 +144,7 @@ def _timeout_seconds(timeout_seconds: Any = None) -> int:
 
 
 def _oauth_token(timeout_seconds: Any = None) -> str:
-    return warcraftlogs_oauth_token(
+    return chat_warcraftlogs_oauth_token(
         timeout_seconds,
         env=os.environ,
         opener=urlopen,
@@ -157,23 +160,43 @@ def _graphql(
 ) -> Mapping[str, Any]:
     request_timeout = _timeout_seconds(timeout_seconds)
     started_at = monotonic()
+    if timeout_seconds is not None:
+        try:
+            request_timeout = min(request_timeout, float(timeout_seconds))
+        except (TypeError, ValueError):
+            pass
+    reader = _RUN_READER.get()
+    if reader is not None:
+        request_timeout = min(request_timeout, 360 - (started_at-reader.started))
+    if not isfinite(request_timeout) or request_timeout <= 0:
+        raise WarcraftLogsProviderError('Warcraft Logs request deadline exhausted')
     graphql_url = os.environ.get(
         "WOW_WARCRAFTLOGS_GRAPHQL_URL",
         "https://www.warcraftlogs.com/api/v2/client",
     ).strip()
+    access_token = token or _oauth_token(request_timeout)
     request = Request(
         graphql_url,
         data=json.dumps({"query": query, "variables": dict(variables or {})}).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {token or _oauth_token(request_timeout)}",
+            "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "User-Agent": "wow-mini-program-wcl-sync",
         },
         method="POST",
     )
-    remaining_timeout = max(1, ceil(request_timeout - (monotonic() - started_at)))
-    with urlopen(request, timeout=remaining_timeout) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    remaining_timeout = request_timeout - (monotonic() - started_at)
+    if remaining_timeout <= 0:
+        raise WarcraftLogsProviderError('Warcraft Logs request deadline exhausted')
+    try:
+        with urlopen(request, timeout=remaining_timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        if error.code in (401, 403) and token is None:
+            invalidate_chat_warcraftlogs_oauth_token(access_token, env=os.environ, opener=urlopen)
+        raise
+    if monotonic() - started_at >= request_timeout:
+        raise WarcraftLogsProviderError('Warcraft Logs request deadline exhausted')
     if not isinstance(payload, Mapping):
         raise RuntimeError("Warcraft Logs GraphQL response was invalid")
     errors = payload.get("errors")

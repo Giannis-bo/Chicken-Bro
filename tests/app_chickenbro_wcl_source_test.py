@@ -21,6 +21,43 @@ class FakeResponse:
 
 
 class ChickenbroWclSourceTest(unittest.TestCase):
+    def test_graphql_oauth_and_fetch_share_exact_remaining_deadline(self):
+        from server.app.chickenbro import wcl_source as w
+        now=[0.0]
+        def oauth(timeout):now[0]+=0.75;return 'test-token'
+        with patch.object(w,'monotonic',side_effect=lambda:now[0]), patch.object(w,'_oauth_token',side_effect=oauth), patch.object(w,'urlopen',return_value=FakeResponse({'data':{}})) as opened:
+            w._graphql('query',timeout_seconds=1)
+            self.assertEqual(opened.call_args.kwargs['timeout'],0.25)
+        now[0]=0
+        def exhausted(timeout):now[0]+=1.1;return 'test-token'
+        with patch.object(w,'monotonic',side_effect=lambda:now[0]), patch.object(w,'_oauth_token',side_effect=exhausted), patch.object(w,'urlopen') as opened:
+            with self.assertRaises(RuntimeError):w._graphql('query',timeout_seconds=1)
+            opened.assert_not_called()
+
+    def test_graphql_never_extends_run_reader_budget(self):
+        from server.app.chickenbro import wcl_source as w
+        reader=w.WclRunReader();reader.started=0
+        marker=w._RUN_READER.set(reader)
+        try:
+            with patch.object(w,'monotonic',return_value=359.75), patch.object(w,'_oauth_token',return_value='token') as oauth, patch.object(w,'urlopen',return_value=FakeResponse({'data':{}})) as opened:
+                w._graphql('query')
+                self.assertEqual(oauth.call_args.args[0],0.25)
+                self.assertEqual(opened.call_args.kwargs['timeout'],0.25)
+            with patch.object(w,'monotonic',return_value=360), patch.object(w,'_oauth_token') as oauth:
+                with self.assertRaises(RuntimeError):w._graphql('query')
+                oauth.assert_not_called()
+        finally:w._RUN_READER.reset(marker)
+
+    def test_graphql_auth_rejection_invalidates_without_retry(self):
+        from urllib.error import HTTPError
+        from server.app.chickenbro import wcl_source as w
+        for status in [401,403,500]:
+            with patch.object(w,'_oauth_token',return_value='rejected-token'), patch.object(w,'invalidate_chat_warcraftlogs_oauth_token') as invalidate, patch.object(w,'urlopen',side_effect=HTTPError('safe',status,'',{},None)) as opened:
+                with self.assertRaises(HTTPError):w._graphql('query',timeout_seconds=1)
+                self.assertEqual(opened.call_count,1)
+                self.assertEqual(invalidate.call_count,1 if status in [401,403] else 0)
+                if status in [401,403]:self.assertEqual(invalidate.call_args.args[0],'rejected-token')
+
     def test_continuation_without_end_resolves_fight_boundary_before_query(self):
         report = {"fights": [{"id": 4, "startTime": 100, "endTime": 900}], "events": {"data": [], "nextPageTimestamp": None}}
         with patch("server.app.chickenbro.wcl_source.warcraftlogs_credentials_state", return_value={"configured": True, "mode": "v2_oauth", "api": "warcraftlogs-v2-graphql"}), patch(

@@ -10,6 +10,98 @@ def result(code=CODE):
     return {'sourceKey':'warcraftlogs','status':'verified','facts':[{'reportCode':code,'fightId':'73','sourceId':'91','fight':{'name':'Arbitrary encounter','startTime':1000,'endTime':91000},'casts':{'entries':[{'name':'Arbitrary spell','guid':4321,'total':4}]},'events':[{'type':'cast','timestamp':2300,'abilityGameID':4321}]}]}
 
 class GroundingTests(unittest.TestCase):
+    def test_coverage_survives_detail_projection_without_stitching_snapshots(self):
+        e={}
+        for group in range(12):
+            for offset in (0,5):
+                rows=[{'rank':i+1,'name':f'Player{i}', 'report':{'code':f'{group*100+i:016d}','fightID':1}} for i in range(offset,offset+5)]
+                e=collect_evidence(e,{'sourceKey':'warcraftlogs_rankings','status':'source_reference','queriedAt':str(offset),
+                    'scope':{'encounterId':group,'encounterName':f'Dynamic {group}'},'rankings':rows,
+                    'pagination':{'page':1,'offset':offset,'limit':5,'returned':5,'skippedInvalid':0,'hasMore':True}})
+            for actor in range(2):
+                packet=result(f'{group*100+actor:016d}');fact=packet['facts'][0];fact['fightId']=1
+                fact['casts']['entries']=[{'name':'Long spell '*20,'guid':i,'total':i+1} for i in range(24)]
+                e=collect_evidence(e,packet)
+        context=json.loads(repair_context(e));coverage=context['coverage']
+        self.assertLessEqual(len(repair_context(e)),64000)
+        self.assertTrue(context['projectionTruncated'])
+        self.assertFalse(coverage['sourceIndexTruncated'])
+        self.assertEqual(len(coverage['rankingSnapshots']),24)
+        self.assertEqual({s['scope']['encounterId'] for s in coverage['rankingSnapshots']},set(range(12)))
+        self.assertTrue(all(s['returnedIdentityCount']==5 and s['requestedSliceComplete'] for s in coverage['rankingSnapshots']))
+        self.assertTrue(all(s['rankRanges'] in ([[1,5]],[[6,10]]) for s in coverage['rankingSnapshots']))
+        self.assertEqual(len(coverage['reportReceipts']),24)
+        self.assertTrue(all(r['castRowsReturned']==24 for r in coverage['reportReceipts']))
+
+    def test_partial_empty_directory_and_failed_member_truth(self):
+        directory={'sourceKey':'warcraftlogs_rankings','status':'source_reference','facts':[{'id':719,'name':'Dynamic zone','encounters':[{'id':817,'name':'Dynamic boss'}],'partitions':[{'id':9,'name':'Live','default':True}],'difficulties':[{'id':4,'name':'Hard'}]}]}
+        e=collect_evidence({},directory)
+        for status,rows in [('partial',[{'rank':1,'report':{'code':CODE,'fightID':73}}]),('source_reference',[])]:
+            e=collect_evidence(e,{'sourceKey':'warcraftlogs_rankings','status':status,'scope':{'encounterId':817},'rankings':rows,'pagination':{'page':1,'offset':0,'limit':10,'returned':len(rows)}})
+        e=collect_evidence(e,{'sourceKey':'warcraftlogs','status':'partial','results':[result(),{'sourceKey':'warcraftlogs','status':'blocked','facts':[],
+            'evidence':[{'reportCode':'Z'*16,'fightId':'82','sourceUrl':'https://www.warcraftlogs.com/reports/'+'Z'*16+'#fight=82&source=13'}],
+            'limitations':['Warcraft Logs OAuth provider failed','SECRET_DO_NOT_RETAIN'], 'error':'SECRET_DO_NOT_RETAIN'}]})
+        c=json.loads(repair_context(e))['coverage']
+        self.assertEqual(c['directories'][0]['encounters'][0]['id'],817)
+        self.assertFalse(any(s['requestedSliceComplete'] for s in c['rankingSnapshots']))
+        self.assertEqual(c['failures'][0]['source'],'13');self.assertEqual(c['failures'][0]['stage'],'source_query')
+        self.assertEqual(c['failures'][0]['errorCode'],'WCL_OAUTH_PROVIDER_FAILED')
+        self.assertNotIn('SECRET_DO_NOT_RETAIN',json.dumps(e))
+        self.assertEqual(len(c['reportReceipts']),1)
+        self.assertNotIn('Z'*16,[r['code'] for r in e['reports']])
+
+    def test_snapshot_identity_drift_and_partial_are_never_merged(self):
+        packet={'sourceKey':'warcraftlogs_rankings','status':'source_reference','queriedAt':'first','scope':{'zoneId':22,'encounterId':23},
+            'pagination':{'page':1,'offset':0,'limit':2,'returned':2,'skippedInvalid':0},
+            'rankings':[{'rank':1,'report':{'code':CODE,'fightID':73}},{'rank':2,'report':{'code':'B'*16,'fightID':1}}]}
+        e=collect_evidence({},packet);packet['queriedAt']='second';packet['rankings'][1]['report']['code']='C'*16;e=collect_evidence(e,packet)
+        snapshots=e['coverage']['rankingSnapshots']
+        self.assertEqual(len(snapshots),2);self.assertNotEqual(snapshots[0]['snapshotId'],snapshots[1]['snapshotId'])
+        packet['rankings'][0]['name']='Changed identity';e=collect_evidence(e,packet)
+        self.assertNotEqual(e['coverage']['rankingSnapshots'][-1]['snapshotId'],snapshots[-1]['snapshotId'])
+        packet['status']='partial';e=collect_evidence(e,packet)
+        self.assertFalse(e['coverage']['rankingSnapshots'][-1]['requestedSliceComplete'])
+        packet['status']='source_reference';packet['rankings'][1]['rank']=1;e=collect_evidence(e,packet)
+        self.assertFalse(e['coverage']['rankingSnapshots'][-1]['requestedSliceComplete'])
+
+    def test_coverage_bounds_and_scope_isolation(self):
+        from server.app.chickenbro.answer_grounding import MAX_INDEX
+        e={}
+        for i in range(530):
+            packet={'sourceKey':'warcraftlogs_rankings','status':'source_reference','queriedAt':str(i),
+                'scope':{'encounterId':i%7,'encounterName':'Name'*60},'rankings':[],
+                'pagination':{'page':1,'offset':0,'limit':10,'returned':0,'skippedInvalid':0}}
+            e=collect_evidence(e,packet)
+        self.assertLessEqual(len(json.dumps(e,ensure_ascii=False)),MAX_INDEX)
+        context=json.loads(repair_context(e));self.assertLessEqual(len(repair_context(e)),64000)
+        self.assertTrue(context['coverage']['sourceIndexTruncated'])
+        self.assertEqual({s['scope']['encounterId'] for s in context['coverage']['rankingSnapshots']},set(range(7)))
+        self.assertFalse(any(s['requestedSliceComplete'] for s in context['coverage']['rankingSnapshots']))
+        g=ChickenbroSourceGateway(query_service=lambda *_:result());a,b=g.issue_capability(),g.issue_capability();g.query(a,'warcraftlogs',URL)
+        self.assertTrue(g.answer_evidence(a)['coverage']['reportReceipts']);self.assertNotIn('coverage',g.answer_evidence(b))
+        g.revoke(a);self.assertNotIn(a,g._answer_evidence)
+
+    def test_large_catalog_and_group_names_stay_bounded(self):
+        facts=[{'id':i,'name':'x'*240,'encounters':[{'id':n,'name':'y'*240} for n in range(200)]} for i in range(100)]
+        e=collect_evidence({}, {'sourceKey':'warcraftlogs_rankings','status':'source_reference','facts':facts})
+        self.assertLessEqual(len(json.dumps(e,ensure_ascii=False)),512000)
+        e['groups']=[{key:'x'*240 for key in ('zoneId','encounterId','encounterName','difficulty','partition','className','specName','region','metric')} for _ in range(100)]
+        self.assertLessEqual(len(repair_context(e)),64000)
+        self.assertTrue(json.loads(repair_context(e))['coverage']['sourceIndexTruncated'])
+
+    def test_receipt_input_limits_explicitly_mark_actual_omission(self):
+        packets=[
+            {'sourceKey':'warcraftlogs_rankings','status':'source_reference','facts':[{'id':i} for i in range(101)]},
+            *[{'sourceKey':'warcraftlogs_rankings','status':'source_reference','facts':[{'id':1, field:[{'id':i} for i in range(201)]}]} for field in ('encounters','partitions','difficulties')],
+            {'sourceKey':'warcraftlogs_rankings','status':'source_reference','rankings':[{'rank':i+1,'report':{'code':f'{i:016d}','fightID':1}} for i in range(201)]},
+            {'sourceKey':'warcraftlogs','status':'verified','facts':[result(f'{i:016d}')['facts'][0] for i in range(101)]},
+            {'sourceKey':'warcraftlogs','status':'blocked','evidence':[{'reportCode':f'{i:016d}','fightId':1} for i in range(101)]},
+        ]
+        for packet in packets:
+            with self.subTest(source=packet['sourceKey'],keys=list(packet)):
+                self.assertTrue(collect_evidence({},packet)['coverage']['sourceIndexTruncated'])
+        self.assertFalse(collect_evidence({},result())['coverage']['sourceIndexTruncated'])
+
     def test_observed_and_unobserved_scopes(self):
         e=collect_evidence({},result())
         self.assertEqual(validate_answer(URL+'?fight=73&source=91',e),[])

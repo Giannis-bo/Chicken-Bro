@@ -1,0 +1,15 @@
+{
+  "source_sha": "189a99c6c3b9cb37e6f5f76b58df6ecbd63884a5",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "ecf7fea8a31151665afa81c8327d6fd25faa90ec08d8ae1f0cba93e98918cab3",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "e202d3934def8852f557b49e3e9134cbc0e8f51981f8e54bcd6d24c1d6b46140",
+  "kind": "candidate",
+  "status": "failed",
+  "observed_at": "2026-09-09T14:10:07.944734+00:00",
+  "checks": {},
+  "details": "V5 original10 repeat1 returned within292.246s and acquired90 ranks, but only8/9 bosses have matched scoped casts. The ninth correct-scope source request returned OAuth provider failure; not recovered. Final answer acknowledges missing group, violating fixed analysis coverage. Repair evidence projection also drops already acquired coverage facts. Original10 repeat2 passed and does not override the failure. Already-started12 model trials continue and all judgments retained; subsequent unstarted HTTP/general gates cancelled after definitive failure, not tested/passed. No production switch or release attempted.",
+  "failed_trial_receipt_sha256": "64a32eef66958c1f70c52ec91ecde99c3c3cadfca006642afdb491b3ef771f6d",
+  "production_attempted": false,
+  "downstream_http_general": "cancelled_before_start_due_to_definitive_model_failure"
+}
