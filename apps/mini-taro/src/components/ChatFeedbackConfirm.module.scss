@@ -17,6 +17,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  button { min-width: 72px; padding: 8px 16px; border: 1px solid var(--line, #e8e8e6); border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
+  .actionButton { min-width: 72px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--line, #e8e8e6); border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
+  .actionButton:focus-visible { outline: 2px solid var(--accent, #9e5145); outline-offset: 3px; }
   .confirm { background: var(--accent, #9e5145); border-color: var(--accent, #9e5145); color: white; }
 }
