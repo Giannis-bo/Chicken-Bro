@@ -62,3 +62,11 @@ class AdminTest(unittest.TestCase):
             self.assertEqual(access['accountId'],str(other))
             self.assertNotIn(str(owner),str(access))
         self.assertEqual(self.repo.calls,1)
+
+    def test_query_failure_returns_generic_unavailable(self):
+        def fail(*args): raise RuntimeError('private database diagnostic')
+        self.repo.overview=fail
+        with self.assertRaises(AdminError) as error:
+            self.admin.overview(Principal(self.owner,'web_cookie'),'2026-09-01','2026-09-09')
+        self.assertEqual(error.exception.status,503)
+        self.assertNotIn('private',str(error.exception))

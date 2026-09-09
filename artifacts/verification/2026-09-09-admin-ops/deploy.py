@@ -169,16 +169,17 @@ admission_attempted = False
 try:
     with connect() as conn:
         fence(conn)
+        assert source_link.resolve() == base and web_link.resolve() == old_web, 'production pointers drifted under fence'
         stopped = True
         service('stop', 'chickenbro-api')
         service('stop', 'chickenbro-worker')
-    env_file.write_text('WOW_ADMIN_USER_ID=\n')
-    env_file.chmod(0o600)
-    for drop in drops:
-        drop.parent.mkdir(parents=True,exist_ok=True)
-        drop.write_text('[Service]\nEnvironmentFile='+str(env_file)+'\n')
-    switch(source_link, target)
-    switch(web_link, web)
+        env_file.write_text('WOW_ADMIN_USER_ID=\n')
+        env_file.chmod(0o600)
+        for drop in drops:
+            drop.parent.mkdir(parents=True,exist_ok=True)
+            drop.write_text('[Service]\nEnvironmentFile='+str(env_file)+'\n')
+        switch(source_link, target)
+        switch(web_link, web)
     service('daemon-reload')
     # If API start is attempted, rollback must first re-check newly admitted work.
     admission_attempted = True

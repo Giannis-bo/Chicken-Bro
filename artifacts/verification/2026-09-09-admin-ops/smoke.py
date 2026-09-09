@@ -117,14 +117,14 @@ with httpx.Client(base_url=base,timeout=510) as client:
     detail=completed_job(job['id'])
     req('GET','/simc/jobs/'+job['id'],404,headers=other)
     report['checks']['realSimc']={'jobId':job['id'],'metricValue':detail['result']['metricValue'],'isolation':True,'idempotent':True}
-    picture=Image.new('RGB',(600,240),'white');ImageDraw.Draw(picture).text((40,80),'ADMIN CHECK 4729',fill='black',font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',42))
+    picture=Image.new('RGB',(600,240),'white');ImageDraw.Draw(picture).text((40,80),'SHAMAN DPS 4729',fill='black',font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',42))
     buffer=io.BytesIO();picture.save(buffer,format='PNG')
     upload=req('POST','/chat/images',201,json={'dataUrl':'data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode()},headers={**headers,'Idempotency-Key':uuid4().hex}).json()
     image_id=upload['id']
     req('GET','/chat/images/'+image_id,404,headers=other)
     conv=req('POST','/chat/conversations',201,json={'title':'运营后台发布验收'},headers={**headers,'Idempotency-Key':uuid4().hex}).json()
     path='/chat/conversations/'+conv['id'];key=uuid4().hex
-    with client.stream('POST','/api/v2'+path+'/messages/stream?includeProgress=true',json={'content':'请只读出图片中的文字和数字。','imageIds':[image_id],'clientMessageId':key},headers={**headers,'Idempotency-Key':key}) as response:
+    with client.stream('POST','/api/v2'+path+'/messages/stream?includeProgress=true',json={'content':'这张魔兽伤害统计截图中，萨满的 DPS 是多少？只根据截图读取，不用联网。','imageIds':[image_id],'clientMessageId':key},headers={**headers,'Idempotency-Key':key}) as response:
         assert response.status_code==200
         first=next(json.loads(line[5:]) for line in response.iter_lines() if line.startswith('data:'))
         assert first['type']=='started'

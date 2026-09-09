@@ -39,3 +39,13 @@ it('validates the whole aggregate contract and rejects corrupt rates and arrays'
   expect(isAdminOverview({...fixture,simc:{...fixture.simc,successRate:2}})).toBe(false)
   expect(isAdminOverview({...fixture,daily:[{}]})).toBe(false)
 })
+it('ignores an older response after switching the date range',async()=>{
+  client.access.mockResolvedValue(ok({isAdmin:true,accountId:'11111111-1111-4111-8111-111111111111'}))
+  let finishOld: (value: unknown) => void = () => undefined
+  client.overview.mockImplementationOnce(()=>new Promise(resolve=>{finishOld=resolve})).mockResolvedValue(ok({...fixture,users:{total:7,new:3,active:2}}))
+  await render()
+  await act(async()=>Array.from(node.querySelectorAll('button')).find(b=>b.textContent==='近 30 天')!.click())
+  await act(async()=>finishOld(ok({...fixture,users:{total:999,new:999,active:999}})))
+  expect(node.textContent).not.toContain('999')
+  expect(node.textContent).toContain('累计用户7')
+})
