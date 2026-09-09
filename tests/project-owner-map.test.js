@@ -11,12 +11,12 @@ const rules = loadRules(path.join(repositoryRoot, 'docs/refactor/chickenbro-simc
 
 test('project owner map covers exactly the rebuilt product domains', () => {
   assert.equal(ownerMap.schemaVersion, 2)
-  assert.equal(ownerMap.activeMilestone, 'chickenbro_v1_0')
+  assert.equal(ownerMap.activeMilestone, 'chickenbro_web_only_qq')
   assert.deepEqual(ownerMap.criticalDomains.map((domain) => domain.id), [
     'identity',
     'chickenbro_chat',
     'simc',
-    'dual_client',
+    'web_client',
     'migration_and_cutover',
     'control_and_cleanup',
   ])
@@ -40,17 +40,10 @@ test('every owner and characterization path is retained and exists', () => {
   }
 })
 
-test('the route owner is exactly five Mini pages and two product tabs', () => {
-  assert.deepEqual(ownerMap.clientContract.miniPages, [
-    'pages/chickenbro/index',
-    'pages/simc/index',
-    'pages/simc/tasks',
-    'pages/simc/task-detail',
-    'pages/auth/web-login-confirm',
-  ])
-  assert.deepEqual(ownerMap.clientContract.tabs, [
-    'pages/chickenbro/index',
-    'pages/simc/index',
-  ])
+test('the route owner targets Web Chat and SimC only', () => {
+  assert.deepEqual(ownerMap.clientContract.clients, ['web'])
+  assert.deepEqual(ownerMap.clientContract.webRoutes, ['/', '/simc'])
+  assert.deepEqual(ownerMap.clientContract.miniPages, [])
+  assert.deepEqual(ownerMap.clientContract.tabs, [])
   assert.deepEqual(ownerMap.clientContract.businessDomains, ['chickenbro_chat', 'simc'])
 })

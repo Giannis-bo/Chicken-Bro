@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-08",
+  "updatedAt": "2026-09-09",
   "status": "active",
-  "activeMilestone": "chickenbro_v1_0",
+  "activeMilestone": "chickenbro_web_only_qq",
   "unownedCriticalDomains": [],
   "conflictingFactOwners": [],
   "clientContract": {
@@ -10,35 +10,30 @@
       "chickenbro_chat",
       "simc"
     ],
-    "miniPages": [
-      "pages/chickenbro/index",
-      "pages/simc/index",
-      "pages/simc/tasks",
-      "pages/simc/task-detail",
-      "pages/auth/web-login-confirm"
+    "clients": [
+      "web"
     ],
-    "tabs": [
-      "pages/chickenbro/index",
-      "pages/simc/index"
-    ]
+    "webRoutes": [
+      "/",
+      "/simc"
+    ],
+    "miniPages": [],
+    "tabs": []
   },
   "criticalDomains": [
     {
       "id": "identity",
       "status": "active",
-      "factOwner": "server/app/identity/domain.py",
+      "factOwner": "server/app/identity/qq_application.py",
       "writeOwner": "server/app/identity/repository.py",
       "runtimeSurfaces": [
         "server/app/api/routes/auth.py",
-        "server/app/integrations/wechat_mini.py"
+        "server/app/integrations/qq_connect.py"
       ],
       "characterization": [
-        "tests/app_identity_application_test.py",
-        "tests/app_identity_repository_test.py",
-        "tests/app_identity_api_test.py",
-        "tests/app_csrf_test.py",
-        "tests/app_wechat_mini_test.py",
-        "tests/app_test_login_test.py"
+        "tests/app_qq_login_test.py",
+        "tests/app_qq_postgres_test.py",
+        "tests/app_csrf_test.py"
       ],
       "changedPathPatterns": [
         "server/app/identity/**",
@@ -115,19 +110,20 @@
       ]
     },
     {
-      "id": "dual_client",
+      "id": "web_client",
       "status": "active",
       "factOwner": "apps/mini-taro/src/app.config.ts",
       "writeOwner": "packages/api-client/src/transport.ts",
       "runtimeSurfaces": [
         "apps/mini-taro/src/app.tsx",
-        "apps/mini-taro/src/web/WebApp.tsx"
+        "apps/mini-taro/src/web/WebApp.tsx",
+        "apps/mini-taro/src/pages/web/index.tsx",
+        "apps/mini-taro/src/pages/web/index.config.ts"
       ],
       "characterization": [
         "tests/retained-client-boundary.test.js",
         "apps/mini-taro/src/web/web-app-contract.test.ts",
-        "packages/api-client/src/transport.test.ts",
-        "apps/mini-taro/src/features/auth/mini-test-login-lifecycle.test.tsx"
+        "packages/api-client/src/transport.test.ts"
       ],
       "changedPathPatterns": [
         "apps/mini-taro/**",

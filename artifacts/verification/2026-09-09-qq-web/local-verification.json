@@ -1,0 +1,83 @@
+{
+  "status": "local_verified",
+  "backendCommit": "4e46bc142f7a11b31664d4cf58bb8641e3ae907c",
+  "backend": {
+    "command": "python -m unittest discover -s tests -p 'app_*test.py'",
+    "passed": 451,
+    "skipped": 0,
+    "postgres": "isolated_local_postgresql_16"
+  },
+  "migration": {
+    "passed": 84,
+    "skipped": 0,
+    "freshSchemaVerified": true,
+    "postgres": "isolated_local_postgresql_16"
+  },
+  "operations": {
+    "nodePassed": 80,
+    "pythonPassed": 11,
+    "skipped": 0,
+    "scope": "current script safety suite; retired Mini workflows excluded"
+  },
+  "backendReview": {
+    "compliance": "passed",
+    "quality": "passed",
+    "fixedFinding": "callback path variants must redact code and state"
+  },
+  "frontend": {
+    "status": "passed",
+    "sourceCommit": "57db3afb32ded630dea2ae747f3d6a95515a1500",
+    "passed": 258,
+    "testFiles": 32,
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionH5Build": "passed",
+    "retiredMiniTests": "excluded_from_active_selection; retained files listed in frontend-report.md",
+    "sizeWarnings": [
+      "528 KiB mascot",
+      "407 KiB app.js",
+      "628 KiB combined entrypoint"
+    ]
+  },
+  "productionDeployed": false,
+  "realQqLoginVerified": false,
+  "cloudDatabaseChanged": false,
+  "oldHistoryMigrated": false,
+  "oldDataDeleted": false,
+  "limitations": [
+    "QQ application still under review in supplied screenshot",
+    "real QQ authorization and callback not yet verified",
+    "Nginx snippet not activated or syntax-tested against production configuration",
+    "existing Starlette/httpx deprecation warnings remain"
+  ],
+  "localRuntime": {
+    "node": "24.4.1",
+    "python": "3.13.5",
+    "postgres": "16.11"
+  },
+  "ciExecuted": false,
+  "control": {
+    "passed": 62,
+    "skipped": 0
+  },
+  "browser": {
+    "buildCommit": "57db3afb32ded630dea2ae747f3d6a95515a1500",
+    "mode": "task-local HTTPS static production artifact with unauthenticated API fixtures; no real QQ exchange",
+    "desktop": "1440x900: QQ button and official logo render; no horizontal overflow",
+    "mobile": "390x844: QQ button visible; no horizontal overflow",
+    "checks": [
+      "single initial /me, no QR polling",
+      "login POST 503 shows recoverable message and enabled retry",
+      "/simc cancellation preserves keep=1 query and removes loginError",
+      "__proto__ callback key shows fixed fallback without blank page",
+      "simulated persisted pageshow during delayed QQ response: redirecting -> signed_out, second /me, late 503 ignored"
+    ],
+    "javascriptErrors": 0,
+    "realBrowserBackFromQq": "not_verified; simulated persisted pageshow and unit tests only"
+  },
+  "finalReview": {
+    "verdict": "approved",
+    "scope": "complete staged implementation versus 7dcc4e0dd, code source 57db3afb32ded630dea2ae747f3d6a95515a1500",
+    "actionableFindings": 0
+  }
+}

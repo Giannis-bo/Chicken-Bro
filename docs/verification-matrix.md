@@ -2,19 +2,27 @@
 
 状态：当前执行权威
 
-本文件只定义双端 Chat/SimC 重构的验证入口。验证等级相互独立：本地通过不代表 candidate，通过 candidate 不代表生产切流，生产可用也不代表真实用户已接受。
+当前验证以 Web-only / QQ 重构为准；后面的双端记录仅解释 1.0 历史。验证等级相互独立：本地通过不代表 candidate，通过 candidate 不代表生产切流，生产可用也不代表真实用户已接受。
 
 ## 证据等级
 
 | 等级 | 能证明 | 不能证明 |
 | --- | --- | --- |
-| `local_verified` | 当前 commit 的合同、代码、测试和构建通过 | 云端数据、真实微信、生产流量 |
+| `local_verified` | 当前 commit 的合同、代码、测试和构建通过 | 云端数据、真实 QQ 登录、生产流量 |
 | `candidate_verified` | 隔离 DB/API/Worker/Web 与回滚通过 | 已切生产、用户已接受 |
-| `live_verified` | 指定生产 identity 的业务 smoke 通过 | 用户双端体验已完成 |
-| `user_accepted` | 用户明确完成真实 Mini/Web 验收 | 自动替代备份、恢复或清理证据 |
+| `live_verified` | 指定生产 identity 的业务 smoke 通过 | 用户实际体验已完成 |
+| `user_accepted` | 用户明确完成真实 Web 验收 | 自动替代备份、恢复或清理证据 |
 | `recovery_verified` | 独立介质可恢复为可核对的隔离副本 | 当前线上业务体验 |
 
 `skipped`、`partial`、`blocked`、dry-run、HTTP 200、systemd active、Candidate 或 SimC return code 0 都不是成功等级。
+
+## Web-only / QQ 当前验收
+
+- 本地：QQ provider 数据校验、浏览器 state 绑定、超时/取消/重放/并发消费拒绝、Cookie/CSRF/Origin、旧微信身份拒绝及第二账号隔离；真实 PostgreSQL 的 QQ identity 和 login attempt 持久化验证。
+- Web：明确点击 QQ 登录后授权跳转；取消或失败可重试；回到站点后显示账号并访问自己的 Chat/SimC；刷新、退出、401 恢复正常。构建产物不包含可运行的小程序产品页面，也不出现微信扫码或小程序推广入口。
+- 退役：WeApp 构建/预览/上传不再是交付步骤，旧微信和 Mini HTTP 登录入口不可用；保留旧业务数据和历史证据。
+- 真实环境：QQ 应用审核、AppID/回调配置、真实 QQ 登录、业务成功及第二用户隔离分别验证。保存密钥、配置存在和本地模拟 provider 测试不冒充真实登录成功。
+- 新部署使用可回滚的独立版本；历史无备份授权不适用。本次不删除旧账号数据或云端旧版本。
 
 ## 本地验证入口
 
@@ -26,14 +34,13 @@ npm run test:ops
 npm run test:taro
 npm run typecheck
 npm run lint
-npm run build:weapp
 npm run build:h5
 git diff --check
 ```
 
 本地不能安装或运行 SimulationCraft。SimC 语义结果只在云端受控 runtime 上验证。
 
-回答解决情况反馈的真实数据库与 API 用例为 `tests.app_chat_feedback_postgres_test`，纳入 `test:migration`；须配置独立 UTF8 `WOW_PG_TEST_DSN_V2`。UI 同时验证共享组件及 Mini/Web 页面提交、重新打开历史恢复；旧客户端不请求 `includeFeedback` 时必须保持原合同。
+回答解决情况反馈的真实数据库与 API 用例为 `tests.app_chat_feedback_postgres_test`，纳入 `test:migration`；须配置独立 UTF8 `WOW_PG_TEST_DSN_V2`。UI 验证 Web 页面提交、重新打开历史恢复；旧客户端不请求 `includeFeedback` 时必须保持原合同。
 
 ## 1.0 验证与历史阶段
 
@@ -49,7 +56,7 @@ git diff --check
 | PostgreSQL | 账户互斥、软删除、持久化公开摘要及迁移测试 | 必须配置独立 UTF8 测试库；有 skip 不能称为全套通过 |
 | 线上/微信平台 | 逐次发布记录与回滚目录保留 | 本地 build/DevTools 不代表代码已上传或公开发布 |
 
-## Candidate 与切流
+## 历史六阶段 Candidate 与切流（不得作为本次授权）
 
 Candidate 部署前必须刷新云端只读清单并通过容量及白名单恢复门禁。部署与切流命令默认 dry-run；apply 只能使用审核过的 commit、inventory SHA 和对应恢复身份。生产切流和 legacy 退役本轮可在用户明确授权后使用 `--no-independent-backup --irreversible-no-backup-confirmation I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE`，该模式只免除独立备份/恢复副本，不免除迁移核对、真实双端业务验收、首条新写入、稳定健康和零引用检查。
 
@@ -60,7 +67,7 @@ bash server/cutover_chickenbro_lighthouse.sh --dry-run
 
 真实验收至少覆盖：Mini 登录；小程序确认 Web 登录；Mini 创建 Chat 后 Web 可见并续聊；Web 创建 Chat 后 Mini 可见并续聊；任一端创建 SimC 后另一端看到同一任务、状态和结果；第二用户隔离；两端独立退出。
 
-## 精确清理
+## 历史六阶段精确清理（不得重放）
 
 本地清单在 apply 前必须绑定审核 commit 和每个文件的 SHA，且 `review=0`、`blocked=0`；实际 apply 在 Phase 5 acceptance 前必须拒绝。清理提交合并后，原始清单中的目标文件已不存在，最终只读复核会报告 `TARGET_MISSING` 以及清单基线已过期的 `INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD`，这证明不会重放删除，不是新的待处理目标。
 

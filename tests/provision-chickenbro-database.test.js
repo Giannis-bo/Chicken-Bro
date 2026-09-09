@@ -35,7 +35,10 @@ function inventoryFixture(t, ageSeconds = 0) {
   inventory.observedAt = new Date(Date.now() - ageSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
   const contents = JSON.stringify(inventory)
   writeFileSync(path.join(root, 'docs/refactor/chickenbro-simc-cloud-inventory.json'), contents)
-  writeFileSync(path.join(root, 'docs/project-state.json'), readFileSync(path.join(ROOT, 'docs/project-state.json')))
+  const state = JSON.parse(readFileSync(path.join(ROOT, 'docs/project-state.json'), 'utf8'))
+  // Exercise historical apply guards in an isolated fixture, without authorizing this task.
+  state.targetProduct.candidateDatabaseProvisioningAuthorized = true
+  writeFileSync(path.join(root, 'docs/project-state.json'), JSON.stringify(state))
   const script = path.join(root, 'server/provision_chickenbro_database_lighthouse.sh')
   writeFileSync(script, source())
   return { script, root, sha: createHash('sha256').update(contents).digest('hex') }
@@ -178,6 +181,14 @@ test('local dry-run emits the refreshed redacted capacity gate and performs no p
   assert.equal(payload.mutationAuthorized, false)
   assert.equal(payload.inventorySha, inventorySha())
   assert.doesNotMatch(result.stdout + result.stderr, /do-not-print|private-backup/i)
+})
+
+test('QQ refactor does not authorize historical database provisioning', () => {
+  const state = JSON.parse(readFileSync(path.join(ROOT, 'docs/project-state.json'), 'utf8'))
+  assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
+  const result = run(['--apply', '--inventory-sha', inventorySha()])
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /candidateDatabaseProvisioningAuthorized=false; apply is forbidden/)
 })
 
 test('reviewed inventory hash is exact and authorized apply still stops before external state without an exact pgpass path', (t) => {

@@ -2,6 +2,27 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "web-only-qq-login",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "identity and web_client",
+      "reason": "User-approved Web-only QQ identity refactor; preserve historical WeChat data and new verification artifacts.",
+      "paths": [
+        "docs/plans/2026-09-09-web-only-qq.md",
+        "tests/app_qq_login_test.py",
+        "tests/app_qq_postgres_test.py",
+        "server/migrations/product/0007_qq_web_login.sql",
+        "server/qq-callback.nginx",
+        "server/app/identity/qq_application.py",
+        "server/app/integrations/qq_connect.py",
+        "apps/mini-taro/src/pages/web/index.tsx",
+        "apps/mini-taro/src/pages/web/index.config.ts"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-qq-web/"
+      ]
+    },
+    {
       "id": "chat-resolution-feedback",
       "disposition": "keep",
       "category": "target-product-code",
