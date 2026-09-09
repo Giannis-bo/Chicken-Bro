@@ -1,0 +1,22 @@
+{
+  "purpose": "read-only executor rehearsal; not a frozen batch or release",
+  "result": {
+    "batch_sha256": "430c9e07e9bffde76284334042c21b8c05b3aca75c9a66e88dac672671543dc7",
+    "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "diff_sha256": "b67df4220e5d2f7937741edaac4d4f66d126039f2a4829468abf7a78e475de53",
+    "clean": true
+  },
+  "observed_at": "2026-09-09T12:03:50.155803+00:00",
+  "idle_fence": {
+    "actual_read_only_transaction": true,
+    "active_counts": {
+      "chat": 0,
+      "executions": 0,
+      "simc": 0,
+      "queue": 0
+    },
+    "services_stopped": false,
+    "pointer_changed": false
+  },
+  "notes": "Read-only preflight + separate actual shared-table fence transaction completed. Frozen-batch preflight repeats immediately before release."
+}

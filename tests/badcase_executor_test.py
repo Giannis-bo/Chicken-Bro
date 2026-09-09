@@ -73,6 +73,41 @@ class ExecutorTest(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError, 'ranking coverage'):
                 remote.validate_cases(result, release)
 
+    def test_complete_repeated_snapshot_drift_is_allowed_and_disclosed(self):
+        result, release, packets = self.fixture()
+        newer = copy.deepcopy(packets['top100'][0])
+        for row in newer[1]['rankings'][52:]:
+            row['name'] = 'NewPlayer'
+        packets['top100'].append(newer)
+        checked = remote.validate_cases(result, release)[1]
+        boss = newer[1]['scope']['encounterId']
+        snapshot = next(item for item in checked['rankingSnapshots'] if item['bossId'] == boss)
+        self.assertEqual(snapshot['completeSnapshots'], 2)
+        self.assertEqual(snapshot['distinctCompleteSnapshots'], 2)
+        self.assertTrue(snapshot['snapshotDriftObserved'])
+        self.assertIn(1, snapshot['matchedRanks'])
+
+    def test_incomplete_packets_cannot_be_combined_into_full_coverage(self):
+        result, release, packets = self.fixture()
+        original = packets['top100'][0]
+        left, right = copy.deepcopy(original), copy.deepcopy(original)
+        left[1]['rankings'] = left[1]['rankings'][:50]
+        right[1]['rankings'] = right[1]['rankings'][50:]
+        packets['top100'][0] = left
+        packets['top100'].append(right)
+        with self.assertRaisesRegex(AssertionError, 'ranking coverage'):
+            remote.validate_cases(result, release)
+
+    def test_matching_partial_cannot_supply_evidence_for_unmatched_complete_snapshot(self):
+        result, release, packets = self.fixture()
+        partial = copy.deepcopy(packets['top100'][0])
+        partial[1]['rankings'] = partial[1]['rankings'][:10]
+        for row in packets['top100'][0][1]['rankings']:
+            row['name'] = 'UnmatchedPlayer'
+        packets['top100'].append(partial)
+        with self.assertRaisesRegex(AssertionError, 'matched boss cast'):
+            remote.validate_cases(result, release)
+
     def test_wrong_report_fight_actor_realm_or_empty_cast_fails(self):
         for field in ('fightId', 'sourceId', 'realm', 'casts'):
             result, release, packets = self.fixture()

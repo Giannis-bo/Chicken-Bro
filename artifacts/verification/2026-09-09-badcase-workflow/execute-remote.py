@@ -149,24 +149,32 @@ def validate_cases(result, release):
                 members = packet.get('results', []) if operation.endswith('_batch') else [packet]
                 reports.extend(r for r in members if r.get('status') == 'verified' and r.get('facts'))
             facts = [f for r in reports for f in r['facts']]
-            by_boss = {boss: {} for boss in LIVE_BOSSES}
+            by_boss = {boss: [] for boss in LIVE_BOSSES}
             for packet in ranks:
                 scope = packet['scope']
                 assert (scope['zoneId'] == 53 and scope['difficulty'] == 4 and scope['className'] == 'Druid'
                         and scope['specName'] == 'Feral' and scope['region'] == 'world' and scope['metric'] == 'dps'
                         and scope['partitionName'] == '12.1' and scope['encounterId'] in LIVE_BOSSES), 'wrong leaderboard scope'
-                for row in packet['rankings']:
-                    if 1 <= row['rank'] <= wanted:
-                        existing = by_boss[scope['encounterId']].get(row['rank'])
-                        assert existing is None or existing == row, 'ranking snapshot changed within acceptance'
-                        by_boss[scope['encounterId']][row['rank']] = row
-            for boss, rows in by_boss.items():
-                assert set(rows) == set(range(1, wanted + 1)), 'incomplete requested ranking coverage: ' + str(boss)
-                assert any(matched_cast(row, facts) for row in rows.values()), 'missing matched boss cast evidence: ' + str(boss)
+                # Each packet is an independent leaderboard snapshot. Never join
+                # partial packets or require a mutable live board to stay frozen.
+                rows = [row for row in packet['rankings'] if 1 <= row['rank'] <= wanted]
+                if len(rows) == wanted and {row['rank'] for row in rows} == set(range(1, wanted + 1)):
+                    by_boss[scope['encounterId']].append(sorted(rows, key=lambda row: row['rank']))
+            snapshots = []
+            for boss, complete in sorted(by_boss.items()):
+                assert complete, 'incomplete requested ranking coverage: ' + str(boss)
+                candidates = [(rows, [row['rank'] for row in rows if matched_cast(row, facts)]) for rows in complete]
+                selected = next(((rows, matched) for rows, matched in candidates if matched), None)
+                assert selected is not None, 'missing matched boss cast evidence: ' + str(boss)
+                rows, matched = selected
+                distinct = {digest(snapshot) for snapshot in complete}
+                snapshots.append({'bossId': boss, 'completeSnapshots': len(complete),
+                                  'distinctCompleteSnapshots': len(distinct), 'snapshotDriftObserved': len(distinct) > 1,
+                                  'selectedSnapshotSha256': digest(rows), 'matchedRanks': matched})
             assert all(case['checks'][key] for key in ('terminal', 'history', 'ownerIsolation', 'idempotency', 'detached'))
             summaries.append({'case': case['case'], 'runId': case['runId'], 'seconds': case['seconds'],
                               'rankingPackets': len(ranks), 'verifiedReportPackets': len(reports),
-                              'bosses': sorted(by_boss), 'requestedRanksPerBoss': wanted,
+                              'bosses': sorted(by_boss), 'requestedRanksPerBoss': wanted, 'rankingSnapshots': snapshots,
                               'bossesWithMatchedCasts': len(by_boss), 'answerSha256': hashlib.sha256(answer.encode()).hexdigest(),
                               'semanticReview': 'automatic provenance/coverage checks; human review separately recorded'})
     return summaries
