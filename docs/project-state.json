@@ -17,7 +17,7 @@
       "docs/plans/2026-09-09-web-only-qq.md"
     ],
     "candidateDatabaseProvisioningAuthorized": false,
-    "identityContract": "QQ website identities map to internal user_id. Web HttpOnly sessions only; old WeChat data retained without migration or automatic linking."
+    "identityContract": "QQ website identities map to internal user_id. Web HttpOnly sessions only; 186 explicitly approved WeChat-only test owners removed with independently restore-verified backup. No automatic identity linking."
   },
   "delivery": {
     "phase1": "local_verified",
@@ -267,21 +267,28 @@
     }
   },
   "miniRetirement": {
-    "status": "local_and_data_verified",
+    "status": "live_verified",
     "plan": "docs/plans/2026-09-09-mini-retirement.md",
     "implementationAuthorized": true,
-    "codeCleanup": "local_verified",
+    "codeCleanup": "live_verified",
     "dataCleanup": "production_applied_verified",
     "dataApplied": true,
-    "productionCodeDeployed": false,
+    "productionCodeDeployed": true,
     "evidence": "artifacts/verification/2026-09-09-mini-retirement/README.md",
-    "docsCleanup": "local_verified",
+    "docsCleanup": "verified",
     "backupCreated": true,
     "restoreVerified": true,
     "dataScope": "186_explicitly_approved_wechat_only_owners",
     "deletedTrackedFiles": 80,
     "dataApproval": "user confirmation 可以 after exact scope question",
     "dataEvidence": "artifacts/verification/2026-09-09-mini-retirement/data-cleanup/applied.json",
-    "recoveryEvidence": "artifacts/verification/2026-09-09-mini-retirement/data-cleanup/recovery.json"
+    "recoveryEvidence": "artifacts/verification/2026-09-09-mini-retirement/data-cleanup/recovery.json",
+    "productionCutoverAuthorized": true,
+    "userClosureAuthorized": true,
+    "sourceCommit": "7adcdeffa3566add1cc9fe33325df5b7360e29df",
+    "releaseEvidence": "artifacts/verification/2026-09-09-mini-retirement/release/README.md",
+    "candidateVerified": true,
+    "liveBusinessVerified": true,
+    "manualQqLoginThisRelease": "not_repeated_existing_session_verified"
   }
 }

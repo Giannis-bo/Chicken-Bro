@@ -25,10 +25,12 @@
 
 ## 本轮检查结果
 
-447 后端、259 Web、102 数据库、63 控制面、56 Node 运维及 11 Python 运维检查通过；类型、lint、H5 构建与 diff 检查通过。用户随后明确确认 186 个仅微信账号全部按测试数据清理。已新建私有备份并独立恢复、演练，正式事务删除及保留记录核对通过；18 个 QQ、14 个无关联账号及其记录保留。源码未提交或部署。详见[记录](../../artifacts/verification/2026-09-09-mini-retirement/README.md)。
+447 后端、259 Web、102 数据库、63 控制面、56 Node 运维及 11 Python 运维检查通过；类型、lint、H5 构建与 diff 检查通过。用户随后明确确认 186 个仅微信账号全部按测试数据清理。已新建私有备份并独立恢复、演练，正式事务删除及保留记录核对通过；18 个 QQ、14 个无关联账号及其记录保留。源码随后已按用户授权提交并发布，结果见下文。详见[记录](../../artifacts/verification/2026-09-09-mini-retirement/README.md)。
 
 数据执行的完整外键、触发器与逐表证据见[数据清理记录](../../artifacts/verification/2026-09-09-mini-retirement/data-cleanup/README.md)。仅在事务内临时停用 `trg_simulation_results_immutable` 并立即恢复，外键始终启用；回滚演练副本保持完整。
 
 ## 发布授权与执行
 
 用户明确授权提交、合入与发布。绑定本次源码提交、当前生产基底与逐文件清单，先做隔离验证，再空闲门禁切换 API/Worker/Web，保留旧版本及数据恢复副本。此次不重复执行数据删除。发布证据记录于 `artifacts/verification/2026-09-09-mini-retirement/release/`。
+
+发布已完成：源码 `7adcdeffa3566add1cc9fe33325df5b7360e29df` 已合入推送 main，后端/Web 切换成功。Candidate 与公网均完成真实图片识别、SSE 幂等回放、账号隔离、CSRF 与真实 SimC 队列/报告验证。14 个公网 Web 文件逐字节匹配；既有真实 QQ 会话、历史和工作台浏览器读取正常。本轮未重新进行 QQ 交互授权，未新增生产账号，复用专用合成测试身份且撤销临时会话。见[发布记录](../../artifacts/verification/2026-09-09-mini-retirement/release/README.md)。

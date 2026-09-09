@@ -40,4 +40,8 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 
 本次私有备份为 `/var/backups/chickenbro-mini-retirement/20260909_retire186_02/before.dump`，独立恢复库为 `cb_mini_restore_20260909_retire186_02`；所有非超级用户登录角色均无 CONNECT 权限。完整副本在演练回滚后保留。前一次演练被结果不可变触发器拒绝并回滚，未影响正式库；其备份和隔离副本同样私有保留。
 
-恢复数据时先用新建隔离库还原 dump，依据私有 `manifest.json` 提取本轮目标记录并检查当前键冲突，按外键依赖恢复；不得覆盖清理后的 QQ 新写入。不能直接重放删除脚本或旧迁移。详见[执行证据](../artifacts/verification/2026-09-09-mini-retirement/data-cleanup/README.md)。这次数据操作未发布本地源码。
+恢复数据时先用新建隔离库还原 dump，依据私有 `manifest.json` 提取本轮目标记录并检查当前键冲突，按外键依赖恢复；不得覆盖清理后的 QQ 新写入。不能直接重放删除脚本或旧迁移。详见[执行证据](../artifacts/verification/2026-09-09-mini-retirement/data-cleanup/README.md)。数据操作与后续源码发布分别记录。
+
+## 小程序清理发布（2026-09-09）
+
+当前后端/Web 源码 `7adcdeffa3566add1cc9fe33325df5b7360e29df`，目录前缀 `mini-retirement-`。精确清单、空闲门禁切换脚本、公网业务检查与恢复指针见[发布记录](../artifacts/verification/2026-09-09-mini-retirement/release/README.md)。没有变更生产环境配置或重放数据删除；旧 backend/Web 逐文件不变，备份 hash 再次匹配。

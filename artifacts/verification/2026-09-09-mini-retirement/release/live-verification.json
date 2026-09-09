@@ -1,0 +1,64 @@
+{
+  "sourceCommit": "7adcdeffa3566add1cc9fe33325df5b7360e29df",
+  "backendInventoryMatched": true,
+  "removedBackendFilesAbsent": true,
+  "publicWebFilesMatched": 14,
+  "oldBackendAndWebUnchanged": true,
+  "dataBackupHashMatched": true,
+  "services": {
+    "chickenbro-api": {
+      "pid": 1414034,
+      "cwd": "/opt/chickenbro-releases/mini-retirement-7adcdeffa3566add1cc9fe33325df5b7360e29df",
+      "durable": true,
+      "simcSpecs": "all"
+    },
+    "chickenbro-worker": {
+      "pid": 1413997,
+      "cwd": "/opt/chickenbro-releases/mini-retirement-7adcdeffa3566add1cc9fe33325df5b7360e29df",
+      "durable": true,
+      "simcSpecs": "all"
+    }
+  },
+  "readiness": {
+    "status": "ready",
+    "requestId": "b0dcafcf-35eb-415f-b8e7-f22cb429b75a",
+    "components": {
+      "database": {
+        "status": "ready",
+        "code": ""
+      },
+      "worker": {
+        "status": "ready",
+        "code": ""
+      },
+      "codex": {
+        "status": "ready",
+        "code": ""
+      },
+      "raiderio": {
+        "status": "ready",
+        "code": ""
+      },
+      "warcraftlogs": {
+        "status": "ready",
+        "code": ""
+      },
+      "simc": {
+        "status": "ready",
+        "code": ""
+      },
+      "qq_connect": {
+        "status": "ready",
+        "code": ""
+      }
+    }
+  },
+  "providerCounts": {
+    "qq": 18
+  },
+  "resultProtectionTriggers": {
+    "trg_simulation_results_truncate": "O",
+    "trg_simulation_results_immutable": "O"
+  },
+  "invalidConstraints": 0
+}
