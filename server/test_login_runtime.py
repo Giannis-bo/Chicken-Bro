@@ -38,6 +38,8 @@ def prepare_environment(source, read_text=lambda path: Path(path).read_text()):
         'WOW_WEB_SESSION_TTL_SECONDS': '86400',
         'WOW_SIMC_COMPILER_REVISION': 'chickenbro-simc-compiler-v3',
     })
+    if any(env.get(name, '').strip() for name in ('WOW_QQ_APPID', 'WOW_QQ_APP_KEY', 'WOW_QQ_REDIRECT_URI')):
+        env['WOW_QQ_REDIRECT_URI'] = 'https://www.chickenbro.cloud/test/api/v2/auth/qq/callback'
     return env
 
 

@@ -315,6 +315,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0004_chat_public_progress",
                     "0005_chat_account_concurrency",
                     "0006_chat_resolution_feedback",
+                    "0007_qq_web_login",
                 ),
             )
             avatar_column = connection.execute(
@@ -331,7 +332,9 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
             by_schema: dict[str, set[str]] = {}
             for schema, table in actual:
                 by_schema.setdefault(schema, set()).add(table)
-            self.assertEqual(by_schema, EXPECTED_TABLES)
+            expected = {schema: set(tables) for schema, tables in EXPECTED_TABLES.items()}
+            expected["identity"].add("qq_login_attempts")
+            self.assertEqual(by_schema, expected)
         finally:
             connection.rollback()
             connection.close()

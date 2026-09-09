@@ -1,4 +1,5 @@
 import os
+import logging
 from collections.abc import Mapping
 
 from fastapi import FastAPI, Request
@@ -21,10 +22,10 @@ from server.app.chickenbro.source_gateway import (
     DEFAULT_SOURCE_GATEWAY_URL,
     ServerConfiguredSourceQuery,
 )
-from server.app.identity.application import WebAuthApplication
 from server.app.identity.audit import AuthAuditSink, NullAuthAuditSink
 from server.app.identity.repository import PostgresIdentityRepository
-from server.app.integrations.wechat_mini import WechatMiniClient
+from server.app.integrations.qq_connect import QqConnectClient
+from server.app.identity.qq_application import QqAuthApplication
 from server.app.platform.config import AppSettings
 from server.app.platform.health import ReadinessRegistry, default_readiness_registry
 from server.app.platform.postgres import PostgresConnectionFactory
@@ -35,15 +36,29 @@ from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.sources import CharacterSourceRouter, HttpxSourceGateway
 
 
+class QqCallbackAccessFilter(logging.Filter):
+    """Uvicorn access logs must never retain OAuth code/state query parameters."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and len(record.args) == 5:
+            args = list(record.args)
+            if isinstance(args[2], str) and args[2].split('?', 1)[0] == '/api/v2/auth/qq/callback':
+                args[2] = '/api/v2/auth/qq/callback'
+                record.args = tuple(args)
+        return True
+
+
 def create_app(
     settings: AppSettings,
     readiness_registry: ReadinessRegistry | None = None,
-    web_auth_application: WebAuthApplication | None = None,
+    web_auth_application: QqAuthApplication | None = None,
     chat_application: ChatApplication | None = None,
     simulation_application: SimulationApplication | None = None,
     auth_audit_sink: AuthAuditSink | None = None,
     readiness_environment: Mapping[str, str] | None = None,
 ) -> FastAPI:
+    access_logger = logging.getLogger('uvicorn.access')
+    if not any(isinstance(item, QqCallbackAccessFilter) for item in access_logger.filters):
+        access_logger.addFilter(QqCallbackAccessFilter())
     formal_auth_application_injected = web_auth_application is not None
     production = settings.environment == "production"
     app = FastAPI(
@@ -61,9 +76,9 @@ def create_app(
     if web_auth_application is None:
         if repository is None:
             raise RuntimeError("identity repository was not constructed")
-        web_auth_application = WebAuthApplication(
+        web_auth_application = QqAuthApplication(
             repository=repository,
-            wechat_gateway=WechatMiniClient(settings),
+            qq_gateway=QqConnectClient(settings),
             settings=settings,
         )
     if simulation_application is None:

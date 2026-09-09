@@ -240,8 +240,9 @@ class AppRuntimeReadinessTest(unittest.TestCase):
                 database_url="postgresql://redacted",
                 worker_heartbeat_path=str(heartbeat),
                 worker_heartbeat_ttl_seconds=45,
-                wechat_appid="wx-app",
-                wechat_secret="secret",
+                qq_appid="1905584243",
+                qq_redirect_uri="https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
+                qq_app_key="secret",
             )
             environment = {
                 "WOW_APP_ENV": "candidate",

@@ -1,12 +1,10 @@
-from datetime import datetime
-from typing import Annotated
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, Response
-from pydantic import BaseModel, ConfigDict, Field
+from urllib.parse import urlsplit
+from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Request, Response
+from pydantic import BaseModel, ConfigDict
 
 from server.app.api.dependencies import (
-    require_mini_principal,
     require_mutating_principal,
     require_principal,
     require_web_origin_dependency,
@@ -15,8 +13,8 @@ from server.app.api.dependencies import (
 from server.app.api.errors import ApiProblem
 from server.app.identity.application import (
     AuthApplicationError,
-    WebAuthApplication,
 )
+from server.app.identity.qq_application import QqAuthApplication
 from server.app.identity.domain import Principal
 from server.app.identity.request_auth import credential_for_principal
 from server.app.platform.cookies import clear_web_auth_cookies, set_web_auth_cookies
@@ -26,50 +24,14 @@ from server.app.platform.csrf import issue_csrf_token
 router = APIRouter()
 
 
-class WebLoginCreateBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    browserVerifier: str = Field(
-        min_length=43,
-        max_length=128,
-        pattern=r"^[A-Za-z0-9_-]+$",
-    )
-
-
-class MiniExchangeBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    code: str = Field(min_length=1, max_length=512, pattern=r"^\S+$")
-
-
-class MiniConfirmBody(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    sceneTicket: str = Field(
-        min_length=1,
-        max_length=32,
-        pattern=r"^[A-Za-z0-9_-]+$",
-    )
-
-
 def _status_for_code(code: str) -> int:
     return {
-        "AVATAR_INVALID": 422,
-        "AVATAR_MINI_REQUIRED": 403,
+        "QQ_NOT_CONFIGURED": 503,
         "AUTH_REQUIRED": 401,
         "TEST_LOGIN_DISABLED": 404,
         "ORIGIN_REJECTED": 403,
         "VALIDATION_ERROR": 422,
-        "WEB_LOGIN_NOT_FOUND": 404,
-        "WEB_LOGIN_EXPIRED": 410,
-        "WEB_LOGIN_CANCELLED": 409,
-        "WEB_LOGIN_VERIFIER_MISMATCH": 403,
-        "WEB_LOGIN_ALREADY_CONSUMED": 409,
-        "WEB_LOGIN_NOT_CONFIRMED": 409,
-        "WEB_LOGIN_RESTART_REQUIRED": 409,
         "IDENTITY_CONFLICT": 409,
-        "WECHAT_NOT_CONFIGURED": 503,
-        "WECHAT_PROVIDER_UNAVAILABLE": 502,
     }.get(code, 500)
 
 
@@ -85,148 +47,12 @@ def _request_id(request: Request) -> str:
     return request.state.request_id
 
 
-def _status_payload(request: Request, status: str, expires_at: datetime) -> dict[str, object]:
-    return {
-        "status": status,
-        "expiresAt": expires_at.isoformat(),
-        "requestId": _request_id(request),
-    }
-
-
-def _required_header(value: str | None, *, name: str) -> str:
-    if not value:
-        raise ApiProblem(status_code=422, code="VALIDATION_ERROR", message=f"{name} is required")
-    return value
-
-
-@router.post("/api/v2/auth/wechat/web/login-sessions", status_code=201)
-def create_web_login_session(
-    body: WebLoginCreateBody,
-    request: Request,
-    _origin: None = Depends(require_web_origin_dependency),
-    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        created = application.create_web_login(
-            body.browserVerifier,
-            idempotency_key=_required_header(idempotency_key, name="Idempotency-Key"),
-        )
-    except ApiProblem:
-        raise
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    return {
-        "sessionId": str(created.session.id),
-        "expiresAt": created.session.expires_at.isoformat(),
-        "qrDataUrl": created.qr_data_url,
-        "requestId": _request_id(request),
-    }
-
-
-@router.get("/api/v2/auth/wechat/web/login-sessions/{session_id}")
-def get_web_login_status(
-    session_id: UUID,
-    request: Request,
-    verifier: Annotated[str | None, Header(alias="X-Web-Login-Verifier")] = None,
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        status = application.get_web_login_status(
-            session_id,
-            _required_header(verifier, name="X-Web-Login-Verifier"),
-        )
-    except ApiProblem:
-        raise
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    return _status_payload(request, status.status.value, status.expires_at)
-
-
-@router.post("/api/v2/auth/wechat/web/login-sessions/{session_id}/exchange")
-def exchange_web_login_session(
-    session_id: UUID,
-    request: Request,
-    response: Response,
-    _origin: None = Depends(require_web_origin_dependency),
-    verifier: Annotated[str | None, Header(alias="X-Web-Login-Verifier")] = None,
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        issued = application.exchange_web_login(
-            session_id,
-            _required_header(verifier, name="X-Web-Login-Verifier"),
-        )
-    except ApiProblem:
-        raise
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    set_web_auth_cookies(
-        response,
-        request.app.state.settings,
-        session_token=issued.token,
-        csrf_token=issue_csrf_token(),
-    )
-    return {"authenticated": True, "requestId": _request_id(request)}
-
-
-@router.post("/api/v2/auth/wechat/web/login-sessions/{session_id}/cancel")
-def cancel_web_login_session(
-    session_id: UUID,
-    request: Request,
-    _origin: None = Depends(require_web_origin_dependency),
-    verifier: Annotated[str | None, Header(alias="X-Web-Login-Verifier")] = None,
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        status = application.cancel_web_login(
-            session_id,
-            _required_header(verifier, name="X-Web-Login-Verifier"),
-        )
-    except ApiProblem:
-        raise
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    return _status_payload(request, status.status.value, status.expires_at)
-
-
-@router.post("/api/v2/auth/wechat/mini/exchange")
-def exchange_mini_code(
-    body: MiniExchangeBody,
-    request: Request,
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        issued = application.exchange_mini_code(body.code)
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    return {
-        "accessToken": issued.token,
-        "expiresAt": issued.expires_at.isoformat(),
-        "requestId": _request_id(request),
-    }
-
-
-@router.post("/api/v2/auth/wechat/mini/web-login-confirm")
-def confirm_mini_web_login(
-    body: MiniConfirmBody,
-    request: Request,
-    principal: Principal = Depends(require_mini_principal),
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        application.confirm_mini_web_login(body.sceneTicket, principal)
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    return {"confirmed": True, "requestId": _request_id(request)}
-
-
 @router.post("/api/v2/auth/logout")
 def logout(
     request: Request,
     response: Response,
     principal: Principal = Depends(require_mutating_principal),
-    application: WebAuthApplication = Depends(web_auth_application),
+    application: QqAuthApplication = Depends(web_auth_application),
 ) -> dict[str, object]:
     try:
         application.logout(
@@ -248,7 +74,7 @@ def logout(
 def me(
     request: Request,
     principal: Principal = Depends(require_principal),
-    application: WebAuthApplication = Depends(web_auth_application),
+    application: QqAuthApplication = Depends(web_auth_application),
 ) -> dict[str, object]:
     try:
         view = application.me(principal)
@@ -257,37 +83,60 @@ def me(
     return {
         "connected": view.connected,
         "displayName": view.display_name,
+        **({"avatarUrl": view.avatar_url} if getattr(view, "avatar_url", None) else {}),
         "requestId": _request_id(request),
     }
 
 
-class AvatarBody(BaseModel):
+class QqLoginBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    avatarDataUrl: str = Field(min_length=1, max_length=349551)
+
+
+@router.post("/api/v2/auth/qq/login")
+def create_qq_login(body: QqLoginBody, request: Request, response: Response,
+                    _origin: None = Depends(require_web_origin_dependency),
+                    application: QqAuthApplication = Depends(web_auth_application)):
+    try:
+        created = application.create_qq_login()
+    except AuthApplicationError as error:
+        _raise_application_error(error)
+    response.set_cookie(key=request.app.state.settings.qq_binding_cookie_name, value=created.browser_binding,
+                        max_age=request.app.state.settings.web_login_ttl_seconds,
+                        secure=True, httponly=True, samesite="Lax", path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return {"authorizationUrl": created.authorization_url, "requestId": _request_id(request)}
+
+
+@router.get("/api/v2/auth/qq/callback")
+def qq_callback(request: Request, application: QqAuthApplication = Depends(web_auth_application)):
+    settings = request.app.state.settings
+    destination = settings.web_origin.rstrip("/") + settings.qq_landing_path
+    issued = None
+    try:
+        if request.headers.get("host") != urlsplit(settings.web_origin).netloc:
+            raise AuthApplicationError("QQ_LOGIN_INVALID", "Restart QQ login")
+        query = request.query_params
+        if any(len(query.getlist(key)) > 1 for key in ("state", "code", "error")):
+            raise AuthApplicationError("QQ_LOGIN_INVALID", "Restart QQ login")
+        issued = application.finish_qq_login(state=query.get("state", ""), code=query.get("code", ""),
+            error=query.get("error", ""), browser_binding=request.cookies.get(settings.qq_binding_cookie_name, ""))
+    except AuthApplicationError as error:
+        safe = error.code if error.code in {"QQ_LOGIN_INVALID", "QQ_LOGIN_CANCELLED", "QQ_NOT_CONFIGURED", "QQ_PROVIDER_UNAVAILABLE"} else "QQ_LOGIN_INVALID"
+        destination += "?loginError=" + safe
+    except Exception:
+        destination += "?loginError=QQ_PROVIDER_UNAVAILABLE"
+    response = RedirectResponse(destination, status_code=303)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.delete_cookie(key=request.app.state.settings.qq_binding_cookie_name, secure=True, httponly=True, samesite="Lax", path="/")
+    if issued is not None:
+        set_web_auth_cookies(response, settings, session_token=issued.token, csrf_token=issue_csrf_token())
+    return response
 
 
 @router.get("/api/v2/me/avatar")
-def get_avatar(
-    request: Request,
-    response: Response,
-    principal: Principal = Depends(require_principal),
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
+def get_avatar(request: Request, response: Response,
+               principal: Principal = Depends(require_principal),
+               application: QqAuthApplication = Depends(web_auth_application)):
     response.headers["Cache-Control"] = "private, no-store"
     return {"avatarDataUrl": application.avatar(principal), "requestId": _request_id(request)}
-
-
-@router.put("/api/v2/me/avatar")
-def set_avatar(
-    body: AvatarBody,
-    request: Request,
-    response: Response,
-    principal: Principal = Depends(require_mini_principal),
-    application: WebAuthApplication = Depends(web_auth_application),
-) -> dict[str, object]:
-    try:
-        avatar = application.set_avatar(principal, body.avatarDataUrl)
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    response.headers["Cache-Control"] = "private, no-store"
-    return {"avatarDataUrl": avatar, "requestId": _request_id(request)}

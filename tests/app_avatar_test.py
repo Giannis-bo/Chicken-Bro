@@ -88,32 +88,27 @@ class AvatarApiTest(unittest.TestCase):
         from tests.app_test_login_test import TestLoginTest
         return TestLoginTest.login(self, *args, **kwargs)
 
-    def test_authenticated_cross_client_avatar_and_other_user_isolation(self):
+    def test_web_avatar_read_is_owner_scoped_and_mini_upload_is_retired(self):
         from tests.app_test_login_test import KEY_B
-        token = self.login().json()['accessToken']
-        auth = {'Authorization': 'Bearer ' + token}
+        from server.app.identity.test_accounts import TEST_ACCOUNT_IDS
+        self.assertEqual(self.login().status_code, 200)
         value = data_url(png())
-        result = self.client.put('/api/v2/me/avatar', headers=auth, json={'avatarDataUrl': value})
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(self.client.get('/api/v2/me/avatar', headers=auth).json()['avatarDataUrl'], value)
-        self.login('web')
+        self.avatars[TEST_ACCOUNT_IDS['A']] = value
         response = self.client.get('/api/v2/me/avatar')
         self.assertEqual(response.json()['avatarDataUrl'], value)
         self.assertEqual(response.headers['cache-control'], 'private, no-store')
         self.assertEqual(set(response.json()), {'avatarDataUrl', 'requestId'})
-        self.assertEqual(self.client.put('/api/v2/me/avatar', json={'avatarDataUrl': value}).status_code, 401)
+        self.assertEqual(self.client.put('/api/v2/me/avatar', json={'avatarDataUrl':value}).status_code, 405)
+        self.assertEqual(self.login(account='B', credential=KEY_B).status_code, 200)
+        self.assertIsNone(self.client.get('/api/v2/me/avatar').json()['avatarDataUrl'])
         self.client.cookies.clear()
-        other = self.login(account='B', credential=KEY_B).json()['accessToken']
-        self.assertIsNone(self.client.get('/api/v2/me/avatar', headers={'Authorization': 'Bearer ' + other}).json()['avatarDataUrl'])
         self.assertEqual(self.client.get('/api/v2/me/avatar').status_code, 401)
 
-    def test_invalid_body_and_spoofed_owner_never_write(self):
-        token = self.login().json()['accessToken']
-        for body in [{'avatarDataUrl': 'data:image/svg+xml;base64,AAAA'},
-                     {'avatarDataUrl': data_url(png()), 'userId': str(uuid4())},
-                     {'avatarDataUrl': 'x' * 349552}]:
-            result = self.client.put('/api/v2/me/avatar', headers={'Authorization': 'Bearer ' + token}, json=body)
-            self.assertEqual(result.status_code, 422)
+    def test_retired_avatar_upload_never_writes(self):
+        self.login()
+        for body in [{'avatarDataUrl':'data:image/svg+xml;base64,AAAA'},
+                     {'avatarDataUrl':data_url(png()), 'userId':str(uuid4())}]:
+            self.assertEqual(self.client.put('/api/v2/me/avatar', json=body).status_code, 405)
         self.assertEqual(self.avatars, {})
 
     def test_repository_is_owner_scoped_and_disabled_user_cannot_write(self):

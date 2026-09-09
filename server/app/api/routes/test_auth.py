@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from server.app.api.dependencies import require_web_origin_dependency, web_auth_application
 from server.app.api.routes.auth import _raise_application_error
-from server.app.identity.application import AuthApplicationError, WebAuthApplication
+from server.app.identity.application import AuthApplicationError
+from server.app.identity.qq_application import QqAuthApplication
 from server.app.platform.cookies import set_web_auth_cookies
 from server.app.platform.csrf import issue_csrf_token
 
@@ -20,22 +21,10 @@ class TestLoginBody(BaseModel):
     credential: str = Field(min_length=32, max_length=256, repr=False)
 
 
-@router.post("/mini")
-def login_mini(body: TestLoginBody, request: Request, response: Response,
-               application: WebAuthApplication = Depends(web_auth_application)) -> dict[str, object]:
-    try:
-        issued = application.exchange_test_account(body.account, body.credential, "mini_bearer")
-    except AuthApplicationError as error:
-        _raise_application_error(error)
-    response.headers["Cache-Control"] = "no-store"
-    return {"accessToken": issued.token, "expiresAt": issued.expires_at.isoformat(),
-            "requestId": request.state.request_id}
-
-
 @router.post("/web")
 def login_web(body: TestLoginBody, request: Request, response: Response,
               _origin: None = Depends(require_web_origin_dependency),
-              application: WebAuthApplication = Depends(web_auth_application)) -> dict[str, object]:
+              application: QqAuthApplication = Depends(web_auth_application)) -> dict[str, object]:
     try:
         issued = application.exchange_test_account(body.account, body.credential, "web_cookie")
     except AuthApplicationError as error:
