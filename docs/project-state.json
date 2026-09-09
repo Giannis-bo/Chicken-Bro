@@ -266,10 +266,16 @@
       }
     },
     "simcExperiments": {
-      "status": "in_progress",
+      "status": "live_verified",
       "plan": "docs/plans/2026-09-09-simc-scenario-experiments.md",
       "implementationAuthorized": true,
-      "productionCutoverAuthorized": true
+      "productionCutoverAuthorized": true,
+      "sourceCommit": "7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb",
+      "candidateVerified": true,
+      "liveBusinessVerified": true,
+      "modelEndToEndVerified": true,
+      "releaseEvidence": "artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md",
+      "userClosureAuthorized": true
     }
   },
   "miniRetirement": {

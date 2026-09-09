@@ -45,3 +45,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 ## 小程序清理发布（2026-09-09）
 
 当前后端/Web 源码 `7adcdeffa3566add1cc9fe33325df5b7360e29df`，目录前缀 `mini-retirement-`。精确清单、空闲门禁切换脚本、公网业务检查与恢复指针见[发布记录](../artifacts/verification/2026-09-09-mini-retirement/release/README.md)。没有变更生产环境配置或重放数据删除；旧 backend/Web 逐文件不变，备份 hash 再次匹配。
+
+## SimC 场景实验发布（2026-09-09）
+
+当前后端/Web 运行源码 `7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb`，API/Worker 同时启用 compiler v5。新增能力、完整 manifest、真实模型验收、空闲门禁及仅本批配置恢复入口见[发布记录](../artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md)。上一版 Mini 清理代码与 Web 保留不变；本轮没有再次进行数据清理或升级引擎。

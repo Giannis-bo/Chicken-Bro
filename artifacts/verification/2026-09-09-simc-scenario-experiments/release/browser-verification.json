@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb",
+  "url": "https://www.chickenbro.cloud/simc",
+  "observations": {
+    "existingQqSessionRestored": true,
+    "serviceNormal": true,
+    "existingChatHistoryVisible": true,
+    "simcWorkbenchVisible": true,
+    "engineVersion": "1210-01 / 12.1.0.69299",
+    "legacyReportReadable": true
+  },
+  "freshInteractiveQqLogin": false,
+  "newUserMessagesSent": false,
+  "browserTestTabClosed": true
+}
