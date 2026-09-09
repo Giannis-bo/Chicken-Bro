@@ -49,3 +49,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 ## SimC 场景实验发布（2026-09-09）
 
 当前后端/Web 运行源码 `7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb`，API/Worker 同时启用 compiler v5。新增能力、完整 manifest、真实模型验收、空闲门禁及仅本批配置恢复入口见[发布记录](../artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md)。上一版 Mini 清理代码与 Web 保留不变；本轮没有再次进行数据清理或升级引擎。
+
+## 运营后台发布（2026-09-09）
+
+`/admin` 已发布并绑定经用户确认的真实 QQ 内部账号。权限配置 `/etc/chickenbro-admin-ops-03275ee5ce67.env` 由本批 API/Worker drop-in 同时加载，只有一个 `WOW_ADMIN_USER_ID`，不可用QQ数字、昵称或固定测试账号代替；空配置拒绝所有访问。后续部署须保留该配置及管理员路由，并检查本人200、普通账号403与匿名401。后端运行源码03275ee5c、最终Web源码8fba1535f；清单、业务证据、并行任务边界和精确恢复入口见[发布记录](../artifacts/verification/2026-09-09-admin-ops/README.md)。

@@ -1,0 +1,18 @@
+{
+  "url": "https://www.chickenbro.cloud/admin",
+  "realExistingQqSession": true,
+  "confirmedByUser": true,
+  "administratorAccess": true,
+  "dailyPresetChangedAndRefreshed": true,
+  "desktopNativeControls": "verified_after_Web_fix",
+  "mobileWidth": 390,
+  "mobileLayout": "verified",
+  "noNewInteractiveQqOAuth": true,
+  "observedCounts": {
+    "totalUsers": 11,
+    "activeUsers": 7,
+    "questions": 32,
+    "simulations": 5
+  },
+  "observedAt": "2026-09-09T19:58:02+08:00"
+}
