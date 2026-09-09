@@ -1284,3 +1284,16 @@
     &[data-empty='false'] .chatScene { top: 0; height: 100%; }
   }
 }
+
+.composerImageButton {
+  flex-shrink: 0;
+  padding: 7px 10px;
+  border: 1px solid #d8ccc5;
+  border-radius: 7px;
+  color: #815249;
+  background: #faf7f4;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.composerRow .composerImageButton { width: auto; min-width: 72px; height: 36px; }

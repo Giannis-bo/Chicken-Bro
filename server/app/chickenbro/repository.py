@@ -22,7 +22,10 @@ def _row_value(row: Any, key: str, index: int) -> Any:
     return row[index]
 
 
-class PostgresChatRepository:
+from server.app.chickenbro.image_repository import ChatImageRepository
+
+
+class PostgresChatRepository(ChatImageRepository):
     """Owner-scoped repository for the additive v2 chat tables."""
 
     def __init__(self, connection_factory: Callable[[], Any]):
@@ -76,6 +79,9 @@ class PostgresChatRepository:
                                (user_id, conversation_id))
                 if cursor.fetchone() is not None:
                     raise ConversationBusy()
+                cursor.execute("""UPDATE chat.images SET expires_at=now()+interval '7 days'
+                                  WHERE user_id=%s AND message_id IN (SELECT id FROM chat.messages WHERE user_id=%s AND conversation_id=%s)""",
+                               (user_id,user_id,conversation_id))
                 cursor.execute("UPDATE chat.conversations SET status = 'archived' WHERE user_id = %s AND id = %s",
                                (user_id, conversation_id))
 
@@ -133,7 +139,7 @@ class PostgresChatRepository:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at
+                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at, image_ids
                     FROM chat.messages
                     WHERE user_id = %s AND conversation_id = %s
                     ORDER BY created_at, id
@@ -205,7 +211,7 @@ class PostgresChatRepository:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at
+                    SELECT id, conversation_id, user_id, role, content, client_message_id, created_at, image_ids
                     FROM chat.messages
                     WHERE user_id = %s AND client_message_id = %s
                     """,
@@ -291,6 +297,7 @@ class PostgresChatRepository:
         now: datetime,
         *,
         runtime_revision: str,
+        image_ids: tuple[UUID, ...] = (),
     ) -> tuple[Message, AgentRun]:
         message_id = uuid4()
         run_id = uuid4()
@@ -304,12 +311,14 @@ class PostgresChatRepository:
                 cursor.execute(
                     """
                     INSERT INTO chat.messages (
-                        id, conversation_id, user_id, role, content, client_message_id, created_at
+                        id, conversation_id, user_id, role, content, client_message_id, created_at, image_ids
                     )
-                    VALUES (%s, %s, %s, 'user', %s, %s, %s)
+                    VALUES (%s, %s, %s, 'user', %s, %s, %s, %s)
                     """,
-                    (message_id, conversation_id, user_id, content, client_message_id, now),
+                    (message_id, conversation_id, user_id, content, client_message_id, now, list(image_ids)),
                 )
+                if image_ids:
+                    self.bind_images(cursor, user_id, image_ids, message_id, now)
                 try:
                     cursor.execute(
                         """
@@ -352,6 +361,7 @@ class PostgresChatRepository:
                 content=content,
                 client_message_id=client_message_id,
                 created_at=now,
+                image_ids=image_ids,
             ),
             AgentRun(
                 id=run_id,
@@ -458,6 +468,7 @@ class PostgresChatRepository:
             content=str(_row_value(row, "content", 4) or ""),
             client_message_id=_row_value(row, "client_message_id", 5),
             created_at=_row_value(row, "created_at", 6),
+            image_ids=tuple(_row_value(row, "image_ids", 7)),
         )
 
     @staticmethod

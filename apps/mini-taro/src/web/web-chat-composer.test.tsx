@@ -3,14 +3,15 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), streamMessage: vi.fn() }))
+const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), streamMessage: vi.fn(), imageCapabilities: vi.fn(), uploadImage: vi.fn(), getImage: vi.fn(), removeImage: vi.fn(), choose: vi.fn() }))
+vi.mock('../features/chat/image-picker', () => ({ chooseChatImages: api.choose }))
 vi.mock('@wow-mini/api-client', () => ({ wowApi: { chat: api } }))
 vi.mock('@tarojs/components', async () => {
   const { createElement: element } = await import('react')
   const host = (tag: string) => (props: Record<string, unknown>) => element(tag,
     Object.fromEntries(Object.entries(props).filter(([key]) =>
       ['children', 'onClick', 'disabled', 'className', 'id'].includes(key) || key.startsWith('data-'))))
-  return { View: host('div'), Text: host('span'), Button: host('button'), ScrollView: host('div'),
+  return { Image: host('img'), View: host('div'), Text: host('span'), Button: host('button'), ScrollView: host('div'),
     Textarea: (props: { value: string; onInput: (event: { detail: { value: string } }) => void }) =>
       element('textarea', { value: props.value, onChange: (event: { target: { value: string } }) =>
         props.onInput({ detail: { value: event.target.value } }) }) }
@@ -26,6 +27,7 @@ describe('Web chat composer interactions', () => {
     vi.clearAllMocks()
     const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
     const conversation = { id: 'chat-one', title: 'Test', updatedAt: '2026-09-05' }
+    api.imageCapabilities.mockResolvedValue(success({enabled: true, maxImages: 3, maxBytes: 5242880}))
     api.list.mockResolvedValue(success({ items: [conversation], nextCursor: null }))
     api.get.mockResolvedValue(success({ ...conversation, messages: [] }))
     api.streamMessage.mockReturnValue({ abort: vi.fn() })
@@ -116,11 +118,35 @@ describe('Web chat composer interactions', () => {
     expect((await enter()).defaultPrevented).toBe(true)
     expect(api.streamMessage).toHaveBeenCalledTimes(1)
     expect(api.streamMessage.mock.calls[0]?.[1].content).toBe('你好')
+    expect(input().value).toBe('你好')
+    await act(async () => api.streamMessage.mock.calls[0]?.[2].onEvent({
+      type: 'started', conversationId: 'chat-one', requestId: 'request', runId: 'run', sequence: 1,
+    }))
     expect(input().value).toBe('')
     await draft('下一条')
     await enter()
     expect(api.streamMessage).toHaveBeenCalledTimes(1)
     expect(input().value).toBe('下一条')
+  })
+
+  it('waits for image upload, supports image-only sends, and retains images on admission rejection', async () => {
+    let finish!: (value: unknown) => void
+    api.choose.mockResolvedValue(['data:image/png;base64,aGVsbG8='])
+    api.uploadImage.mockReturnValue(new Promise(resolve => {finish = resolve}))
+    const add = container.querySelector<HTMLButtonElement>('[aria-label="添加图片"]')!
+    await act(async () => add.click())
+    expect(container.textContent).toContain('上传中')
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(true)
+    const image = {id: 'image-one', mimeType: 'image/png', width: 2, height: 2}
+    await act(async () => finish({fromFallback: false, payload: image}))
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(false)
+    api.getImage.mockResolvedValue({fromFallback: false, payload: {dataUrl: 'data:image/png;base64,aGVsbG8='}})
+    await enter()
+    expect(api.streamMessage.mock.calls[0]?.[1]).toMatchObject({content: '', imageIds: ['image-one']})
+    await act(async () => api.streamMessage.mock.calls[0]?.[2].onFailure('CHAT_ACCOUNT_BUSY'))
+    expect(container.textContent).toContain('移除图片')
+    expect(container.textContent).toContain('鸡哥正在回复你的另一条消息')
+    expect(api.removeImage).not.toHaveBeenCalled()
   })
 
   it('keeps Shift+Enter as a newline without sending', async () => {

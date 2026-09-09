@@ -540,7 +540,10 @@ class ChatApplicationTest(unittest.TestCase):
 
         self.assertEqual(events[-1].event_type, "completed")
         self.assertEqual(codex.timeout_seconds, 480)
-        self.assertEqual(json.loads(codex.prompt), {"messages": [{"role": "user", "content": "分析这场战斗"}]})
+        payload = json.loads(codex.prompt)
+        self.assertEqual(payload["messages"], [{"role": "user", "content": "分析这场战斗"}])
+        self.assertFalse(payload["productCapabilities"]["imageInputEnabled"])
+        self.assertIn("尚未开放", payload["productCapabilities"]["instruction"])
 
     def test_native_codex_prompt_preserves_source_links_as_user_data(self):
         codex = CapturingCodex(events=[{"type": "completed", "text": "已给出结论"}])

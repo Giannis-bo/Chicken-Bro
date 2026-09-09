@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from server.app.chickenbro.stream import CodexStreamError
-from server.app.chickenbro.codex_stdio import CodexStdioSession
+from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images
 from server.codex_worker import (
     DEFAULT_CODEX_BIN,
     DEFAULT_JOBS_DIR,
@@ -120,7 +120,7 @@ class CodexExecutionFailed(CodexStreamError):
 class CodexChatPort(Protocol):
     runtime_revision: str
 
-    def stream(self, *, prompt: str, timeout_seconds: int) -> Iterator[dict[str, Any]]:
+    def stream(self, *, prompt: str, timeout_seconds: int, images=()) -> Iterator[dict[str, Any]]:
         raise NotImplementedError
 
 
@@ -171,17 +171,18 @@ class NativeCodexChatAdapter:
         ).strip()
         self._popen = popen
 
-    def stream_for_chat(self, *, principal, conversation_id, run_id, prompt, timeout_seconds):
+    def stream_for_chat(self, *, principal, conversation_id, run_id, prompt, timeout_seconds, images=()):
         from server.app.chickenbro.simulation_tools import SimulationToolContext
         context = SimulationToolContext(principal=principal, conversation_id=conversation_id, run_id=run_id)
-        yield from self.stream(prompt=prompt, timeout_seconds=timeout_seconds, tool_context=context)
+        yield from self.stream(prompt=prompt, timeout_seconds=timeout_seconds, tool_context=context, images=images)
 
-    def stream(self, *, prompt: str, timeout_seconds: int, tool_context=None) -> Iterator[dict[str, Any]]:
+    def stream(self, *, prompt: str, timeout_seconds: int, tool_context=None, images=()) -> Iterator[dict[str, Any]]:
         if not self._enabled:
             raise CodexUnavailable()
         if not isinstance(prompt, str) or not prompt.strip():
             raise CodexStreamError("CODEX_OUTPUT_INVALID")
 
+        images = validate_images(images)
         developer_instructions = _load_agent_rules()
         profile_config = _load_profile(self._profile, allow_simulation=(
             self._simulation_gateway is not None and tool_context is not None))
@@ -243,7 +244,7 @@ class NativeCodexChatAdapter:
         try:
             terminal = None
             for event in session.stream(prompt=prompt, job_dir=job_dir, developer_instructions=developer_instructions,
-                                        profile_config=profile_config):
+                                        profile_config=profile_config, images=images):
                 if event["type"] == "completed":
                     terminal = event
                 else:

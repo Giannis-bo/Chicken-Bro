@@ -1,0 +1,10 @@
+.row { display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 0; }
+.thumbnail { display: block; width: 96px; height: 96px; padding: 0; border: 1px solid #b9b1a6; border-radius: 8px; overflow: hidden; background: transparent; }
+.image { width: 100%; height: 100%; }
+.overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; }
+.close { position: absolute; top: 24px; right: 24px; z-index: 1; }
+.expanded { width: 95vw; height: 85vh; }
+.image :global(img), .expanded :global(img) { position: static !important; width: 100% !important; height: 100% !important; transform: none !important; object-fit: contain; }
+.status { display: block; margin: 5px 0; font-size: 12px; color: #71665d; }
+.action { display: inline-block; margin: 0 6px 0 0; padding: 3px 8px; border: 1px solid #c9bdb3; border-radius: 5px; background: #faf7f3; color: #6e4036; font-size: 12px; line-height: 1.6; }
+.row .action { color: #6e4036 !important; }

@@ -195,5 +195,17 @@
     "latestMiniVersion": "1.0.5",
     "latestMiniUpload": "succeeded",
     "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1"
+  },
+  "incrementalWork": {
+    "chatImages": {
+      "status": "deployment_in_progress",
+      "plan": "docs/plans/2026-09-09-chat-images.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "userAcceptance": "not_run",
+      "evidence": "artifacts/verification/2026-09-09-chat-images/README.md",
+      "miniVerification": "user_waived_2026-09-09",
+      "dependencyInstallationAuthorized": true
+    }
   }
 }

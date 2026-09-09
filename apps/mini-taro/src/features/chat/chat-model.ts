@@ -5,6 +5,7 @@ import type {
   ClientAuthContext,
 } from '@wow-mini/api-client'
 import type {
+  ChatImage,
   ChatEventEnvelope,
   ConversationDetail,
   ConversationSummary,
@@ -18,6 +19,7 @@ export interface ChatModelState {
   conversations: readonly ConversationSummary[]
   nextCursor: string | null
   activeConversation: ConversationDetail | null
+  pendingUserImages: readonly ChatImage[]
   pendingUserContent: string
   streamText: string
   streamProgress: string
@@ -40,6 +42,7 @@ const initialState: ChatModelState = {
   conversations: [],
   nextCursor: null,
   activeConversation: null,
+  pendingUserImages: [],
   pendingUserContent: '',
   streamText: '',
   streamProgress: '',
@@ -86,6 +89,7 @@ export class ChatModel {
   private streamRunId = ''
   private streamGeneration = 0
   private historyGeneration = 0
+  private pendingImageSend: { signature: string; clientMessageId: string; idempotencyKey: string } | null = null
   private pendingCreate: { title: string; idempotencyKey: string } | null = null
   private createInFlight: Promise<ConversationSummary | null> | null = null
 
@@ -165,6 +169,7 @@ export class ChatModel {
       conversations,
       nextCursor: result.payload.nextCursor,
       activeConversation: null,
+      pendingUserImages: [],
       pendingUserContent: '',
       streamText: '',
       streamProgress: '',
@@ -215,7 +220,7 @@ export class ChatModel {
     this.pendingBackgroundRefresh.delete(conversationId)
     const generation = this.beginViewRequest()
     this.openingId = conversationId
-    this.update({ phase: 'loading', pendingUserContent: '', streamText: '', streamProgress: '', streamProgressStatus: 'thinking', streamCompletedAt: '', streamDurationMs: null, })
+    this.update({ phase: 'loading', pendingUserImages: [], pendingUserContent: '', streamText: '', streamProgress: '', streamProgressStatus: 'thinking', streamCompletedAt: '', streamDurationMs: null, })
     let auth: ClientAuthContext
     try {
       auth = this.authProvider()
@@ -311,11 +316,11 @@ export class ChatModel {
     return result.payload
   }
 
-  send(content: string): ApiStreamTask | null {
+  send(content: string, images: readonly ChatImage[] = [], onAccepted?: () => void): ApiStreamTask | null {
     if (this.state.phase === 'sending') return this.activeStream
     const conversation = this.state.activeConversation
     const normalized = content.trim()
-    if (!conversation || !normalized) {
+    if (!conversation || (!normalized && !images.length)) {
       this.fail('CHAT_MESSAGE_REQUIRED', '请选择会话并输入消息', false)
       return null
     }
@@ -335,6 +340,7 @@ export class ChatModel {
     this.update({
       phase: 'sending',
       pendingUserContent: normalized,
+      pendingUserImages: images,
       streamText: '',
       streamProgress: '',
       streamProgressStatus: 'thinking',
@@ -344,8 +350,14 @@ export class ChatModel {
       errorMessage: '',
       retryable: false,
     })
-    const clientMessageId = boundedRequestId(this.requestId(), 'client-message')
-    const idempotencyKey = boundedRequestId(this.requestId(), 'idempotency')
+    const signature = JSON.stringify([conversation.id, normalized, images.map(image => image.id)])
+    const requestIdentity = images.length && this.pendingImageSend?.signature === signature
+      ? this.pendingImageSend
+      : { signature, clientMessageId: boundedRequestId(this.requestId(), 'client-message'),
+          idempotencyKey: boundedRequestId(this.requestId(), 'idempotency') }
+    if (images.length) this.pendingImageSend = requestIdentity
+    const { clientMessageId, idempotencyKey } = requestIdentity
+    let admissionSeen = false
     let endedDuringStart = false
     let task: ApiStreamTask | null = null
     const finishBackground = () => {
@@ -360,7 +372,7 @@ export class ChatModel {
     try {
       task = this.client.streamMessage(
         conversation.id,
-        { content: normalized, clientMessageId },
+        { content: normalized, clientMessageId, ...(images.length ? {imageIds: images.map(image => image.id)} : {}) },
         {
           auth,
           idempotencyKey,
@@ -370,6 +382,10 @@ export class ChatModel {
               finishBackground()
             }
             this.onStreamEvent(event, conversation.id, generation)
+            if (generation === this.streamGeneration && !admissionSeen && event.type === 'started' && event.sequence === 1 && event.conversationId === conversation.id) {
+              admissionSeen = true
+              onAccepted?.()
+            }
             if (this.state.phase !== 'sending') endedDuringStart = true
           },
           onFailure: (error) => {
@@ -497,6 +513,7 @@ export class ChatModel {
     this.update({
       phase: preserveFailure ? 'blocked' : 'ready',
       activeConversation: result.payload,
+      pendingUserImages: [],
       pendingUserContent: '',
       streamText: '',
       streamProgress: '',

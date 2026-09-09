@@ -1,0 +1,152 @@
+{
+  "cliVersion": "codex-cli 0.153.4",
+  "prompt": "Read the eight-character code visible in the attached image. Return only the code. Do not use any tools.",
+  "expectedVisibleCode": "C8JM4JHJ",
+  "input": "one in-memory PNG image block; no answer in text prompt",
+  "productionVerified": false,
+  "protocol": [
+    {
+      "method": null,
+      "id": 1
+    },
+    {
+      "method": "remoteControl/status/changed",
+      "id": null
+    },
+    {
+      "method": null,
+      "id": 2
+    },
+    {
+      "method": "thread/started",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": null,
+      "id": 3
+    },
+    {
+      "method": "thread/status/changed",
+      "id": null
+    },
+    {
+      "method": "turn/started",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "item/started",
+      "id": null,
+      "itemType": "userMessage",
+      "phase": null
+    },
+    {
+      "method": "item/completed",
+      "id": null,
+      "itemType": "userMessage",
+      "phase": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "mcpServer/startupStatus/updated",
+      "id": null
+    },
+    {
+      "method": "item/started",
+      "id": null,
+      "itemType": "agentMessage",
+      "phase": "final_answer",
+      "text": ""
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/agentMessage/delta",
+      "id": null
+    },
+    {
+      "method": "item/completed",
+      "id": null,
+      "itemType": "agentMessage",
+      "phase": "final_answer",
+      "text": "C8JM4JHJ"
+    },
+    {
+      "method": "thread/tokenUsage/updated",
+      "id": null
+    },
+    {
+      "method": "account/rateLimits/updated",
+      "id": null
+    },
+    {
+      "method": "thread/status/changed",
+      "id": null
+    },
+    {
+      "method": "turn/completed",
+      "id": null,
+      "status": "completed",
+      "error": null
+    }
+  ],
+  "model": "gpt-6-astra",
+  "modelProvider": "openai",
+  "recognizedText": "C8JM4JHJ",
+  "passed": true,
+  "cliPath": "/Applications/ChatGPT.app/Contents/Resources/codex",
+  "imagePersisted": false,
+  "toolCallsObserved": 0
+}

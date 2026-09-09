@@ -1,11 +1,13 @@
 export * from './simc-workbench'
 export {
+  isChatImage,
   isChatEventEnvelope,
   isConversationDetail,
   isConversationPage,
   isConversationSummary,
 } from './chat'
 export type {
+  ChatImage,
   ChatEventEnvelope,
   ChatMessage,
   ChatMessageRole,

@@ -572,3 +572,13 @@ Web 仅更新 `/previews/login-home-20260907/`，当前目标 `/var/www/chickenb
 正式原始 WCL 链接读取就绪并完成模拟任务 `2110bcab-27da-4614-a6cf-da07590f5c3b`；新天赋还原路径绑定 SimC 源 f50a2121 的节点目录，未知或不同 runtime 拒绝使用旧目录。
 
 回滚须先确认当前 code 指针仍为上述 wcl 目录、入口无流式 Chat 且模拟/队列已排空；停止 API、再次排空再停 Worker，将 `/opt/chickenbro` 原子切回 `/opt/chickenbro-releases/29c5b2a258bb76c54726fad7285eca25643fbc13`，启动 API/Worker 并核对 readiness 与任务功能。Web 指针和所有现有配置不动。旧代码及新还原快照保留，不反向迁移或清理用户任务。
+
+## 截图输入部署前提（2026-09-09，尚未部署）
+
+见 [截图任务](plans/2026-09-09-chat-images.md)。新增迁移 `0007_chat_images` 为私有图片 bytea 与消息 image_ids；禁止把私有图片迁入公共 COS/CDN。依赖 Pillow 12.3.0 已于本轮获准新增与安装，部署环境须先验证其存在和解码测试。默认 `CHICKENBRO_CHAT_IMAGES_ENABLED` 不设置，入口关闭；只有隔离 Candidate 的真实视觉、Web 上传/历史、服务端身份隔离与异常测试通过后方可设置为 `1`（2026-09-09 用户明确免验小程序端）。本机 PATH CLI 0.144.1 不能使用 Astra，本机已有 0.153.4 通过随机图片识别；不可推断服务器版本。
+
+API 网关需对 `/api/v2/chat/images` 上传允许 7 MiB JSON body（base64 膨胀后），应用持续计数拒绝过量 body，原图及规范化图各限 5 MiB。不扩大其他上传入口。图片读响应 `private,no-store`，不可缓存。图片总量限每用户 100 MiB/1000 个有效 payload。
+
+上线时经部署授权配置每日执行 `python -m server.purge_chat_images --apply`；不带 `--apply` 只统计到期 payload 数/字节。仅清空 expires_at 已到期图像字节，保留消息、图片 metadata 和幂等墓碑；未发送 24 小时过期，归档后 7 天到期，归档立即禁止读取。清理未执行不能宣称保留策略已在生产生效。数据库备份会含图片，沿用正式数据库备份与访问控制。
+
+回滚先关闭图片入口，保留迁移和现存图片数据。旧客户端不请求 includeImages，旧服务不查询 image_ids，但纯图消息 content 为空；回退到完全不理解图片的旧服务会丢失纯图问题的模型上下文，应排空活动运行并以保留新读取能力、仅关闭上传/新发送作为首选回滚。不做反向 schema 删除。

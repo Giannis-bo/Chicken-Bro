@@ -35,6 +35,10 @@ function success<T>(payload: T): ApiResult<T> {
 }
 
 class FakeChatClient implements ChatClient {
+  imageCapabilities = vi.fn<ChatClient['imageCapabilities']>()
+  uploadImage = vi.fn<ChatClient['uploadImage']>()
+  getImage = vi.fn<ChatClient['getImage']>()
+  removeImage = vi.fn<ChatClient['removeImage']>()
   setFeedback = vi.fn(async (_conversationId: string, _messageId: string, resolved: boolean,
     options: Parameters<ChatClient['setFeedback']>[3]) => {
     this.calls.push({ name: 'feedback', auth: options.auth })
@@ -602,5 +606,59 @@ it('leaves sending state when the transport throws during startup', async () => 
   expect(() => model.send('你好')).not.toThrow()
   expect(model.get().phase).not.toBe('sending')
   expect(model.get().errorMessage).toBeTruthy()
+  model.dispose()
+})
+
+it('sends image-only input and clears a draft only after server admission', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({kind: 'web', csrfToken: 'csrf'}))
+  await model.load()
+  const send = vi.spyOn(client, 'streamMessage')
+  const accepted = vi.fn()
+  const image = {id: 'image-one', mimeType: 'image/png' as const, width: 2, height: 2}
+  model.send('', [image], accepted)
+  expect(send.mock.calls[0]?.[1]).toMatchObject({content: '', imageIds: ['image-one']})
+  expect(model.get().pendingUserImages).toEqual([image])
+  expect(accepted).not.toHaveBeenCalled()
+  client.emit({type: 'started', conversationId: conversation.id, requestId: 'request', runId: 'run', sequence: 1})
+  expect(accepted).toHaveBeenCalledOnce()
+  model.dispose()
+})
+it('does not consume an image draft when account admission fails', async () => {
+  const client = new FakeChatClient()
+  client.streamFailure = 'CHAT_ACCOUNT_BUSY'
+  const model = new ChatModel(client, () => ({kind: 'web', csrfToken: 'csrf'}))
+  await model.load()
+  const accepted = vi.fn()
+  model.send('', [{id: 'image-one', mimeType: 'image/png', width: 2, height: 2}], accepted)
+  expect(accepted).not.toHaveBeenCalled()
+  expect(model.get().errorCode).toBe('CHAT_ACCOUNT_BUSY')
+  model.dispose()
+})
+
+it('preserves image submission identity after an ambiguous transport failure', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({kind: 'web', csrfToken: 'csrf'}))
+  await model.load()
+  const send = vi.spyOn(client, 'streamMessage')
+  const image = {id: 'image-one', mimeType: 'image/png' as const, width: 2, height: 2}
+  model.send('', [image])
+  client.streamOptions!.onFailure('connection interrupted')
+  await model.recover()
+  model.send('', [image])
+  expect(send.mock.calls[1]?.[1]).toEqual(send.mock.calls[0]?.[1])
+  expect(send.mock.calls[1]?.[2].idempotencyKey).toEqual(send.mock.calls[0]?.[2].idempotencyKey)
+  model.dispose()
+})
+it('does not consume a draft when a previous conversation admits after navigation', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({kind: 'web', csrfToken: 'csrf'}))
+  await model.load()
+  const accepted = vi.fn()
+  model.send('', [{id: 'image-one', mimeType: 'image/png', width: 2, height: 2}], accepted)
+  const previous = client.streamOptions!
+  await model.open(otherConversation.id)
+  previous.onEvent({type: 'started', conversationId: conversation.id, requestId: 'request', runId: 'run', sequence: 1})
+  expect(accepted).not.toHaveBeenCalled()
   model.dispose()
 })
