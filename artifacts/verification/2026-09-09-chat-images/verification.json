@@ -1,42 +1,82 @@
 {
-  "baselineCommit": "7dcc4e0dd",
+  "sourceCommit": "72e6224f21eb0d5fb0635237d454eebe8b845884",
   "branch": "codex/chat-image-input",
-  "committed": false,
+  "committed": true,
   "backend": {
-    "passed": 427,
-    "log": "/tmp/chat-images-backend-final.log"
+    "passed": 450
+  },
+  "migration": {
+    "passed": 91,
+    "skipped": 0
+  },
+  "control": {
+    "passed": 62
   },
   "imageDecoder": {
     "passed": 4,
-    "runtime": "bundled Python 3.12 / Pillow 12.3.0"
+    "pillow": "12.3.0"
   },
-  "migration": {
-    "passed": 89,
-    "skipped": 0,
-    "log": "/tmp/chat-images-migration-final.log",
-    "database": "isolated local chat_images_verified"
+  "webTargeted": {
+    "passed": 35,
+    "files": 4
   },
-  "control": {
-    "passed": 62,
-    "log": "/tmp/chat-images-control-final.log"
+  "mergedDisconnectAndImages": {
+    "passed": 15
   },
-  "frontend": {
-    "passed": 346,
-    "files": 48,
-    "log": "/tmp/chat-image-client-tests.log"
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5Build": {
+    "status": "passed",
+    "warnings": 2,
+    "entryKiB": 718
   },
-  "realModel": "local_passed",
-  "fullIntegration": "not_verified",
+  "realModel": "candidate_and_public_production_passed",
+  "fullIntegration": "candidate_web_and_public_production_verified",
   "miniRealDevice": "user_waived",
-  "candidate": "not_deployed",
-  "production": "not_deployed",
-  "wechatPublicRelease": "not_uploaded",
-  "dependencyAuthorization": "pending_pillow",
-  "sourceWorkspaceWip": "not_integrated",
-  "miniVerificationWaiver": {
-    "date": "2026-09-09",
-    "instruction": "不需要验证微信小程序端了",
-    "scope": "remaining_mini_client_verification",
-    "previousEvidenceRetained": true
+  "candidate": "verified_then_stopped",
+  "production": "live_verified",
+  "wechatPublicRelease": "not_uploaded_this_task",
+  "dependencyAuthorization": "authorized_and_installed",
+  "publishedBadcaseCommitIntegrated": "913d901c7ed3e839cbe611b6037ed71f0848de8f",
+  "unrelatedSourceWip": "preserved",
+  "userAcceptance": "not_run",
+  "evidence": "deployment/README.md",
+  "freshLogs": {
+    "backend": {
+      "log": "/tmp/chat-images-merged-backend.log",
+      "sha256": "6276754ec50d4289bd709ce7840e1fde23c87bd71b2c0f146056bb6d9d6c4ce5"
+    },
+    "migration": {
+      "log": "/tmp/chat-images-merged-migration.log",
+      "sha256": "a8c64257c08244b67ab2e28035452d9567cfb85815c3781f9237fb4b37ac8686"
+    },
+    "control": {
+      "log": "/tmp/chat-images-merged-control.log",
+      "sha256": "6604f189890a84ad1957d8d5e7b0956939f428c083e7718da143228eafc68977"
+    },
+    "typecheck": {
+      "log": "/tmp/chat-images-merged-typecheck.log",
+      "sha256": "aed6ee8223eab6eee7861699d11283b125d9920f42e78fa6697ed006341ea1b4"
+    },
+    "lint": {
+      "log": "/tmp/chat-images-merged-lint.log",
+      "sha256": "91faf224832361458110331ca907132b7f7c5945fddde6c4bf3a0e9e71d56fd4"
+    },
+    "web": {
+      "log": "/tmp/chat-images-merged-web.log",
+      "sha256": "70bbfa39642d371c6943a45f62eda652222cbe7409298ad9dbfd68e1b9b9e80a"
+    },
+    "pillow": {
+      "log": "/tmp/chat-images-merged-pillow.log",
+      "sha256": "3dc28b8cea6e731738ee2a588f353d0b9cf5d163e2e77c955e348fa7699efd76"
+    },
+    "h5": {
+      "log": "/tmp/chat-images-merged-h5.log",
+      "sha256": "8bab7f3d387d09f78ce337c7486f5dad97334c2062d7d72ff274456498d84df8"
+    },
+    "targeted": {
+      "log": "/tmp/chat-images-merged-targeted.log",
+      "sha256": "9fdad82cb8bb0510b8f98713a7a23f001f61549d8c661b93ec36c26526ebb2bd"
+    }
   }
 }

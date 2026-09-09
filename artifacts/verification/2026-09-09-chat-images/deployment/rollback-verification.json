@@ -1,0 +1,10 @@
+{
+  "trigger": "retention service missing WOW_APP_ENV",
+  "zeroImageBindingsVerifiedByPromotion": true,
+  "previousCodeRestored": true,
+  "previousWebRestored": true,
+  "servicesRestartedAndReady": true,
+  "timerRemovedOnRollback": true,
+  "correction": "Added WOW_APP_ENV=production; isolated systemd dry-run passed; second promotion and retention apply passed",
+  "scope": "actual zero-write rollback only; after-write disable path reviewed but not exercised"
+}
