@@ -1,0 +1,376 @@
+{
+  "source_sha": "f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "93d1a1006f7afdee306f0041f10b55287511d70553af7ecbeea4594540c9310b",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "b371b9a184e35ba60441a76e5a560f9167410233fde745aa6d998ce00c54bc33",
+  "status": "passed",
+  "evidence_level": "candidate",
+  "observed_at": "2026-09-09T17:57:10.452157+00:00",
+  "batch_sha256": "201cd05a3a74bc0d94cf9105d57761edfd53b3e34921799bbf91ccc93d0b0052",
+  "cases": [
+    {
+      "case": "top10",
+      "runId": "b9c11f0c-ffc1-4f7a-b567-ecc0e1689038",
+      "seconds": 417.21,
+      "rankingPackets": 9,
+      "verifiedReportPackets": 123,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 10,
+      "rankingSnapshots": [
+        {
+          "bossId": 3379,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "08765a7a85445ad0558a7eeb3bc6b2806ffcfecb6ef501611964dfad907f9784",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3420,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "951456436d9a856c605ae1b6a6d80862cd5223d78bfaede8e2ad82253cfa7fae",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3421,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "62596c11b43af9236ad7c60b3649050029bc99c0d75756f513be2150378d5fe5",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3429,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "ce7d94b51a49be8504a823935390fa2ddce2bf0ee3416976a72636e159966bc9",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3445,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "ea8f8327d2580da72718e4d1e59a52e00fd89fd62f0b9007ef474e76fae1819f",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3455,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "9ff4efe4b4bd4a7e165c55eee26d6e0f02a0784dc4335b653bfbfc04ba77f1bf",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3470,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "6d08b1aaa76fec84a8e975182a1e02d17911cb05c7f5a89e2e64e5b86ca04283",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3492,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "417356c7da1d406f60e6be1a1033d0767fefeaf79fad05749d61ee3158866e1c",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3497,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "1925cabe213d55f0a9b31266b53088785943ac1a2f8ded4b96b4a66b8d3eef91",
+          "matchedRanks": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        }
+      ],
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "751b43f39af8607866af78ad4ae9452807c7cb4a974f99d0c3e9cbc365453ecc",
+      "independent_criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "950092974c29a18810389375de5bcb89d186a2dd568cdb8415a6fc9657910ede"
+    },
+    {
+      "case": "top100",
+      "runId": "87e6f17d-fdba-47ef-8b6f-70085b8a0e5b",
+      "seconds": 157.94,
+      "rankingPackets": 9,
+      "verifiedReportPackets": 18,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 100,
+      "rankingSnapshots": [
+        {
+          "bossId": 3379,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "f3cca9274f1a61e505673f50a866c47956e048ee6029d572962f3bdb80f03b11",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3420,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "8faabc1c762ea5b0daacea6391a697b2f4afe17cdf9f0e84cf6ca388f9cbeee4",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3421,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "bca72be13cd2e88785e000e4d0842730c95c0ce8b6088f8c6ae19e1d16c8373d",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3429,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "40c7c3a9c88ff7dc939b5be826164b8e6b7c1c3e8b8faa6cf7e51592ab90dbda",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 1,
+          "namedEntries": 99
+        },
+        {
+          "bossId": 3445,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "4047338ed689c9788938b7ee405b498508c15dfa2d2d925fa785c714bae3c641",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3455,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "17ed2deb0d1aae9dd653124f67f38cee2720fc67c579fb5a5db170680ec50e11",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3470,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "ced37d4d4e1eacbe44ef0eba2e7e5c9200bc58aa000b0ba305da373e2855cf91",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3492,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "726dfea13d8d99f5890f6f961a0af9cbd5a7478b9b05cd125a5d9c6f54e69169",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3497,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "69818f8f3ecb2158dce27827aa0401f74b7cc6a63a36e16107c9b0024543b72e",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        }
+      ],
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "10e3569f33352dda80fae43db0a6b5acfc8151f36a78d0ceca2693ca7e835b19",
+      "independent_criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "78486ee79ce5c9d23a7eb99ed90cccdbe9367d23d7f391b27b8a34a677d6f59d"
+    }
+  ],
+  "general": {
+    "mode": "candidate",
+    "source": "/opt/chickenbro-releases/badcase-f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "94290208-9458-470a-ae24-cc788d850d64",
+    "jobId": "17360ac9-e003-45ce-9c96-570b6b65ea4d",
+    "dps": 158677.5742292143,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "private_evidence_sha256": {
+    "candidate-validation-v10.json": "ebe1ae43b4a4ee88f0489b2b02f2ad1d970aa26f524b3407265e2e200266c678",
+    "candidate-semantic-v10.json": "bc7ddb09ed39607def49f0b90f5d9669472479e0cfd6866d072338de89732d63",
+    "general-candidate-v10.jsonl": "f53911a599491b8e926262b575872031aa8d5fee1cf9676eb4ea24495af65f3e",
+    "candidate.json": "4a94d90d44e35ed334c2a4acd34adfc148d73434221da8d712becec9720f2620",
+    "generalization.json": "2eebc340dae3db934d3abe9b91e97881c70966259e3c812066c3b2599a218298"
+  },
+  "user_acceptance": "not_claimed",
+  "limits": [
+    "Rank coverage is distinct from matched log sampling; do not claim all90/900 logs analyzed.",
+    "Top100 retained an ambiguous start-window phrase; the actual evidence/context is the first20 seconds after pull, not precombat. Original answer preserved.",
+    "QQ authorization URL/CSRF verified, no fresh interactive QQ login claimed.",
+    "Provider token/billing unavailable.",
+    "Production gate remains separate; V9 failure and real recovery are retained."
+  ]
+}
