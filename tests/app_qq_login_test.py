@@ -164,6 +164,20 @@ class QqLoginTest(unittest.TestCase):
         self.assertEqual(sum(value is not None for value in outcomes), 1)
         self.assertEqual(len(self.calls), 3)
 
+    def test_numeric_string_expiry_from_real_qq_response_authenticates(self):
+        self.token_reply['expires_in'] = '7776000'
+        state, _ = self.start()
+        self.assertEqual(self.callback(state).headers['location'], ORIGIN + '/')
+        self.assertEqual(self.client.get('/api/v2/me').status_code, 200)
+
+    def test_invalid_string_expiries_fail_closed(self):
+        for expiry in ('0', '-1', '1.5', '1e3', ' 3600', '٣٦٠٠', '9' * 100, ''):
+            with self.subTest(expiry=expiry):
+                self.token_reply['expires_in'] = expiry
+                state, _ = self.start()
+                self.assertIn('QQ_PROVIDER_UNAVAILABLE', self.callback(state).headers['location'])
+                self.assertFalse(self.repository.sessions)
+
     def test_malformed_provider_identity_and_token_fail_closed(self):
         for payload in [{}, {'client_id':'wrong', 'openid':'A'*32}, {'client_id':1905584243, 'openid':'A'*32},
                         {'client_id':'1905584243', 'openid':''}, {'client_id':'1905584243', 'openid':[]},

@@ -33,6 +33,9 @@ class QqConnectClient:
                 })
                 token = token_data.get('access_token')
                 expires = token_data.get('expires_in')
+                # QQ's live JSON response encodes expires_in as decimal text.
+                if isinstance(expires, str) and re.fullmatch(r'[0-9]{1,10}', expires):
+                    expires = int(expires)
                 if (not isinstance(token, str) or re.fullmatch(r'[A-Za-z0-9_-]{16,512}', token) is None
                         or type(expires) is not int or expires <= 0):
                     raise QqProviderError('QQ provider unavailable')
