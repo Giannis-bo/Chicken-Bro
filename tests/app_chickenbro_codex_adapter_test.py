@@ -92,7 +92,9 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertEqual(config['web_search'], 'disabled')
         self.assertFalse(config['features']['shell_tool'])
         self.assertFalse(config['features']['unified_exec'])
-        self.assertIn('BAD DRAFT', repaired.sent()[3]['params']['input'][0]['text'])
+        repair_input = repaired.sent()[3]['params']['input'][0]['text']
+        self.assertIn('BAD DRAFT', repair_input)
+        self.assertEqual(config['model_reasoning_effort'], 'low')
 
     def test_repair_failure_never_leaks_original_or_repaired_draft(self):
         from server.app.chickenbro import codex_adapter as module
@@ -117,13 +119,15 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         from server.app.chickenbro.codex_adapter import _repair_profile
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}):
             Path(directory, 'config.toml').write_text('[mcp_servers.inherited]\ncommand="private-command"\n')
-            original = {'model': 'gpt-6-astra', 'web_search': 'live', 'features': {'shell_tool': True},
+            original = {'model': 'gpt-6-astra', 'model_reasoning_effort': 'high', 'web_search': 'live', 'features': {'shell_tool': True},
                         'mcp_servers': {'chickenbro_toolbox': {'command': 'tool', 'enabled': True}}}
             result = _repair_profile(original)
         self.assertEqual(result['mcp_servers'], {'inherited': {'command': 'private-command', 'enabled': False},
                                                   'chickenbro_toolbox': {'command': 'tool', 'enabled': False}})
         self.assertTrue(original['features']['shell_tool'])
         self.assertEqual(result['model'], 'gpt-6-astra')
+        self.assertEqual(result['model_reasoning_effort'], 'low')
+        self.assertEqual(original['model_reasoning_effort'], 'high')
         self.assertTrue(all(result['features'][name] is False for name in ('shell_tool', 'unified_exec', 'apps', 'plugins', 'multi_agent')))
 
     def test_repair_deadline_uses_remaining_original_budget_and_rejects_tools(self):

@@ -118,6 +118,8 @@ def _repair_context(evidence):
 
 def _repair_profile(profile_config):
     config = copy.deepcopy(profile_config)
+    # Repair is bounded editorial correction, not a second research turn.
+    config['model_reasoning_effort'] = 'low'
     servers = {}
     root = Path(os.environ.get('CODEX_HOME') or Path.home() / '.codex')
     base = root / 'config.toml'

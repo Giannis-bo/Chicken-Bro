@@ -1,0 +1,33 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-d7a3e1f06a4976cd2897a4118d45e02884a37527",
+  "initialErrors": [
+    "WCL_GROUP_OBSERVATION_EMPTY",
+    "WCL_REFERENCE_MALFORMED"
+  ],
+  "toolEvents": [],
+  "capabilityEnvironmentAbsent": true,
+  "sourceProfileSha256": "0c0ee3d12fb5dbabca2dafd11cb90f3ecfd12fd3ca497e0c97e0952ec37cfffe",
+  "runtimeAgentRulesSha256": "5916a4170457f4a2c1c8c868e656fc0ad6f4865bc64968588d87f4a016b0e724",
+  "adapterSha256": "15774e422f6b1a6b45586c9bf73f13a5375629b176ea44f86ac98e8652d23057",
+  "groundingSha256": "11c24975665c178e81514e79465ce2c6c790a1bfbf98ccd3e80b58920dd68ac7",
+  "repairProfileSha256": "445d5d26c30ab39d8932eba6ee15bc03ee36430ec7de3f317d21203e595aefbe",
+  "repairInstructionSha256": "6e9a38c9b1f70b6ce4fa49f3f0e6471086d30bba21bef236ed88585bb184c7e9",
+  "repairInstructionChars": 565,
+  "actualToolPolicy": {
+    "webSearch": "disabled",
+    "shellToolEnabled": false,
+    "configuredMcpServerCount": 1,
+    "enabledMcpServerCount": 0,
+    "appsEnabled": false,
+    "pluginsEnabled": false
+  },
+  "repairInputSha256": "9750025f85c9ae84dc6f6fd3955b7621fb6a895af17e5633663b5fb835dbab9d",
+  "passed": false,
+  "errorCode": "CODEX_OUTPUT_INVALID",
+  "errorType": "CodexStreamError",
+  "seconds": 55.02,
+  "spawnCount": 1,
+  "design_only": true,
+  "production_attempted": false,
+  "remaining_budget_unchanged": true
+}
