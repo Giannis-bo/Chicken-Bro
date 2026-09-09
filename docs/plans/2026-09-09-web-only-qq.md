@@ -16,7 +16,7 @@
 - Preserve Chat and SimC ownership, account concurrency guard, idempotency and cloud-only SimulationCraft.
 - AppID is 1905584243. Secret is stored separately on the cloud, never in source, commands, reports or logs.
 - Production callback is `https://www.chickenbro.cloud/api/v2/auth/qq/callback`.
-- No new dependencies, downloads, destructive database migrations, source-history rewrites, push, production cutover or WeChat submission.
+- No new dependencies, destructive database migrations, source-history rewrites or WeChat submission. On 2026-09-09 the user authorized proceeding with QQ integration and full replacement, including isolated cloud verification and release; preserve rollback and existing data.
 - The user authorized saving the QQ credentials on the cloud. Store a root-owned 0600 environment file; do not restart production just to save it.
 - QQ accounts start with no old WeChat history. Preserve all old records. Existing WeChat-created sessions must not become QQ sessions implicitly.
 - Mini is retired from active routes/build/UI; historical source and evidence may remain recoverable but must not ship as executable product pages or authentication entry points.
@@ -60,3 +60,7 @@
 - [x] Run relevant control/ops checks, fresh backend/frontend/PG tests and diff check; fix integration failures and record limitations.
 - [x] Independently review complete change for OAuth/CSRF/replay/account isolation and Mini runtime retirement. Address valid findings and reverify changed paths.
 - [x] Report local code status, cloud secret status, QQ application review and deployment separately. Production release awaits concrete tested user acceptance.
+
+## Current release continuation — 2026-09-09
+
+QQ application approval and both callback registrations were verified in the user’s QQ console. Deploy an isolated QQ candidate on port 8794 with its own database, service units, Web files and state directory; do not reuse the historical six-phase provisioning script or its deletion authority. Production cutover follows actual QQ verification and preserves the current release for rollback.

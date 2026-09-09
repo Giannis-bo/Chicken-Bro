@@ -218,18 +218,23 @@
     "note": "Historical dual-client authorization and evidence; not authority for the QQ refactor or new deletion."
   },
   "qqWebRefactor": {
-    "status": "local_verified",
+    "status": "candidate_deployment_in_progress",
     "implementationAuthorized": true,
     "historyPolicy": "retain_without_migration",
     "cloudSecretSaved": true,
     "cloudSecretFile": "/etc/chickenbro-qq.env",
-    "applicationReview": "pending_as_of_user_screenshot",
-    "productionCutoverAuthorized": false,
+    "applicationReview": "approved_verified_in_qq_console_2026-09-09",
+    "productionCutoverAuthorized": true,
     "productionDeployed": false,
     "realQqLoginVerified": false,
     "miniProduct": "retired_from_local_runtime_and_build",
     "plan": "docs/plans/2026-09-09-web-only-qq.md",
     "verificationRecord": "artifacts/verification/2026-09-09-qq-web/README.md",
-    "localSourceCommit": "57db3afb32ded630dea2ae747f3d6a95515a1500"
+    "localSourceCommit": "57db3afb32ded630dea2ae747f3d6a95515a1500",
+    "candidateProvisioningAuthorized": true,
+    "registeredCallbacks": [
+      "https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
+      "https://www.chickenbro.cloud/api/v2/auth/qq/callback"
+    ]
   }
 }
