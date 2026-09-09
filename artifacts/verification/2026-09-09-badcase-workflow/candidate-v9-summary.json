@@ -1,0 +1,344 @@
+{
+  "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c7ee6f58d03ca8925e3aa8bd811a86cd3f58e4458c612a6e5e8fc8772979fdac",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "debe49010a24408cef110b6414e77b0fe203154e9ec0dfff6a78e079773d9ea2",
+  "status": "passed",
+  "evidence_level": "candidate",
+  "observed_at": "2026-09-09T17:01:40.022861+00:00",
+  "batch_sha256": "493f2c4b7f1fc2246c36d778d5e945e834f5f7ea4c75c1941fa97c09c4ab7dd6",
+  "cases": [
+    {
+      "case": "top10",
+      "runId": "6a8a531e-7a9f-4547-be6c-43da4440a0dc",
+      "seconds": 469.86,
+      "rankingPackets": 9,
+      "verifiedReportPackets": 61,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 10,
+      "rankingSnapshots": [
+        {
+          "bossId": 3379,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "08765a7a85445ad0558a7eeb3bc6b2806ffcfecb6ef501611964dfad907f9784",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3420,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "0066bdb7389d4cff38be5872f3f6f4a39dcb29e9fe7edd7e147256ba1b81f2c7",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3421,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "62596c11b43af9236ad7c60b3649050029bc99c0d75756f513be2150378d5fe5",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3429,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "ce7d94b51a49be8504a823935390fa2ddce2bf0ee3416976a72636e159966bc9",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3445,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "d686d13cd98cfbbebe4126b465369974cb73d48dc4f78e586ada5e3a0687f8df",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3455,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "9ff4efe4b4bd4a7e165c55eee26d6e0f02a0784dc4335b653bfbfc04ba77f1bf",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3470,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "6d08b1aaa76fec84a8e975182a1e02d17911cb05c7f5a89e2e64e5b86ca04283",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3492,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "417356c7da1d406f60e6be1a1033d0767fefeaf79fad05749d61ee3158866e1c",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        },
+        {
+          "bossId": 3497,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "1925cabe213d55f0a9b31266b53088785943ac1a2f8ded4b96b4a66b8d3eef91",
+          "matchedRanks": [
+            1,
+            2,
+            3
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 10
+        }
+      ],
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "e4043e9ce18583ac71d01ead5c704567e54d0cf1a31372abc6fa0f810bbdb4a3",
+      "semanticReview": "automatic provenance/coverage checks; human review separately recorded",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "ea9707fd9c317924f617940ed83defaadb3455d8a46bf6251ff0f713b9fed187"
+    },
+    {
+      "case": "top100",
+      "runId": "7b502a88-86de-4f6c-b33f-897c67a892ab",
+      "seconds": 217.1,
+      "rankingPackets": 9,
+      "verifiedReportPackets": 18,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 100,
+      "rankingSnapshots": [
+        {
+          "bossId": 3379,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "bd6437a458fcadad4b91d04c1eafc0883eeeb6c020d8a82b44230d773851d2e7",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3420,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "bd3d7e581a210d70e47ac89a5dc86b9382af12b04b189b124dc357c6444d89c4",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3421,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "bca72be13cd2e88785e000e4d0842730c95c0ce8b6088f8c6ae19e1d16c8373d",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3429,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "37414d62c0e813d1f1afb0fec7dc53db23d8a8178807f6d6625eb555a4713b2f",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 1,
+          "namedEntries": 99
+        },
+        {
+          "bossId": 3445,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "5aef02514ab6d833404cf48fa77f388778a6e2a3c193ba2739784651e6ad8df6",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3455,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "cd4f470d1d626c91fe131bb0d0b15789e0e66ba06adc879f10e8dc1a21586520",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3470,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "dbe76f8a6bc5d7813ad52830c1dbdd12b5ee7742099a741253f6a6cc45f04f4b",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3492,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "05ed2cf7a3974ae664fa3fcc84e1f87c275e00c7ba41624a4bbc1a2021f68cb4",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        },
+        {
+          "bossId": 3497,
+          "completeSnapshots": 1,
+          "distinctCompleteSnapshots": 1,
+          "snapshotDriftObserved": false,
+          "selectedSnapshotSha256": "76cec3a86f4ddd17246c78d4bc37f7658c9691d04923bf0b5bf8706e89c9c9a9",
+          "matchedRanks": [
+            1
+          ],
+          "anonymousEntries": 0,
+          "namedEntries": 100
+        }
+      ],
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "b24b2032da63e1f6641c86ec637c4ba385a4f8ab89a4a19d4bd3782386d8083a",
+      "semanticReview": "automatic provenance/coverage checks; human review separately recorded",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "f3176db571b898fd16af9e5beb158f2d6644147d0b2a4d041b8809e7452cd84f"
+    }
+  ],
+  "general": {
+    "mode": "candidate",
+    "source": "/opt/chickenbro-releases/badcase-0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "adb2c1fa-76bb-4eb1-b03b-e23df9e69ef5",
+    "jobId": "78cb021b-b10b-494d-b986-577fe07198e1",
+    "dps": 157984.03237302433,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "private_evidence_sha256": {
+    "candidate-validation-v9.json": "24f010b9a007f5a793de5e4ab45e640fc679160ee8fb4b2b9ae97b6c8aa9f37a",
+    "candidate-semantic-v9.json": "5eb2a4c9a5db35bdd4259cb51110d978997c2c6eeabad0285edeb55b3fab518c",
+    "general-candidate-v9.jsonl": "61c73b7aa2731e8fdc4ee62817dbe25e58172df8dbe82962138a408a7aca140e",
+    "candidate.json": "dda83c3abe2c2f08c9bb4c925982a8246e65f43d2d84ab0a8ae69e7a4eeac2ce",
+    "generalization.json": "76f8ebdf78a3fd3f653c5e16091b1d413e65582868356ff3b5af0b4d91158505"
+  },
+  "limitations": [
+    "Rank coverage is not analysis of all90/900 logs; actual sampled counts remain explicit.",
+    "Independent review retains ambiguous start-window wording in top10; top100 says four rows list timing but only three rows explicitly print it, while the fourth observation is supported by actual events. No original answer was modified. These presentation limits were judged non-blocking under fixed criteria, not claimed perfect text.",
+    "QQ authorization URL/CSRF checked; no fresh interactive QQ login claimed.",
+    "Provider token/billing unknown.",
+    "Production validation and user acceptance are separate."
+  ]
+}
