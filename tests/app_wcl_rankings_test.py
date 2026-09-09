@@ -58,6 +58,24 @@ class RankingsTests(unittest.TestCase):
         self.assertEqual(r['pagination']['returned'],100);self.assertEqual(r['pagination']['namedReturned'],99)
         self.assertEqual(r['pagination']['anonymousReturned'],1);self.assertEqual(r['pagination']['skippedInvalid'],0)
 
+    def test_anonymous_server_presence_matches_official_omission_shape(self):
+        from server.app.chickenbro import wcl_rankings as w
+        # Preserve omission: do not manufacture a server=None key using .get().
+        omitted={k:v for k,v in row(name='Opaque display').items() if k!='server'}
+        omitted['report']={'code':'a:QwErTyUiOpAsDfGh','fightID':17}
+        self.assertNotIn('server',omitted)
+        normal_omitted={**omitted,'report':{'code':'QwErTyUiOpAsDfGh','fightID':17}}
+        rows=[omitted,{**omitted,'server':None},{**omitted,'server':{}},normal_omitted]
+        data={'worldData':{'encounter':{'id':3470,'name':'Boss','zone':ZONE,'characterRankings':{'page':1,'hasMorePages':False,'rankings':rows}}}}
+        with patch.object(w,'_graphql',return_value=data):
+            r=self.query({'encounterId':3470,'difficulty':4,'className':'Druid','specName':'Feral','partition':1})
+        self.assertEqual([x['rank'] for x in r['rankings']],[1,2])
+        self.assertEqual(r['pagination']['anonymousReturned'],2)
+        self.assertEqual(r['pagination']['skippedInvalid'],2)
+        for entry in r['rankings']:
+            self.assertIsNone(entry['server']);self.assertIsNone(entry['reportUrl'])
+            self.assertFalse(entry['analysisEligible']);self.assertEqual(entry['identityStatus'],'anonymous')
+
     def test_anonymous_validation_is_strict_and_never_fills_skipped_rank(self):
         from server.app.chickenbro import wcl_rankings as w
         good=dict(row(),server=None,report={'code':'a:QwErTyUiOpAsDfGh','fightID':17})

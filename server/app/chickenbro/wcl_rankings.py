@@ -80,7 +80,7 @@ def query_wcl_rankings(options):
                 or any(not isinstance(r.get(k),str) or not r[k].strip() for k in ('name','class','spec'))):
                 invalid+=1;continue
             code=report.get('code');fight=report.get('fightID');amount=r.get('amount')
-            anonymous = ('server' in r and server is None and isinstance(code,str)
+            anonymous = (server is None and isinstance(code,str)
                          and re.fullmatch(r'a:[A-Za-z0-9]{16}',code) is not None)
             if (r['class'].casefold()!=class_name.casefold() or r['spec'].casefold()!=spec_name.casefold()
                 or type(fight) is not int or fight<1

@@ -1,0 +1,8 @@
+{
+  "observed_at": "2026-09-09T15:06:29.238883+00:00",
+  "status": "confirmed_protocol_omission_not_business_acceptance",
+  "source_sha": "ec73e5df67983e3f2c29133fba08ab9acc6a956f",
+  "upstream_receipt_sha256": "f59f003351e631ae9a389552d9c4b8d0d7e0fd3cccb22545259b0b1a1d80574a",
+  "previous_lossy_projection_sha256": "0833c68ace4ea90ef6dcb3ee22781372fe92a2caec3e77fd682fb931130d23d7",
+  "finding": "Official same-scope100-row response has one invalid ordinal89: server key absent; strict anonymous a:16 reference, positive fight, class/spec and finite positive amount are valid. Current normalizer unnecessarily required server key presence. Earlier whitelist inserted get(server), collapsing omitted and null; it cannot prove raw key presence. V8 permits omission or null only for strict anonymous shape, keeps unknown identity and rejects bad server objects/ordinary report missing server. No historical failure is reclassified."
+}

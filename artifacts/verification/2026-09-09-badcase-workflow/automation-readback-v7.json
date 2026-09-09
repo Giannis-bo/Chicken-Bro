@@ -1,0 +1,13 @@
+{
+  "id": "badcase",
+  "name": "鸡哥 Badcase 复盘与每日发布",
+  "status": "ACTIVE",
+  "kind": "heartbeat",
+  "schedule": "Asia/Shanghai daily00:00,06:00,12:00,18:00;18:00 conditional release",
+  "observed_at": "2026-09-09T14:55:13.300017+00:00",
+  "prompt_sha256": "42288b696303db46d51a7aee9fb099bacca4bb1c3375a09f35ae0264c3c39646",
+  "view_tool_success": true,
+  "configuration_readback_verified": true,
+  "next_scheduled_wake_observed": false,
+  "execution_boundary": "Scheduled configuration, manual real workflow execution and future automatic wake are distinct evidence; no claim of the next scheduled run yet."
+}
