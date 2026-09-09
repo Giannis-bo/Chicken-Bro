@@ -1,0 +1,3 @@
+{"phase": "api_restart", "passed": true, "pendingAdmissionSurvived": true, "activeGenerationSurvived": true, "singleAnswer": true, "singleSimulationSubmission": true, "idempotentReplay": true, "ownerIsolation": true, "accountExclusion": true}
+{"phase": "worker_killed", "passed": true, "failedWithoutWorkerRestart": true, "restartedWorkerDidNotReplay": true, "noDuplicateAnswer": true, "noDuplicateSimulation": true, "simulationExecution": "not_run"}
+{"database": "chickenbro_g2_candidate_20260909", "source": "/var/tmp/chickenbro-g2-merged-20260909", "childrenStopped": true}

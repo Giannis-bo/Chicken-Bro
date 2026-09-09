@@ -1,0 +1,32 @@
+{
+  "sourceCommit": "0e5c9089e638b4df4a304c888b1be5bfc392c21d",
+  "expectedBase": "/opt/chickenbro-releases/qq-a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+  "baseHashes": {
+    "server/app/chickenbro/agent/AGENTS.md": "a8c2eb1b1071af78d3618d584c32140a1dd832c23d5d638d04c76e1415516aa4",
+    "server/app/chickenbro/application.py": "c4ee4c3413ce63b87f99439b4625f3899056c21bc08b11d9ad264d7c4ec4d84b",
+    "server/app/chickenbro/durable.py": null,
+    "server/app/chickenbro/repository.py": "58fbacadfdad3bec7cf65e91a7290cdd861235334c6142fddd025376cbffb79c",
+    "server/app/chickenbro/source_gateway.py": "3a6dddc1026dc0298aabde756cc85eae94f92eba53349a9c485dfcd5c5031a44",
+    "server/app/chickenbro/wcl_source.py": "76905dff059b639e87e459ba40cd869c914bb14fecc80ab26dc1feb1587385eb",
+    "server/app/chickenbro/worker.py": null,
+    "server/app/chickenbro/worker_gateway.py": null,
+    "server/app/main.py": "4b396aaf936e894f696e4bba5397b123c41984229da75694e177b959ff958e00",
+    "server/app/worker/main.py": "8e64cd471d8b01a8260dd36ec97b5fd8028b2405a348cd61bbe11a5f80c5f91f",
+    "server/chickenbro_native_mcp.py": "9075d7c7dbaef959352d51d4caf92cf63b2eb47c2d2d83b2eb2d27556c82317f",
+    "server/migrations/product/0008_chat_durable_execution.sql": null
+  },
+  "files": {
+    "server/app/chickenbro/agent/AGENTS.md": "e77b129578c0e116b2bc0f3ac478fb075759c7d03bda3f2f1add2a2434ae8752",
+    "server/app/chickenbro/application.py": "1632bd60d31b07a3db96b2293affee4f5616bcc633aea1c1a8ce79da4b6dc18f",
+    "server/app/chickenbro/durable.py": "52b06deb95b05a53fff7a2346974d6a9f01289136a664bc5b0fdee5d85968d2a",
+    "server/app/chickenbro/repository.py": "dc8e0b6649259746dea6743663da3781804bdf83c61a4b77731ff4281740e18f",
+    "server/app/chickenbro/source_gateway.py": "0e91efb9584615a1557e2946636b5c2644dc1658aa99d30043779b9f9a519bb8",
+    "server/app/chickenbro/wcl_source.py": "ba68ccae6e04c394ca0efda418992b58af08f128ad55b19e2fd65983a56ecbd8",
+    "server/app/chickenbro/worker.py": "5dfcaf3cc16bd5187bee22f7a49f5366a55e0cc057cb8cdf504a832c6d0d9369",
+    "server/app/chickenbro/worker_gateway.py": "337bdc4e3a45e9a74b89c680329d77b45fca7d44c281668d40c4593043034bd9",
+    "server/app/main.py": "96f4f8ea9dd9d682f23bb157ccf5bbb77fefb54693e649ef8604a1fd04310a7f",
+    "server/app/worker/main.py": "b2fc3e4f8fb67c56879968d1960b901b266cbe6a77fad0d9f0b9fd6047e255d7",
+    "server/chickenbro_native_mcp.py": "746b4e3d35b865c4e68fa89a78729867e852dccb6dda2bb95ee79dd32fa5af39",
+    "server/migrations/product/0008_chat_durable_execution.sql": "6b4f0607ae4eafa3ccc6d3b4eefd34edf50a63209566eb8a89413beea533eceb"
+  }
+}

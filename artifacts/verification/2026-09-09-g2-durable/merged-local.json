@@ -1,0 +1,20 @@
+{
+  "runtimeCommit": "0e5c9089e638b4df4a304c888b1be5bfc392c21d",
+  "backend": {
+    "passed": 476
+  },
+  "migration": {
+    "passed": 102,
+    "skipped": 0,
+    "database": "g2merged"
+  },
+  "control": {
+    "passed": 62
+  },
+  "ops": {
+    "nodePassed": 80,
+    "pythonPassed": 11
+  },
+  "review": "no P1/P2 after QQ/image integration",
+  "clientBuild": "not changed; preserve deployed Web"
+}

@@ -126,6 +126,8 @@ owner,other=uuid4(),uuid4()
 mini,web,other_token=[secrets.token_urlsafe(32) for _ in range(3)]
 with connect() as conn:
     conn.execute('INSERT INTO identity.users(id) VALUES (%s),(%s)',(owner,other))
+    for uid in (owner,other):
+        conn.execute("INSERT INTO identity.user_identities(id,user_id,provider,app_context,provider_subject) VALUES (%s,%s,'qq',%s,%s)",(uuid4(),uid,env['WOW_QQ_APPID'],'g2-synthetic-'+uuid4().hex))
     for token,user,kind in [(mini,owner,'web_cookie'),(web,owner,'web_cookie'),(other_token,other,'web_cookie')]:
         conn.execute("INSERT INTO identity.auth_sessions(token_hash,user_id,kind,expires_at) VALUES (%s,%s,%s,now()+interval '15 minutes')",(hashlib.sha256(token.encode()).hexdigest(),user,kind))
 def request(path,body=None,key=None,transport='mini'):

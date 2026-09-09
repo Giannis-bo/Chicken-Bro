@@ -149,7 +149,13 @@ if a.action in ('preflight','stage','promote'):
             stopped=True
             service('stop','chickenbro-api')
             service('stop','chickenbro-worker')
-            importlib.import_module('server.migrations.product.apply').apply_product_migrations(conn,target/'server/migrations/product')
+        # Runtime role deliberately cannot CREATE. After admission is stopped,
+        # release its table fence and run additive DDL via local postgres peer auth.
+        from urllib.parse import urlsplit
+        database=urlsplit(api_env['WOW_DATABASE_URL']).path.lstrip('/')
+        if database!='chickenbro_prod':raise RuntimeError('unexpected production database')
+        migration_code="import sys,importlib,psycopg; from pathlib import Path; sys.path.insert(0,sys.argv[1]); c=psycopg.connect(dbname=sys.argv[2]); importlib.import_module('server.migrations.product.apply').apply_product_migrations(c,Path(sys.argv[1])/'server/migrations/product'); c.close()"
+        subprocess.run(['sudo','-n','-u','postgres','/opt/chickenbro-runtime/bin/python','-c',migration_code,str(target),database],check=True,stdout=subprocess.DEVNULL)
         for index,path in enumerate(drops):
             path.parent.mkdir(parents=True,exist_ok=True)
             text='[Service]\nEnvironment=WOW_CHAT_DURABLE_ENABLED=1\n'
