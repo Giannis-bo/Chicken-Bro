@@ -1,0 +1,42 @@
+{
+  "method": "Assistant semantic review against prewritten acceptance; no keyword-only score and no human acceptance claim.",
+  "baselinePassed": 5,
+  "candidatePassed": 5,
+  "cases": [
+    {
+      "id": "resource_only",
+      "acceptance": "可确认资源溢出；不能换算有效治疗损失或确定替换技能；指出需要的关键证据，不假称已查询。",
+      "baseline": "pass",
+      "candidate": "pass",
+      "evidence": "两版均拒绝把9点溢出认定为有效治疗损失；候选明确排除直接折算三次治疗。"
+    },
+    {
+      "id": "full_health",
+      "acceptance": "认可低压力下伤害/回蓝收益，不能仅因溢出判错或强制改成治疗，也不武断保证审判最优。",
+      "baseline": "pass",
+      "candidate": "pass",
+      "evidence": "两版均认可伤害/回蓝价值，候选进一步要求比较伤害消耗技与后续治疗衔接；未强制空放治疗。"
+    },
+    {
+      "id": "urgent_healing",
+      "acceptance": "明确优先及时治疗，指出错在未响应救治需求；不将伤害回蓝泛化成合理；不能凭摘要精确断言可避免死亡或损失量。",
+      "baseline": "pass",
+      "candidate": "pass",
+      "evidence": "两版均优先救急；候选明确不能据摘要保证避免所有死亡。"
+    },
+    {
+      "id": "tank_only",
+      "acceptance": "识别局部急迫需求，不能用平均血量掩盖坦克风险，建议响应坦克治疗。",
+      "baseline": "pass",
+      "candidate": "pass",
+      "evidence": "两版均识别坦克风险，不以全团平均血量掩盖局部需求。"
+    },
+    {
+      "id": "upcoming_damage",
+      "acceptance": "考虑即将到来的治疗窗口和补资源所需时间，不因当下满血或防溢出机械要求消耗，不给未知精确收益。",
+      "baseline": "pass",
+      "candidate": "pass",
+      "evidence": "两版均考虑2秒后的承伤与4秒产能，候选还指出没有证据表明团伤前会再溢出。"
+    }
+  ]
+}

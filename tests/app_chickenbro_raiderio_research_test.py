@@ -368,3 +368,33 @@ class RaiderIOResearchTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class RealmIdentityRegressionTest(unittest.TestCase):
+    def test_display_name_slug_and_verified_chinese_alias(self):
+        profile=_profile('Fusionbolt',realm="Al'ar")
+        profile['profile_url']='https://raider.io/characters/cn/alar/Fusionbolt'
+        client=FakeRaiderIO(profiles={('cn',r,'Fusionbolt'):profile for r in ['alar','凤凰之神']})
+        resolver=lambda region, realm: {'id':584,'slug':'alar','region':{'slug':'CN'}}
+        research=RaiderIOResearch(client,realm_resolver=resolver)
+        for realm in ['alar','凤凰之神']:
+            self.assertEqual(research.character(f'https://raider.io/characters/cn/{realm}/Fusionbolt')['status'],'source_reference')
+
+    def test_alias_resolution_keeps_other_realm_region_name_and_url_rejected(self):
+        for field,value in [('name','Other'),('region','us'),('profile_url','https://raider.io/characters/cn/argus/Fusionbolt'),('profile_url','https://evil.test/characters/cn/alar/Fusionbolt')]:
+            profile=_profile('Fusionbolt',realm="Al'ar")
+            profile['profile_url']='https://raider.io/characters/cn/alar/Fusionbolt'
+            profile[field]=value
+            client=FakeRaiderIO(profiles={('cn','凤凰之神','Fusionbolt'):profile})
+            research=RaiderIOResearch(client,realm_resolver=lambda *_:{'id':584,'slug':'alar','region':{'slug':'CN'}})
+            with self.subTest(field=field,value=value):
+                self.assertEqual(research.character('https://raider.io/characters/cn/凤凰之神/Fusionbolt')['status'],'blocked')
+
+    def test_alias_service_failure_is_not_a_false_identity_mismatch(self):
+        profile=_profile('Fusionbolt',realm="Al'ar")
+        profile['profile_url']='https://raider.io/characters/cn/alar/Fusionbolt'
+        def unavailable(*_): raise RuntimeError('credential details must not escape')
+        research=RaiderIOResearch(FakeRaiderIO(profiles={('cn','凤凰之神','Fusionbolt'):profile}),realm_resolver=unavailable)
+        result=research.character('https://raider.io/characters/cn/凤凰之神/Fusionbolt')
+        self.assertEqual(result['status'],'unavailable')
+        self.assertEqual(result['facts'],[])
+        self.assertNotIn('credential',str(result))

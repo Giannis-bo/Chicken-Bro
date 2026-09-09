@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import signal
@@ -17,6 +18,7 @@ from server.codex_worker import (
 )
 
 
+_LOG = logging.getLogger(__name__)
 _AGENT_RULES_PATH = Path(__file__).resolve().parent / "agent" / "AGENTS.md"
 _MAX_AGENT_RULES_BYTES = 32768
 
@@ -174,7 +176,11 @@ class NativeCodexChatAdapter:
     def stream_for_chat(self, *, principal, conversation_id, run_id, prompt, timeout_seconds):
         from server.app.chickenbro.simulation_tools import SimulationToolContext
         context = SimulationToolContext(principal=principal, conversation_id=conversation_id, run_id=run_id)
-        yield from self.stream(prompt=prompt, timeout_seconds=timeout_seconds, tool_context=context)
+        try:
+            yield from self.stream(prompt=prompt, timeout_seconds=timeout_seconds, tool_context=context)
+        except CodexStreamError as error:
+            _LOG.warning("codex_run_failed run_id=%s reason=%s", run_id, error.code)
+            raise
 
     def stream(self, *, prompt: str, timeout_seconds: int, tool_context=None) -> Iterator[dict[str, Any]]:
         if not self._enabled:
@@ -252,6 +258,8 @@ class NativeCodexChatAdapter:
             return_code = process.wait(timeout=max(0.01, min(5, deadline - time.monotonic())))
             process_finished = True
             if return_code != 0:
+                _LOG.error("codex_process_failed run_id=%s job_id=%s return_code=%s",
+                           getattr(tool_context, "run_id", ""), job_dir.name, return_code)
                 raise CodexExecutionFailed()
             if terminal is None:
                 raise CodexStreamError("CODEX_OUTPUT_INVALID")

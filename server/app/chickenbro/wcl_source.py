@@ -14,6 +14,7 @@ from math import ceil, isfinite
 from time import monotonic
 from typing import Any
 from urllib.request import Request, urlopen
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 from server.app.simulation.sources import parse_character_source_url, InvalidSourceLink
 
 from server.app.integrations.warcraftlogs import (
@@ -123,6 +124,10 @@ def _graphql(
             _text(item.get("message") if isinstance(item, Mapping) else item)
             for item in errors
         )
+        data = payload.get("data")
+        report = (data.get("reportData") or {}).get("report") if isinstance(data, Mapping) else None
+        if isinstance(report, Mapping) and report.get("fights"):
+            return {**data, "_fieldErrors": [_redact_secret(message)[:1000]]}
         raise RuntimeError(_redact_secret(message or "Warcraft Logs GraphQL returned errors"))
     data = payload.get("data")
     return data if isinstance(data, Mapping) else {}
@@ -171,6 +176,20 @@ def _normalize_fight(fight: Any) -> dict[str, Any]:
     }
 
 
+def normalize_wcl_report_url(url: str) -> str:
+    """Drop WCL display-only parameters; retain strict host/identity validation."""
+    parts = urlsplit(url)
+    def clean(value: str) -> str:
+        return urlencode([(k, v) for k, v in parse_qsl(value, keep_blank_values=True)
+                          if k not in {"type", "view"}])
+    candidate = urlunsplit((parts.scheme, parts.netloc, parts.path,
+                           clean(parts.query), clean(parts.fragment)))
+    parsed = parse_character_source_url(candidate)
+    if not parsed.report_code:
+        raise InvalidSourceLink()
+    return parsed.url
+
+
 def _extract_reference(request_data: Any) -> dict[str, str]:
     source = request_data if isinstance(request_data, Mapping) else {}
     text = "\n".join(
@@ -186,7 +205,7 @@ def _extract_reference(request_data: Any) -> dict[str, str]:
     source_url = url_match.group(0).rstrip(".,)") if url_match else ""
     if source_url:
         try:
-            parsed = parse_character_source_url(source_url)
+            parsed = parse_character_source_url(normalize_wcl_report_url(source_url))
             return {"reportCode": parsed.report_code, "sourceUrl": parsed.url,
                     "fightId": str(parsed.fight_id or ""), "sourceId": str(parsed.actor_id or "")}
         except InvalidSourceLink:
@@ -283,13 +302,20 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         if not end or end <= options["startTime"]:
             raise InvalidSourceLink("event startTime is outside the report/fight range")
         options["endTime"] = end
-    data = _graphql(
-        WCL_REPORT_EVIDENCE_QUERY,
-        {"code": reference["reportCode"], "fightIds": fight_ids or None,
-         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None,
-         "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
-         "endTime": options.get("endTime"), "limit": options.get("limit", 300)},
-    )
+    discovery = not fight_ids and not ("startTime" in options and "endTime" in options)
+    query = ("query($code:String!){reportData{report(code:$code){title startTime endTime "
+             "fights{id name difficulty kill startTime endTime} "
+             "masterData{gameVersion logVersion actors{id name type subType}}}}}"
+             if discovery else WCL_REPORT_EVIDENCE_QUERY)
+    variables = {"code": reference["reportCode"]} if discovery else {
+        "code": reference["reportCode"], "fightIds": fight_ids or None,
+        "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None,
+        "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
+        "endTime": options.get("endTime"), "limit": options.get("limit", 300)}
+    data = _graphql(query, variables)
+    field_errors = data.get("_fieldErrors", [])
+    # The discovery query never requests tables without a valid scope.
+    # Preserve useful metadata when independent statistics fail.
     report_data = data.get("reportData") if isinstance(data, Mapping) else {}
     report = report_data.get("report") if isinstance(report_data, Mapping) else {}
     if not isinstance(report, Mapping) or not report:
@@ -318,7 +344,8 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
     return {
         "schemaRevision": "wcl-log-evidence-v1",
         "status": "ready",
-        "sourceStatus": "verified",
+        "sourceStatus": "partial" if field_errors else "verified",
+        "queryScope": "report_discovery" if discovery else "scoped_analysis",
         "credentialMode": credential_state["mode"],
         "api": credential_state["api"],
         "reportCode": reference["reportCode"],
@@ -355,9 +382,9 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
                       "complete": isinstance(events_payload, Mapping) and "nextPageTimestamp" in events_payload and next_page is None,
                       "scope": "event sample only; tables are aggregated independently over the selected filters"},
         "missingInputs": [],
-        "blockers": [],
-        "evidenceRefs": ["wcl.report", "wcl.fight", "wcl.events"],
-        "nextActions": [
+        "blockers": field_errors,
+        "evidenceRefs": ["wcl.report", "wcl.fight"] if discovery else ["wcl.report", "wcl.fight", "wcl.events"],
+        "nextActions": (["Report metadata only: no casts, damage or events were queried. Select a fight id from fights and query again with fight= and source= as needed. If the user has not identified a fight, ask them to select one or explicitly explain which fights you will analyze."] if discovery else []) + (["Some fields failed; use only returned data, report the missing scope and retry the affected query. Do not treat missing fields as zero."] if field_errors else []) + [
             "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
         ],
     }

@@ -1,0 +1,5 @@
+{
+  "server/app/chickenbro/wcl_source.py": "76905dff059b639e87e459ba40cd869c914bb14fecc80ab26dc1feb1587385eb",
+  "server/app/chickenbro/source_gateway.py": "e1471ec262751cb80b485181b808f075d1ef468c022b44f191165b811ba83da0",
+  "tests/app_chickenbro_wcl_source_test.py": "b749723c5f45c1388f1202ce07849f9d8807487df68d571f28c86fe7ded22b7a"
+}
