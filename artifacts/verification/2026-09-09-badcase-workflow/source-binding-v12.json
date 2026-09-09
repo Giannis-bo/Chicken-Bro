@@ -1,0 +1,13 @@
+{
+  "fixed_at": "2026-09-09T19:44:48.427185+00:00",
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "preregistration_sha256": "82ac52c20e790e8182562bfcf16f444a541853cccc596bdbfbbd089b5f64022a",
+  "conditions_sha256": "ced4f7b1a5c1206e601541ed5e5be7a76a0a6d0bbf76bd5a55be4100326bff07",
+  "extra_registration_sha256": "0e5410d5ed50117955aa8b87f68a27f48bc1414e0b9f33d2be327b4b485466e2",
+  "runtime_agent_rules_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+  "status": "source_frozen_before_model_trials; business outcomes pending"
+}

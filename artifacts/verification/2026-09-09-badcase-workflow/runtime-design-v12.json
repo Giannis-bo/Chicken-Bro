@@ -1,0 +1,98 @@
+{
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "status": "design_probe_passed_business_acceptance_pending",
+  "mechanism": {
+    "pure_reference_errors": "Complete compact positive report/fight/source table and available actor/group identities; omit casts/events. Reject truncated, invalid or oversized reference projection.",
+    "other_errors": "Mixed or non-reference errors retain original full context.",
+    "repair_contract": "One low-effort process, tools disabled, strict bounded JSON patches, full-answer revalidation against original complete evidence. No deadline reset; 60-second repair and original 480/360-second budgets retained."
+  },
+  "design_probe": {
+    "design_only": true,
+    "business_acceptance": false,
+    "trial_count": 1,
+    "seconds": 42.11,
+    "checks": {
+      "frozen_registration_fixture_prompt_probe_hashes": "passed",
+      "immutable_adapter_grounding_hashes": "passed",
+      "strict_patch_reapplication": "passed",
+      "complete_answer_reference_validation": "passed",
+      "all_non_url_text_preserved": "passed",
+      "replacement_count": 18,
+      "corrected_report_codes": 2,
+      "other_url_fragment_to_query_normalizations": 16,
+      "single_spawn": 1,
+      "seconds": 42.11,
+      "tool_events": [],
+      "capability_environment_absent": true,
+      "actual_tools_policy": {
+        "webSearch": "disabled",
+        "shellToolEnabled": false,
+        "configuredMcpServerCount": 1,
+        "enabledMcpServerCount": 0,
+        "appsEnabled": false,
+        "pluginsEnabled": false
+      }
+    },
+    "initial_validation_errors": [
+      "WCL_REFERENCE_UNOBSERVED"
+    ],
+    "raw_patch_chars": 2982,
+    "raw_patch_sha256": "d184f58a23666e93e4e8fea56efc861d577f8f354eace35df532406847afcf1f",
+    "repair_input_sha256": "ca4cb8e7651f4df663e096bf08636e58a5326c211aaac5264ba59f1c4ccb3a39",
+    "repair_instruction_sha256": "13ab5978b03066b603314f38794db36fb3a90819f0bd74fc5c59c817f0b5588b",
+    "repair_profile_sha256": "b40ca0ef934795c4c24c4c6c36d82be6891c9dc2b55f4411de98f0b25602c3fa",
+    "actual_profile_sha256": "01b8cbfd424c5ceccd65808805d9cb7dcfcfa595f40a839d03ca71ed0c61e342",
+    "normalized_profile_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+    "profile_exact_hash_match": true,
+    "actual_model": "gpt-6-astra",
+    "actual_reasoning_effort": "low",
+    "semantic_finding": "Two unsupported report codes corrected to the matching actual recorded actor/report scopes. Sixteen other URLs changed fragment separators to query separators. All non-URL text, observations and coverage limitations preserved.",
+    "limits": [
+      "One known failing design draft, not a new holdout or complete HTTP trial.",
+      "Success does not establish reliability or prove input size caused the previous timeout.",
+      "V11 failure and V10 production unknown exact cause remain unchanged."
+    ]
+  },
+  "verification": {
+    "backend_tests": 643,
+    "independent_targeted_tests": 76,
+    "source_review_sha256": "4ad9554ce43e55bc90272329bf9d3b832b50b32ca639ecfb605ba04858330cc7",
+    "baseline_diff_files": 9,
+    "baseline_inventory_files": 855,
+    "staged_inventory_files": 857,
+    "preserved_web_files": 14,
+    "environment_and_public_web_hashes_verified": true
+  },
+  "evidence_sha256": {
+    "registration": "be4fcbde1ba8935d03aaa7af9c8c4a611bb0e2e76c5adfdcb7124fa2319c760e",
+    "source-binding": "6a8cbe334d4c107713ac40e9e19581714ada01ec4f475ba080704730f57ce0cc",
+    "result": "e2f1f1ab1cace5e230cb562f4a23fcf54de28a482f25744b2f874de93d828dbe",
+    "independent": "210d51d5d98f159f242f1bd2bd6ccb2b4545779f38d63b071ea7fcd7307c4729",
+    "profile-proof": "0108620cb0f2a039fd9431ee147a95381d53e7870e3574896827f146c9a4f31f",
+    "independent-profile-supplement": "acbf8cd8f6751a26c49a3e1bd7537df0cff0b8308b78eb0bc22f3ac25cbb7d15"
+  },
+  "acceptance": {
+    "paired_24": "started at 2026-09-09 19:45 UTC; pending",
+    "quota_stage_admission": "95 percent before phase start; no change to per-run budgets",
+    "extra_candidate_4": "pending",
+    "original_context_http": "pending",
+    "general_business": "pending",
+    "production_live": "pending",
+    "design_does_not_replace_any_gate": true
+  },
+  "production": {
+    "current_baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "v12_switch_executed": false
+  },
+  "workflow_complete": false,
+  "source_binding_evidence": {
+    "source_binding_sha256": "05d4085a9450b018d52a3c1c702b3ee39b8a586af191e33f97a5d3bd9197b713",
+    "private_conditions_sha256": "ced4f7b1a5c1206e601541ed5e5be7a76a0a6d0bbf76bd5a55be4100326bff07",
+    "public_conditions_projection_sha256": "33977a841db54022c5ffd41d6c7fb63ef1a6b783c7cedb56ffb991f9da27750e",
+    "note": "Original pre-trial source binding is unchanged; its conditions_sha256 names private conditions bytes, not the public projection."
+  }
+}
