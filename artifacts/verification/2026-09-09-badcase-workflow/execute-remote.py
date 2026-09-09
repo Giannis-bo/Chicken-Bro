@@ -135,6 +135,7 @@ def validate_cases(result, release):
     with release.connect() as conn:
         for case in cases:
             wanted = 10 if case['case'] == 'top10' else 100
+            assert type(case.get('seconds')) in (int, float) and 0 < case['seconds'] <= 480, 'completion deadline exceeded'
             answer = case['answer']
             assert len(answer) > 200 and re.search(r'https://www\.warcraftlogs\.com/reports/[A-Za-z0-9]{16}', answer)
             run = conn.execute('SELECT status FROM chat.agent_runs WHERE id=%s', (case['runId'],)).fetchone()

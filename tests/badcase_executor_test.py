@@ -57,6 +57,12 @@ class ExecutorTest(unittest.TestCase):
         self.assertEqual([c['requestedRanksPerBoss'] for c in checked], [10, 100])
         self.assertTrue(all(c['bossesWithMatchedCasts'] == 9 for c in checked))
 
+    def test_over_deadline_business_answer_is_not_a_pass(self):
+        result, release, _ = self.fixture()
+        result['cases'][0]['seconds'] = 481
+        with self.assertRaisesRegex(AssertionError, 'completion deadline'):
+            remote.validate_cases(result, release)
+
     def test_missing_boss_or_rank_fails(self):
         for remove_boss in (True, False):
             result, release, packets = self.fixture()
