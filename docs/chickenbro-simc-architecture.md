@@ -26,7 +26,7 @@ QQ 登录由 `identity.qq_application` 与 `integrations.qq_connect` 实现：�
 
 WCL 适配器用于战斗研究及历史天赋恢复，不恢复 WCL 新角色导入。输出和坦克专精受运行配置与 readiness 控制，治疗明确拒绝。新任务和装备对照保留原快照与结果。
 
-### 场景实验（本地实现，未部署）
+### 场景实验（已发布，compiler v5）
 
 任务工具返回 owner-scoped 原来源、角色、有效装备与天赋。`preview_simulation` 复用 application 的只读编译预检，`query_simulation_options` 查询引擎绑定的节点选项/物品名称，`compare_simulation_jobs` 校验同快照、同引擎/compiler、同控制参数后计算差异与保守误差判断。
 
