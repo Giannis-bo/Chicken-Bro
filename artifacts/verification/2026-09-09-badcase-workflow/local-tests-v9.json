@@ -1,0 +1,14 @@
+{
+  "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c7ee6f58d03ca8925e3aa8bd811a86cd3f58e4458c612a6e5e8fc8772979fdac",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "debe49010a24408cef110b6414e77b0fe203154e9ec0dfff6a78e079773d9ea2",
+  "observed_at": "2026-09-09T16:04:48.894194+00:00",
+  "backend_tests": 621,
+  "backend_log_sha256": "a50be3cc7125711cc702eab39b56905baa940a5d272f75c074718707a1f32746",
+  "independent_review": "source16 plus grounding21 passed; additional tests included in full621",
+  "web_build": "not_required_backend_only",
+  "production_attempted": false,
+  "prestage_rejected": "Initial short SHA rejected by manifest40hex guard before stage or service mutation; corrected full SHA staged/preflight passed. Invalid package archived."
+}
