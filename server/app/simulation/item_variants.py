@@ -9,6 +9,13 @@ def _catalog():
     return json.loads((Path(__file__).parent / 'data/item-variants-12.1.0.json').read_text())
 
 
+def variant_item_names(runtime):
+    catalog = _catalog()
+    if not runtime.startswith('simc:managed:' + catalog['revision'] + ':'):
+        return {}
+    return {key: value['name'] for key, value in catalog['items'].items()}
+
+
 def same_upgrade_variants(item_id, gear, runtime):
     catalog = _catalog()
     if not runtime.startswith('simc:managed:' + catalog['revision'] + ':'):

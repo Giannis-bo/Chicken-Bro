@@ -28,7 +28,7 @@ from server.app.simulation.snapshots import REQUIRED_GEAR_SLOTS
 from server.app.simulation.experiments import merge_scenario, compare_jobs
 from server.app.simulation.talent_editor import TalentEditError, edit_talents, talent_options, talent_difference
 from server.app.simulation.localization import catalog_for_build
-from server.app.simulation.item_variants import same_upgrade_variants
+from server.app.simulation.item_variants import same_upgrade_variants, variant_item_names
 
 
 _SAFE_CODE = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
@@ -251,15 +251,20 @@ class SimulationToolGateway:
             if not caps.runtime_revision.startswith("simc:managed:"+catalog["revision"]+":"):
                 return _blocked("TALENT_CATALOG_RUNTIME_MISMATCH")
             names = catalog_for_build(catalog["build"])
-            if not names: return _blocked("SIMC_CATALOG_UNAVAILABLE")
+            engine_names = variant_item_names(caps.runtime_revision)
+            localized = names.data['items'] if names else {}
+            if not localized and not engine_names: return _blocked("SIMC_CATALOG_UNAVAILABLE")
             if not query: raise ValueError("item name or ID required")
-            rows = [{"itemId":int(k),"name":v} for k,v in names.data['items'].items()
-                    if k.isdigit() and v and (query.casefold() in v.casefold() or query==k)]
+            all_names = {**engine_names, **localized}
+            rows = [{"itemId":int(k),"name":v,"nameEn":engine_names.get(k)} for k,v in all_names.items()
+                    if k.isdigit() and v and (query.casefold() in v.casefold() or query==k
+                        or query.casefold() in engine_names.get(k,'').casefold())]
             for row in rows[:30]:
                 row["sameUpgradeVariants"] = same_upgrade_variants(row["itemId"], source.get("gear", {}), caps.runtime_revision)
             options = {"items":rows[:30],"hasMore":len(rows)>30,"gameBuild":catalog['build'],
-                       "catalogRevision":names.revision,
-                       "limitations":["Use sameUpgradeVariants only when the user intends the same upgrade progress; disclose its assumption. Otherwise research an exact item variant. Name matches alone do not establish track, rank or availability."]}
+                       "catalogRevision":catalog["revision"],
+                       "supportedVariantItems":([{ "itemId":int(k), "nameEn":v} for k,v in engine_names.items()] if not rows else []),
+                       "limitations":["If a localized name has no match, inspect supportedVariantItems and retry its exact English name or ID. Use sameUpgradeVariants only when the user intends the same upgrade progress; disclose its assumption. Otherwise research an exact item variant. Name matches alone do not establish track, rank or availability."]}
         else: raise ValueError("unknown option kind")
         return _packet("ready", options=options, runtimeRevision=caps.runtime_revision,
                        compilerRevision=caps.compiler_revision)

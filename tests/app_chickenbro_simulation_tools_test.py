@@ -300,6 +300,23 @@ class SimulationExperimentTest(unittest.TestCase):
         result=self.gateway.execute(self.token,'compare',{'baselineJobId':a['jobId'],'variantJobId':a['jobId']})
         self.assertEqual(result['errorCode'],'SIMC_COMPARISON_SAME_JOB')
 
+    def test_item_search_uses_engine_names_when_localization_is_missing(self):
+        from tests.app_simulation_talent_editor_test import RUNTIME
+        from copy import deepcopy
+        source=self.prepare();sid=UUID(source['snapshotId'])
+        old=self.repository.snapshots[(self.owner.user_id,sid)]
+        raw=deepcopy(old.snapshot)
+        raw['gear']['trinket2']={'itemId':270167,'itemLevel':308,'bonusIds':[12838],'gems':[],'enchant':None}
+        self.repository.snapshots[(self.owner.user_id,sid)]=replace(old,snapshot=raw)
+        self.application._runtime_capabilities=replace(self.application._runtime_capabilities,runtime_revision=RUNTIME)
+        query=lambda text:self.gateway.execute(self.token,'options',{'snapshotId':str(sid),'kind':'items','query':text})
+        english=query('Bottomless Bag')['options']['items']
+        self.assertEqual(english[0]['itemId'],270164)
+        self.assertEqual(english[0]['sameUpgradeVariants'][0]['equipment']['itemLevel'],308)
+        self.assertEqual(query('270164')['options']['items'][0]['itemId'],270164)
+        missing=query('无底袋')['options']
+        self.assertIn(270164,[x['itemId'] for x in missing['supportedVariantItems']])
+
     def test_talent_preview_submit_followup_and_owner_isolation(self):
         from copy import deepcopy
         from pathlib import Path
