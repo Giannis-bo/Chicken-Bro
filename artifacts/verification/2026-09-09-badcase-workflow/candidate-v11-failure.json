@@ -1,0 +1,178 @@
+{
+  "source_sha": "5cdeeb2f56f9f5a08353119fca74cb2365a00c5c",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b7b158fbab79483af1dbde15029b9539c9971d3da46db6dbd03128300a5df9ee",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "c1f9997e9381e62c935cc134670424eef66343cbb3be8f092b6ebf202b6610df",
+  "status": "additional_candidate_failed",
+  "paired_http_24": "passed; independent earlier evidence retained in generalization-v11-summary.json",
+  "additional_candidate": {
+    "planned": 4,
+    "retained": 4,
+    "meets_all_criteria": 0,
+    "context": "empty; exact synthetic live questions; top10/top100 each repeated twice",
+    "cases": [
+      {
+        "case": "top10-1",
+        "runId": "b3decf1d-12c5-420f-96c2-6fd422b54fc0",
+        "http_terminal_status": "failed",
+        "http_seconds": 307.016,
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "answer_sha256": null,
+        "receipt_sha256": "65977cc1b9d32a606bf059dadf568b845a9554332eaabff8efbe1619d72450f6",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "failed",
+          "completion": "failed"
+        },
+        "meets_all_criteria": false,
+        "finding": "90 ranking entries acquired across 9 groups; no delivered answer. Two draft report codes absent from all retained successful and blocked source receipts triggered reference validation. One repair exhausted its 60-second limit."
+      },
+      {
+        "case": "top10-2",
+        "runId": "21759bb4-6f17-42ab-a5d0-c8d954fe7244",
+        "http_terminal_status": "succeeded",
+        "http_seconds": 22.532,
+        "public_error_code": "",
+        "answer_sha256": "3b3a810464a67fd93d0a90dec1483ae3d9be0181c11780c9cd7f2d618c41544e",
+        "receipt_sha256": "f04ff1e5266c776cd3e00252637fef315c0f52222014bd001a77c967d13ac265",
+        "criteria": {
+          "acquisition": "failed",
+          "analysis": "failed",
+          "completion": "passed"
+        },
+        "meets_all_criteria": false,
+        "finding": "Only one unavailable catalog receipt with empty facts. Zero ranking/report/cast research; honest failure response meets completion alone. The unavailable cause is not established."
+      },
+      {
+        "case": "top100-1",
+        "runId": "8f755491-d805-439a-ac2f-68c81939b8e7",
+        "http_terminal_status": "succeeded",
+        "http_seconds": 24.525,
+        "public_error_code": "",
+        "answer_sha256": "29d3d6ff60a7135c270fcb062be48821163015f71e121b252422952aa9c04cb4",
+        "receipt_sha256": "ef93dc6bc3291ca5aa2f526b2efa4f80aa58e4762f9fc9a4c0ecb47f77fb5aaf",
+        "criteria": {
+          "acquisition": "failed",
+          "analysis": "failed",
+          "completion": "passed"
+        },
+        "meets_all_criteria": false,
+        "finding": "Only one unavailable catalog receipt with empty facts. Zero ranking/report/cast research; honest failure response meets completion alone. The unavailable cause is not established."
+      },
+      {
+        "case": "top100-2",
+        "runId": "6ffebbbf-fce0-41a5-ad07-bc6d6274db13",
+        "http_terminal_status": "succeeded",
+        "http_seconds": 22.384,
+        "public_error_code": "",
+        "answer_sha256": "833689080b208887cbb3c9593d3b9f8db6eb28fcdba11318f3678148b1a1708d",
+        "receipt_sha256": "4b3c549736302dc20ebf2b67feca546eb3002ec095e20f54a1c9fa4328381cc8",
+        "criteria": {
+          "acquisition": "failed",
+          "analysis": "failed",
+          "completion": "passed"
+        },
+        "meets_all_criteria": false,
+        "finding": "Only one unavailable catalog receipt with empty facts. Zero ranking/report/cast research; honest failure response meets completion alone. The unavailable cause is not established."
+      }
+    ]
+  },
+  "top10_1_diagnostic": {
+    "public_error_code": "CODEX_OUTPUT_INVALID",
+    "persisted_draft_chars": 0,
+    "unsupported_report_code_count": 2,
+    "matched_scoped_reports": 18,
+    "groups": 9,
+    "tool_receipt_count": 47,
+    "metadata": [
+      {
+        "stage": "validation",
+        "observed_at": "2026-09-09T19:17:55.272604+00:00",
+        "draft_sha256": "404b20dcdf2df47c1684e07fbeac765d3bf2bab169a3aef1d66685680b0bc4f3",
+        "codes": [
+          "WCL_REFERENCE_UNOBSERVED"
+        ]
+      },
+      {
+        "stage": "repair_enter",
+        "observed_at": "2026-09-09T19:17:55.272860+00:00",
+        "remaining_seconds": 235.07229999592528
+      },
+      {
+        "stage": "repair_stream_exception",
+        "observed_at": "2026-09-09T19:18:55.274019+00:00",
+        "error_type": "CodexStreamError",
+        "error_code": "CODEX_TIMEOUT"
+      },
+      {
+        "stage": "repair_exception",
+        "observed_at": "2026-09-09T19:18:55.290153+00:00",
+        "elapsed_seconds": 60.017209586687386,
+        "error_type": "CodexStreamError",
+        "error_code": "CODEX_OUTPUT_INVALID"
+      }
+    ],
+    "evidence_projection": {
+      "reference_count": 108,
+      "references_truncated": false,
+      "groups": 9,
+      "projected_reports": 21,
+      "context_chars": 63850,
+      "context_bytes": 63994,
+      "context_sha256": "7701a98658dad0e24ad523a25a5e7a9b7f516a944a9b9e6eb2da7f948b9a88f7",
+      "projection_truncated": true
+    },
+    "explicit_http429_blocked_members": 9,
+    "scope": "Draft-only diagnostic, not delivered analysis. Unsupported relative to retained receipts; report existence on public WCL was not checked.",
+    "causal_limits": [
+      "Why the model substituted two report codes is unknown.",
+      "Observed repair stream timeout is proven; payload length alone does not explain the timeout.",
+      "The other three unavailable catalog responses are not proven to have resulted from HTTP429.",
+      "V10 production exact failure stage/cause remains unknown; this V11 Candidate observation does not establish it."
+    ]
+  },
+  "quota_read_only_observations": [
+    {
+      "observed_at": "2026-09-09T19:24:50.957298+00:00",
+      "purpose": "one read-only provider quota diagnostic after all V11 extra trials completed",
+      "schema": "https://www.warcraftlogs.com/v2-api-docs/warcraft/ratelimitdata.doc.html",
+      "status": "http_error",
+      "http_status": 429,
+      "retry_after_seconds": 38
+    },
+    {
+      "observed_at": "2026-09-09T19:26:18.330363+00:00",
+      "purpose": "read-only provider quota recheck after its explicit Retry-After elapsed; no model retry",
+      "schema": "https://www.warcraftlogs.com/v2-api-docs/warcraft/ratelimitdata.doc.html",
+      "status": "queried",
+      "rate_limit": {
+        "limitPerHour": 3600,
+        "pointsSpentThisHour": 1,
+        "pointsResetIn": 3600
+      }
+    }
+  ],
+  "evidence_sha256": {
+    "diagnostic-v11-synthetic-top10-1.json": "65977cc1b9d32a606bf059dadf568b845a9554332eaabff8efbe1619d72450f6",
+    "candidate-synthetic-semantic-v11-independent.json": "f7fcc460f2664631d10232ebf7be4ab928ca4fafd29f68bf582ea53981ad54d0",
+    "wcl-quota-v11-diagnostic.json": "69dede6acd42f3bcb167d0bbab3590e51f1587fbce089a5ce7a8f057230580a6",
+    "wcl-quota-v11-after-retry.json": "b6b919046ae60f413ddf01439301143f48b86270341bb7f2fa74f1157a1aad79"
+  },
+  "production": {
+    "switched": false,
+    "new_rollback": false,
+    "current_baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b"
+  },
+  "next_step": {
+    "preregistration": "preregistration-v12.json",
+    "status": "preregistered; 95-percent quota stage admission and compact-reference repair validation pending",
+    "acceptance_budgets_seconds": {
+      "chat": 480,
+      "wcl_research": 360
+    },
+    "prior_failures_preserved": true
+  },
+  "workflow_complete": false,
+  "original_feedback": "unchanged; G6 incomplete"
+}
