@@ -47,4 +47,4 @@ Candidate完整业务验证已通过：两条原上下文HTTP回放分别410.56/
 
 严格补丁修稿的真实设计探针已在新源码 `3215b3f7…` 上12.18秒通过：单次进程、375字符补丁、无工具调用和业务能力环境，修正后完整引用校验通过，见 [设计探针](repair-design-3215b3f79.json)。此前失败记录全部保留；设计探针不能替代原题/变体/独立留出重复实验或公网验收。
 
-[V4失败](candidate-v4-failure.json)：original10第二次虽然完成90条排名和全部9组研究，却将已读事件的先后写反，analysis失败。新[V5注册](preregistration-v5.json)先固定新的独立留出和原验收阈值，再补充通用时间戳/目标证据规则；V4尚在继续的回执全部保留，不能将其发布。
+[V4失败](candidate-v4-failure.json)：original10第二次虽然完成90条排名和全部9组研究，却将已读事件的先后写反，analysis失败。新[V5注册](preregistration-v5.json)先固定新的独立留出和原验收阈值，再补充通用时间戳/目标证据规则；V4完整24次前后回执与逐项判词已保留，汇总见[V4完整失败实验](generalization-v4-failed-summary.json)；Candidate 11份通过、1份analysis失败，不满足固定阈值，不能发布。后续HTTP只追加该失败批次的证据。
