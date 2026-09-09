@@ -2,6 +2,28 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "admin-analytics",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "admin_analytics",
+      "reason": "User-authorized read-only operational analytics for the single verified QQ administrator.",
+      "paths": [
+        "docs/plans/2026-09-09-admin-ops.md",
+        "server/app/api/routes/admin.py",
+        "tests/app_admin_test.py",
+        "tests/app_admin_postgres_test.py",
+        "packages/api-client/src/admin.ts",
+        "packages/domain/src/admin.ts",
+        "apps/mini-taro/src/web/WebAdmin.tsx",
+        "apps/mini-taro/src/web/WebAdmin.module.scss",
+        "apps/mini-taro/src/web/web-admin.test.tsx"
+      ],
+      "prefixes": [
+        "server/app/admin/",
+        "artifacts/verification/2026-09-09-admin-ops/"
+      ]
+    },
+    {
       "id": "simc-scenario-experiments",
       "disposition": "keep",
       "category": "target-product-code",

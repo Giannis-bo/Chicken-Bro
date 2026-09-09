@@ -83,6 +83,13 @@
         "tests/retire-chickenbro-legacy.test.js",
         "tests/test_login_runtime_test.py"
       ]
+    },
+    "admin_analytics": {
+      "path": "server/app/admin/application.py",
+      "characterization": [
+        "tests/app_admin_test.py",
+        "tests/app_admin_postgres_test.py"
+      ]
     }
   },
   "hotspotFiles": [

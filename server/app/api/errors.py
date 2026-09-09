@@ -55,7 +55,7 @@ def problem_response(
                 "requestId": request_id,
             }
         },
-        headers={"X-Request-Id": request_id},
+        headers={"X-Request-Id": request_id, **({"Cache-Control": "no-store", "Vary": "Cookie"} if request.url.path.startswith("/api/v2/admin/") else {})},
     )
 
 

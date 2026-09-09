@@ -29,6 +29,12 @@ export interface WebShellProps {
 }
 
 export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: WebShellProps) {
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void wowApi.admin?.access(auth).then(result => { if (alive) setIsAdmin(!result.fromFallback && result.payload?.isAdmin === true) }).catch(() => { if (alive) setIsAdmin(false) })
+    return () => { alive = false }
+  }, [auth])
   const [themeId, setThemeId] = useState(readWebTheme)
   const [themeSaveFailed, setThemeSaveFailed] = useState(false)
   const theme = resolveWebTheme(themeId)
@@ -76,7 +82,7 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
 
   const showView = (view: WebView) => {
     if (view === 'simc') setSimcVisited(true)
-    if (view !== 'faq') lastBusinessView.current = view
+    if (view === 'chat' || view === 'simc') lastBusinessView.current = view
     setActiveView(view)
   }
   const navigate = (view: WebView) => {
@@ -87,7 +93,7 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
     const restore = () => {
       const view = readView()
       if (view === 'simc') setSimcVisited(true)
-      if (view !== 'faq') lastBusinessView.current = view
+      if (view === 'chat' || view === 'simc') lastBusinessView.current = view
       setActiveView(view)
     }
     window.addEventListener('popstate', restore)
@@ -127,7 +133,7 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
           ))}
         </View>
 
-        <WebHeaderActions avatarDataUrl={avatar} onRefreshAvatar={() => refreshAvatar.current()} accountLabel={accountLabel} onLogout={onLogout}
+        <WebHeaderActions {...(isAdmin ? { adminHref: viewHref('admin') } : {})} avatarDataUrl={avatar} onRefreshAvatar={() => refreshAvatar.current()} accountLabel={accountLabel} onLogout={onLogout}
           themeId={themeId} onSelectTheme={selectTheme} themeSaveFailed={themeSaveFailed}
           faqActive={activeView === 'faq'} faqHref={viewHref('faq')} onFaq={() => navigate('faq')} />
       </View>

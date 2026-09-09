@@ -50,3 +50,9 @@ git diff --check
 - 删除文件须原先受 Git 跟踪且无 WIP，保留清单；不删除未跟踪预览图或其他任务证据。
 - 数据先按 provider/owner 生成清单，检查 Chat execution、SimC 和队列活动；备份独立恢复并比对后方可事务清理，保留用户及业务逐行核验。
 - 未执行生产清理、真实 QQ 或发布时明确记录未执行，不替换为本地通过。
+
+## 运营后台
+
+- 唯一真实 QQ owner 允许读取；空配置、普通用户、固定测试账号、已撤销会话和 Bearer 拒绝。不能通过 query/body/header 覆盖服务端 owner；跨账号返回不泄露管理员标识。
+- 北京时间起止、366 天限制、区间活跃用户去重、每日补零、反馈分母、无样本 null、有效 SimC 结果和已知模拟身份排除需 PostgreSQL 验证。
+- 本地 `tests.app_admin_test`、`tests.app_admin_postgres_test`（独立 `WOW_ADMIN_TEST_DSN`）、`web-admin.test.tsx`，以及 typecheck/lint/H5 build；生产验证本人浏览器、第二账号 403、无会话 401、聚合 SQL 对账和公网产物。

@@ -50,3 +50,4 @@ export type { WebAuthClient } from './web-auth'
 
 export { createAvatarClient } from './avatar'
 export type { AvatarClient } from './avatar'
+export * from './admin'

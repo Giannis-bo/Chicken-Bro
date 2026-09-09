@@ -6,7 +6,7 @@ const test = require('node:test')
 const repositoryRoot = path.resolve(__dirname, '..')
 const ownerMap = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'docs/backend-owner-map.json'), 'utf8'))
 
-test('backend owner map names only formal Identity, Chat, SimC, Worker and deployment owners', () => {
+test('backend owner map names only formal Identity, Chat, SimC, Worker deployment and analytics owners', () => {
   assert.equal(ownerMap.schemaVersion, 2)
   assert.equal(ownerMap.status, 'active')
   assert.deepEqual(Object.keys(ownerMap.owners), [
@@ -17,6 +17,7 @@ test('backend owner map names only formal Identity, Chat, SimC, Worker and deplo
     'worker',
     'migration',
     'deployment',
+    'admin_analytics',
   ])
 
   for (const owner of Object.values(ownerMap.owners)) {
