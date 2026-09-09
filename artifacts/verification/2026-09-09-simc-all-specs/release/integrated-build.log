@@ -1,0 +1,253 @@
+> wow-mini-program-workspace@0.1.0 build:h5
+> npm --workspace @wow-mini/mini-taro run build:h5
+
+
+> @wow-mini/mini-taro@0.1.0 build:h5
+> taro build --type h5
+
+👽 Taro v4.2.0
+
+Tips:
+1. 建议开启持久化缓存功能，能有效提升二次编译速度，详情请参考: https://docs.taro.zone/docs/config-detail#cache。
+
+
+
+
+● Webpack █████████████████████████  (0%)
+
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 1/1 dependencie
+s 0/1 modules 1 active
+ babel-loader › src/app.config.ts
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%)
+ ../../node_modules/babel-loader/lib/index.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 2/13 dependenci
+es 0/2 modules 2 active
+ babel-loader › src/app.tsx
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 16/27 dependenc
+ies 2/14 modules 11 active
+ ...ss
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 21/37 dependenc
+ies 2/19 modules 16 active
+ ../../../../node_modules/react/cjs/react.production.min.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 169/260 depende
+ncies 11/150 modules 27 active
+ babel-loader › ../../../../node_modules/@tarojs/runtime/dist/env.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 505/553 depende
+ncies 26/223 modules 68 active
+ .../../node_modules/@tarojs/components/dist/components/taro-checkbox-group-co
+re.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 892/977 depende
+ncies 26/244 modules 139 active
+ ...../../../../node_modules/@tarojs/components/dist/components/taro-swiper-co
+re.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 1200/1251 depen
+dencies 39/261 modules 206 active
+ ...js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 1394/1483 depen
+dencies 53/419 modules 210 active
+ ...\.entry\.js$/|exclude: /\.system\.entry\.js$/|groupOptions: {}|namespace o
+bject
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 1692/1722 depen
+dencies 71/515 modules 273 active
+ ...js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (10%) 0/1 entries 1847/1908 depen
+dencies 78/526 modules 347 active
+ ...nts/wow_mini_program/node_modules/@babel/runtime/helpers/esm/nonIterableRe
+st.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (11%) 0/1 entries 1903/1957 depen
+dencies 102/537 modules 381 active
+ ...der › ../../../../node_modules/@tarojs/taro-h5/dist/api/canvas/CanvasConte
+xt.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (11%) 0/1 entries 1967/2006 depen
+dencies 114/558 modules 377 active
+ ...rs/boyuan/Documents/wow_mini_program/node_modules/swiper/shared/swiper-cor
+e.mjs
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (11%) 0/1 entries 1986/2015 depen
+dencies 129/562 modules 392 active
+ ...pt/esm|/Users/boyuan/Documents/wow_mini_program/node_modules/lodash-es/isN
+il.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (11%) 0/1 entries 2097/2172 depen
+dencies 166/570 modules 376 active
+ ...cript/esm|/Users/boyuan/Documents/wow_mini_program/node_modules/lodash-es/
+eq.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (13%) 0/1 entries 2213/2241 depen
+dencies 354/609 modules 241 active
+ ../../../../node_modules/platform/platform.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (14%) 0/1 entries 2280/2301 depen
+dencies 366/643 modules 268 active
+ ...ules/.pnpm/style-inject@0.3.0/node_modules/style-inject/dist/style-inject.
+es.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (16%) 0/1 entries 2373/2374 depen
+dencies 568/684 modules 114 active
+ ...|/Users/boyuan/Documents/wow_mini_program/node_modules/lodash-es/_coreJsDa
+ta.js
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (17%) 0/1 entries 2424/2424 depen
+dencies 657/714 modules 57 active
+ ...oader › postcss-loader › resolve-url-loader › sass-loader › src/app.scss|0
+|||}}
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (17%) 0/1 entries 2435/2435 depen
+dencies 664/717 modules 52 active
+ ...er › resolve-url-loader › sass-loader › src/web/WebLoginHome.module.scss|0
+|||}}
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ building (17%) 0/1 entries 2460/2466 depen
+dencies 690/725 modules 32 active
+ ...7 10 4-7c.5-.8 2-.3 2 1v5h5a3 3 0 0 1 3 3l-1 6a2 2 0 0 1-2 2H7%27/%3E%3C/s
+vg%3E
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ sealing (78%)
+ chunk modules optimization
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ sealing (88%)
+ runtime requirements
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ sealing (92%) asset processing
+ CssMinimizerPlugin
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ sealing (92%) asset processing
+ HtmlWebpackPlugin
+
+- 即将开始启动编译，请稍等~
+
+● Webpack █████████████████████████ sealing (92%) asset processing
+ RealContentHashPlugin
+
+- 即将开始启动编译，请稍等~
+
+✔ Webpack
+  Compiled successfully in 5.49s
+
+- 即将开始启动编译，请稍等~
+⚠️ Warnings:
+
+AssetsOverSizeLimitWarning: asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets:
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  js/app.js (425 KiB)
+
+EntrypointsOverSizeLimitWarning: entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (653 KiB)
+      js/212.js
+      css/app.css
+      js/app.js
+
+⚠️  编译警告. 9/9/2026, 3:26:16 PM
+
+AssetsOverSizeLimitWarning: asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets:
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  js/app.js (425 KiB)
+
+EntrypointsOverSizeLimitWarning: entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (653 KiB)
+      js/212.js
+      css/app.css
+      js/app.js
+
+assets by path brand/ 89 KiB
+  asset brand/gugu-v1.ico 85.3 KiB [emitted] [from: public/brand/gugu-v1.ico] [copied]
+  asset brand/gugu-v1-32.png 2.77 KiB [emitted] [from: public/brand/gugu-v1-32.png] [copied]
+  asset brand/gugu-v1-16.png 915 bytes [emitted] [from: public/brand/gugu-v1-16.png] [copied]
+assets by status 953 KiB [big]
+  asset static/images/web/assets/gu-gu-mascot.png 528 KiB [emitted] [from: src/web/assets/gu-gu-mascot.png] [big] (auxiliary name: app)
+  asset js/app.js 425 KiB [emitted] [minimized] [big] (name: app) 1 related asset
+assets by path chunk/*.js 5.1 KiB
+  asset chunk/200.js 4.91 KiB [emitted] [minimized] 1 related asset
+  asset chunk/477.js 189 bytes [emitted] [minimized]
+asset js/212.js 131 KiB [emitted] [minimized] (id hint: taro) 1 related asset
+asset css/app.css 96.9 KiB [emitted] [minimized] (name: app)
+asset index.html 1.26 KiB [emitted]
+Entrypoint app [big] 653 KiB (528 KiB) = js/212.js 131 KiB css/app.css 96.9 KiB js/app.js 425 KiB 1 auxiliary asset
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets:
+  static/images/web/assets/gu-gu-mascot.png (528 KiB)
+  js/app.js (425 KiB)
+
+WARNING in entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  app (653 KiB)
+      js/212.js
+      css/app.css
+      js/app.js
+
+
+webpack 5.91.0 compiled with 2 warnings in 5497 ms

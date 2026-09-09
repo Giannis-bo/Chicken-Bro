@@ -17,4 +17,4 @@
 
 云端使用现有 `f50a2121bf894570146507496f3e113bff68e445` 引擎，官方同版本样例与实时 Raider.IO 角色分别记录。官方样例只是引擎验证，不写业务快照、不冒充玩家资料。用户原始野德链接另行用真实资料验证。
 
-证据见 [验证记录](../../artifacts/verification/2026-09-09-simc-all-specs/README.md)。当前没有生产切流或新的用户上线验收。
+证据见 [验证记录](../../artifacts/verification/2026-09-09-simc-all-specs/README.md)。用户于 2026-09-09 明确授权提交、合入、发布。源码 `0649a2e858f51d633380873912ef75a8c91687ea` 已合入并推送 main，后端与 Web 已发布；原始野德正式任务、治疗拒绝、第二账号隔离及 HTTPS Web 文件身份验证通过。详见 [发布记录](../../artifacts/verification/2026-09-09-simc-all-specs/release/README.md)。未声称真人 QQ 登录或浏览器手工验收。

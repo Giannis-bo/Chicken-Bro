@@ -1,0 +1,11 @@
+> wow-mini-program-workspace@0.1.0 test:taro
+> vitest run
+
+
+ RUN  v4.1.10 /Users/boyuan/Documents/wow_mini_program/.worktrees/simc-all-specs-release
+
+
+ Test Files  34 passed (34)
+      Tests  286 passed (286)
+   Start at  15:26:01
+   Duration  1.83s (transform 3.70s, setup 0ms, import 5.48s, tests 1.76s, environment 9.72s)
