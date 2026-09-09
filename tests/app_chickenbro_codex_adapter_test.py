@@ -71,6 +71,135 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_internal_diagnostics_are_bounded_allowlisted_and_never_log_content(self):
+        from server.app.chickenbro import codex_adapter as module
+        secret = 'PRIVATE-PROMPT-PATCH-EXCEPTION'
+        with patch.object(module._LOG, 'info') as log:
+            diagnostic = module._RunDiagnostics('12345678-1234-1234-1234-123456789abc')
+            for _ in range(100):
+                diagnostic.emit('validation', validation_codes=['WCL_REFERENCE_UNOBSERVED', secret], code=secret)
+                diagnostic.emit(secret, code=secret)
+            self.assertEqual(log.call_count, 1)
+            rendered = str(log.call_args_list)
+            self.assertNotIn(secret, rendered)
+            self.assertIn('WCL_REFERENCE_UNOBSERVED', rendered)
+            module._RunDiagnostics(secret).emit('validation')
+            self.assertEqual(log.call_count, 1)
+        with patch.object(module._LOG, 'info', side_effect=RuntimeError(secret)), \
+             patch.object(module._LOG, 'warning', side_effect=RuntimeError(secret)):
+            diagnostic = module._RunDiagnostics('12345678-1234-1234-1234-123456789abc')
+            diagnostic.emit('validation')
+            diagnostic.emit('stream_failed', code='CODEX_OUTPUT_INVALID')
+
+    def test_failure_diagnostics_visible_at_warning_with_safe_prior_validation_snapshot(self):
+        import logging
+        from server.app.chickenbro import codex_adapter as module
+        records=[]
+        class Capture(logging.Handler):
+            def emit(self, record):records.append(json.loads(record.args[0]))
+        logger=logging.Logger('isolated-diagnostic-test',level=logging.WARNING)
+        logger.addHandler(Capture())
+        with patch.object(module,'_LOG',logger):
+            diagnostic=module._RunDiagnostics('12345678-1234-1234-1234-123456789abc')
+            diagnostic.emit('validation',validation_codes=['WCL_REFERENCE_UNOBSERVED','PRIVATE'])
+            diagnostic.emit('repair_enter')
+            diagnostic.emit('repair_failed',phase='stream',code='CODEX_TIMEOUT')
+            diagnostic.emit('stream_failed',code='CODEX_OUTPUT_INVALID')
+        self.assertEqual(len(records),2)
+        self.assertEqual(records[-1]['validation_codes'],['WCL_REFERENCE_UNOBSERVED'])
+        self.assertEqual(records[-1]['repair_phase'],'stream')
+        self.assertEqual(records[-1]['repair_code'],'CODEX_TIMEOUT')
+        self.assertIn('repair_elapsed_ms',records[-1])
+        self.assertNotIn('PRIVATE',str(records))
+
+    def test_diagnostic_helpers_cannot_replace_business_error_with_unhashable_code(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        error=CodexStreamError('CODEX_OUTPUT_INVALID')
+        error.code=['PRIVATE']
+        self.assertEqual(module._diagnostic_error(error),'UNEXPECTED')
+        def fail(*a,**k):raise RuntimeError('PRIVATE')
+        token=module._DIAGNOSTICS.set(SimpleNamespace(emit=fail))
+        try:module._diagnostic('stream_failed')
+        finally:module._DIAGNOSTICS.reset(token)
+
+    def test_slow_delivery_logger_cannot_cross_deadline_and_complete(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        now=[0.0]
+        def log(message,payload):
+            if json.loads(payload)['stage']=='delivery_complete':now[0]=2.01
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(module.time,'monotonic',side_effect=lambda:now[0]), \
+             patch.object(module._LOG,'info',side_effect=log), patch.object(module._LOG,'warning'):
+            adapter=NativeCodexChatAdapter(jobs_dir=directory,enabled=True,popen=lambda *a,**k:FakeProcess(answer()))
+            stream=adapter.stream(prompt='q',timeout_seconds=2,
+                tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc'))
+            self.assertEqual(next(stream),{'type':'delta','text':'answer'})
+            with self.assertRaises(CodexStreamError) as caught:next(stream)
+            self.assertEqual(caught.exception.code,'CODEX_TIMEOUT')
+            self.assertIsNone(module._DIAGNOSTICS.get())
+
+    def test_diagnostic_context_resets_on_generator_close_and_logger_failure(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'info', side_effect=RuntimeError('private')):
+            adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: FakeProcess(answer()))
+            stream = adapter.stream(prompt='PRIVATE', timeout_seconds=2,
+                tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc'))
+            self.assertEqual(next(stream), {'type':'delta','text':'answer'})
+            self.assertIsNotNone(module._DIAGNOSTICS.get())
+            stream.close()
+            self.assertIsNone(module._DIAGNOSTICS.get())
+            result=list(adapter.stream(prompt='PRIVATE',timeout_seconds=2))
+            self.assertEqual(result[-1],{'type':'completed','text':'answer'})
+            self.assertIsNone(module._DIAGNOSTICS.get())
+
+    def test_repair_diagnostics_distinguish_stream_timeout_and_patch_failure_without_content(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        secret = 'PRIVATE-DRAFT-PROMPT-PATCH'
+        for mode in ('stream','patch_apply'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                processes=[FakeProcess(transcript(item('item/started'),delta(secret),item('item/completed',secret))),
+                           FakeProcess(transcript(item('item/started'),delta(secret),item('item/completed',secret)))]
+                emitted=[]
+                with patch.object(module._LOG,'info') as log, patch.object(module._LOG,'warning',side_effect=log), \
+                     patch.object(module,'_answer_errors',return_value=['WCL_REFERENCE_UNOBSERVED']), \
+                     patch.object(module,'_repair_context',return_value='{}'):
+                    adapter=NativeCodexChatAdapter(jobs_dir=directory,enabled=True,popen=lambda *a,**k:processes.pop(0))
+                    hook=patch.object(module._RepairSession,'stream',side_effect=CodexStreamError('CODEX_TIMEOUT',secret)) if mode=='stream' else patch.object(module,'_apply_repair_patch',side_effect=CodexStreamError('CODEX_OUTPUT_INVALID',secret))
+                    with hook, self.assertRaises(CodexStreamError) as caught:
+                        emitted.extend(adapter.stream(prompt=secret,timeout_seconds=480,
+                            tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc')))
+                    self.assertEqual(caught.exception.code,'CODEX_OUTPUT_INVALID')
+                    self.assertEqual(emitted,[])
+                    records=[json.loads(call.args[1]) for call in log.call_args_list]
+                    failure=next(r for r in records if r['stage']=='repair_failed')
+                    self.assertEqual(failure['phase'],mode)
+                    self.assertEqual(failure['code'],'CODEX_TIMEOUT' if mode=='stream' else 'CODEX_OUTPUT_INVALID')
+                    self.assertIn('repair_elapsed_ms',failure)
+                    self.assertNotIn(secret,str(log.call_args_list))
+                    self.assertIsNone(module._DIAGNOSTICS.get())
+
+    def test_diagnostic_context_isolated_between_owner_threads(self):
+        from server.app.chickenbro import codex_adapter as module
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        barrier=Barrier(2)
+        ids=['12345678-1234-1234-1234-123456789abc','abcdefab-1234-1234-1234-123456789abc']
+        def owner(run_id):
+            token=module._DIAGNOSTICS.set(module._RunDiagnostics(run_id))
+            try:
+                barrier.wait(timeout=2)
+                module._diagnostic('validation',validation_codes=['WCL_REFERENCE_MALFORMED'])
+            finally:module._DIAGNOSTICS.reset(token)
+            return module._DIAGNOSTICS.get()
+        with patch.object(module._LOG,'info') as log, ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(list(pool.map(owner,ids)),[None,None])
+        self.assertEqual({json.loads(c.args[1])['run_id'] for c in log.call_args_list},set(ids))
+        self.assertIsNone(module._DIAGNOSTICS.get())
+
     def test_repair_patch_applies_original_positions_without_touching_other_text(self):
         from server.app.chickenbro.codex_adapter import _apply_repair_patch
         draft = 'prefix old-one middle old-two suffix'

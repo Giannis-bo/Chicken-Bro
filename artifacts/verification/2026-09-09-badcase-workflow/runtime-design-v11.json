@@ -1,0 +1,45 @@
+{
+  "recorded_at": "2026-09-09T18:43:21.844239+00:00",
+  "basis": [
+    "Offline confirmation that failed unobserved report URLs are rejected under existing positive-reference contract; align generation guidance without weakening that validator",
+    "Production OUTPUT_INVALID lacked validation/repair-stage detail; fix diagnosis blind spot without claiming original cause"
+  ],
+  "original_production_failure_cause": "not_determined",
+  "runtime_files": {
+    "server/app/chickenbro/codex_adapter.py": "3798b49c5b253f9ae8a11227571a2716a75793e0fc470eeaef4a04ff99f64a93",
+    "server/app/chickenbro/agent/AGENTS.md": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2"
+  },
+  "tests": {
+    "adapter": {
+      "passed": 49
+    },
+    "backend": {
+      "passed": 637,
+      "seconds": 12.199,
+      "log_sha256": "ad08ef40523c197bd0617014e32a70e4ac080968c49168a1e8063ae4492e7db4"
+    },
+    "red_evidence": {
+      "badcase-v11-diagnostic-red.log": "0e7bf2551003513b7f54e44d41cee6c81281e7d419a2f842ab6ef2a27f2903c2",
+      "badcase-v11-diagnostic-warning-red.log": "ce6143677538b46758233877125844dfb7ec8bc819cb16c35a14e7547538402c",
+      "badcase-v11-diagnostic-slowlogger-red.log": "744cbe91581101b1f75eb890be71a4f7725ff79e5342670e5648ef6577d86d27"
+    }
+  },
+  "independent_source_review": "passed",
+  "unchanged_contracts": [
+    "480-second Chat and360-second WCL budgets",
+    "once-only no-tools repair with60-second cap",
+    "positive-reference validator",
+    "public error codes",
+    "source ownership and simulation permissions",
+    "buffered validated final delivery"
+  ],
+  "diagnostics": {
+    "content_saved": false,
+    "failure_visible_at_default_warning_level": true,
+    "fixed_stage_limit": 8,
+    "run_id": "valid UUID only",
+    "logging_failure_preserves_business_result": true,
+    "slow_logging_cannot_skip_final_deadline_check": true
+  },
+  "business_validation": "not_run_for_this_source"
+}

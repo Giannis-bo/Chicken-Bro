@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-09-09T18:37:53.346817+00:00",
+  "purpose": "diagnostic_only_not_acceptance",
+  "source_sha": "f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+  "run_id": "f462e84e-7d93-4c6c-bce4-d308bbbb57cd",
+  "terminal": "succeeded",
+  "http_seconds": 435.18,
+  "validation_codes": [],
+  "repair_observed": false,
+  "result": "original_production_failure_not_reproduced",
+  "counts": {
+    "completed_tool_receipts": 111,
+    "latest_ranking_groups": 9,
+    "latest_contiguous_top10_entries": 90,
+    "matched_scoped_samples": 52,
+    "coverage_per_group_sorted": [
+      2,
+      2,
+      2,
+      2,
+      4,
+      10,
+      10,
+      10,
+      10
+    ]
+  },
+  "private_evidence_sha256": {
+    "independent-review.json": "143a0850bb1d494fa902cd614740c1fa80fca9e068aa88451bda38b7e16c4792",
+    "tool-results.json": "af00ab856769c9fbb9fe22de51620496b6146e673f5300a672844be12de12d08",
+    "driver.log": "d6f66be60e3f9544b4a231604e249a31b4b4854ca3b5b9e6c9b803be249a17c2"
+  },
+  "original_failure_remains_failed": true,
+  "next_change_basis": [
+    "generation policy alignment with existing positive-reference contract",
+    "bounded metadata diagnostics to distinguish final validation and repair failure stages"
+  ],
+  "causal_limit": "No discarded production draft or repair-stage record exists; HTTP429 is confirmed in production receipts but its causal relationship to OUTPUT_INVALID remains unproven."
+}
