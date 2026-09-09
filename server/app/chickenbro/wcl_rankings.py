@@ -76,21 +76,29 @@ def query_wcl_rankings(options):
             if not isinstance(r,dict):
                 invalid+=1;continue
             report=r.get('report');server=r.get('server')
-            if (not isinstance(report,dict) or not isinstance(server,dict)
-                or any(not isinstance(r.get(k),str) or not r[k].strip() for k in ('name','class','spec'))
-                or not isinstance(server.get('name'),str) or not server['name'].strip()
-                or not isinstance(server.get('region'),str) or server['region'].lower() not in _REGIONS-{'world'}):
+            if (not isinstance(report,dict)
+                or any(not isinstance(r.get(k),str) or not r[k].strip() for k in ('name','class','spec'))):
                 invalid+=1;continue
             code=report.get('code');fight=report.get('fightID');amount=r.get('amount')
+            anonymous = ('server' in r and server is None and isinstance(code,str)
+                         and re.fullmatch(r'a:[A-Za-z0-9]{16}',code) is not None)
             if (r['class'].casefold()!=class_name.casefold() or r['spec'].casefold()!=spec_name.casefold()
-                or not isinstance(code,str) or not re.fullmatch(r'[A-Za-z0-9]{16}',code) or type(fight) is not int or fight<1
-                or type(amount) not in (int,float) or not math.isfinite(amount) or amount<=0
+                or type(fight) is not int or fight<1
+                or type(amount) not in (int,float) or not math.isfinite(amount) or amount<=0):
+                invalid+=1;continue
+            if not anonymous and (not isinstance(server,dict)
+                or not isinstance(server.get('name'),str) or not server['name'].strip()
+                or not isinstance(server.get('region'),str) or server['region'].lower() not in _REGIONS-{'world'}
+                or not isinstance(code,str) or not re.fullmatch(r'[A-Za-z0-9]{16}',code)
                 or (region!='world' and server['region'].lower()!=region)):
                 invalid+=1;continue
             results.append({'rank':(page-1)*100+index+1,'name':str(r.get('name') or '')[:100],
                 'class':r['class'],'spec':r['spec'],'amount':amount,'durationMs':r.get('duration'),
-                'startTime':r.get('startTime'),'server':{k:server.get(k) for k in ('id','name','region')},
-                'report':{'code':code,'fightID':fight},'reportUrl':f'https://www.warcraftlogs.com/reports/{code}?fight={fight}'})
+                'startTime':r.get('startTime'),
+                'identityStatus':'anonymous' if anonymous else 'named', 'analysisEligible':not anonymous,
+                'server':None if anonymous else {k:server.get(k) for k in ('id','name','region')},
+                'report':{'code':code,'fightID':fight},
+                'reportUrl':None if anonymous else f'https://www.warcraftlogs.com/reports/{code}?fight={fight}'})
         next_offset=offset+min(limit,max(0,len(raw)-offset))
         same_page=next_offset<len(raw)
         has_more=same_page or ranking['hasMorePages']
@@ -100,8 +108,10 @@ def query_wcl_rankings(options):
                 'partition':partition,'partitionName':next(p['name'] for p in zone['partitions'] if p['id']==partition),
                 'className':class_name,'specName':spec_name,'region':region,'metric':metric},rankings=results,
             pagination={'page':page,'offset':offset,'limit':limit,'returned':len(results),'upstreamCount':len(raw),
+                'namedReturned':sum(r['identityStatus']=='named' for r in results),
+                'anonymousReturned':sum(r['identityStatus']=='anonymous' for r in results),
                 'skippedInvalid':invalid,'hasMore':has_more,'paginationCapReached':bool(has_more and next_page is None),'nextPage':next_page,'nextOffset':next_offset if same_page else 0 if next_page else None},
-            limitations=['Rank is the ordinal within the exact requested leaderboard, not parse percentile. Ranking snapshot can change between pages. Rankings alone do not establish rotation commonalities. Empty/invalid samples are not successful analysis.'],
-            nextActions=['Read selected reportUrl with query_warcraftlogs_report, match actor by name AND server, then inspect casts/events. State sampled ranks and coverage; do not claim all top N were analyzed without evidence.'])
+            limitations=['Rank is the ordinal within the exact requested leaderboard, not parse percentile. Ranking snapshot can change between pages. Rankings alone do not establish rotation commonalities. Empty/invalid samples are not successful analysis. Anonymous rows preserve leaderboard ordinal only: analysisEligible=false, identity is unavailable and opaque report.code is not a readable report URL.'],
+            nextActions=['Select only analysisEligible=true rows for report analysis; do not infer an anonymous identity or alter its opaque reference. Read selected reportUrl with query_warcraftlogs_report, match actor by name AND server, then inspect casts/events. State sampled ranks and coverage; do not claim all top N were analyzed without evidence.'])
     except Exception:
         return _packet('unavailable')

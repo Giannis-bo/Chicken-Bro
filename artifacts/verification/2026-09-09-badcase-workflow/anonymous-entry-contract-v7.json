@@ -1,0 +1,9 @@
+{
+  "observed_at": "2026-09-09T14:51:06.758879+00:00",
+  "status": "contract_review_passed_not_business_acceptance",
+  "criteria_unchanged": true,
+  "preregistration_file_sha256": "d4ce789578df07f3e54db826f8ad248d1ba3af946138ea90cdfb38c0d073c749",
+  "reviewer": "independent rankings_review agent",
+  "upstream_receipt_sha256": "0833c68ace4ea90ef6dcb3ee22781372fe92a2caec3e77fd682fb931130d23d7",
+  "decision": "Official anonymous entries count as actual leaderboard entries only. Preserve rank and unknown identity with opaque a: reference; do not infer identity, make a normal report URL, replace rank, stitch snapshots, or count as matched analysis. Every requested boss still needs at least one precisely named matched report with actual casts/events and a supported written analysis. V6 stored899 normalized entries remain failed. Same480/360s and2/2 criteria."
+}

@@ -105,6 +105,31 @@ class ExecutorTest(unittest.TestCase):
         self.assertEqual([c['requestedRanksPerBoss'] for c in checked], [10, 100])
         self.assertTrue(all(c['bossesWithMatchedCasts'] == 9 for c in checked))
 
+    def test_anonymous_rank_counts_coverage_but_never_matched_casts(self):
+        result, release, packets = self.fixture()
+        row = packets['top100'][0][1]['rankings'][88]
+        row.update(name='Anonymous', server=None, identityStatus='anonymous', analysisEligible=False,
+                   report={'code': 'a:ABCDEFGHIJKLMNOP', 'fightID': row['report']['fightID']})
+        self.assertFalse(remote.matched_cast(row, []))
+        checked = remote.validate_cases(result, release)[1]
+        snapshot = next(s for s in checked['rankingSnapshots']
+                        if s['bossId'] == packets['top100'][0][1]['scope']['encounterId'])
+        self.assertEqual(snapshot['anonymousEntries'], 1)
+        self.assertEqual(snapshot['namedEntries'], 99)
+        self.assertNotIn(89, snapshot['matchedRanks'])
+
+    def test_anonymous_rows_cannot_satisfy_boss_analysis_even_with_casts(self):
+        result, release, packets = self.fixture()
+        rows = packets['top10'][0][1]['rankings']
+        for row in rows:
+            row.update(name='Anonymous', server=None, identityStatus='anonymous', analysisEligible=False,
+                       report={'code': 'a:ABCDEFGHIJKLMNOP', 'fightID': row['report']['fightID']})
+        fact = packets['top10'][1][1]['facts'][0]
+        fact.update(reportCode='a:ABCDEFGHIJKLMNOP')
+        fact['players'] = [{'id': 5, 'name': 'Anonymous', 'server': None}]
+        with self.assertRaisesRegex(AssertionError, 'matched boss cast'):
+            remote.validate_cases(result, release)
+
     def test_over_deadline_business_answer_is_not_a_pass(self):
         result, release, _ = self.fixture()
         result['cases'][0]['seconds'] = 481

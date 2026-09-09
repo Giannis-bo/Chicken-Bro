@@ -77,6 +77,23 @@ def _coverage_items(out, value, limit):
     return items[:limit]
 
 
+def _named_ranking_identity(row):
+    # Legacy named receipts predate these flags; an explicit anonymous/ineligible
+    # marker must never be interpreted as a positive report reference.
+    if row.get('identityStatus') not in (None, 'named') or row.get('analysisEligible', True) is not True:
+        return None
+    ref = _mapping(row.get('report'))
+    return _identity(ref.get('code'), ref.get('fightID'))
+
+
+def _anonymous_ranking_entry(row):
+    ref = _mapping(row.get('report'))
+    return (row.get('identityStatus') == 'anonymous' and row.get('analysisEligible') is False and
+            'server' in row and row['server'] is None and 'reportUrl' in row and row['reportUrl'] is None and
+            isinstance(ref.get('code'), str) and re.fullmatch(r'a:[A-Za-z0-9]{16}', ref['code']) is not None and
+            type(ref.get('fightID')) is int and ref['fightID'] > 0)
+
+
 def _receipt_coverage(out, packet):
     """Record receipt completeness separately from any later detail projection."""
     source, status = packet.get('sourceKey'), packet.get('status')
@@ -92,15 +109,22 @@ def _receipt_coverage(out, packet):
         if isinstance(packet.get('rankings'), list):
             rows = []
             snapshot_rows = []
+            named_count = anonymous_count = 0
             for row in _coverage_items(out, packet['rankings'], 200):
                 if not isinstance(row, Mapping) or type(row.get('rank')) is not int or row['rank'] < 1:
                     continue
                 ref = _mapping(row.get('report'))
-                identity = _identity(ref.get('code'), ref.get('fightID'))
+                identity = _named_ranking_identity(row)
                 if identity:
+                    named_count += 1
                     rows.append([row['rank'], identity['code'], identity['fight']])
                     snapshot_rows.append({**_fields(row, ('rank','name','class','spec','amount','durationMs','startTime')),
                         'report':identity, 'server':_fields(row.get('server'), ('id','name','region'))})
+                elif _anonymous_ranking_entry(row):
+                    anonymous_count += 1
+                    rows.append([row['rank'], ref['code'], str(ref['fightID'])])
+                    snapshot_rows.append({**_fields(row, ('rank','name','class','spec','amount','durationMs','startTime')),
+                        'report':_fields(ref, ('code','fightID')), 'identityStatus':'anonymous', 'analysisEligible':False})
             ranks = sorted({r[0] for r in rows})
             ranges = []
             for rank in ranks:
@@ -118,7 +142,8 @@ def _receipt_coverage(out, packet):
             queried = _small(packet.get('queriedAt'))
             snapshot = hashlib.sha256(_encoded([scope, queried, pagination, snapshot_rows]).encode()).hexdigest()
             _coverage_add(out, 'rankingSnapshots', {'snapshotId':snapshot, 'scope':scope, 'queriedAt':queried,
-                'status':status, 'pagination':pagination, 'returnedIdentityCount':len(rows), 'rankRanges':ranges,
+                'status':status, 'pagination':pagination, 'returnedIdentityCount':named_count, 'returnedEntryCount':len(rows),
+                'namedEntryCount':named_count, 'anonymousEntryCount':anonymous_count, 'rankRanges':ranges,
                 'requestedSliceComplete':complete})
     if source != 'warcraftlogs':
         return
@@ -205,21 +230,36 @@ def _bounded_coverage(coverage, budget):
     return result
 
 
+def _record_group(record, groups):
+    if record.get('group'):
+        return record['group']
+    index = record.get('groupIndex')
+    return groups[index] if type(index) is int and 0 <= index < len(groups) else {}
+
+
 def collect_evidence(previous, result):
     """Project allowlisted receipt fields; bounded independently of raw payload size."""
     out = copy.deepcopy(previous) if previous else {'reports': [], 'groups': [], 'truncated': False, 'attemptedWcl': False}
     out.setdefault('coverage', {**{k: [] for k in _COVERAGE_LISTS}, 'sourceIndexTruncated': False, 'projectionTruncated': False, 'boundary': _COVERAGE_BOUNDARY})
+    out.setdefault('references', [[r['code'],r['fight'],r['source']] for r in out['reports']][:MAX_REPORTS])
+    out.setdefault('referencesTruncated', False)
     def add(record):
         if not record:
             return
         key = (record['code'], record['fight'], record['source'])
+        if list(key) not in out['references']:
+            if len(out['references']) < MAX_REPORTS:
+                out['references'].append(list(key))
+            else:
+                out['referencesTruncated'] = True
+                out['truncated'] = True
         for i, old in enumerate(out['reports']):
             if (old['code'], old['fight'], old['source']) == key:
                 # Keep independent receipts; a later event-only query cannot erase
                 # an earlier table, and a ranking refresh cannot downgrade a report.
                 if old.get('kind') == 'report' and record.get('kind') == 'ranking':
                     merged = {**record, **old}
-                    for field in ('rank','name','server','group'):
+                    for field in ('rank','name','server','group','groupIndex'):
                         if field in record:
                             merged[field] = record[field]
                 else:
@@ -269,9 +309,9 @@ def collect_evidence(previous, result):
                 if not isinstance(rank, Mapping):
                     continue
                 ref = _mapping(rank.get('report'))
-                rec = _identity(ref.get('code'), ref.get('fightID'))
+                rec = _named_ranking_identity(rank)
                 if rec:
-                    rec.update({'rank': _small(rank.get('rank')), 'name': _small(rank.get('name')), 'server': _fields(rank.get('server'),('name','region')), 'group': scope, 'kind': 'ranking', 'status': r.get('status')})
+                    rec.update({'rank': _small(rank.get('rank')), 'name': _small(rank.get('name')), 'server': _fields(rank.get('server'),('name','region')), 'groupIndex': out['groups'].index(scope) if scope in out['groups'] else None, 'kind': 'ranking', 'status': r.get('status')})
                     add(rec)
         if r.get('sourceKey') != 'warcraftlogs':
             return
@@ -322,7 +362,8 @@ def collect_evidence(previous, result):
             if (player.get('name')==ranking['name'] and
                 str(player.get('server','')).replace(' ','')==str(server.get('name','')).replace(' ','') and
                 player.get('region')==server.get('region')):
-                for field in ('rank','group','name','server'):
+                rec['group'] = copy.deepcopy(_record_group(ranking, out['groups']))
+                for field in ('rank','name','server'):
                     if field in ranking:
                         rec[field] = copy.deepcopy(ranking[field])
                 break
@@ -331,8 +372,9 @@ def collect_evidence(previous, result):
             matches = [r for r in out['reports'] if r['code']==receipt['code'] and r['fight']==receipt['fight']]
             groups = []
             for rec in matches:
-                if rec.get('group') and rec['group'] not in groups:
-                    groups.append(rec['group'])
+                group = _record_group(rec, out['groups'])
+                if group and group not in groups:
+                    groups.append(group)
                 if receipt['source'] and rec['source']==receipt['source'] and rec.get('player'):
                     receipt['player'] = copy.deepcopy(rec['player'])
                     if rec.get('group') and rec.get('name'):
@@ -348,18 +390,45 @@ def collect_evidence(previous, result):
     size = len(json.dumps(out, ensure_ascii=False))
     if size > MAX_INDEX:
         out['truncated'] = True
-        for rec in reversed(out['reports']):
-            before = len(json.dumps(rec, ensure_ascii=False))
-            rec.pop('opening', None)
-            rec.pop('casts', None)
-            rec.pop('castTables', None)
-            rec.pop('eventWindows', None)
-            size -= before - len(json.dumps(rec, ensure_ascii=False))
-            if size <= MAX_INDEX - 16:
+        # Drop redundant ranking presentation before actual scoped casts; retain
+        # the compact actor/group identity for reports fetched later in this run.
+        for rec in out['reports']:
+            if rec.get('kind') == 'ranking':
+                before = len(json.dumps(rec, ensure_ascii=False))
+                rec.pop('url', None)
+                rec.pop('status', None)
+                size -= before - len(json.dumps(rec, ensure_ascii=False))
+        # Remove duplicate event/table payloads across every report first.
+        for rec in out['reports']:
+            if size <= MAX_INDEX - 64:
                 break
-    while size > MAX_INDEX - 16 and out['reports']:
-        size -= len(json.dumps(out['reports'].pop(), ensure_ascii=False)) + 2
-        out['coverage']['sourceIndexTruncated'] = True
+            before = len(json.dumps(rec, ensure_ascii=False))
+            for field in ('castTables','eventWindows','boundary'):
+                rec.pop(field, None)
+            size -= before - len(json.dumps(rec, ensure_ascii=False))
+        for rec in list(reversed(out['reports'])):
+            if size <= MAX_INDEX - 64:
+                break
+            if rec.get('kind') == 'ranking':
+                size -= len(json.dumps(rec, ensure_ascii=False)) + 2
+                out['reports'].remove(rec)
+        # Under extreme detail load, reduce excerpts fairly, preserving one cast
+        # and event per report where space permits; positive identities are stable.
+        while size > MAX_INDEX - 64:
+            changed = False
+            for rec in out['reports']:
+                before = len(json.dumps(rec, ensure_ascii=False))
+                for field in ('opening','casts'):
+                    if len(rec.get(field, [])) > 1:
+                        rec[field] = rec[field][:max(1,len(rec[field])//2)]
+                        rec['detailProjectionTruncated'] = True
+                        changed = True
+                size -= before - len(json.dumps(rec, ensure_ascii=False))
+            if not changed:
+                break
+        while size > MAX_INDEX - 64 and out['reports']:
+            size -= len(json.dumps(out['reports'].pop(), ensure_ascii=False)) + 2
+    # Final serialization includes all flags added while pruning.
     return out
 
 
@@ -368,6 +437,7 @@ def validate_answer(text, evidence):
     errors = set()
     reports = evidence.get('reports', []) if isinstance(evidence, Mapping) else []
     groups = evidence.get('groups', []) if isinstance(evidence, Mapping) else []
+    references = evidence.get('references', [[r['code'],r['fight'],r['source']] for r in reports]) if isinstance(evidence, Mapping) else []
     for raw in _URL.findall(str(text)):
         raw = html.unescape(raw.rstrip(').,;!?。；，'))
         try:
@@ -384,8 +454,8 @@ def validate_answer(text, evidence):
             code = match.group(1)
             fight = query.get('fight',[''])[0]
             source = query.get('source',[''])[0]
-            if reports or groups or (isinstance(evidence, Mapping) and evidence.get('attemptedWcl')):
-                if not any(r['code']==code and (not fight or r['fight']==fight) and (not source or r['source']==source) for r in reports):
+            if references or reports or groups or (isinstance(evidence, Mapping) and evidence.get('attemptedWcl')):
+                if not any(r[0]==code and (not fight or r[1]==fight) and (not source or r[2]==source) for r in references):
                     errors.add('WCL_REFERENCE_UNOBSERVED')
         except (ValueError, TypeError):
             errors.add('WCL_REFERENCE_MALFORMED')
@@ -409,6 +479,10 @@ def validate_answer(text, evidence):
 def repair_context(evidence):
     """Serialize bounded factual data only; caller supplies trusted repair policy."""
     safe = copy.deepcopy(evidence) if isinstance(evidence, Mapping) else {}
+    references = safe.pop('references', [])
+    if references:
+        safe['observedReferenceCount'] = len(references)
+        safe['referenceDetailsInSeparateIndex'] = True
     safe['projectionTruncated'] = bool(safe.get('truncated'))
     encoded = json.dumps(safe,ensure_ascii=False,separators=(',',':'))
     if len(encoded) <= MAX_CONTEXT:
@@ -417,6 +491,9 @@ def repair_context(evidence):
     while len(json.dumps(bounded, ensure_ascii=False, separators=(',',':'))) > 8000 and bounded['groups']:
         bounded['groups'].pop()
     bounded['projectionTruncated'] = True
+    bounded['observedReferenceCount'] = safe.get('observedReferenceCount', 0)
+    bounded['referencesTruncated'] = bool(safe.get('referencesTruncated'))
+    bounded['referenceDetailsInSeparateIndex'] = bool(safe.get('referenceDetailsInSeparateIndex'))
     bounded['coverage'] = _bounded_coverage(_mapping(safe.get('coverage')), 32000)
     size = len(json.dumps(bounded, ensure_ascii=False, separators=(',',':')))
     # An actual scoped report is more useful for repair than a leaderboard row.
@@ -427,6 +504,9 @@ def repair_context(evidence):
     remaining = []
     for original in safe.get('reports', []):
         rec = copy.deepcopy(original)
+        if 'groupIndex' in rec:
+            rec['group'] = copy.deepcopy(_record_group(rec, _items(safe.get('groups'))))
+            rec.pop('groupIndex', None)
         # The main fields already contain the selected independent table and
         # latest event sample. Do not duplicate their payload in repair context.
         rec.pop('castTables', None)
@@ -457,7 +537,16 @@ def repair_context(evidence):
                 records.append(bucket.pop(0))
     records.extend(remaining)
     size = len(json.dumps(bounded, ensure_ascii=False, separators=(',',':')))
+    scoped_count = sum(bool(r.get('source')) and r.get('kind') == 'report' for r in records)
+    per_scoped_budget = max(1, (MAX_CONTEXT - 64 - size) // max(1, scoped_count))
     for rec in records:
+        if rec.get('source') and rec.get('kind') == 'report':
+            while len(_encoded(rec))+1 > per_scoped_budget:
+                field = max(('casts','opening'), key=lambda k:len(rec.get(k, [])))
+                if len(rec.get(field, [])) <= 1:
+                    break
+                rec[field] = rec[field][:max(1,len(rec[field])//2)]
+                rec['detailProjectionTruncated'] = True
         record_size = len(json.dumps(rec, ensure_ascii=False, separators=(',',':'))) + 1
         if size + record_size <= MAX_CONTEXT - 32:
             bounded['reports'].append(rec)

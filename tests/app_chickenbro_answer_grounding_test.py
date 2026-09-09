@@ -102,6 +102,79 @@ class GroundingTests(unittest.TestCase):
                 self.assertTrue(collect_evidence({},packet)['coverage']['sourceIndexTruncated'])
         self.assertFalse(collect_evidence({},result())['coverage']['sourceIndexTruncated'])
 
+    def test_large_rankings_cannot_evict_positive_scoped_references_or_casts(self):
+        e={}
+        for group in range(9):
+            rows=[{'rank':i+1,'name':f'Actor{i}','server':{'name':'Realm','region':'EU'},'report':{'code':f'{group*100+i:016d}','fightID':73}} for i in range(100)]
+            e=collect_evidence(e,{'sourceKey':'warcraftlogs_rankings','status':'source_reference','scope':{'encounterId':group,'encounterName':f'Encounter{group}','zoneId':17,'difficulty':4,'partition':2,'className':'Arbitrary','specName':'Arbitrary','region':'world','metric':'dps'},'rankings':rows,
+                'pagination':{'page':1,'offset':0,'limit':100,'returned':100,'skippedInvalid':0}})
+        urls=[]
+        for group in range(9):
+            for actor in range(2):
+                packet=result(f'{group*100+actor:016d}');fact=packet['facts'][0]
+                fact['players']=[{'id':91,'name':f'Actor{actor}','server':'Realm','region':'EU'}]
+                fact['casts']['entries']=[{'name':'Spell'*50,'guid':i,'total':i+1} for i in range(24)]
+                fact['events']=[{'timestamp':i*100,'type':'cast','abilityGameID':i} for i in range(24)]
+                e=collect_evidence(e,packet);urls.append(f"https://www.warcraftlogs.com/reports/{group*100+actor:016d}?fight=73&source=91")
+        self.assertLessEqual(len(json.dumps(e,ensure_ascii=False)),512000)
+        self.assertEqual(validate_answer(' '.join(urls),e),[])
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer(URL+'?fight=73&source=999',e))
+        scoped=[r for r in e['reports'] if r.get('source') and r.get('casts')]
+        self.assertEqual(len(scoped),18)
+        context=json.loads(repair_context(e))
+        self.assertEqual({r['group']['encounterId'] for r in context['reports'] if r.get('source') and r.get('casts')},set(range(9)))
+        self.assertLessEqual(len(repair_context(e)),64000)
+
+    def test_positive_identity_survives_detail_removal_and_remains_scoped(self):
+        e=collect_evidence({},result());e['reports'].clear()
+        self.assertEqual(validate_answer(URL+'?fight=73&source=91',e),[])
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer(URL+'?fight=74&source=91',e))
+        blocked=result('Z'*16);blocked['status']='blocked';e=collect_evidence(e,blocked)
+        self.assertNotIn(['Z'*16,'73','91'],e['references'])
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer('https://www.warcraftlogs.com/reports/'+'Z'*16,e))
+        g=ChickenbroSourceGateway(query_service=lambda *_:result());a,b=g.issue_capability(),g.issue_capability();g.query(a,'warcraftlogs',URL)
+        self.assertEqual(len(g.answer_evidence(a)['references']),1);self.assertNotIn('references',g.answer_evidence(b))
+        clone=g.answer_evidence(a);clone['references'].clear();self.assertEqual(len(g.answer_evidence(a)['references']),1)
+        g.revoke(a)
+        with self.assertRaises(SourceGatewayUnauthorized):g.answer_evidence(a)
+
+    def test_positive_identity_capacity_is_explicit_and_never_fail_open(self):
+        from unittest.mock import patch
+        from server.app.chickenbro.answer_grounding import MAX_REPORTS
+        self.assertEqual(MAX_REPORTS,2048)
+        with patch('server.app.chickenbro.answer_grounding.MAX_REPORTS',4):
+            e=collect_evidence({}, {'sourceKey':'warcraftlogs','status':'verified','facts':[result(f'{i:016d}')['facts'][0] for i in range(5)]})
+        self.assertEqual(len(e['references']),4);self.assertTrue(e['referencesTruncated'])
+        self.assertTrue(json.loads(repair_context(e))['referencesTruncated'])
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer('https://www.warcraftlogs.com/reports/ZZZZZZZZZZZZZZZZ?fight=73&source=91',e))
+
+    def test_anonymous_ranking_entry_counts_only_toward_snapshot_coverage(self):
+        named={'rank':1,'report':{'code':CODE,'fightID':73}}
+        anonymous={'rank':2,'name':'Anonymous','server':None,'report':{'code':'a:'+'Z'*16,'fightID':73},'identityStatus':'anonymous','analysisEligible':False,'reportUrl':None}
+        packet={'sourceKey':'warcraftlogs_rankings','status':'source_reference','scope':{'encounterId':591},
+            'rankings':[named,anonymous],'pagination':{'page':1,'offset':0,'limit':2,'returned':2,'skippedInvalid':0}}
+        e=collect_evidence({},packet);snapshot=e['coverage']['rankingSnapshots'][0]
+        self.assertTrue(snapshot['requestedSliceComplete']);self.assertEqual(snapshot['rankRanges'],[[1,2]])
+        self.assertEqual(snapshot['returnedEntryCount'],2);self.assertEqual(snapshot['namedEntryCount'],1);self.assertEqual(snapshot['anonymousEntryCount'],1)
+        self.assertEqual(e['references'],[[CODE,'73','']]);self.assertEqual(len(e['reports']),1)
+        self.assertIn('WCL_REFERENCE_UNOBSERVED',validate_answer('https://www.warcraftlogs.com/reports/'+'Z'*16+'?fight=73',e))
+        for field,value in [('reportUrl','https://www.warcraftlogs.com/reports/'+'Z'*16),('server',{}),('identityStatus','named'),('analysisEligible',True),('report',{'code':'a:short','fightID':73})]:
+            bad={**anonymous,field:value};packet['rankings']=[named,bad];snapshot=collect_evidence({},packet)['coverage']['rankingSnapshots'][0]
+            self.assertFalse(snapshot['requestedSliceComplete']);self.assertEqual(snapshot['anonymousEntryCount'],0)
+        # An anonymous marker can never upgrade an ordinary report code to a named reference.
+        bad={**anonymous,'report':{'code':'Z'*16,'fightID':73}};packet['rankings']=[named,bad]
+        self.assertEqual(collect_evidence({},packet)['references'],[[CODE,'73','']])
+        packet['rankings']=[{**anonymous,'rank':1},{**anonymous,'rank':1}]
+        e=collect_evidence({},packet)
+        self.assertFalse(e['coverage']['rankingSnapshots'][0]['requestedSliceComplete'])
+        self.assertEqual(e['references'],[]);self.assertEqual(e['reports'],[])
+        packet['rankings']=[named,anonymous];packet['status']='partial'
+        self.assertFalse(collect_evidence({},packet)['coverage']['rankingSnapshots'][0]['requestedSliceComplete'])
+        packet['status']='source_reference';e=collect_evidence({},packet)
+        fetched=result('Z'*16);fetched['facts'][0]['players']=[{'id':91,'name':'Anonymous','server':'Realm','region':'EU'}]
+        e=collect_evidence(e,fetched)
+        self.assertFalse(e['coverage']['reportReceipts'][0].get('matchedRankingActor',False))
+
     def test_observed_and_unobserved_scopes(self):
         e=collect_evidence({},result())
         self.assertEqual(validate_answer(URL+'?fight=73&source=91',e),[])

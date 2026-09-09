@@ -1,0 +1,27 @@
+{
+  "source_sha": "59f4015281850df357a212a91e5acc04358e5693",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "dc91c8b61da2bba847aceaee5bb90fe29cd00c7f159d2011186ee7c57192c667",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "752536c34ebf1ad2f99136c489a7e50020df4a3cc0dc9f39e137dcfff691dc77",
+  "kind": "candidate",
+  "status": "failed",
+  "observed_at": "2026-09-09T14:40:11.104521+00:00",
+  "checks": {},
+  "details": "V6 original100 repeat1 failed with CodexStreamError and no answer. Both original100 repetitions also returned899 normalized ranks, one scope missingrank89; fixed full-topN acquisition criterion fails even with honest disclosure. Immutable-source replay independently proves17 of18 truly observed scoped URLs become falsely UNOBSERVED after512k detail eviction; original discarded draft is unavailable, so exact exception path is not claimed. All actual trials/independent verdicts retained. HTTP/general not launched after model gate failure; no production attempt.",
+  "production_attempted": false,
+  "downstream_http_general": "not_run_due_to_model_gate_failure",
+  "index_defect_design": {
+    "source_sha": "59f4015281850df357a212a91e5acc04358e5693",
+    "raw_sha256": "1b75efb304cae758f6d53e4c9d300a537f0d32a37410396da02b5f8a78a89de1",
+    "grounding_sha256": "c1e73c0ad26b6fa428cafafca5a3e2be0af6ddafdc36e840fe448698d210a6f5",
+    "actual_scoped_references": 18,
+    "retained_scoped_references": 1,
+    "retained_scoped_cast_records": 0,
+    "false_unobserved": 17,
+    "context_chars": 63963,
+    "index_chars": 511132,
+    "limitation": "Deterministic index/reference defect proven from exact immutable source and raw receipts. Original rejected draft unavailable; exact terminal exception path cannot be reconstructed."
+  },
+  "index_defect_receipt_sha256": "fd92fe67a14fb70f52dc2da6d55e3f2a05999bf55fea57c2e9930d3c666b2996"
+}

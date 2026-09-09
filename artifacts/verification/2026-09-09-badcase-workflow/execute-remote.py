@@ -111,6 +111,12 @@ def realm(value):
 
 
 def matched_cast(row, facts):
+    # Anonymous leaderboard entries establish rank coverage, never a named actor.
+    if (row.get('identityStatus') == 'anonymous' or row.get('analysisEligible') is False
+            or not isinstance(row.get('server'), dict)
+            or not realm(row['server'].get('name'))
+            or not re.fullmatch(r'[A-Za-z0-9]{16}', str(row.get('report', {}).get('code', '')))):
+        return False
     code, fight = row['report']['code'], str(row['report']['fightID'])
     same = [f for f in facts if f.get('reportCode') == code and str(f.get('fightId')) == fight]
     actors = {str(p['id']) for f in same for p in f.get('players', [])
@@ -170,7 +176,9 @@ def validate_cases(result, release):
                 distinct = {digest(snapshot) for snapshot in complete}
                 snapshots.append({'bossId': boss, 'completeSnapshots': len(complete),
                                   'distinctCompleteSnapshots': len(distinct), 'snapshotDriftObserved': len(distinct) > 1,
-                                  'selectedSnapshotSha256': digest(rows), 'matchedRanks': matched})
+                                  'selectedSnapshotSha256': digest(rows), 'matchedRanks': matched,
+                                  'anonymousEntries': sum(row.get('identityStatus') == 'anonymous' for row in rows),
+                                  'namedEntries': sum(row.get('identityStatus') != 'anonymous' for row in rows)})
             assert all(case['checks'][key] for key in ('terminal', 'history', 'ownerIsolation', 'idempotency', 'detached'))
             summaries.append({'case': case['case'], 'runId': case['runId'], 'seconds': case['seconds'],
                               'rankingPackets': len(ranks), 'verifiedReportPackets': len(reports),
