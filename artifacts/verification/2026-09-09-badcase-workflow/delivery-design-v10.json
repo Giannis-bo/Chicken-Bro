@@ -1,0 +1,25 @@
+{
+  "status": "local_tests_and_independent_review_passed",
+  "mechanism": "Validated final answer fragments were synchronously replayed into one guarded PostgreSQL draft transaction per fragment after a one-time adapter deadline check.",
+  "actual_same_source_candidate_validation_to_adapter_return_seconds": [
+    36.947634,
+    32.725313,
+    30.799109,
+    40.407067
+  ],
+  "all_four_repair_events": 0,
+  "adapter_return_to_terminal_seconds_approx": 0.003,
+  "production_timing_limit": "Live run484.901760 seconds is observed; its validation timestamp and delta count were not captured, so its precise tail time is not asserted.",
+  "diagnostic_private_sha256": "fadf35e3e877b05862026edbcedd88532e191af570c7852851385fe44cd0d006",
+  "change": "After validation, deliver exact concatenated answer once. Recheck original deadline after synchronous consumer returns before completed. Keep progress, byte content, revocation, validation and failure boundaries.",
+  "tests": {
+    "red": "1000 fragments caused1000 deliveries; slow consumer crossed original deadline and still completed",
+    "green": "bounded one delivery with exact Unicode/newline content; slow consumer and validation-at-deadline reject completion; progress/order/revocation tests remain",
+    "adapter_tests": 42
+  },
+  "limits": [
+    "No Chat/WCL budget increase, no original-case selectors, no schema/queue/permission/client changes.",
+    "Application final DB commit and adapter startup are outside adapter deadline; fresh actualHTTP480-second completion gate remains mandatory.",
+    "V9 failed release and all historical failures remain retained."
+  ]
+}

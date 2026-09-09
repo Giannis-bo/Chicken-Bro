@@ -1,0 +1,71 @@
+{
+  "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c7ee6f58d03ca8925e3aa8bd811a86cd3f58e4458c612a6e5e8fc8772979fdac",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "debe49010a24408cef110b6414e77b0fe203154e9ec0dfff6a78e079773d9ea2",
+  "status": "failed",
+  "batch_sha256": "493f2c4b7f1fc2246c36d778d5e945e834f5f7ea4c75c1941fa97c09c4ab7dd6",
+  "stage": "live_ranking_validation",
+  "reason": "First actual live original-equivalent case completed outside fixed480-second limit. Candidate success did not override live failure.",
+  "top10": {
+    "runId": "1f35694f-bba0-4882-8e52-88d0582cb51f",
+    "http_seconds": 487.73,
+    "execution_seconds": 484.90176,
+    "criteria": {
+      "acquisition": "passed",
+      "analysis": "passed",
+      "completion": "failed"
+    },
+    "receipt_sha256": "1913a80d7cef5b4603dff8384572fe15c8986fe7f6f7d67c318f9eb53cd8502a"
+  },
+  "top100": {
+    "runId": "1c69d35d-f1fd-441d-918c-6abe06c62bf3",
+    "http_seconds": 285.24,
+    "execution_seconds": 282.191005,
+    "receipt_sha256": "bb17df0df6bb7bf9b1e545387a5d30e1e0c746f48ff255de815195d094702358",
+    "independent_semantic_review": "passed",
+    "criteria": {
+      "acquisition": "passed",
+      "analysis": "passed",
+      "completion": "passed"
+    }
+  },
+  "recovery": {
+    "status": "recovery_verified",
+    "stage": "ranking_validation",
+    "errorCode": "ACCEPTANCE_CHECK_FAILED",
+    "errorType": "AssertionError",
+    "causeTypes": [
+      "AssertionError"
+    ],
+    "observed_at": "2026-09-09T17:14:20.002437+00:00",
+    "business": {
+      "mode": "production",
+      "source": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "checks": {
+        "retiredBearerAndEndpointCsrf": true,
+        "qqAuthorizationUrl": true,
+        "trueVision": true,
+        "detachedGeneration": true,
+        "accountConcurrency": true,
+        "ownerIsolation": true,
+        "idempotentReplay": true,
+        "realSimcQueueWorkerResult": true,
+        "simcProvenance": true,
+        "simcIdempotencyAndIsolation": true
+      },
+      "chatRunId": "9bb1a32a-7323-471d-a561-7243e81f5db0",
+      "jobId": "83253590-d65d-49e5-b5d0-68ad03d088a5",
+      "dps": 158624.38946409847,
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "passed": true,
+      "sessionsRevoked": true,
+      "productionIdentitiesCreated": 0
+    }
+  },
+  "recovery_evidence_sha256": "bde6a5cba2672dcb329227b2b86a41e4a355ebb8a57f2c029a019c38a9da3738",
+  "failed_source_blind_retry": "forbidden",
+  "original_feedback": "unchanged",
+  "independent_live_semantic_sha256": "48d3937e3cf56c6764b5f0e652094b2844ba8e2e253cec0c9a4d80a42ebdcd90"
+}

@@ -1,10 +1,10 @@
 # Badcase 工作流与 WCL 排行榜修复
 
-状态（2026-09-10）：V9 已暂存于隔离目录，621 项后端测试及独立审查通过，真实 HTTP 的 24 次前后对照已完成，Candidate 12/12 通过，正在追加原问题与通用业务发布验收；未发布，生产仍为 `03275ee5…`。
+状态（2026-09-10）：V9 完整 HTTP 对照和 Candidate 验收通过，但正式 top10 完成超出 480 秒门限，发布失败并已自动恢复 `03275ee5…`，恢复业务验证通过。V10 正在验证已校验终稿批量交付修复；尚未发布成功。
 
 授权：用户要求落地扫描/诊断/条件发布工作流，并用其修复发布两条当前未解决反馈。本批直接授权立即发布；未来保持6小时扫描及18点条件发布，新组仍需人工批准。
 
-最新证据：[V9 完整 HTTP 对照](generalization-v9-summary.json)通过；[零点自动扫描](automation-scheduled-scan-v9.json)已实际执行，新增 0，不能据此声称既有反馈已解决。V8 的[模型层对照](generalization-v8-summary.json)通过，但[真实 HTTP 验收失败](candidate-v8-failure.json)，因此未发布。一次额外诊断重放未复现修稿错误，不替代失败结果。V9 修复已确认的批量响应超限整包丢失及索引/可见证据不一致，见[机制与测试](transport-design-v9.json)和[预注册](preregistration-v9.json)。两条 G6 继续验收，第三条 G7 待决策。下文为各阶段历史证据，早期通过不替代当前版本门禁。
+最新证据：[V9 正式失败及恢复](production-v9-failure-recovery.json)、[V10 交付机制修复](delivery-design-v10.json)及[预注册](preregistration-v10.json)。[V9 完整 HTTP 对照](generalization-v9-summary.json)通过；[零点自动扫描](automation-scheduled-scan-v9.json)已实际执行，新增 0，不能据此声称既有反馈已解决。V8 的[模型层对照](generalization-v8-summary.json)通过，但[真实 HTTP 验收失败](candidate-v8-failure.json)，因此未发布。一次额外诊断重放未复现修稿错误，不替代失败结果。V9 修复已确认的批量响应超限整包丢失及索引/可见证据不一致，见[机制与测试](transport-design-v9.json)和[预注册](preregistration-v9.json)。两条 G6 继续验收，第三条 G7 待决策。下文为各阶段历史证据，早期通过不替代当前版本门禁。
 
 ## 已核验
 

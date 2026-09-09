@@ -425,9 +425,10 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         body = [item('item/started', identity='thought', kind='reasoning'), summary,
                 note('item/reasoning/textDelta', delta='private raw reasoning'),
                 item('item/completed', identity='thought', kind='reasoning'),
-                item('item/started'), delta('answer'), item('item/completed', 'answer')]
+                item('item/started'), delta('ans'), delta('wer'), item('item/completed', 'answer')]
         result, _ = self.run_stream(transcript(*body))
-        self.assertEqual(result[0], dict(type='progress', text='正在核对技能覆盖率'))
+        self.assertEqual(result, [dict(type='progress', text='正在核对技能覆盖率'),
+            dict(type='delta', text='answer'), dict(type='completed', text='answer')])
         self.assertEqual(result[-1], dict(type='completed', text='answer'))
         self.assertNotIn('private raw', json.dumps(result))
         summary['params']['turnId'] = 'other'
@@ -462,9 +463,57 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             result = list(adapter.stream(prompt='hello', timeout_seconds=2))
         return result, process
 
-    def test_incremental_final_answer_and_protocol_sequence(self):
+    def test_validated_fragmented_answer_has_bounded_durable_delivery_cost(self):
+        # Each delivered delta becomes a separate guarded database transaction
+        # in ChatWorker. Model token boundaries must not multiply that cost once
+        # the complete answer has already been buffered and validated.
+        fragments = ['鸡', '哥', '🐔', '\n'] * 250
+        text = ''.join(fragments)
+        result, _ = self.run_stream(transcript(item('item/started'),
+            *(delta(part) for part in fragments), item('item/completed', text)))
+        writes = [event['text'] for event in result if event['type'] == 'delta']
+        self.assertEqual(''.join(writes), text)
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(result[-1], {'type': 'completed', 'text': text})
+
+    def test_validation_exhausting_deadline_leaks_no_coalesced_answer(self):
+        from server.app.chickenbro import codex_adapter as module
+        now = [0.0]
+        gateway = Gateway()
+        process = FakeProcess(transcript(item('item/started'), delta('one'), delta('two'), item('item/completed', 'onetwo')))
+        def validate(text, evidence):
+            self.assertEqual(text, 'onetwo')
+            now[0] = 2.0
+            return []
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(module.time, 'monotonic', side_effect=lambda: now[0]), \
+             patch.object(module, '_answer_errors', side_effect=validate):
+            adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, source_gateway=gateway,
+                popen=lambda *a, **k: process)
+            stream = adapter.stream(prompt='hello', timeout_seconds=2)
+            with self.assertRaises(CodexStreamError) as caught:
+                next(stream)
+            self.assertEqual(caught.exception.code, 'CODEX_TIMEOUT')
+            self.assertEqual(gateway.revoked, 'job-capability')
+
+    def test_slow_durable_delivery_cannot_complete_after_original_deadline(self):
+        from server.app.chickenbro import codex_adapter as module
+        now = [0.0]
+        process = FakeProcess(answer())
+        with tempfile.TemporaryDirectory() as directory, patch.object(module.time, 'monotonic', side_effect=lambda: now[0]):
+            adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: process)
+            stream = adapter.stream(prompt='hello', timeout_seconds=2)
+            self.assertEqual(next(stream), {'type': 'delta', 'text': 'answer'})
+            # Simulate the synchronous consumer returning after a slow write.
+            now[0] = 2.01
+            with self.assertRaises(CodexStreamError) as caught:
+                next(stream)
+            self.assertEqual(caught.exception.code, 'CODEX_TIMEOUT')
+            stream.close()
+
+    def test_validated_final_answer_and_protocol_sequence(self):
         result, process = self.run_stream(transcript(item('item/started'), delta('one'), delta('two'), item('item/completed', 'onetwo')))
-        self.assertEqual(result, [dict(type='delta', text='one'), dict(type='delta', text='two'), dict(type='completed', text='onetwo')])
+        self.assertEqual(result, [dict(type='delta', text='onetwo'), dict(type='completed', text='onetwo')])
         sent = process.sent()
         self.assertEqual([m['method'] for m in sent], ['initialize', 'initialized', 'thread/start', 'turn/start'])
         self.assertEqual(sent[2]['params']['approvalPolicy'], 'never')

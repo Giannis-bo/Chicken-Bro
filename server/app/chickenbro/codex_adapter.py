@@ -384,7 +384,15 @@ class NativeCodexChatAdapter:
                 draft_events = [{'type': 'delta', 'text': fixed}]
             if time.monotonic() >= deadline:
                 raise CodexTimeout()
-            yield from draft_events
+            # The final answer is already fully buffered and validated. Replaying
+            # model token fragments makes the durable consumer open a transaction
+            # for every token without improving streaming latency.
+            if draft_events:
+                yield {'type': 'delta', 'text': ''.join(event['text'] for event in draft_events)}
+            # Delivery is synchronous: a slow consumer must not turn a timed-out
+            # execution into a successful terminal after control returns here.
+            if time.monotonic() >= deadline:
+                raise CodexTimeout()
             yield terminal
         except subprocess.TimeoutExpired:
             raise CodexTimeout() from None

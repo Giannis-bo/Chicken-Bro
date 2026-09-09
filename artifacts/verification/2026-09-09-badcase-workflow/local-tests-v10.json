@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "tests": 624,
+  "log_sha256": "25e10a19cea040ad7be6c2ef7c3d150382981a4a625339d4a37c25e6abaf62f0",
+  "command": "PATH=<existing-test-venv>/bin:$PATH npm run test:backend",
+  "adapter_tests_included": 42,
+  "new_regression_red_log_sha256": "e840471633a47bb31cd08c972b037a3569f6e4c84fdc51b6918647f9f7c9c608",
+  "scope": "whole existing backend suite; no model/live result implied"
+}
