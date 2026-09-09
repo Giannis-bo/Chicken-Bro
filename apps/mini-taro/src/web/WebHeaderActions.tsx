@@ -3,7 +3,13 @@ import { useEffect, useId, useRef, useState } from 'react'
 import WebHelpDialog from './WebHelpDialog'
 import WebThemeDialog from './WebThemeDialog'
 import type { WebThemeId } from './web-themes'
+import { faqGroups } from '../features/help/faq-content'
+import { releases } from '../features/help/release-content'
+import { useHelpReadStatus } from './use-help-read-status'
 import styles from './WebHeaderActions.module.scss'
+
+// Compare the exact public content so same-day edits count, unrelated builds do not.
+const helpRevisions = { faq: JSON.stringify(faqGroups), changelog: JSON.stringify(releases) }
 
 export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar, themeId = 'horde', onSelectTheme, themeSaveFailed = false }: {
   themeId?: WebThemeId
@@ -20,6 +26,9 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const { unread, markRead } = useHelpReadStatus(helpRevisions)
+  useEffect(() => { if (faqActive) markRead('faq') }, [faqActive, markRead])
+  useEffect(() => { if (changelogOpen) markRead('changelog') }, [changelogOpen, markRead])
   const [themeOpen, setThemeOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLButtonElement>(null)
@@ -46,14 +55,16 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
   return (
     <div className={styles['actions']}>
       <a className={styles['helpLink']} href={faqHref} aria-current={faqActive ? 'page' : undefined}
+        aria-label={unread.faq ? 'FAQ（有更新）' : 'FAQ'}
         onClick={event => {
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           event.preventDefault()
           setAccountOpen(false)
           onFaq()
-        }}>FAQ</a>
+        }}>FAQ{unread.faq ? <span className={styles['unreadDot']} aria-hidden="true" /> : null}</a>
       <button type="button" className={styles['helpLink']} aria-haspopup="dialog"
-        onClick={() => { setAccountOpen(false); setChangelogOpen(true) }}>更新日志</button>
+        aria-label={unread.changelog ? '更新日志（有更新）' : '更新日志'}
+        onClick={() => { setAccountOpen(false); setChangelogOpen(true) }}>更新日志{unread.changelog ? <span className={styles['unreadDot']} aria-hidden="true" /> : null}</button>
       <div ref={accountRef} className={styles['account']}
         onBlur={event => {
           if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false)

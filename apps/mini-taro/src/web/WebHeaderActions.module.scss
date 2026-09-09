@@ -9,7 +9,8 @@
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }
-.helpLink { padding: 10px 0; border: 0; background: none; color: #74716e; font-size: 13px; white-space: nowrap; text-decoration: none; }
+.helpLink { position: relative; padding: 10px 0; border: 0; background: none; color: #74716e; font-size: 13px; white-space: nowrap; text-decoration: none; }
+.unreadDot { position: absolute; top: 6px; right: -7px; width: 6px; height: 6px; border-radius: 50%; background: #e5484d; pointer-events: none; }
 .helpLink:hover, .helpLink[aria-current="page"] { color: var(--accent); }
 .account { position: relative; margin-left: 2px; }
 .avatar {
