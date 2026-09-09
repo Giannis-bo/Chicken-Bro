@@ -38,4 +38,3 @@ class InMemoryIdentityRepository:
 
     def get_public_user(self, user_id):
         return self.users.get(user_id)
-

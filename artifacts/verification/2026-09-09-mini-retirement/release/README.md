@@ -22,3 +22,5 @@
 186 个已确认微信测试账号的数据备份、独立恢复库和删除证据见[数据记录](../data-cleanup/README.md)。本轮再次核对备份 SHA，一致；恢复需先在新隔离库还原并按精确清单处理键冲突，禁止 dump 覆盖 QQ 新写入。
 
 隔离库 `chickenbro_mini_retire_candidate_20260909` 与私有目录 `/var/lib/chickenbro-mini-retirement-candidate` 保留用于复核，服务进程已停止。其他任务未跟踪文件未加入本次提交，也未删除。
+
+收尾核对：仓库 115 个已跟踪 server 文件全部匹配部署清单；新增发布文档后的控制面 63 项通过。构建日志仅清理行尾空白。原始 baseline.patch 保留补丁格式中的上下文空行，不改写该 WIP 快照；最终 diff 空白检查排除此唯一原始补丁附件。
