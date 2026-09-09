@@ -25,6 +25,7 @@ describe('Web chat composer interactions', () => {
   beforeEach(async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     vi.clearAllMocks()
+    api.create.mockReset()
     const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
     const conversation = { id: 'chat-one', title: 'Test', updatedAt: '2026-09-05' }
     api.imageCapabilities.mockResolvedValue(success({enabled: true, maxImages: 3, maxBytes: 5242880}))
@@ -56,6 +57,64 @@ describe('Web chat composer interactions', () => {
     await act(async () => input().dispatchEvent(event))
     return event
   }
+
+  async function firstVisit() {
+    api.list.mockResolvedValue({ payload: { items: [], nextCursor: null }, fromFallback: false, error: '' })
+    await act(async () => root.render(null))
+    await act(async () => root.render(createElement(WebChatView, {
+      auth: { kind: 'web', csrfToken: 'test-csrf' },
+    })))
+  }
+
+  it.each(['click', 'enter'])('sends on the first visit without creating a conversation manually via %s', async method => {
+    await firstVisit()
+    expect(api.create).not.toHaveBeenCalled()
+    const fresh = { id: 'chat-first', title: '新对话', updatedAt: '2026-09-09' }
+    api.create.mockResolvedValue({ payload: fresh, fromFallback: false, error: '' })
+    api.get.mockResolvedValue({ payload: { ...fresh, messages: [] }, fromFallback: false, error: '' })
+    await draft('首次提问')
+    const send = container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!
+    expect(send.disabled).toBe(false)
+    if (method === 'click') await act(async () => send.click())
+    else await enter()
+    expect(api.create).toHaveBeenCalledTimes(1)
+    expect(api.streamMessage).toHaveBeenCalledTimes(1)
+    expect(api.streamMessage.mock.calls[0]?.[0]).toBe('chat-first')
+    expect(api.streamMessage.mock.calls[0]?.[1].content).toBe('首次提问')
+  })
+
+  it.each([false, true])('does not duplicate first sends during creation or send after unmount=%s', async unmount => {
+    await firstVisit()
+    const fresh = { id: 'chat-first', title: '新对话', updatedAt: '2026-09-09' }
+    let finish!: (result: unknown) => void
+    api.create.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    api.get.mockResolvedValue({ payload: { ...fresh, messages: [] }, fromFallback: false, error: '' })
+    await draft('首次提问')
+    await enter()
+    await enter()
+    expect(api.create).toHaveBeenCalledTimes(1)
+    expect(api.streamMessage).not.toHaveBeenCalled()
+    if (unmount) await act(async () => root.render(null))
+    await act(async () => finish({ payload: fresh, fromFallback: false, error: '' }))
+    expect(api.streamMessage).toHaveBeenCalledTimes(unmount ? 0 : 1)
+  })
+
+  it('retains the first draft on creation failure and reuses the creation key on retry', async () => {
+    await firstVisit()
+    api.create.mockResolvedValueOnce({ payload: null, fromFallback: true, error: '创建失败' })
+    await draft('不要丢掉这条消息')
+    await enter()
+    expect(api.create).toHaveBeenCalledTimes(1)
+    expect(api.streamMessage).not.toHaveBeenCalled()
+    expect(input().value).toBe('不要丢掉这条消息')
+    const fresh = { id: 'chat-first', title: '新对话', updatedAt: '2026-09-09' }
+    api.create.mockResolvedValue({ payload: fresh, fromFallback: false, error: '' })
+    api.get.mockResolvedValue({ payload: { ...fresh, messages: [] }, fromFallback: false, error: '' })
+    await enter()
+    expect(api.create).toHaveBeenCalledTimes(2)
+    expect(api.create.mock.calls[0]?.[1].idempotencyKey).toBe(api.create.mock.calls[1]?.[1].idempotencyKey)
+    expect(api.streamMessage).toHaveBeenCalledTimes(1)
+  })
 
   it('shows the welcome screen after creating a conversation and hides it on the first send', async () => {
     const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
