@@ -90,8 +90,10 @@ node scripts/apply-chickenbro-simc-local-cleanup.js \
 
 任何一项缺失都不能把整体目标标为完成。相关入口：[当前架构](chickenbro-simc-architecture.md) · [生产 Runbook](chickenbro-simc-production-runbook.md) · [计划白名单](plans/README.md)
 
-## 截图输入增量（2026-09-09，未发布）
+## 截图输入增量（2026-09-09，后端/Web 已发布）
 
 `tests.app_chat_images_test` 使用 Pillow 完整解码验证；`tests.app_chat_images_postgres_test` 使用独立 UTF8 PostgreSQL，覆盖上传幂等、owner/CSRF、绑定原子性、历史视觉输入、过期及数量限制，纳入 test:migration。服务器实际模型/CLI、真实双端选择上传与阅读、第二用户访问拒绝都必须在 Candidate 上复验。入口默认关闭，代码测试与本地模型识别不等于线上开放。
 
 本次截图任务例外：2026-09-09 用户明确“不需要验证微信小程序端了”，后续 Mini 验证/真机验收记为 `user_waived`，不当作通过；已有测试证据保留，服务端共享身份/隔离和 Web 完整联调仍在范围内。
+
+截图增量正式证据见 [发布记录](../artifacts/verification/2026-09-09-chat-images/deployment/README.md)：源码 `72e6224f2`，fresh PostgreSQL 91 项无 skip，包含图片与断线后台生成组合；Web 真实发送和公网图片识别通过。后续新改动仍须重新验证。
