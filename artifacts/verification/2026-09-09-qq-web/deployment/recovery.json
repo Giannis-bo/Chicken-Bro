@@ -1,0 +1,28 @@
+{
+  "backup": "/var/backups/chickenbro-qq-parent/20260909/before-qq.dump",
+  "archiveSha256": "6cf18b891b26be34ef87d21fa26b798b6d3d268b877c4583c4d266648f1d3330",
+  "restoreDatabase": "chickenbro_qq_restore_20260909",
+  "snapshotCounts": {
+    "chat.agent_runs": 268,
+    "chat.conversations": 230,
+    "chat.images": 1,
+    "chat.messages": 671,
+    "identity.auth_sessions": 91,
+    "identity.user_identities": 186,
+    "identity.users": 200,
+    "identity.web_login_sessions": 68,
+    "ops.audit_events": 3741,
+    "ops.job_queue": 9,
+    "ops.schema_migrations": 7,
+    "ops.usage_counters": 0,
+    "simc.simulation_attempts": 9,
+    "simc.simulation_jobs": 9,
+    "simc.simulation_results": 9,
+    "simc.source_snapshots": 19
+  },
+  "restoreCountsMatched": true,
+  "qqMigrationAppliedToRestore": [
+    "0007_qq_web_login"
+  ],
+  "oldBusinessCountsPreserved": true
+}

@@ -1,0 +1,45 @@
+{
+  "sourceCommit": "7a893c383d09f1a3a46e2d5cea66309bf7a74cff",
+  "status": "live_verified",
+  "manualUserAcceptance": "not_claimed",
+  "tests": {
+    "backend": 470,
+    "web": 269,
+    "postgres": 42,
+    "control": 62,
+    "typecheck": "passed",
+    "lint": "passed",
+    "h5": "passed_with_two_bundle_size_warnings"
+  },
+  "qq": {
+    "applicationApproved": true,
+    "bothCallbacksRegistered": true,
+    "candidateRealLogin": true,
+    "candidateLogoutRelogin": true,
+    "productionRealLogin": true,
+    "productionSessionSurvivesReload": true,
+    "secondRealQqAccount": "not_run",
+    "secondAccountIsolation": "passed_automated_postgres_and_api_tests"
+  },
+  "business": {
+    "candidateChat": "succeeded_after_proxy_config_fix",
+    "productionChat": "succeeded",
+    "candidateSimcDps": 161420.35,
+    "productionSimcDps": 161630.27,
+    "productionSimcIterations": 299,
+    "imagesEntryRetained": true
+  },
+  "runtimeFixes": [
+    "QQ expires_in is a numeric string in the real provider response; regression test failed before fix and passes after.",
+    "Candidate inherited production proxy environment for model access; QQ transport continues trust_env=False."
+  ],
+  "dataPolicy": "QQ creates a new account; old WeChat rows preserved without linking or migration.",
+  "rollback": "previous source and Web retained; database snapshot restore and additive QQ migration verified; runtime rollback not exercised",
+  "candidate": {
+    "port": 8794,
+    "database": "chickenbro_qq_candidate_20260909",
+    "stateDirectory": "/var/lib/chickenbro-qq-candidate",
+    "isolatedCookies": true
+  },
+  "productionFilesMatched": 13
+}

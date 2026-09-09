@@ -1,8 +1,8 @@
 # 炸鸡队长与 SimC 生产迁移、切流与恢复 Runbook
 
-## Web-only / QQ 登录部署准备（2026-09-09）
+## Web-only / QQ 登录已发布（2026-09-09）
 
-用户已授权 Web-only 与 QQ 重构，并授权云端保存 QQ 凭据。`/etc/chickenbro-qq.env` 已创建，root-owned、mode 0600；包含 `WOW_QQ_APPID`、`WOW_QQ_APP_KEY`、`WOW_QQ_REDIRECT_URI`。仅保存文件，没有给现有服务加载或重启，没有切换生产。不得打印该文件内容。
+用户已授权 Web-only 与 QQ 重构，并授权云端保存 QQ 凭据。`/etc/chickenbro-qq.env` 已创建，root-owned、mode 0600；包含 `WOW_QQ_APPID`、`WOW_QQ_APP_KEY`、`WOW_QQ_REDIRECT_URI`。已通过 QQ 专用 systemd drop-in 加载并完成正式切换，真实授权、Chat/SimC、数据保留与独立恢复验证见 [QQ 发布记录](../artifacts/verification/2026-09-09-qq-web/deployment/README.md)。不得打印该文件内容。
 
 正式 callback 固定为 `https://www.chickenbro.cloud/api/v2/auth/qq/callback`。后续已获发布授权时，先部署隔离 API/Web 版本并应用 additive QQ migration、保留回滚版本；通过 systemd `EnvironmentFile=/etc/chickenbro-qq.env` 给新 API 加载配置。不要复制密钥到 release 目录、Web 构建变量、Git 或日志。同站点的测试 callback 使用 `/test/api/v2/auth/qq/callback`，候选使用 `/api/v2-candidate/auth/qq/callback`，分别返回 `/test/` 和 `/web-candidate/`；需在 QQ 后台单独登记，Cookie 名称与正式环境隔离。不要把正式 callback 指向候选数据库。测试/候选的 callback 路径及尾斜杠、无效后缀同样必须关闭 query access log。
 

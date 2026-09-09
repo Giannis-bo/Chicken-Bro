@@ -64,3 +64,5 @@
 ## Current release continuation — 2026-09-09
 
 QQ application approval and both callback registrations were verified in the user’s QQ console. Deploy an isolated QQ candidate on port 8794 with its own database, service units, Web files and state directory; do not reuse the historical six-phase provisioning script or its deletion authority. Production cutover follows actual QQ verification and preserves the current release for rollback.
+
+Release completion: production source 7a893c383 includes the newly deployed image feature. Real QQ login, Chat, SimC, retained-data and restore checks passed. See artifacts/verification/2026-09-09-qq-web/deployment/README.md; independent manual user acceptance and a second real QQ login are not claimed.
