@@ -10,5 +10,12 @@
     "reason": "generalization unverified: missing evidence"
   },
   "original_feedback_mutations": 0,
-  "release_attempted": false
+  "release_attempted": false,
+  "read_only_executor_preflight": {
+    "first": "rejected Web pointer drift; no backend switch",
+    "latest": "passed exact base/diff; checkout override only for isolated preflight exercise",
+    "protected_web": "help-unread-32a43a17f6b47fed83f45c0bfb094aabaff8e0e6",
+    "verified_payload_bytes": true,
+    "release_attempted": false
+  }
 }
