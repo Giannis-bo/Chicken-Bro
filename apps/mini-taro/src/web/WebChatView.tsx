@@ -38,6 +38,8 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
   const imageDraft = useChatImages(() => auth, state.phase !== 'signed_out')
   const textarea = useRef<HTMLTextAreaElement>(null)
   const composing = useRef(false)
+  const preparingSend = useRef(false)
+  const mounted = useRef(false)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const sending = state.phase === 'sending'
@@ -49,14 +51,16 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
     [state.streamText, state.streamProgress, state.activeConversation?.messages])
   const { paused, jumpToLatest } = useChatAutoScroll(messageList, messageContent,
     state.activeConversation?.id ?? '', sending, scrollRevision)
-  const canSend = Boolean((draft.trim() || imageDraft.items.length) && state.activeConversation)
+  const canSend = Boolean(draft.trim() || imageDraft.items.length)
     && !imageDraft.pending
     && !sending && state.phase !== 'loading' && state.phase !== 'signed_out'
 
   useEffect(() => {
+    mounted.current = true
     const unsubscribe = model.subscribe(setState)
     void model.load()
     return () => {
+      mounted.current = false
       unsubscribe()
       model.dispose()
     }
@@ -74,9 +78,19 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
     return () => window.removeEventListener('resize', resize)
   }, [draft])
 
-  const send = () => {
-    if (!canSend || model.get().phase === 'sending') return
-    model.send(draft, imageDraft.images, () => { setDraft(current => current === draft ? '' : current); imageDraft.clear() })
+  const send = async () => {
+    if (!canSend || preparingSend.current || ['sending', 'loading', 'signed_out'].includes(model.get().phase)) return
+    preparingSend.current = true
+    try {
+      if (!model.get().activeConversation) {
+        const conversation = await model.create()
+        if (!mounted.current || !conversation || model.get().phase !== 'ready'
+          || model.get().activeConversation?.id !== conversation.id) return
+      }
+      model.send(draft, imageDraft.images, () => { setDraft(current => current === draft ? '' : current); imageDraft.clear() })
+    } finally {
+      preparingSend.current = false
+    }
   }
 
   return (
@@ -159,7 +173,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                 </Text>
                 <View className={styles['emptyHint'] ?? ''}>
                   <View className={styles['emptyHintDot'] ?? ''} />
-                  <Text>创建一个新对话，就从这里开始</Text>
+                  <Text>直接输入问题，就从这里开始</Text>
                 </View>
               </View>
             ) : null}
