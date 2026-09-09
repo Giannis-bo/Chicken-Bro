@@ -1,0 +1,83 @@
+{
+  "source_sha": "f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "93d1a1006f7afdee306f0041f10b55287511d70553af7ecbeea4594540c9310b",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "b371b9a184e35ba60441a76e5a560f9167410233fde745aa6d998ce00c54bc33",
+  "status": "frozen_before_first_trial",
+  "conditions": {
+    "harness": "actual-http-suite-v1",
+    "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+    "timeout_seconds": 480,
+    "wcl_reader_budget_seconds": 360,
+    "parallel_trials": 2,
+    "arm_schedule": "sequential arms; two independent repeat lanes per arm",
+    "source_access": "actual_product_registered_gateway_and_recorder_with_owner_scoped_simulation_capability",
+    "preregistered_harness_conditions": {
+      "harness": "actual-http-suite-v1",
+      "comparison": "Fresh actualHTTP baseline03275ee5ce677afe9c4e1d0d6a735642beed8e6b and candidate under the same frozen conditions. V9 or V8 runs cannot substitute.",
+      "samples_per_arm": 6,
+      "repetitions": 2,
+      "trials_per_arm": 12,
+      "total_trials": 24,
+      "concurrency": 2,
+      "identity_freeze": "One runner byte SHA must be recorded before the first V10 trial and used unchanged in both arms. Record immutable baseline and candidate source/config/model/prompt identities before their runs. Implementing the runner cannot alter this frozen contract; deviations require a new preregistration before trials.",
+      "model": "Same configured model/profile and normalized model configuration in both arms; source-owned agent rules hash recorded separately. No adaptive parameter tuning. Actual _load_profile allow_simulation=True in both arms, normalized configured profile SHA bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30; record and fail capture if actual differs.",
+      "budgets": {
+        "chat_execution_seconds": 480,
+        "wcl_reader_seconds": 360,
+        "wcl_reader_start": "Construct at the original product execution boundary, not lazily at first tool use.",
+        "measurement": "Record execution/adapter elapsed time and queue wait separately; HTTP polling wall time is not the480s metric."
+      },
+      "path": "Actual POST /api/v2/chat/conversations; create only isolated fixture history preserving messages[:-1] role/content order in the candidate database. Final user message goes through authenticated cookie+CSRF+idempotency POST messages/stream, real ChatApplication, durable queue, worker, RegisteredGateway, ToolRecorder and NativeAdapter.stream_for_chat. Apply the real product history20/4000 conversion, permissions and productCapabilities; do not hand-build a native prompt or omit product permissions.",
+      "ownership": "Two lanes have distinct fixture owners to avoid account-wide busy interference; each sample/repeat uses a new conversation. Preserve real owner-scoped source and SimC capability behavior. Do not disclose secret values or copy private original history into production. Use isolated candidate fixtures only; redact/archive those fixtures after receipt collection without altering originals.",
+      "permission_observation": "Record candidate database SimC job deltas to evaluate the existing permission criterion; do not trigger additional SimC jobs as a test workaround.",
+      "receipts": "Save every terminal result including failures, immutable source/model/config/agentRules/harness identities, exact original messages input hash, actual application prompt hash, opaque fixture owner/conversation/run refs, public_error, application-visible recorded tool results after the180000 boundary, tool count/byte sizes/times, final answer, and execution/queue timing. Per-run volatile owner/run values are recorded, not silently removed to fabricate identical prompt hashes.",
+      "execution": "Run the planned12 baseline and12 candidate trials, preserving each result. No extra retries or replacement model trials after failure; continue collecting planned trials. HTTP200/controllerexit0/terminalcompleted are not semantic success. Independent verdicts bind raw receipt bytes and original fixed criteria. Subsequent HTTP/general release gates remain separate. Measure persisted/returned meaningful completion under the original480s criterion;481s fails even with valid content. Two arms run sequentially on the same ports, two concurrent repeat lanes per arm. Capture/history/profile/cleanup errors cannot be upgraded by a meaningful answer."
+    },
+    "preregistered_harness_conditions_sha256": "fec6fb5e481ce854a11919d080866d1cec320abe54d5ded52980825c8ef09800",
+    "sample_assignments": [
+      {
+        "id": "original10",
+        "category": "original",
+        "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70"
+      },
+      {
+        "id": "original100",
+        "category": "original",
+        "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e"
+      },
+      {
+        "id": "variant",
+        "category": "variant",
+        "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c"
+      },
+      {
+        "id": "holdout",
+        "category": "independent_holdout",
+        "input_sha256": "c89c48cc58d54a5e24f4fe7296caf580d010ddfabf962e0dad0a69538fb1f113"
+      },
+      {
+        "id": "normal",
+        "category": "normal",
+        "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7"
+      },
+      {
+        "id": "permission",
+        "category": "permission",
+        "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4"
+      }
+    ],
+    "samples_file_sha256": "85f1a9e5f478aab4b395b3f85def318d431b8659a8b5d0696a4a184ec0b563e2",
+    "allow_simulation": true,
+    "harness_sha256": "beb7d5f5896a2e6fed311a5d7c5874221bb2cd87ad412ed982b3e9ce6c0f2d87",
+    "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+    "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+    "fixed_before_first_trial_at": "2026-09-09T17:19:13.108836+00:00"
+  },
+  "conditions_sha256": "2432532c2be83bc787de24bf2ac7acaaf9b1c278330cc73f93e1a0687f0b6950",
+  "preregistration_file_sha256": "3c78be3f3852159611d452a6253b2758626922a40207e0616c80df1a9021418d",
+  "runner_sha256": "beb7d5f5896a2e6fed311a5d7c5874221bb2cd87ad412ed982b3e9ce6c0f2d87",
+  "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+  "notes": "Same byte-identical actual HTTP runner/observer asV9, both arms actual product Trueprofile; new preregistered holdout, no retries/replacement failures. V9 production failure remains failed and recovered."
+}
