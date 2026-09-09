@@ -17,7 +17,10 @@ const problemCopy: Record<string, string> = {
   QQ_LOGIN_INVALID: 'QQ 登录请求已失效，请重新登录', WEB_CSRF_COOKIE_MISSING: 'Web 安全会话不完整，请重新使用 QQ 登录',
   WEB_CSRF_COOKIE_INVALID: 'Web 安全会话无效，请重新使用 QQ 登录', AUTH_REQUEST_FAILED: '登录服务暂不可用，请稍后重试',
 }
-function publicProblem(result: ApiResult<unknown>, fallback: string): string { return problemCopy[result.problemCode ?? ''] ?? fallback }
+function publicProblem(result: ApiResult<unknown>, fallback: string): string {
+  const code = result.problemCode ?? ''
+  return Object.hasOwn(problemCopy, code) ? problemCopy[code]! : fallback
+}
 
 export interface WebAppProps { authClient?: WebAuthClient; navigateToProvider?: (url: string) => void }
 
@@ -46,12 +49,22 @@ export default function WebApp({ authClient = wowApi.webAuth, navigateToProvider
     setErrorMessage(publicProblem(result, '账户状态暂不可用，请稍后重试')); setPhase('blocked'); return false
   }, [authClient])
   useEffect(() => { void loadAccount() }, [loadAccount])
+  useEffect(() => {
+    const restore = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      setPhase('checking')
+      void loadAccount()
+    }
+    window.addEventListener('pageshow', restore)
+    return () => window.removeEventListener('pageshow', restore)
+  }, [loadAccount])
 
   const login = async () => {
     if (phase === 'redirecting') return
-    authIntent.current += 1
+    const intent = ++authIntent.current
     setErrorMessage(''); setPhase('redirecting')
     const result = await authClient.createQqLogin()
+    if (intent !== authIntent.current) return
     if (result.fromFallback || !isQqLoginCreated(result.payload)) {
       setErrorMessage(publicProblem(result, 'QQ 登录入口暂不可用，请稍后重试')); setPhase('blocked'); return
     }

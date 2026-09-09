@@ -52,6 +52,35 @@ describe('Web QQ login home', () => {
     expect(navigate).not.toHaveBeenCalled(); expect(container.textContent).toContain('QQ 登录入口暂不可用'); expect(container.textContent).toContain('QQ登录')
   })
 
+  it('uses fallback copy for inherited problem keys without crashing', async () => {
+    vi.mocked(auth.createQqLogin).mockResolvedValueOnce({ ...signedOut, httpStatus: 503, problemCode: '__proto__' } as never)
+    await render(); await click('QQ登录')
+    expect(container.textContent).toContain('QQ 登录入口暂不可用，请稍后重试')
+  })
+
+  it('revalidates a persisted page restored after returning from QQ', async () => {
+    await render(); await click('QQ登录')
+    expect(container.textContent).toContain('正在跳转…')
+    const event = new Event('pageshow')
+    Object.defineProperty(event, 'persisted', { value: true })
+    await act(async () => window.dispatchEvent(event))
+    expect(auth.me).toHaveBeenCalledTimes(2)
+    expect(container.textContent).toContain('QQ登录')
+    expect(container.querySelector('button')?.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('does not navigate from a stale login response after BFCache recovery', async () => {
+    let finish: (value: ReturnType<typeof ok>) => void = () => undefined
+    vi.mocked(auth.createQqLogin).mockReturnValueOnce(new Promise(resolve => { finish = resolve }) as never)
+    await render(); await click('QQ登录')
+    const event = new Event('pageshow')
+    Object.defineProperty(event, 'persisted', { value: true })
+    await act(async () => window.dispatchEvent(event))
+    await act(async () => finish(ok({ authorizationUrl: officialUrl })))
+    expect(navigate).not.toHaveBeenCalled()
+    expect(container.textContent).toContain('QQ登录')
+  })
+
   it('shows a fixed cancelled callback message, clears only that query and does not auto-login', async () => {
     window.history.replaceState(null, '', '/simc?keep=1&loginError=QQ_LOGIN_CANCELLED')
     await render()

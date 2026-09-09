@@ -13,4 +13,8 @@ describe('QQ callback landing', () => {
     expect(readAndClearLoginError()).toBe(loginErrorCopy.QQ_LOGIN_FAILED)
     expect(window.location.search).toBe('')
   })
+  it.each(['__proto__', 'constructor', 'toString'])('rejects inherited callback key %s', key => {
+    window.history.replaceState(null, '', `/?loginError=${key}`)
+    expect(readAndClearLoginError()).toBe(loginErrorCopy.QQ_LOGIN_FAILED)
+  })
 })

@@ -12,7 +12,8 @@
 ## TDD evidence
 
 - RED: 5 expected failures across the new QQ URL guard, QQ avatar guard, QQ login client and callback error tests before implementation.
-- GREEN: targeted QQ domain/API/model tests passed 27/27 after implementation; the final selected frontend suite passed 252/252 across 32 files.
+- GREEN: targeted QQ domain/API/model tests passed 27/27 after implementation; the initial selected frontend suite passed 252/252 across 32 files.
+- Review RED/GREEN: 5 failures reproduced inherited-key crashes and missing BFCache recovery; 14/14 focused tests passed after using own-key lookups, persisted `pageshow` revalidation and stale-request fencing.
 - Replaced `web-login-home.test.tsx` and `web-auth-model.test.ts` to cover the QQ flow. Removed one obsolete Mini promotion interaction case from `web-shell-stream.test.tsx` and updated static Web shell/boundary contracts.
 
 ## Retired tests excluded from active selection
@@ -36,7 +37,7 @@ The historical Mini source and its tests remain recoverable in Git; they are out
 
 ## Verification
 
-- `npm run test:taro`: 252/252 passed, 32/32 files.
+- `npm run test:taro`: 258/258 passed, 32/32 files after the review fix.
 - `npm run typecheck`: passed.
 - `npm run lint`: passed with zero warnings.
 - `node --test tests/retained-client-boundary.test.js`: 7/7 passed.

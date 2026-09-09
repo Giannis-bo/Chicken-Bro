@@ -12,5 +12,7 @@ export function readAndClearLoginError(): string {
   if (raw === null) return ''
   url.searchParams.delete('loginError')
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
-  return loginErrorCopy[raw as keyof typeof loginErrorCopy] ?? loginErrorCopy.QQ_LOGIN_FAILED
+  return Object.hasOwn(loginErrorCopy, raw)
+    ? loginErrorCopy[raw as keyof typeof loginErrorCopy]
+    : loginErrorCopy.QQ_LOGIN_FAILED
 }
