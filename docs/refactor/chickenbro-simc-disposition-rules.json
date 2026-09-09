@@ -2,6 +2,21 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-all-specs",
+      "disposition": "keep",
+      "category": "current-control-plane",
+      "owner": "simc",
+      "reason": "User-authorized non-healer specialization support and cloud verification.",
+      "paths": [
+        "docs/plans/2026-09-09-simc-all-specs.md",
+        "server/app/simulation/specializations.py",
+        "tests/app_simulation_specializations_test.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-simc-all-specs/"
+      ]
+    },
+    {
       "id": "g2-durable-generation",
       "disposition": "keep",
       "category": "target-product-code",

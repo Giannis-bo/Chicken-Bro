@@ -45,6 +45,7 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
     </section> : null}
 
     {job.result ? <>
+      {actor?.className.toLowerCase() === 'evoker' && actor.specialization.toLowerCase() === 'augmentation' ? <p className={styles['notice']}>增辉结果使用 SimC 默认模拟队友估算增益，不代表实际队伍表现；显示的是引擎归属于该角色的 DPS，并非全队总伤害。</p> : null}
       <section className={styles['metrics']} aria-label="模拟结果摘要" data-result-id={job.result.id}>
         <div className={styles['primaryMetric']}><span>{simcMetricName(job.result.metricName)}</span>
           <strong>{simcNumber(job.result.metricValue)}</strong>

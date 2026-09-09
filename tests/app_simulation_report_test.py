@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from server.app.simulation.report import normalize_simc_report, SimulationReportError
 
 from server.app.simulation.worker import LocalSimulationCraftPort, RawSimulationExecution, SimulationResultParser, SimulationWorkerError
 from server.app.simulation.readiness import ManagedSimcRuntimeIdentity
@@ -35,6 +36,32 @@ def report_fixture():
 
 
 class SimulationReportTest(unittest.TestCase):
+    def test_augmentation_selects_owner_not_simplified_teammates_and_preserves_identity(self):
+        payload = report_fixture()
+        actor = payload['sim']['players'][0]
+        actor['specialization'] = 'Augmentation Evoker'
+        allies = [{'name': name, 'specialization': 'Unknown', 'race': 'none',
+                   'collected_data': {'dps': {'mean': 999999}}}
+                  for name in ('Bob Shadow1', 'Bob Shadow2', 'Bob FDK', 'Bob BM',
+                               'Bob Flat1', 'Bob Demo', 'Bob Healer1', 'Bob BDK')]
+        payload['sim']['players'] = allies[:3] + [actor] + allies[3:]
+        identity = {}
+        report = normalize_simc_report(json.dumps(payload), expected_actor='Stormsample', identity_sink=identity)
+        self.assertEqual(report['metric']['value'], 10000)
+        self.assertEqual(report['actor']['name'], 'Stormsample')
+        self.assertEqual(report['actor']['specialization'], 'Augmentation')
+        self.assertEqual(identity['abilities'][0]['token'], 'lightning_bolt')
+        # Another actual player or duplicate owner must never be silently ignored.
+        for mutation in ('real_player', 'duplicate', 'wrong_spec', 'unexpected_ally'):
+            changed = json.loads(json.dumps(payload))
+            with self.subTest(mutation=mutation):
+                if mutation == 'real_player': changed['sim']['players'][0]['specialization'] = 'Shadow Priest'
+                elif mutation == 'duplicate': changed['sim']['players'][0]['name'] = 'Stormsample'
+                elif mutation == 'wrong_spec': changed['sim']['players'][3]['specialization'] = 'Devastation Evoker'
+                else: changed['sim']['players'][0]['name'] = 'Unexpected character'
+                with self.assertRaises(SimulationReportError):
+                    self.parse(changed)
+
     def setUp(self):
         self.identity = ManagedSimcRuntimeIdentity(Path('/test/simc'), 'a' * 40, 'b' * 64, 'r')
         identity_patch = patch('server.app.simulation.worker.inspect_managed_simc_runtime', create=True, return_value=self.identity)

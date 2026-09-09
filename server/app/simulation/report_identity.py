@@ -6,7 +6,7 @@ import json
 import re
 from urllib.parse import urlsplit
 
-from server.app.simulation.report import _number, _object, _percent, _rows, _text
+from server.app.simulation.report import _number, _object, _percent, _rows, _text, select_report_actor
 
 
 def _id(value):
@@ -73,9 +73,8 @@ def _descriptor(raw, token, source='', npcs=None, depth=0):
 
 def extract_report_identity(data: dict, report: dict, npc_sources=None) -> dict:
     players = _object(data.get('sim')).get('players', [])
-    if not isinstance(players, list) or len(players) != 1:
-        raise ValueError('SIMC_IDENTITY_INVALID')
-    actor = _object(players[0])
+    actor = (_object(players[0]) if isinstance(players, list) and len(players) == 1
+             else select_report_actor(players, _text(_object(report.get('actor')).get('name'))))
     abilities = []
     groups = [('', _rows(actor.get('stats')))]
     groups.extend((_text(pet), _rows(stats)) for pet, stats in list(_object(actor.get('stats_pets')).items())[:32])

@@ -10,7 +10,7 @@ Group=ubuntu
 WorkingDirectory=/opt
 EnvironmentFile=-/etc/chickenbro-worker.env
 Environment=WOW_DATABASE_RUNTIME=postgres_only
-Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
+Environment=WOW_SIMC_SUPPORTED_SPECS=all
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStartPre=/usr/bin/rm -f -- /var/lib/chickenbro/production-worker-heartbeat.json
 ExecStart=/opt/chickenbro-runtime/bin/python -m server.app.worker.main --worker-id chickenbro-simc-worker

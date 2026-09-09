@@ -1,0 +1,508 @@
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warrior', spec='arms')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warrior', spec='fury')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warrior', spec='protection')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='paladin', spec='protection')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='paladin', spec='retribution')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='hunter', spec='beast_mastery')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='hunter', spec='marksmanship')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='hunter', spec='survival')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='rogue', spec='assassination')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='rogue', spec='outlaw')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='rogue', spec='subtlety')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='priest', spec='shadow')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='death_knight', spec='blood')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='death_knight', spec='frost')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='death_knight', spec='unholy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='shaman', spec='elemental')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='shaman', spec='enhancement')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='mage', spec='arcane')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='mage', spec='fire')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='mage', spec='frost')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warlock', spec='affliction')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warlock', spec='demonology')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='warlock', spec='destruction')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='monk', spec='brewmaster')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='monk', spec='windwalker')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='druid', spec='balance')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='druid', spec='feral')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='druid', spec='guardian')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='demon_hunter', spec='havoc')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='demon_hunter', spec='vengeance')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='demon_hunter', spec='devourer')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='evoker', spec='devastation')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_all_non_healers_reach_compiler_with_real_simc_class_tokens (tests.app_simulation_specializations_test.SpecializationSupportTest.test_all_non_healers_reach_compiler_with_real_simc_class_tokens) (klass='evoker', spec='augmentation')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 54, in test_all_non_healers_reach_compiler_with_real_simc_class_tokens
+    self.assertEqual(report.readiness, SourceReadiness.READY_FOR_SIMC)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: <SourceReadiness.INCOMPLETE_FOR_SIMC: 'INCOMPLETE_FOR_SIMC'> != <SourceReadiness.READY_FOR_SIMC: 'READY_FOR_SIMC'>
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='paladin', spec='holy', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='paladin', spec='holy', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='paladin', spec='holy', configured='paladin:holy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='holy', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='holy', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='holy', configured='priest:holy')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='discipline', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='discipline', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='priest', spec='discipline', configured='priest:discipline')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='shaman', spec='restoration', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='shaman', spec='restoration', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='shaman', spec='restoration', configured='shaman:restoration')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='monk', spec='mistweaver', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='monk', spec='mistweaver', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='monk', spec='mistweaver', configured='monk:mistweaver')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='druid', spec='restoration', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='druid', spec='restoration', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='druid', spec='restoration', configured='druid:restoration')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='evoker', spec='preservation', configured='all')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ('RUNTIME_UNAVAILABLE',)
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='evoker', spec='preservation', configured='*:*')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance (tests.app_simulation_specializations_test.SpecializationSupportTest.test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance) (klass='evoker', spec='preservation', configured='evoker:preservation')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 69, in test_healers_have_specific_error_even_with_wildcard_or_explicit_allowance
+    self.assertIn('HEALER_SPEC_UNSUPPORTED', report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'HEALER_SPEC_UNSUPPORTED' not found in ()
+
+======================================================================
+FAIL: test_legacy_class_aliases_and_empty_config (tests.app_simulation_specializations_test.SpecializationSupportTest.test_legacy_class_aliases_and_empty_config)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 98, in test_legacy_class_aliases_and_empty_config
+    self.assertTrue(caps.supports(klass, spec))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_unknown_and_disabled_specs_are_distinct_from_broken_engine (tests.app_simulation_specializations_test.SpecializationSupportTest.test_unknown_and_disabled_specs_are_distinct_from_broken_engine)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_simulation_specializations_test.py", line 88, in test_unknown_and_disabled_specs_are_distinct_from_broken_engine
+    self.assertIn(expected, report.blockers)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'SPEC_NOT_ENABLED' not found in ('RUNTIME_UNAVAILABLE',)
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.022s
+
+FAILED (failures=56)

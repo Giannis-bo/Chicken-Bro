@@ -17,7 +17,7 @@ const labels: Record<string, string> = {
   holy: '神圣', retribution: '惩戒', discipline: '戒律', shadow: '暗影',
   beast_mastery: '野兽控制', marksmanship: '射击', survival: '生存', assassination: '奇袭', outlaw: '狂徒', subtlety: '敏锐',
   affliction: '痛苦', demonology: '恶魔学识', destruction: '毁灭', blood: '鲜血', unholy: '邪恶',
-  brewmaster: '酒仙', mistweaver: '织雾', windwalker: '踏风', havoc: '浩劫', vengeance: '复仇',
+  brewmaster: '酒仙', mistweaver: '织雾', windwalker: '踏风', havoc: '浩劫', vengeance: '复仇', devourer: '噬灭',
   devastation: '湮灭', preservation: '恩护', augmentation: '增辉',
   intellect: '智力', strength: '力量', agility: '敏捷', stamina: '耐力', crit: '爆击', haste: '急速',
   mastery: '精通', versatility: '全能', spell_power: '法术强度', attack_power: '攻击强度',
@@ -178,4 +178,3 @@ export function simcNameStatus(report: SimulationReport): string {
     default: return ''
   }
 }
-

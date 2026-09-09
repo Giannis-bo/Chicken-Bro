@@ -108,6 +108,33 @@ def _set_compound_portions(abilities: list[dict]) -> None:
         row['portion'] = _percent(row['amount'] / total * 100) if total > 0 else None
 
 
+def select_report_actor(players: object, expected_actor: str) -> dict:
+    """Select one real character; allow only the engine's known Augmentation cohort.
+
+    Names and metadata match sc_evoker.cpp at managed f50a2121 (12.1.0).
+    Never sum teammates' DPS into the requested character's metric.
+    """
+    if not isinstance(players, list) or not 1 <= len(players) <= 9:
+        raise SimulationReportError('SIMC_ACTOR_INVALID')
+    expected = expected_actor.strip().casefold() if isinstance(expected_actor, str) else ''
+    matching = [p for p in players if isinstance(p, dict) and _text(p.get('name')).casefold() == expected]
+    if not expected or expected in {'none', 'null', 'unknown', 'unnamed'} or len(matching) != 1:
+        raise SimulationReportError('SIMC_ACTOR_INVALID')
+    actor = matching[0]
+    if len(players) > 1:
+        allies = [p for p in players if p is not actor]
+        cohorts = (
+            {'Bob FDK', 'Bob Shadow', 'Bob BDK', 'Bob Healer'},
+            {'Bob Shadow1', 'Bob Shadow2', 'Bob FDK', 'Bob BM', 'Bob Flat1', 'Bob Demo', 'Bob Healer1', 'Bob BDK'},
+        )
+        names = {_text(_object(p).get('name')) for p in allies}
+        if (actor.get('specialization') != 'Augmentation Evoker'
+                or len(names) != len(allies) or names not in cohorts
+                or any(_object(p).get('specialization') != 'Unknown' or _object(p).get('race') != 'none' for p in allies)):
+            raise SimulationReportError('SIMC_ACTOR_INVALID')
+    return actor
+
+
 def normalize_simc_report(payload: str | bytes, *, expected_actor: str,
                           identity_sink: dict | None = None, npc_sources: dict | None = None) -> dict:
     if not isinstance(payload, (str, bytes)) or len(payload) > MAX_REPORT_BYTES:
@@ -122,12 +149,8 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str,
     data = _object(data)
     sim = _object(data.get('sim'))
     players = sim.get('players')
-    if not isinstance(players, list) or len(players) != 1:
-        raise SimulationReportError('SIMC_ACTOR_INVALID')
-    actor = _object(players[0])
+    actor = select_report_actor(players, expected_actor)
     name = _text(actor.get('name'))
-    if not expected_actor or name.casefold() != expected_actor.strip().casefold() or name.casefold() in {'none', 'null', 'unknown', 'unnamed'}:
-        raise SimulationReportError('SIMC_ACTOR_INVALID')
     for log in _rows(data.get('logs')):
         if _object(log).get('level') in ('error', 'fatal'):
             raise SimulationReportError('SIMC_FATAL_DIAGNOSTIC')

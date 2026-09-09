@@ -42,8 +42,17 @@ describe('SimC Chinese operational messages', () => {
     expect(simcDiagnosticMessage('CHARACTER_SPEC_MISSING')).toBe('缺少角色专精')
     expect(simcDiagnosticMessage('SOURCE_PROVENANCE_MISSING')).toBe('缺少角色资料来源记录，请重新读取角色')
     expect(simcDiagnosticMessage('COMPILER_UNAVAILABLE')).toBe('角色配置编译服务暂不可用，请稍后重试')
-    expect(simcDiagnosticMessage('RUNTIME_UNAVAILABLE')).toBe('云端模拟引擎暂不可用或暂不支持该专精')
+    expect(simcDiagnosticMessage('RUNTIME_UNAVAILABLE')).toBe('云端模拟引擎暂不可用，请稍后重试')
+    expect(simcDiagnosticMessage('HEALER_SPEC_UNSUPPORTED')).toBe('SimC 不支持治疗专精进行模拟')
+    expect(simcDiagnosticMessage('SPEC_NOT_ENABLED')).toContain('尚未开放')
     expect(simcDiagnosticMessage('SIMC_TIMEOUT')).toBe('云端模拟超时，请稍后重试')
+  })
+
+  it('does not ask users to repair character data for specialization or engine restrictions', () => {
+    expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['HEALER_SPEC_UNSUPPORTED'])).toBe('治疗专精不支持模拟')
+    expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['RUNTIME_UNAVAILABLE'])).toBe('暂时无法模拟')
+    expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['SPEC_NOT_ENABLED'])).toBe('暂时无法模拟')
+    expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['TALENTS_MISSING'])).toBe('角色资料待完善')
   })
 
   it('covers execution attempt states and does not invent a successful result', () => {

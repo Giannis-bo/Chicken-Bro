@@ -10,6 +10,7 @@ from typing import Mapping
 
 from server.app.simulation.wcl_talents import talent_catalog_matches_runtime
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
+from server.app.simulation.specializations import HEALER_SPECS, SIMULATION_SPECS, canonical_class
 from server.app.simulation.snapshots import (
     REQUIRED_CHARACTER_PATHS,
     REQUIRED_GEAR_SLOTS,
@@ -163,7 +164,18 @@ class SimcRuntimeCapabilities:
     supported_specs: frozenset[tuple[str, str]]
 
     def supports(self, class_key: str, spec_key: str) -> bool:
-        return (class_key, spec_key) in self.supported_specs or ("*", "*") in self.supported_specs
+        return not self.support_error(class_key, spec_key)
+
+    def support_error(self, class_key: str, spec_key: str) -> str:
+        pair = (canonical_class(class_key), spec_key)
+        if pair in HEALER_SPECS:
+            return "HEALER_SPEC_UNSUPPORTED"
+        if pair not in SIMULATION_SPECS:
+            return "SPEC_UNSUPPORTED"
+        configured = {(canonical_class(klass), spec) for klass, spec in self.supported_specs}
+        if pair not in configured and ("*", "*") not in configured:
+            return "SPEC_NOT_ENABLED"
+        return ""
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "SimcRuntimeCapabilities":
@@ -171,9 +183,14 @@ class SimcRuntimeCapabilities:
         raw_specs = source_env.get("WOW_SIMC_SUPPORTED_SPECS", "").strip()
         supported: set[tuple[str, str]] = set()
         for value in raw_specs.split(","):
+            if value.strip().lower() in {"all", "*:*"}:
+                supported.update(SIMULATION_SPECS)
+                continue
             parts = [part.strip().lower() for part in value.split(":")]
             if len(parts) == 2 and all(parts):
-                supported.add((parts[0], parts[1]))
+                pair = (canonical_class(parts[0]), parts[1])
+                if pair in SIMULATION_SPECS:
+                    supported.add(pair)
         runtime_revision = source_env.get("WOW_SIMC_RUNTIME_REVISION", "").strip()
         managed_path = Path(source_env.get("WOW_SIMC_BIN", "/opt/wow-simc/current/simc").strip()).parent
         managed_runtime_expected = (
@@ -343,9 +360,11 @@ class SimcReadinessValidator:
         )
         require(
             "runtime",
-            bool(runtime_capabilities.runtime_revision) and runtime_capabilities.supports(class_key, spec_key),
+            bool(runtime_capabilities.runtime_revision),
             "RUNTIME_UNAVAILABLE",
         )
+        support_error = runtime_capabilities.support_error(class_key, spec_key)
+        require("specialization", not support_error, support_error)
 
         unique_blockers = tuple(dict.fromkeys(blockers))
         return ReadinessReport(

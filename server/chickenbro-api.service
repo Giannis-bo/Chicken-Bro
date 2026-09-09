@@ -29,7 +29,7 @@ Environment=WOW_CODEX_JOBS_DIR=/var/lib/chickenbro/codex-jobs
 Environment=WOW_CODEX_SANDBOX=read-only
 Environment=WOW_CODEX_PROFILE=chickenbro-production
 Environment=WOW_CHICKENBRO_CODEX_ENABLED=1
-Environment=WOW_SIMC_SUPPORTED_SPECS=shaman:elemental
+Environment=WOW_SIMC_SUPPORTED_SPECS=all
 Environment=HTTPS_PROXY=http://127.0.0.1:7890
 Environment=HTTP_PROXY=http://127.0.0.1:7890
 Environment=ALL_PROXY=http://127.0.0.1:7890

@@ -185,9 +185,10 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
                 <a className={styles['exampleLink']} href="https://raider.io/cn/characters/cn/silver-hand/Giannis" target="_blank" rel="noreferrer">https://raider.io/cn/characters/cn/silver-hand/Giannis</a></div>
             </div>
             {snapshotCurrent ? <div className={styles['snapshot']} data-readiness={snapshot.readiness}>
-              <strong>{sourceReady ? '角色已就绪' : simcReadinessLabel(snapshot.readiness)}{actor ? ` · ${actor.name}` : ''}</strong>
+              <strong>{sourceReady ? '角色已就绪' : simcReadinessLabel(snapshot.readiness, snapshot.blockers)}{actor ? ` · ${actor.name}` : ''}</strong>
+              {actor?.className.toLowerCase() === 'evoker' && actor.specialization.toLowerCase() === 'augmentation' ? <p>增辉使用 SimC 默认模拟队友估算增益，不代表实际队伍表现。</p> : null}
               {actor ? <p>{simcLabel(actor.specialization)} {simcLabel(actor.className)}{actor.level == null ? '' : ` · 等级 ${actor.level}`}</p> : null}
-              {!sourceReady ? <p>补齐以下资料后才能模拟；不会使用猜测数据。</p> : null}
+              {!sourceReady && snapshot.missingFields.length > 0 && !snapshot.blockers.includes('HEALER_SPEC_UNSUPPORTED') ? <p>补齐以下资料后才能模拟；不会使用猜测数据。</p> : null}
               {snapshot.missingFields.length ? <p>缺少：{snapshot.missingFields.map(simcRequiredFieldLabel).join('、')}</p> : null}
               {snapshot.blockers.map((blocker) => <p key={blocker}>{simcDiagnosticMessage(blocker)}</p>)}
             </div> : null}

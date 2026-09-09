@@ -7,6 +7,7 @@ from typing import Mapping
 from uuid import UUID
 
 from server.app.simulation.wcl_talents import talent_catalog_matches_runtime
+from server.app.simulation.specializations import simc_class_token
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
 from server.app.simulation.readiness import SimcRuntimeCapabilities
 from server.app.simulation.snapshots import REQUIRED_GEAR_SLOTS, canonical_json
@@ -162,10 +163,13 @@ class SimcProfileCompiler:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         equipment_overrides = normalized_scenario.get("equipmentOverrides", {})
         gear = {**gear, **equipment_overrides}
-        if not self._capabilities.runtime_revision or not self._capabilities.supports(class_key, spec_key):
+        support_error = self._capabilities.support_error(class_key, spec_key)
+        if support_error:
+            raise SimcCompileError(support_error)
+        if not self._capabilities.runtime_revision:
             raise SimcCompileError("RUNTIME_UNAVAILABLE")
         lines = [
-            f'{class_key}="{name}"',
+            f'{simc_class_token(class_key)}="{name}"',
             f"level={level}",
             f"race={race_key}",
             f"region={region}",

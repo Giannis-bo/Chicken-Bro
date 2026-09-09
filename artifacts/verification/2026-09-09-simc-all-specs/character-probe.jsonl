@@ -1,0 +1,2 @@
+{"character": {"name": "魔魔糊胡萝卜", "realm": "The Master's Glaive", "region": "cn", "classKey": "druid", "specKey": "feral", "raceKey": "night_elf", "level": 90}, "readiness": "READY_FOR_SIMC", "blockers": []}
+{"status": "passed", "metric": "dps", "value": 158747.3212560463, "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da", "profileSha256": "198c198372603f4e52833c1180f9a09ff45b7a83d456396c7f85f70604b9858b", "sourceRawSha256": "3204571ce30258fe320b2e9cadc7d22a1cad8beadf0eea037d42074f27086b4b"}

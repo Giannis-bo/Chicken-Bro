@@ -1,0 +1,257 @@
+{
+  "baseCommit": "d58bfbee7ca22dff1aa4d22c32c879c325ef1cc4",
+  "workingTreeSha256": {
+    "server/app/simulation/specializations.py": "48ac4800d9e6dc4a7236e196302ae72124254e5c9104334c80001dde8a8fe762",
+    "server/app/simulation/readiness.py": "2e94d3113e4cf8e7f54d0d8f00a0d72477319fb8defcac30161b0b3eb10c510f",
+    "server/app/simulation/compiler.py": "a22febaed7a893d0cdc452149b834ccabd3ada84f800696f2b0eb3558b41319b",
+    "server/app/simulation/report.py": "74c2b0e0fa110f1bbe20b72f2c1aa7abe06562d7b2d3a73b2ffeb6350267f40c",
+    "server/app/simulation/report_identity.py": "f8aa37d84fe4a8b3164419228e6ced55a89d407129e3c005809c2ba6e4eb63a2",
+    "server/chickenbro-api.service": "4df80e4c8ec83e6becb955866e02f0a95495ae9b9a8c9e3314c64ea3d2d92014",
+    "server/chickenbro-api-candidate.service": "16f88d61ba6f4c0dd6c6af319ae6c9d580e629eaf3d2d771fc5ffa24c1e9b90b",
+    "server/chickenbro-worker.service": "fab355950843cf71f353f7e8498e40e0bb9435156346c863b0077676b29c8820",
+    "server/chickenbro-worker-candidate.service": "09b4856714dcb89005858baa40490cd42e1ce4036c3ccd423845be34d96e1766",
+    "apps/mini-taro/src/features/simc/simc-messages.ts": "ee6063bbc83d0fea1f09cdd12f20eb910bb803f6d9750ee097cb4b38ff1d184e",
+    "apps/mini-taro/src/features/simc/simc-terms.ts": "7afc213f6dd73fd67aa59d062242e85bee11ec924091bd182b93f8c605d10bc2",
+    "apps/mini-taro/src/features/help/faq-content.ts": "bf9e288db148539c0d826464830a2c68526de575499d86ef0b61a5ba2ff31a1f",
+    "apps/mini-taro/src/web/WebSimcView.tsx": "3bbb441824c50f36027b7138640a59430be862635d2a1c92615abf1204bc36e4",
+    "apps/mini-taro/src/web/WebSimcReport.tsx": "cb6005f4deaab675401dd04c349741014f3757a7379a640402e8437e592a8415"
+  },
+  "engineSource": "f50a2121bf894570146507496f3e113bff68e445",
+  "nonHealerCount": 33,
+  "healerExcludedCount": 7,
+  "passed": {
+    "death_knight:blood": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "7f1f97dd54cfa09a9987483baf3f286f8e0c9c047c6bcdfcf8da882cc45fb1e8",
+      "metric": "dps",
+      "value": 142496.8330443239,
+      "kind": "official_engine_fixture"
+    },
+    "death_knight:frost": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "0270fabf468fb6413d0c86f31ecf021d9247a113841ea82e52c99a5c29f90e17",
+      "metric": "dps",
+      "value": 256179.13004970245,
+      "kind": "official_engine_fixture"
+    },
+    "death_knight:unholy": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "84cae41df70878bd9c98fd0056c085dbda41a30d63dd7dfe5abcf0fd96488b1f",
+      "metric": "dps",
+      "value": 274941.7486366886,
+      "kind": "official_engine_fixture"
+    },
+    "demon_hunter:devourer": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "a9163c95d851a1f3cd27927cc10be19ea15d78637a0e79c373a05893fae1125a",
+      "metric": "dps",
+      "value": 116101.8127363502,
+      "kind": "official_engine_fixture"
+    },
+    "demon_hunter:vengeance": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "105b3c9140903e62f95246312b6913b7a1910e0e0cb19f206147eef5597982d0",
+      "metric": "dps",
+      "value": 147380.77190450576,
+      "kind": "official_engine_fixture"
+    },
+    "druid:balance": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "4d6c0f0a8a7844de4e738a1aca41398b3b90e661f405343012f8f765be65ea62",
+      "metric": "dps",
+      "value": 170976.8135505594,
+      "kind": "official_engine_fixture"
+    },
+    "druid:feral": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "cdfe7de05e7c3bd3c706013cd3cc52263606149b35d60612f69d61431af37b6c",
+      "metric": "dps",
+      "value": 153301.71713178355,
+      "kind": "official_engine_fixture"
+    },
+    "druid:guardian": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "880a88d07fa436e02f560fae82c2a04c35b618fc260a769d7c586997e819c6a0",
+      "metric": "dps",
+      "value": 106433.2669531126,
+      "kind": "official_engine_fixture"
+    },
+    "evoker:devastation": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "79b6672ed7cac01657c585437461d23d3977263637aca77427c2f70b7b11af82",
+      "metric": "dps",
+      "value": 164848.87903652128,
+      "kind": "official_engine_fixture"
+    },
+    "hunter:beast_mastery": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "30458d60ce9d6a70cbc2fae54699a3ff70d8fef69e6bd764155f926cd17c4d93",
+      "metric": "dps",
+      "value": 217725.40575217607,
+      "kind": "official_engine_fixture"
+    },
+    "hunter:marksmanship": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "ac939dddae2e547c4cd0f78b5198d5b74ec5240504084e06a4de3ec578b4285c",
+      "metric": "dps",
+      "value": 275459.6040191211,
+      "kind": "official_engine_fixture"
+    },
+    "hunter:survival": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "6b1d7864ee753f85556e3afb9652006ff7671de3a4b8edee3f00a55f5aad85fa",
+      "metric": "dps",
+      "value": 241998.67553381363,
+      "kind": "official_engine_fixture"
+    },
+    "mage:arcane": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "a37a8bb161cec2a1034e9064dd0ec3fc3f01d014cc2c7ddc6c46abc366303c70",
+      "metric": "dps",
+      "value": 179197.56597292554,
+      "kind": "official_engine_fixture"
+    },
+    "mage:fire": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "84bacc1027abaf1785b050deb615ff4bce837083861ec8b75d95c6842eac607c",
+      "metric": "dps",
+      "value": 220928.78480021877,
+      "kind": "official_engine_fixture"
+    },
+    "mage:frost": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "6f352e6065fe4408a1b70f641ffa7d1b65d554ea56b845032828b618de1c92e9",
+      "metric": "dps",
+      "value": 216795.397119525,
+      "kind": "official_engine_fixture"
+    },
+    "monk:brewmaster": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "80e0627f916f9ff7d1765d40bb212e8f4b3fbed4bdaea64856e3cb1cf92caf36",
+      "metric": "dps",
+      "value": 83023.25610501059,
+      "kind": "official_engine_fixture"
+    },
+    "monk:windwalker": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "5a6ece4e72a5ba3a56064641bee3e5c00e5859c64a769cdb521163205214a7d0",
+      "metric": "dps",
+      "value": 144950.76027163846,
+      "kind": "official_engine_fixture"
+    },
+    "paladin:protection": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "08088f4f288e1c7d73b7416bca2a9ee654f5385297d9ad4612d2758f4722ebfc",
+      "metric": "dps",
+      "value": 146006.80032546385,
+      "kind": "official_engine_fixture"
+    },
+    "priest:shadow": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "b621c4e156c813c3d1dfad861886b7dd533c3ae522e81422c11dc834246ebf49",
+      "metric": "dps",
+      "value": 245475.4868002242,
+      "kind": "official_engine_fixture"
+    },
+    "rogue:assassination": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "f181dc17688506a031dbcaee46e6f4944209880081080a551c2ca7263548192b",
+      "metric": "dps",
+      "value": 286204.8859299996,
+      "kind": "official_engine_fixture"
+    },
+    "rogue:outlaw": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "5150dc65fb5339c689b53eb711a6c1009c5f8772a0819de96fd4b2c7ccd8ee35",
+      "metric": "dps",
+      "value": 120076.3291439935,
+      "kind": "official_engine_fixture"
+    },
+    "rogue:subtlety": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "af41a0a8cf7c81471dc8b0a5fc96ba43ba880bf89449cc94f0fb5f8dd53522b0",
+      "metric": "dps",
+      "value": 256814.25116988583,
+      "kind": "official_engine_fixture"
+    },
+    "shaman:elemental": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "412b4d080425caedc02ee7c1ffa756006c695731bec34859b127fdc1d0a227c6",
+      "metric": "dps",
+      "value": 271423.46515678975,
+      "kind": "official_engine_fixture"
+    },
+    "shaman:enhancement": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "f20b6539ff4b6a0cfcc4c522c538701d003ba289e7c385fab4f546ff02b27360",
+      "metric": "dps",
+      "value": 272682.7063022055,
+      "kind": "official_engine_fixture"
+    },
+    "warlock:affliction": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "f946089a21497384877f0f1b01647c6096fc9304c8f3ff5071cd2611563f9a86",
+      "metric": "dps",
+      "value": 230931.91305449896,
+      "kind": "official_engine_fixture"
+    },
+    "warlock:demonology": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "ccfc74d327cbd59732fc6ea439863cd6cc90dc7fb78acef666fea37cad4adc44",
+      "metric": "dps",
+      "value": 134925.995713079,
+      "kind": "official_engine_fixture"
+    },
+    "warlock:destruction": {
+      "evidence": "engine-probe-mid2.jsonl",
+      "profileSha256": "89809115e8246680e6a50bd7d0f0a5c18ee2725b660921c66a44a36f03d85d18",
+      "metric": "dps",
+      "value": 228714.74092339972,
+      "kind": "official_engine_fixture"
+    },
+    "demon_hunter:havoc": {
+      "evidence": "remaining-candidate-probe.jsonl",
+      "profileSha256": "2315926639885b17532a0d3103a93a9f869d6b9e5ac06a086dd22499f6119ee1",
+      "metric": "dps",
+      "value": 181434.79768645094,
+      "kind": "live_raiderio_character"
+    },
+    "paladin:retribution": {
+      "evidence": "remaining-candidate-probe.jsonl",
+      "profileSha256": "4369a6fde8e84c3c5708c06bee6b38aee3c36cb5c9b8d215b25efee4d9b733ac",
+      "metric": "dps",
+      "value": 187302.19860583157,
+      "kind": "live_raiderio_character"
+    },
+    "warrior:arms": {
+      "evidence": "remaining-candidate-probe.jsonl",
+      "profileSha256": "964b079e37616174db674072fd5034890898820e42d62b30f593f9676b85d93f",
+      "metric": "dps",
+      "value": 221535.37379888908,
+      "kind": "live_raiderio_character"
+    },
+    "warrior:fury": {
+      "evidence": "remaining-candidate-probe.jsonl",
+      "profileSha256": "6697406a25c05857f5c7404810c9e4eb004a52e2d1e530af31791d36073eef74",
+      "metric": "dps",
+      "value": 217767.02817527435,
+      "kind": "live_raiderio_character"
+    },
+    "warrior:protection": {
+      "evidence": "remaining-candidate-probe.jsonl",
+      "profileSha256": "fc776ff3cc4f1631fedb8fa2d231757a9ac536ce5e5d4962df1859bcdd21c5f7",
+      "metric": "dps",
+      "value": 132677.50963145713,
+      "kind": "live_raiderio_character"
+    },
+    "evoker:augmentation": {
+      "evidence": "augmentation-candidate.jsonl",
+      "profileSha256": "4b64f0152fa6131bc55ef7c15d75a77b6e60f112e1bd200a9ff79ffd1c0c5faf",
+      "metric": "dps",
+      "value": 70966.6921159371,
+      "kind": "live_raiderio_character"
+    }
+  },
+  "productionChanged": false,
+  "cloudSourceRoot": "/tmp/chickenbro-all-specs-20260909.TbBdl8"
+}

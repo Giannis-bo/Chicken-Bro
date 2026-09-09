@@ -1,0 +1,50 @@
+
+> wow-mini-program-workspace@0.1.0 test:taro
+> vitest run apps/mini-taro/src/features/simc/simc-messages.test.ts
+
+
+ RUN  v4.1.10 /Users/boyuan/Documents/wow_mini_program
+
+ ❯ apps/mini-taro/src/features/simc/simc-messages.test.ts (7 tests | 2 failed) 7ms
+     × distinguishes missing identity, source, compiler and runtime causes 3ms
+     × does not ask users to repair character data for specialization or engine restrictions 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/mini-taro/src/features/simc/simc-messages.test.ts > SimC Chinese operational messages > distinguishes missing identity, source, compiler and runtime causes
+AssertionError: expected '云端模拟引擎暂不可用或暂不支持该专精' to be '云端模拟引擎暂不可用，请稍后重试' // Object.is equality
+
+Expected: "云端模拟引擎暂不可用，请稍后重试"
+Received: "云端模拟引擎暂不可用或暂不支持该专精"
+
+ ❯ apps/mini-taro/src/features/simc/simc-messages.test.ts:45:58
+     43|     expect(simcDiagnosticMessage('SOURCE_PROVENANCE_MISSING')).toBe('缺…
+     44|     expect(simcDiagnosticMessage('COMPILER_UNAVAILABLE')).toBe('角色配置编译…
+     45|     expect(simcDiagnosticMessage('RUNTIME_UNAVAILABLE')).toBe('云端模拟引擎暂…
+       |                                                          ^
+     46|     expect(simcDiagnosticMessage('HEALER_SPEC_UNSUPPORTED')).toBe('Sim…
+     47|     expect(simcDiagnosticMessage('SPEC_NOT_ENABLED')).toContain('尚未开放')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  apps/mini-taro/src/features/simc/simc-messages.test.ts > SimC Chinese operational messages > does not ask users to repair character data for specialization or engine restrictions
+AssertionError: expected '角色资料待完善' to be '治疗专精不支持模拟' // Object.is equality
+
+Expected: "治疗专精不支持模拟"
+Received: "角色资料待完善"
+
+ ❯ apps/mini-taro/src/features/simc/simc-messages.test.ts:52:84
+     50|
+     51|   it('does not ask users to repair character data for specialization o…
+     52|     expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['HEALER_SPEC_UNS…
+       |                                                                                    ^
+     53|     expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['RUNTIME_UNAVAIL…
+     54|     expect(simcReadinessLabel('INCOMPLETE_FOR_SIMC', ['SPEC_NOT_ENABLE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 5 passed (7)
+   Start at  15:05:23
+   Duration  112ms (transform 21ms, setup 0ms, import 29ms, tests 7ms, environment 0ms)

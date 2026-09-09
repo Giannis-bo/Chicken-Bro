@@ -38,7 +38,10 @@ const diagnostic: Readonly<Record<string, string>> = {
   SOURCE_HASH_MISSING: '缺少角色资料校验记录，请重新读取角色',
   PROFILE_NOT_REAL_SOURCE: '角色资料缺少可验证的真实来源，请重新读取角色',
   COMPILER_UNAVAILABLE: '角色配置编译服务暂不可用，请稍后重试',
-  RUNTIME_UNAVAILABLE: '云端模拟引擎暂不可用或暂不支持该专精',
+  RUNTIME_UNAVAILABLE: '云端模拟引擎暂不可用，请稍后重试',
+  HEALER_SPEC_UNSUPPORTED: 'SimC 不支持治疗专精进行模拟',
+  SPEC_UNSUPPORTED: '无法识别该职业专精，请检查角色当前专精',
+  SPEC_NOT_ENABLED: '该专精尚未开放模拟，请联系管理员',
   SIMC_UNAVAILABLE: '云端模拟引擎暂不可用，请稍后重试',
   SIMC_RUNTIME_REVISION_STALE: '云端引擎版本已变化，请重新读取角色后提交',
   SIMC_IDENTITY_INVALID: '云端引擎身份校验失败，请稍后重试',
@@ -71,7 +74,11 @@ function chineseMessage(value: string | undefined): string | undefined {
   return text && /[\u3400-\u9fff]/u.test(text) && !/[A-Za-z]/u.test(text) ? text : undefined
 }
 
-export function simcReadinessLabel(value: string): string {
+export function simcReadinessLabel(value: string, blockers: readonly string[] = []): string {
+  if (value.trim().toUpperCase() === 'INCOMPLETE_FOR_SIMC') {
+    if (blockers.includes('HEALER_SPEC_UNSUPPORTED')) return '治疗专精不支持模拟'
+    if (blockers.some((code) => ['RUNTIME_UNAVAILABLE', 'COMPILER_UNAVAILABLE', 'SPEC_UNSUPPORTED', 'SPEC_NOT_ENABLED'].includes(code))) return '暂时无法模拟'
+  }
   return lookup(readiness, value.trim().toUpperCase()) ?? chineseMessage(value) ?? '资料状态暂不可用'
 }
 

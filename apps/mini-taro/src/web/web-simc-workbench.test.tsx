@@ -181,6 +181,32 @@ describe('Web SimC workbench', () => {
     expect(button('开始模拟').disabled).toBe(true)
   })
 
+  it('shows healer restriction without asking to complete data and disables submission', async () => {
+    api.createSnapshot.mockResolvedValue(success({ ...snapshot, readiness: 'INCOMPLETE_FOR_SIMC',
+      character: { ...actor, className: 'druid', specialization: 'restoration' },
+      missingFields: ['talents'], blockers: ['HEALER_SPEC_UNSUPPORTED'] }))
+    await input('sourceUrl', 'https://raider.io/characters/cn/illidan/healer')
+    await click('读取角色')
+    expect(container.textContent).toContain('SimC 不支持治疗专精进行模拟')
+    expect(container.textContent).not.toContain('补齐以下资料后才能模拟')
+    expect(container.textContent).not.toContain('角色资料待完善')
+    expect(button('开始模拟').disabled).toBe(true)
+    expect(api.createJob).not.toHaveBeenCalled()
+  })
+
+  it('discloses the augmentation teammate model before submission and in the report', async () => {
+    api.createSnapshot.mockResolvedValue(success({ ...snapshot,
+      character: { ...actor, className: 'evoker', specialization: 'augmentation' } }))
+    await input('sourceUrl', 'https://raider.io/characters/cn/illidan/augmentation')
+    await click('读取角色')
+    expect(container.textContent).toContain('增辉使用 SimC 默认模拟队友')
+    expect(button('开始模拟').disabled).toBe(false)
+    api.getJob.mockResolvedValue(success({ ...job, result: { ...job.result,
+      report: { ...report, actor: { ...report.actor, className: 'Evoker', specialization: 'Augmentation' } } } }))
+    await openReport()
+    expect(container.textContent).toContain('并非全队总伤害')
+  })
+
   it('shows real report sections, uncertainty and task engine without fabricated missing data', async () => {
     await openReport()
     for (const copy of ['125,432.6', '54.2', '技能贡献', '闪电箭', '增益覆盖', '13.3%',
