@@ -10,6 +10,47 @@ def result(code=CODE):
     return {'sourceKey':'warcraftlogs','status':'verified','facts':[{'reportCode':code,'fightId':'73','sourceId':'91','fight':{'name':'Arbitrary encounter','startTime':1000,'endTime':91000},'casts':{'entries':[{'name':'Arbitrary spell','guid':4321,'total':4}]},'events':[{'type':'cast','timestamp':2300,'abilityGameID':4321}]}]}
 
 class GroundingTests(unittest.TestCase):
+    def test_reference_projection_keeps_complete_refs_and_conflicting_actor_identities_without_casts(self):
+        from server.app.chickenbro.answer_grounding import reference_repair_context
+        evidence={}
+        for index,server in enumerate(('Realm One','Realm Two')):
+            packet=result(f'{index:016d}');fact=packet['facts'][0]
+            fact['players']=[{'id':91,'name':'Same Name','server':server,'region':'EU'}]
+            fact['casts']['entries']=[{'name':'CAST_BODY_SHOULD_NOT_APPEAR','guid':n,'total':3} for n in range(24)]
+            evidence=collect_evidence(evidence,packet)
+            evidence['reports'][-1]['group']={'encounterId':index+70,'encounterName':f'Generic group {index}','difficulty':4}
+        original=repair_context(evidence)
+        encoded=reference_repair_context(evidence);context=json.loads(encoded)
+        self.assertEqual(context['positiveReferences'],evidence['references'])
+        self.assertTrue(context['positiveReferencesComplete'])
+        self.assertEqual(len(context['identityDetails']),2)
+        self.assertEqual({x['player']['server'] for x in context['identityDetails']},{'Realm One','Realm Two'})
+        self.assertEqual({x['groupIndex'] for x in context['identityDetails']},{0,1})
+        self.assertNotIn('CAST_BODY_SHOULD_NOT_APPEAR',encoded)
+        self.assertNotIn('opening',encoded)
+        self.assertEqual(repair_context(evidence),original)
+
+    def test_reference_projection_never_promotes_blocked_request_and_marks_ranking_omission(self):
+        from server.app.chickenbro.answer_grounding import reference_repair_context
+        evidence=collect_evidence({}, {'sourceKey':'warcraftlogs_rankings','status':'source_reference',
+            'rankings':[{'rank':1,'name':'Ranking Actor','report':{'code':CODE,'fightID':73}}]})
+        evidence=collect_evidence(evidence,{'sourceKey':'warcraftlogs','status':'blocked','facts':[],
+            'evidence':[{'reportCode':'Z'*16,'fightId':'73','sourceUrl':'https://www.warcraftlogs.com/reports/'+'Z'*16+'?fight=73&source=91'}]})
+        context=json.loads(reference_repair_context(evidence))
+        self.assertEqual(context['positiveReferences'],[[CODE,'73','']])
+        self.assertEqual(context['identityDetails'],[])
+        self.assertEqual(context['referenceIndicesWithoutIdentityDetails'],[0])
+        self.assertIn('ranking identity details',context['boundary'])
+        self.assertNotIn('Z'*16,json.dumps(context))
+
+    def test_reference_projection_rejects_incomplete_invalid_and_oversized_reference_index(self):
+        from server.app.chickenbro.answer_grounding import reference_repair_context
+        for evidence in ({'referencesTruncated':True,'references':[]},
+                         {'references':[['INVALID','1','2']]},
+                         {'references':[[f'{i:016d}','123456789012','123456789012'] for i in range(2048)]}):
+            with self.subTest(size=len(evidence.get('references',[]))), self.assertRaises(ValueError):
+                reference_repair_context(evidence)
+
     def test_coverage_survives_detail_projection_without_stitching_snapshots(self):
         e={}
         for group in range(12):

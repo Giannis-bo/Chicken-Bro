@@ -71,6 +71,58 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_reference_repair_context_selected_only_for_nonempty_pure_url_errors(self):
+        from server.app.chickenbro import codex_adapter as module
+        with patch.object(module,'_repair_context',return_value='FULL') as full, \
+             patch.object(module,'_reference_repair_context',return_value='REFERENCES') as compact:
+            for errors in (['WCL_REFERENCE_UNOBSERVED'],['WCL_REFERENCE_MALFORMED','WCL_REFERENCE_UNOBSERVED']):
+                self.assertEqual(module._repair_context_for_errors({},errors),'REFERENCES')
+            for errors in ([],['WCL_GROUP_OBSERVATION_EMPTY'],['WCL_REFERENCE_UNOBSERVED','WCL_GROUP_OBSERVATION_EMPTY'],['UNKNOWN'],[{}]):
+                self.assertEqual(module._repair_context_for_errors({},errors),'FULL')
+            self.assertEqual(compact.call_count,2);self.assertEqual(full.call_count,5)
+
+    def test_reference_only_repair_uses_compact_identity_and_preserves_observation_then_revalidates(self):
+        from server.app.chickenbro.answer_grounding import collect_evidence
+        code='aB3dE5gH7jK9mN2p'
+        good='https://www.warcraftlogs.com/reports/'+code+'?fight=7&source=9'
+        bad='https://www.warcraftlogs.com/reports/'+'Z'*16+'?fight=7&source=9'
+        draft='Observation remains unchanged. [log]('+bad+')'
+        corrected=draft.replace(bad,good)
+        evidence=collect_evidence({}, {'sourceKey':'warcraftlogs','status':'verified','facts':[{
+            'reportCode':code,'fightId':7,'sourceId':9,
+            'players':[{'id':9,'name':'Generic Actor','server':'Realm','region':'EU'}],
+            'casts':{'entries':[{'name':'OMIT_CAST_BODY','guid':123,'total':4}]}}]})
+        gateway=Gateway();gateway.answer_evidence=lambda token:evidence
+        original=FakeProcess(transcript(item('item/started'),delta(draft),item('item/completed',draft)))
+        repaired=FakeProcess(replacement(bad,good));processes=[original,repaired]
+        with tempfile.TemporaryDirectory() as directory:
+            adapter=NativeCodexChatAdapter(jobs_dir=directory,enabled=True,source_gateway=gateway,
+                popen=lambda *a,**k:processes.pop(0))
+            output=list(adapter.stream(prompt='question',timeout_seconds=480))
+        self.assertEqual(output,[{'type':'delta','text':corrected},{'type':'completed','text':corrected}])
+        payload=json.loads(repaired.sent()[3]['params']['input'][0]['text'])
+        self.assertEqual(payload['evidence']['mode'],'reference_correction_only')
+        self.assertEqual(payload['evidence']['positiveReferences'],[[code,'7','9']])
+        self.assertEqual(payload['evidence']['identityDetails'][0]['player']['name'],'Generic Actor')
+        self.assertNotIn('OMIT_CAST_BODY',json.dumps(payload))
+        self.assertEqual(gateway.revoked,'job-capability');self.assertEqual(processes,[])
+        config=repaired.sent()[2]['params']['config']
+        self.assertEqual(config['web_search'],'disabled')
+        self.assertFalse(config['features']['shell_tool'])
+
+    def test_incomplete_reference_projection_fails_before_repair_process_and_leaks_no_draft(self):
+        gateway=Gateway();gateway.answer_evidence=lambda token:{'referencesTruncated':True,'attemptedWcl':True,'references':[]}
+        draft='https://www.warcraftlogs.com/reports/'+'Z'*16+'?fight=7&source=9'
+        calls=[]
+        def spawn(*a,**k):
+            calls.append(True)
+            return FakeProcess(transcript(item('item/started'),delta(draft),item('item/completed',draft)))
+        with tempfile.TemporaryDirectory() as directory:
+            adapter=NativeCodexChatAdapter(jobs_dir=directory,enabled=True,source_gateway=gateway,popen=spawn)
+            with self.assertRaises(CodexStreamError) as caught:next(adapter.stream(prompt='q',timeout_seconds=480))
+            self.assertEqual(caught.exception.code,'CODEX_OUTPUT_INVALID')
+        self.assertEqual(len(calls),1)
+
     def test_internal_diagnostics_are_bounded_allowlisted_and_never_log_content(self):
         from server.app.chickenbro import codex_adapter as module
         secret = 'PRIVATE-PROMPT-PATCH-EXCEPTION'

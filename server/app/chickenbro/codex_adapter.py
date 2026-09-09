@@ -216,6 +216,30 @@ def _repair_context(evidence):
     return repair_context(evidence)
 
 
+def _reference_repair_context(evidence):
+    from server.app.chickenbro.answer_grounding import reference_repair_context
+    return reference_repair_context(evidence)
+
+
+def _reference_only_errors(errors):
+    return isinstance(errors,list) and bool(errors) and all(isinstance(error,str) and error in
+        ('WCL_REFERENCE_MALFORMED','WCL_REFERENCE_UNOBSERVED') for error in errors)
+
+
+def _repair_context_for_errors(evidence, errors):
+    return _reference_repair_context(evidence) if _reference_only_errors(errors) else _repair_context(evidence)
+
+
+_REFERENCE_REPAIR_INSTRUCTIONS = (
+    'This is reference-only correction. The compact table contains all retained positive report/fight/source references; '
+    'identityDetails contain available actual actor/report and group identities, not casts or event analysis. '
+    'Correct only defective references; preserve valid observations and all unaffected text. '
+    'Match the same actor, realm/region, group and report scope using explicit available identities; '
+    'never pick an unrelated reference, infer a match from spelling similarity, or upgrade ranking metadata into actor evidence. '
+    'When no unambiguous supported source exists, mark the affected reference and associated claim as unverified locally; '
+    'do not merely delete its link while leaving an unsupported verified claim or pretend required analysis is complete. ')
+
+
 def _apply_repair_patch(draft, patch_text):
     """Apply bounded exact replacements to original positions, never recursive edits."""
     def reject():
@@ -529,7 +553,7 @@ class NativeCodexChatAdapter:
         process, session, finished = None, None, False
         phase = 'context'
         try:
-            context = _repair_context(evidence)
+            context = _repair_context_for_errors(evidence, errors)
             if not isinstance(context, str) or len(context) > 64000:
                 raise CodexStreamError('CODEX_OUTPUT_INVALID')
             if not isinstance(errors, list) or any(not isinstance(e, str) or not re.fullmatch(r'[A-Z_0-9]{1,80}', e) for e in errors):
@@ -547,7 +571,7 @@ class NativeCodexChatAdapter:
             text = None
             phase = 'stream'
             for event in session.stream(prompt=repair_prompt, job_dir=job_dir,
-                    developer_instructions=('Correct the draft only by returning a JSON object with exactly this schema: '
+                    developer_instructions=(_REFERENCE_REPAIR_INSTRUCTIONS if _reference_only_errors(errors) else '') + ('Correct the draft only by returning a JSON object with exactly this schema: '
                         '{"replacements":[{"old":"exact draft substring","new":"corrected replacement"}]}. '
                         'Return pure JSON, no Markdown fences, commentary or full-answer rewrite. Use only the smallest '
                         'necessary defective blocks; each old string must occur exactly once in the original draft, '

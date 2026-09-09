@@ -1,0 +1,74 @@
+{
+  "version": "v12",
+  "fixed_at": "2026-09-09T19:31:21.526605+00:00",
+  "preregistration_sha256": "82ac52c20e790e8182562bfcf16f444a541853cccc596bdbfbbd089b5f64022a",
+  "samples_file_sha256": "b11cbd3343c81b3408f22328c6d957ba17015d026e2edba7c7204e85ec90f167",
+  "conditions_file_sha256": "ced4f7b1a5c1206e601541ed5e5be7a76a0a6d0bbf76bd5a55be4100326bff07",
+  "conditions_canonical_sha256": "b3e17619f77eb6208650f30978769ef5170aaccc4fbde9af3a1cda80401cd4de",
+  "retired_holdout_record_sha256": "fcf81e4889a87629094fc4fa7cfd4a5f168313dc1ef73bcfe5b071ba3da890e4",
+  "sample_assignments": [
+    {
+      "id": "original10",
+      "category": "original",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70"
+    },
+    {
+      "id": "original100",
+      "category": "original",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e"
+    },
+    {
+      "id": "variant",
+      "category": "variant",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c"
+    },
+    {
+      "id": "holdout",
+      "category": "independent_holdout",
+      "input_sha256": "257402c3c06028deed38168896a0cb66cc9e8081753aa028ec1dc2ca899ad85c"
+    },
+    {
+      "id": "normal",
+      "category": "normal",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7"
+    },
+    {
+      "id": "permission",
+      "category": "permission",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4"
+    }
+  ],
+  "harness_sha256": "beb7d5f5896a2e6fed311a5d7c5874221bb2cd87ad412ed982b3e9ce6c0f2d87",
+  "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+  "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+  "allow_simulation": true,
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "candidate_source_binding": "Must be independently frozen before first trial; not yet produced",
+  "resource_phase_admission": {
+    "phases": [
+      "before paired24",
+      "before additional4 exact synthetic",
+      "before original-context plus general plus live"
+    ],
+    "provider_source": "Official WCL rateLimitData for the exact configured key, with token/secret never recorded",
+    "threshold": "At least95 percent of hourly quota available: finite positive limit and finite nonnegative pointsSpent <=0.05*limit. Missing, invalid or unavailable quota data does not admit the phase.",
+    "wait": "If insufficient, wait only for provider-declared reset/retry time, then query rateLimitData again before admission. Preserve observed_at, limit,spent,reset/retry and admitted decision in private metadata. No speculative polling or inferred quota reset.",
+    "no_model_before_admission": true,
+    "no_chat_created_before_admission": true,
+    "does_not_change": "Per-run480s Chat/360s WCL/one60s no-tools repair; planned repetitions and frozen criteria; no replacement or adaptive retry. An in-run upstream failure remains a failed trial. Quota admission does not guarantee upstream success.",
+    "history": "V11 observed HTTP429 RetryAfter38 followed by a new window limit3600/spent1/reset3600 motivates phase scheduling only. Does not retroactively pass V11."
+  },
+  "planned_trials": {
+    "paired": 24,
+    "extra_synthetic": 4
+  },
+  "budgets": {
+    "chat": 480,
+    "wcl": 360,
+    "repair": 60,
+    "repair_attempts": 1,
+    "repair_tools": false
+  },
+  "new_holdout_content": "private only"
+}
