@@ -1,0 +1,76 @@
+{
+  "harness": "actual-http-suite-v1",
+  "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+  "timeout_seconds": 480,
+  "wcl_reader_budget_seconds": 360,
+  "parallel_trials": 2,
+  "arm_schedule": "sequential arms; two independent repeat lanes per arm",
+  "source_access": "actual_product_registered_gateway_and_recorder_with_owner_scoped_simulation_capability",
+  "preregistered_harness_conditions": {
+    "harness": "actual-http-suite-v1",
+    "comparison": "Fresh actual HTTP before and after; V8 native is a different historical harness, never a paired substitute.",
+    "samples_per_arm": 6,
+    "repetitions": 2,
+    "trials_per_arm": 12,
+    "total_trials": 24,
+    "concurrency": 2,
+    "identity_freeze": "One runner byte SHA must be recorded before the first V9 trial and used unchanged in both arms. Record immutable baseline and candidate source/config/model/prompt identities before their runs. Implementing the runner cannot alter this frozen contract; deviations require a new preregistration before trials.",
+    "model": "Same configured model/profile and normalized model configuration in both arms; source-owned agent rules hash recorded separately. No adaptive parameter tuning.",
+    "budgets": {
+      "chat_execution_seconds": 480,
+      "wcl_reader_seconds": 360,
+      "wcl_reader_start": "Construct at the original product execution boundary, not lazily at first tool use.",
+      "measurement": "Record execution/adapter elapsed time and queue wait separately; HTTP polling wall time is not the480s metric."
+    },
+    "path": "Actual POST /api/v2/chat/conversations; create only isolated fixture history preserving messages[:-1] role/content order in the candidate database. Final user message goes through authenticated cookie+CSRF+idempotency POST messages/stream, real ChatApplication, durable queue, worker, RegisteredGateway, ToolRecorder and NativeAdapter.stream_for_chat. Apply the real product history20/4000 conversion, permissions and productCapabilities; do not hand-build a native prompt or omit product permissions.",
+    "ownership": "Two lanes have distinct fixture owners to avoid account-wide busy interference; each sample/repeat uses a new conversation. Preserve real owner-scoped source and SimC capability behavior. Do not disclose secret values or copy private original history into production. Use isolated candidate fixtures only; redact/archive those fixtures after receipt collection without altering originals.",
+    "permission_observation": "Record candidate database SimC job deltas to evaluate the existing permission criterion; do not trigger additional SimC jobs as a test workaround.",
+    "receipts": "Save every terminal result including failures, immutable source/model/config/agentRules/harness identities, exact original messages input hash, actual application prompt hash, opaque fixture owner/conversation/run refs, public_error, application-visible recorded tool results after the180000 boundary, tool count/byte sizes/times, final answer, and execution/queue timing. Per-run volatile owner/run values are recorded, not silently removed to fabricate identical prompt hashes.",
+    "execution": "Run the planned12 baseline and12 candidate trials, preserving each result. No extra retries or replacement model trials after failure; continue collecting planned trials. HTTP200/controllerexit0/terminalcompleted are not semantic success. Independent verdicts bind raw receipt bytes and original fixed criteria. Subsequent HTTP/general release gates remain separate."
+  },
+  "preregistered_harness_conditions_sha256": "3c70cdad1f4567874cc80f4957e6d3449279a2d0648bafe6d3fd05fd72147520",
+  "sample_assignments": [
+    {
+      "id": "original10",
+      "category": "original",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70"
+    },
+    {
+      "id": "original100",
+      "category": "original",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e"
+    },
+    {
+      "id": "variant",
+      "category": "variant",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c"
+    },
+    {
+      "id": "holdout",
+      "category": "independent_holdout",
+      "input_sha256": "48f8c593f2bf33a342f3ae4aa7ec1262a05de06c3081d88ca1d409e32ade438c"
+    },
+    {
+      "id": "normal",
+      "category": "normal",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7"
+    },
+    {
+      "id": "permission",
+      "category": "permission",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4"
+    }
+  ],
+  "samples_file_sha256": "067dab649cbefd0e7b835079b9e0925dec87383d57c79a0f715d2bf52cd7b679",
+  "allow_simulation": true,
+  "harness_sha256": "beb7d5f5896a2e6fed311a5d7c5874221bb2cd87ad412ed982b3e9ce6c0f2d87",
+  "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "fixed_before_first_trial_at": "2026-09-09T16:17:58.951993+00:00",
+  "conditions_sha256": "fc0583af7f82f244ad28344c6d2ed545be4b7ab797a9e810d911bc5dfb138d64",
+  "conditions_file_sha256": "51527b56807fdd7e099c27e8b165f269490d7a93ff452ed14466c81273b48192",
+  "offline_tests": 10,
+  "offline_test_log_sha256": "8c4b1532288f3c2237a75b4778a19116380135ed2658033225c3d1a1a8446867",
+  "independent_review": "No blockers; capture/profile/history mismatch and cleanup errors fail gates even when terminal completed.",
+  "raw_answers_and_diagnostics": "Private; no hidden reasoning or credentials recorded."
+}
