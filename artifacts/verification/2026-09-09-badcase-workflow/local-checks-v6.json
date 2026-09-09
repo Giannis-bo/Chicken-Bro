@@ -1,0 +1,16 @@
+{
+  "source_sha": "59f4015281850df357a212a91e5acc04358e5693",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "dc91c8b61da2bba847aceaee5bb90fe29cd00c7f159d2011186ee7c57192c667",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "752536c34ebf1ad2f99136c489a7e50020df4a3cc0dc9f39e137dcfff691dc77",
+  "observed_at": "2026-09-09T14:20:39.183270+00:00",
+  "backendTests": 603,
+  "controlTests": 84,
+  "passed": true,
+  "logs": {
+    "badcase-backend-v6-final-with-oauth.log": "72f154ad9fdfd99a444a91567d6dee79282bb214ca2270a6e2006888404c3536",
+    "badcase-control-v6-final.log": "feb231b30d7e16595bcb95b2739a33f1d9e61fbddcf54bb0da9264b80fe59e0d"
+  },
+  "notes": "Full backend now explicitly includes OAuth cache tests; unchanged dependency set. Source frozen only after independent review and these actual checks. Model/Candidate/live acceptance separately pending."
+}

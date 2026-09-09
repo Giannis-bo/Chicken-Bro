@@ -1,0 +1,24 @@
+{
+  "source_sha": "59f4015281850df357a212a91e5acc04358e5693",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "dc91c8b61da2bba847aceaee5bb90fe29cd00c7f159d2011186ee7c57192c667",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "752536c34ebf1ad2f99136c489a7e50020df4a3cc0dc9f39e137dcfff691dc77",
+  "observed_at": "2026-09-09T14:20:39.182285+00:00",
+  "status": "passed",
+  "probe": {
+    "budget_seconds": 15,
+    "elapsed_seconds": 0.942,
+    "http_requests": 1,
+    "opener_attempts": 1,
+    "parallel_calls": 3,
+    "passed": true,
+    "status": "passed",
+    "token_consistent": true,
+    "valid_expires_in": true,
+    "warm_calls": 1
+  },
+  "probeScriptSha256": "800712854cfd295a34d788e7fdab2a1561805635694fb46e97b718585e5acc7d",
+  "receiptSha256": "1966a8c6a0f51314e639faf9222ecad78f1b6eae34b7c90d1df7f8299ee6bc3d",
+  "scope": "Actual cloud OAuth only; three simultaneous and one warm acquisition, one HTTP fetch, real expiry,15s shared hard deadline. No Chat/SimC queries or production writes. Does not replace model or business acceptance."
+}
