@@ -264,6 +264,12 @@
         "evidence": "artifacts/verification/2026-09-09-inline-chat-images/release/README.md",
         "userClosureAuthorized": true
       }
+    },
+    "simcExperiments": {
+      "status": "in_progress",
+      "plan": "docs/plans/2026-09-09-simc-scenario-experiments.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true
     }
   },
   "miniRetirement": {

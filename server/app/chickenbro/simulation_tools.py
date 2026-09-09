@@ -25,6 +25,10 @@ from server.app.simulation.application import (
 from server.app.simulation.compiler import SimcCompileError, normalize_scenario, scenario_hash
 from server.app.simulation.domain import SimulationJob, SourceReadiness, SourceSnapshot
 from server.app.simulation.snapshots import REQUIRED_GEAR_SLOTS
+from server.app.simulation.experiments import merge_scenario, compare_jobs
+from server.app.simulation.talent_editor import TalentEditError, edit_talents, talent_options, talent_difference
+from server.app.simulation.localization import catalog_for_build
+from server.app.simulation.item_variants import same_upgrade_variants
 
 
 _SAFE_CODE = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
@@ -149,6 +153,10 @@ def _job_packet(view: SimulationJobView) -> dict:
     if view.result is not None:
         result = {"metricName": view.result.primary_metric_name,
                   "metricValue": view.result.primary_metric_value, "provenance": provenance}
+        proof = view.result.result.get("effectiveConfig", {})
+        if isinstance(proof,dict) and proof.get("status") == "verified" and proof.get("profileSha256") == view.result.profile_sha256:
+            result["effectiveConfig"] = {"status":"verified", "profileSha256":view.result.profile_sha256,
+                                         "checked":["talents","equipmentItemIds","overriddenItemLevels"]}
         for key in ("metricError", "metricErrorPct"):
             value = view.result.result.get(key)
             if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
@@ -159,7 +167,16 @@ def _job_packet(view: SimulationJobView) -> dict:
         limitations.append("The simulation is pending; no performance result is available yet.")
     if view.scenario is None:
         limitations.append("The original scenario is unavailable; do not infer targets, duration or gem replacements from this job.")
-    gear = _snapshot_packet(view.snapshot)["gear"] if view.snapshot else {}
+    source_packet = _snapshot_packet(view.snapshot) if view.snapshot else {}
+    gear = source_packet.get("gear", {})
+    talents = source_packet.get("talents", {})
+    if view.scenario and "talentOverrides" in view.scenario and view.snapshot:
+        try:
+            edited = edit_talents(talents, source_packet["character"], job.runtime_revision, view.scenario["talentOverrides"])
+            talents = {"string": edited["string"], "loadout": edited["loadout"]}
+        except TalentEditError:
+            talents = {}
+            limitations.append("Effective talents cannot be reconstructed with the available versioned catalog.")
     if view.scenario:
         gear.update(deepcopy(view.scenario.get("equipmentOverrides", {})))
         for slot, gems in view.scenario.get("gemOverrides", {}).items():
@@ -168,7 +185,7 @@ def _job_packet(view: SimulationJobView) -> dict:
     return _packet(
         job.status.value, jobId=str(job.id), snapshotId=str(job.snapshot_id),
         scenario=deepcopy(view.scenario),
-        gear=gear,
+        gear=gear, talents=talents, character=source_packet.get("character", {}), source=source_packet.get("source", {}),
         scenarioHash=job.scenario_hash, compilerRevision=job.compiler_revision,
         runtimeRevision=job.runtime_revision, errorCode=_code(job.public_error_code, "SIMC_FAILED") if job.public_error_code else None,
         createdAt=job.created_at.isoformat(), updatedAt=job.updated_at.isoformat(), result=result,
@@ -215,15 +232,59 @@ class SimulationToolGateway:
                 raise SimulationToolUnauthorized("Simulation capability is invalid or expired")
             return run
 
+    def _options(self, run, arguments):
+        principal = run.context.principal
+        if ("snapshotId" in arguments) == ("baseJobId" in arguments):
+            raise ValueError("exactly one source required")
+        if "baseJobId" in arguments:
+            source = _job_packet(self._application.read_job(principal, _uuid(arguments["baseJobId"])))
+        else:
+            source = _snapshot_packet(self._application.read_snapshot(principal, _uuid(arguments["snapshotId"])))
+        query = arguments.get("query", "")
+        if not isinstance(query,str) or len(query)>120: raise ValueError("bounded query required")
+        caps = self._application.capabilities()
+        if arguments.get("kind") == "talents":
+            options = talent_options(source["character"], source["talents"], caps.runtime_revision, query)
+        elif arguments.get("kind") == "items":
+            from server.app.simulation.wcl_talents import _catalog
+            catalog = _catalog()[0]
+            if not caps.runtime_revision.startswith("simc:managed:"+catalog["revision"]+":"):
+                return _blocked("TALENT_CATALOG_RUNTIME_MISMATCH")
+            names = catalog_for_build(catalog["build"])
+            if not names: return _blocked("SIMC_CATALOG_UNAVAILABLE")
+            if not query: raise ValueError("item name or ID required")
+            rows = [{"itemId":int(k),"name":v} for k,v in names.data['items'].items()
+                    if k.isdigit() and v and (query.casefold() in v.casefold() or query==k)]
+            for row in rows[:30]:
+                row["sameUpgradeVariants"] = same_upgrade_variants(row["itemId"], source.get("gear", {}), caps.runtime_revision)
+            options = {"items":rows[:30],"hasMore":len(rows)>30,"gameBuild":catalog['build'],
+                       "catalogRevision":names.revision,
+                       "limitations":["Use sameUpgradeVariants only when the user intends the same upgrade progress; disclose its assumption. Otherwise research an exact item variant. Name matches alone do not establish track, rank or availability."]}
+        else: raise ValueError("unknown option kind")
+        return _packet("ready", options=options, runtimeRevision=caps.runtime_revision,
+                       compilerRevision=caps.compiler_revision)
+
     def execute(self, token: str, operation: str, arguments: dict) -> dict:
         run = self._authorized(token)
         try:
             if not isinstance(arguments, dict) or not isinstance(operation, str):
                 raise ValueError("invalid operation arguments")
             allowed = {"prepare": {"sourceUrl"}, "submit": {"snapshotId", "baseJobId", "scenario"},
-                       "get": {"jobId", "waitSeconds"}, "list": {"limit", "cursor"}}
+                       "get": {"jobId", "waitSeconds"}, "list": {"limit", "cursor"},
+                       "preview": {"snapshotId", "baseJobId", "scenario"},
+                       "options": {"snapshotId", "baseJobId", "kind", "query"},
+                       "compare": {"baselineJobId", "variantJobId"}}
             if operation not in allowed or set(arguments) - allowed[operation]:
                 raise ValueError("unknown operation or extra arguments")
+            if operation == "compare":
+                principal = run.context.principal
+                comparison = compare_jobs(
+                    self._application.read_job(principal, _uuid(arguments.get("baselineJobId"))),
+                    self._application.read_job(principal, _uuid(arguments.get("variantJobId"))))
+                return _packet("ready", comparison=comparison, evidenceRefs=[
+                    {"jobId":comparison["baselineJobId"]}, {"jobId":comparison["variantJobId"]}])
+            if operation == "options":
+                return self._options(run, arguments)
             if operation == "get":
                 job_id = _uuid(arguments.get("jobId"))
                 wait = _bounded_int(arguments.get("waitSeconds", 0), 0, 20)
@@ -254,7 +315,7 @@ class SimulationToolGateway:
                         raise
                     run.preparations[url] = packet
                     return deepcopy(packet)
-                if operation == "submit":
+                if operation in {"submit", "preview"}:
                     if ("snapshotId" in arguments) == ("baseJobId" in arguments):
                         raise ValueError("exactly one simulation source required")
                     if "baseJobId" in arguments:
@@ -265,22 +326,37 @@ class SimulationToolGateway:
                         patch = arguments.get("scenario", {})
                         if not isinstance(patch, dict):
                             raise ValueError("scenario patch required")
-                        merged = deepcopy(dict(base.scenario))
-                        merged.update(patch)
-                        # Slot maps are patches, so earlier changes in other slots survive.
-                        for field in ("equipmentOverrides", "gemOverrides"):
-                            if field in patch:
-                                if not isinstance(patch[field], dict):
-                                    raise ValueError("slot map required")
-                                merged[field] = {**base.scenario.get(field, {}), **patch[field]}
-                        # Replacing an item also replaces its gems, unless explicitly patched.
-                        for slot in patch.get("equipmentOverrides", {}):
-                            if slot not in patch.get("gemOverrides", {}):
-                                merged.get("gemOverrides", {}).pop(slot, None)
-                        scenario = normalize_scenario(merged)
+                        if "string" in base.scenario.get("talentOverrides", {}) and "nodes" in patch.get("talentOverrides", {}):
+                            packet = _job_packet(base)
+                            edited = edit_talents(packet["talents"], packet["character"],
+                                                  self._application.capabilities().runtime_revision, patch["talentOverrides"])
+                            patch = {**patch, "talentOverrides": {"string":edited["string"]}}
+                        scenario = merge_scenario(base.scenario, patch)
                     else:
                         snapshot_id = _uuid(arguments["snapshotId"])
                         scenario = normalize_scenario(arguments.get("scenario"))
+                    if operation == "preview":
+                        compiled = self._application.preview(principal, snapshot_id, scenario)
+                        source = _snapshot_packet(self._application.read_snapshot(principal, snapshot_id))
+                        prior = _job_packet(base) if "baseJobId" in arguments else source
+                        gear = deepcopy(source["gear"])
+                        gear.update(deepcopy(scenario.get("equipmentOverrides", {})))
+                        for slot,gems in scenario.get("gemOverrides", {}).items():
+                            gear[slot]["gems"] = list(gems)
+                        talents = compiled.provenance.get("talentOverrides", source["talents"])
+                        changes = {"equipment":{slot:{"before":prior["gear"].get(slot), "after":item}
+                                   for slot,item in gear.items() if item!=prior["gear"].get(slot)},
+                                   "talents":(talent_difference(prior["talents"], talents, source["character"], compiled.runtime_revision)
+                                              if "talentOverrides" in scenario else []),
+                                   "parameters":{key:{"before":prior.get("scenario", {}).get(key),"after":value}
+                                                 for key,value in scenario.items() if key not in {"equipmentOverrides","gemOverrides","talentOverrides"}
+                                                 and value!=prior.get("scenario", {}).get(key)}}
+                        return _packet("ready", snapshotId=str(snapshot_id), scenario=dict(compiled.scenario),
+                                       source=source["source"], character=source["character"], gear=gear, talents=talents,
+                                       changes=changes, profileSha256=compiled.profile_sha256, scenarioHash=compiled.scenario_hash,
+                                       compilerRevision=compiled.compiler_revision, runtimeRevision=compiled.runtime_revision,
+                                       facts=["Configuration compiled without enqueueing a simulation."],
+                                       limitations=["Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
                     digest = scenario_hash(scenario)
                     key = hashlib.sha256(f"{run.context.run_id}:{snapshot_id}:{digest}".encode()).hexdigest()
                     if run.submissions.get(key) is not None:
@@ -306,7 +382,7 @@ class SimulationToolGateway:
             raise
         except SimulationApplicationError as error:
             return _blocked(error.code, error.blockers)
-        except SimcCompileError as error:
+        except (SimcCompileError, TalentEditError) as error:
             return _blocked(error.code)
         except (ValueError, TypeError, KeyError):
             return _blocked("SIMC_ARGUMENTS_INVALID")

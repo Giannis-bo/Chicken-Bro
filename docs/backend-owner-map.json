@@ -44,6 +44,8 @@
       "path": "server/app/simulation/application.py",
       "characterization": [
         "tests/app_simulation_application_test.py",
+        "tests/app_simulation_talent_editor_test.py",
+        "tests/app_simulation_effective_config_test.py",
         "tests/app_simc_cross_client_test.py",
         "tests/app_chickenbro_simulation_tools_test.py",
         "tests/app_simulation_localization_test.py"

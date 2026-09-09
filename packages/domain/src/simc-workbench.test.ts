@@ -9,6 +9,13 @@ const report: SimulationReport = {
   buffs:[{name:'Bloodlust',uptime:13}],resources:[],attributes:[],gear:[],
 }
 describe('SimC workbench guards', () => {
+  it('validates talent variants without accepting ambiguous or injected edits', () => {
+    const node = { nodeId: 80999, entryId: 1234, rank: 1 }
+    expect(isSimulationScenario({ talentOverrides: { nodes: [node] } })).toBe(true)
+    for (const change of [{ nodes: [] }, { nodes: [node, node] }, { nodes: [{ ...node, rank: true }] }, { string: 'A'.repeat(30) + '\noutput=/tmp/x' }, { string: 'A'.repeat(30), nodes: [node] }]) {
+      expect(isSimulationScenario({ talentOverrides: change })).toBe(false)
+    }
+  })
   it('requires aligned versioned localization without widening the legacy contract', () => {
     const label = { text: '闪电箭', status: 'resolved', spellId: 188196, sourceNpcId: null, method: 'spell_id' }
     const localization = { locale: 'zhCN', gameVersion: report.engine.gameVersion, catalogRevision: 'a'.repeat(64), status: 'complete', abilities: [label], buffs: [{ ...label, text: '嗜血', spellId: 2825 }] }

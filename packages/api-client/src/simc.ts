@@ -122,7 +122,7 @@ function scenario(value: SimulationScenarioRequest): SimulationScenarioRequest {
 }
 
 function workbenchPath(path: string, options: SimcRequestOptions): string {
-  return options.workbench ? `${path}${path.includes('?') ? '&' : '?'}view=workbench&scenarioVersion=2${options.localizedReport ? '&reportLocale=zhCN' : ''}` : path
+  return options.workbench ? `${path}${path.includes('?') ? '&' : '?'}view=workbench&scenarioVersion=3${options.localizedReport ? '&reportLocale=zhCN' : ''}` : path
 }
 
 export function createSimcClient(transport: ApiTransport): SimcClient {

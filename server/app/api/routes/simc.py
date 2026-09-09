@@ -97,8 +97,8 @@ def _job_summary(view: SimulationJobView, workbench: bool = False, scenario_vers
         public_error = "SIMC_FAILED"
     return {
         "id": str(job.id),
-        **({"character": _character_payload(view.snapshot), "scenario": (dict(view.scenario) if scenario_version == 2 else
-                {key: value for key, value in view.scenario.items() if key != "equipmentOverrides"}) if view.scenario is not None else None,
+        **({"character": _character_payload(view.snapshot), "scenario": ({key: value for key, value in view.scenario.items()
+                 if (key != "equipmentOverrides" or scenario_version >= 2) and (key != "talentOverrides" or scenario_version >= 3)}) if view.scenario is not None else None,
             "metric": {"name": view.result.primary_metric_name, "value": view.result.primary_metric_value} if view.result else None} if workbench else {}),
         "snapshotId": str(job.snapshot_id),
         "status": job.status.value,

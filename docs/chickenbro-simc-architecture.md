@@ -26,6 +26,12 @@ QQ 登录由 `identity.qq_application` 与 `integrations.qq_connect` 实现：�
 
 WCL 适配器用于战斗研究及历史天赋恢复，不恢复 WCL 新角色导入。输出和坦克专精受运行配置与 readiness 控制，治疗明确拒绝。新任务和装备对照保留原快照与结果。
 
+### 场景实验（本地实现，未部署）
+
+任务工具返回 owner-scoped 原来源、角色、有效装备与天赋。`preview_simulation` 复用 application 的只读编译预检，`query_simulation_options` 查询引擎绑定的节点选项/物品名称，`compare_simulation_jobs` 校验同快照、同引擎/compiler、同控制参数后计算差异与保守误差判断。
+
+compiler v5 增加 `talentOverrides`，不改原始快照；`baseJobId` 连续修改保留之前的有效配置。版本绑定的连线资料校验跨节点分配、点数门槛和英雄树；资料无法覆盖的配置拒绝执行。装备查询可从已观察到的升级 bonus 生成同进度饰品候选，并明确它是假设版本；未覆盖的制造/特殊物品版本仍需可靠资料。v5 Worker 要求真实报告核对天赋、装备 ID 和覆盖装等；历史编译版本保留原行为。Web 通过 `scenarioVersion=3` 读取天赋场景，旧客户端保持旧字段合同。实施与剩余资料缺口见[场景实验计划](plans/2026-09-09-simc-scenario-experiments.md)。
+
 ## 数据与所有权
 
 PostgreSQL 当前 schema 为 `identity`、`chat`、`simc`、`ops`。所有用户业务查询从内部 `user_id` 限定所有权；请求体不能选择 owner。`ops.job_queue` 包含任务引用，`ops.audit_events` 保留操作审计；清理不能只删除用户而遗漏队列、运行及图片。

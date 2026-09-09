@@ -55,6 +55,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
                 "query_raiderio_rankings",
                 "query_raiderio_characters",
                 "prepare_simulation", "submit_simulation", "get_simulation_job", "list_simulation_jobs",
+                "preview_simulation", "query_simulation_options", "compare_simulation_jobs",
             },
             {item["name"] for item in listed["result"]["tools"]},
         )
@@ -66,7 +67,8 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
     def test_simc_tools_dispatch_without_model_identity(self):
         module = importlib.import_module('server.chickenbro_native_mcp')
         for name, operation in [('prepare_simulation', 'prepare'), ('submit_simulation', 'submit'),
-                                ('get_simulation_job', 'get'), ('list_simulation_jobs', 'list')]:
+                                ('get_simulation_job', 'get'), ('list_simulation_jobs', 'list'),
+                                ('preview_simulation', 'preview'), ('query_simulation_options', 'options'), ('compare_simulation_jobs', 'compare')]:
             with self.subTest(name=name), patch.object(module, 'query_simulation_gateway', return_value={
                     'sourceKey': 'simc', 'status': 'queued', 'facts': [{'jobId': 'safe-job'}]}) as query:
                 module.handle_rpc_request({'id': 2, 'method': 'tools/call',

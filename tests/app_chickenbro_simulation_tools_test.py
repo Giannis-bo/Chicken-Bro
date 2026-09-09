@@ -264,3 +264,99 @@ class SimulationToolGatewayTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class SimulationExperimentTest(unittest.TestCase):
+    setUp = SimulationToolGatewayTest.setUp
+    advance = SimulationToolGatewayTest.advance
+    prepare = SimulationToolGatewayTest.prepare
+    submit = SimulationToolGatewayTest.submit
+    complete = SimulationToolGatewayTest.complete
+    def test_job_returns_owned_character_source_and_talents(self):
+        prepared = self.prepare()
+        job = self.submit(prepared['snapshotId'])
+        self.assertEqual(job['character'],prepared['character'])
+        self.assertEqual(job['source'],prepared['source'])
+        self.assertEqual(job['talents'],prepared['talents'])
+
+    def test_preflight_does_not_enqueue_and_exposes_exact_diff(self):
+        prepared = self.prepare()
+        baseline = self.submit(prepared['snapshotId'])
+        caps=replace(self.application._runtime_capabilities, compiler_revision='chickenbro-simc-compiler-v5')
+        self.application._runtime_capabilities=caps
+        self.application._compiler=application_fixtures.SimcProfileCompiler(capabilities=caps)
+        item={'itemId':9999,'itemLevel':285,'bonusIds':[],'gems':[],'enchant':None}
+        preview=self.gateway.execute(self.token,'preview',{'baseJobId':baseline['jobId'],'scenario':{'equipmentOverrides':{'trinket1':item}}})
+        self.assertEqual(preview['status'],'ready')
+        self.assertEqual(preview['changes']['equipment']['trinket1']['after'],item)
+        self.assertEqual(preview['gear']['trinket1'],item)
+        self.assertEqual(len(self.queue.calls),1)
+        self.assertNotIn('profile',preview)
+
+    def test_compare_requires_matching_controls_and_owned_completed_results(self):
+        a=self.submit(self.prepare()['snapshotId']);self.complete(a)
+        b=self.submit(a['snapshotId'],{'desiredTargets':5});self.complete(b)
+        result=self.gateway.execute(self.token,'compare',{'baselineJobId':a['jobId'],'variantJobId':b['jobId']})
+        self.assertEqual(result['errorCode'],'SIMC_COMPARISON_CONTROLS_MISMATCH')
+        result=self.gateway.execute(self.token,'compare',{'baselineJobId':a['jobId'],'variantJobId':a['jobId']})
+        self.assertEqual(result['errorCode'],'SIMC_COMPARISON_SAME_JOB')
+
+    def test_talent_preview_submit_followup_and_owner_isolation(self):
+        from copy import deepcopy
+        from pathlib import Path
+        from tests.app_simulation_talent_editor_test import RUNTIME
+        prepared=self.prepare(); sid=UUID(prepared['snapshotId'])
+        old=self.repository.snapshots[(self.owner.user_id,sid)]
+        raw=deepcopy(old.snapshot);raw['character']['level']=90
+        raw['talents']={'string':json.loads(Path('tests/fixtures/simc/fusionbolt_raider_talents_12_1.json').read_text())['talents']}
+        self.repository.snapshots[(self.owner.user_id,sid)]=replace(old,snapshot=raw)
+        caps=replace(self.application._runtime_capabilities,compiler_revision='chickenbro-simc-compiler-v5',runtime_revision=RUNTIME)
+        self.application._runtime_capabilities=caps
+        self.application._compiler=application_fixtures.SimcProfileCompiler(capabilities=caps)
+        base=self.submit(str(sid),{'desiredTargets':5,'maxTime':300})
+        options=self.gateway.execute(self.token,'options',{'baseJobId':base['jobId'],'kind':'talents','query':'Master of the Elements'})
+        node=options['options']['nodes'][0]
+        target=next(e for e in node['entries'] if e['name']=='Molten Wrath')
+        args={'baseJobId':base['jobId'],'scenario':{'talentOverrides':{'nodes':[{'nodeId':node['nodeId'],'entryId':target['entryId'],'rank':1}]}}}
+        preview=self.gateway.execute(self.token,'preview',args)
+        self.assertEqual(preview['status'],'ready',preview)
+        self.assertEqual(len(preview['changes']['talents']),1)
+        self.assertEqual(preview['changes']['equipment'],{})
+        self.assertEqual(preview['changes']['parameters'],{})
+        self.assertEqual(len(self.queue.calls),1)
+        variant=self.gateway.execute(self.token,'submit',args)
+        self.assertEqual(variant['status'],'queued',variant)
+        self.assertEqual(variant['talents']['string'],preview['talents']['string'])
+        self.assertEqual(variant['scenarioHash'],preview['scenarioHash'])
+        self.assertEqual(self.gateway.execute(self.token,'submit',args)['jobId'],variant['jobId'])
+        follow=self.gateway.execute(self.token,'submit',{'baseJobId':variant['jobId'],'scenario':{'iterations':1000}})
+        self.assertEqual(follow['talents'],variant['talents'])
+        self.assertEqual(follow['gear'],base['gear'])
+        follow_preview=self.gateway.execute(self.token,'preview',{'baseJobId':variant['jobId'],'scenario':{'iterations':1000}})
+        self.assertEqual(follow_preview['changes']['talents'],[])
+        other=self.gateway.issue_capability(replace(self.context,principal=self.other,run_id=uuid4()))
+        for operation, arguments in [('preview',args),('options',{'baseJobId':base['jobId'],'kind':'talents'}),
+                                     ('compare',{'baselineJobId':base['jobId'],'variantJobId':variant['jobId']})]:
+            self.assertEqual(self.gateway.execute(other,operation,arguments)['errorCode'],'SIMULATION_NOT_FOUND')
+        self.assertEqual(len(self.queue.calls),3)
+
+    def test_comparison_reports_measured_delta_and_conservative_uncertainty(self):
+        caps=replace(self.application._runtime_capabilities,compiler_revision='chickenbro-simc-compiler-v4')
+        self.application._runtime_capabilities=caps
+        self.application._compiler=application_fixtures.SimcProfileCompiler(capabilities=caps)
+        base=self.submit(self.prepare()['snapshotId']);self.complete(base)
+        variant=self.gateway.execute(self.token,'submit',{'baseJobId':base['jobId'],'scenario':{'equipmentOverrides':{
+            'trinket1':{'itemId':9999,'itemLevel':285,'bonusIds':[],'gems':[],'enchant':None}}}})
+        args={'baselineJobId':base['jobId'],'variantJobId':variant['jobId']}
+        self.assertEqual(self.gateway.execute(self.token,'compare',args)['errorCode'],'SIMC_COMPARISON_NOT_READY')
+        result=self.complete(variant)
+        compare=self.gateway.execute(self.token,'compare',args)['comparison']
+        self.assertEqual(compare['assessment'],'within_reported_error')
+        self.assertEqual(compare['combinedErrorBound'],24)
+        self.repository.save_result(replace(result,primary_metric_value=13000,result={**result.result,'metricValue':13000}))
+        compare=self.gateway.execute(self.token,'compare',args)['comparison']
+        self.assertEqual(compare['assessment'],'higher')
+        self.assertEqual(compare['delta'],655)
+        self.assertAlmostEqual(compare['deltaPct'],655/12345*100)
+        missing={**result.result,'metricValue':13000};missing.pop('metricError')
+        self.repository.save_result(replace(result,primary_metric_value=13000,result=missing))
+        self.assertEqual(self.gateway.execute(self.token,'compare',args)['comparison']['assessment'],'uncertainty_unavailable')

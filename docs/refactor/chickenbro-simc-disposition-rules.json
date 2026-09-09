@@ -2,6 +2,31 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-scenario-experiments",
+      "disposition": "keep",
+      "category": "target-product-code",
+      "owner": "simc",
+      "reason": "User-authorized immutable scenario editing, preflight and measured comparison.",
+      "paths": [
+        "docs/plans/2026-09-09-simc-scenario-experiments.md",
+        "server/app/simulation/talent_editor.py",
+        "server/app/simulation/experiments.py",
+        "server/app/simulation/effective_config.py",
+        "server/app/simulation/data/trait-labels-12.1.0.json",
+        "tests/app_simulation_talent_editor_test.py",
+        "tests/app_simulation_effective_config_test.py",
+        "server/app/simulation/item_variants.py",
+        "server/app/simulation/data/item-variants-12.1.0.json",
+        "server/app/simulation/data/trait-paths-12.1.0.json",
+        "scripts/simc/build_experiment_catalogs.py",
+        "tests/fixtures/simc/engine_talent_exports_12_1.json",
+        "tests/fixtures/simc/fusionbolt_raider_talents_12_1.json"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-09-simc-scenario-experiments/"
+      ]
+    },
+    {
       "id": "mini-source-retirement",
       "disposition": "keep",
       "category": "current-control-plane",

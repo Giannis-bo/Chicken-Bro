@@ -1,0 +1,666 @@
+{
+  "giannis-baseline": {
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "profileSha256": "5540ca940329ed4029e97f91ce4e9e42e12406e66d8b133a4ece3f2c09e9fd7d",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 5,
+      "iterations": 300,
+      "varyCombatLength": 0.2,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 300
+    },
+    "metric": {
+      "name": "dps",
+      "value": 488163.0060497632,
+      "error": 1591.8868032119512
+    },
+    "effectiveConfig": {
+      "status": "verified",
+      "profileSha256": "5540ca940329ed4029e97f91ce4e9e42e12406e66d8b133a4ece3f2c09e9fd7d",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ]
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMGjZZbZMmhZAAAAgFzsBDYAzGTIzCAMbzMzYssYajZmtxyMPwMjhFLzMLDjZmFAgZAwMjhhB",
+    "trinkets": [
+      {
+        "slot": "trinket1",
+        "itemId": 273796,
+        "itemLevel": 321.0
+      },
+      {
+        "slot": "trinket2",
+        "itemId": 270167,
+        "itemLevel": 308.0
+      }
+    ],
+    "source": {
+      "provider": "raiderio",
+      "sourceUrl": "https://raider.io/characters/cn/silver-hand/giannis",
+      "sourceRevision": "2026-09-08T19:51:25.000Z",
+      "sourceRawSha256": "7bf61d3f391ccb5306764832f99c2d9323dbbb57edbff97c6f824e4130a1091e",
+      "snapshotRevision": 1
+    },
+    "remoteDirectory": "/tmp/chickenbro-experiments-juy810st"
+  },
+  "giannis-variant": {
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "profileSha256": "1afccefce963eaaaa6bd7d1ae17da0cab74d7749e53a55c20b5d3906c6379469",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 5,
+      "iterations": 300,
+      "varyCombatLength": 0.2,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 300,
+      "equipmentOverrides": {
+        "trinket2": {
+          "itemId": 270164,
+          "itemLevel": 308,
+          "bonusIds": [
+            12838
+          ],
+          "gems": [],
+          "enchant": null
+        }
+      }
+    },
+    "metric": {
+      "name": "dps",
+      "value": 495006.1370624469,
+      "error": 1674.9233026798595
+    },
+    "effectiveConfig": {
+      "status": "verified",
+      "profileSha256": "1afccefce963eaaaa6bd7d1ae17da0cab74d7749e53a55c20b5d3906c6379469",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ]
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbLzMGjZZbZMmhZAAAAgFzsBDYAzGTIzCAMbzMzYssYajZmtxyMPwMjhFLzMLDjZmFAgZAwMjhhB",
+    "trinkets": [
+      {
+        "slot": "trinket1",
+        "itemId": 273796,
+        "itemLevel": 321.0
+      },
+      {
+        "slot": "trinket2",
+        "itemId": 270164,
+        "itemLevel": 308.0
+      }
+    ],
+    "source": {
+      "provider": "raiderio",
+      "sourceUrl": "https://raider.io/characters/cn/silver-hand/giannis",
+      "sourceRevision": "2026-09-08T19:51:25.000Z",
+      "sourceRawSha256": "7bf61d3f391ccb5306764832f99c2d9323dbbb57edbff97c6f824e4130a1091e",
+      "snapshotRevision": 1,
+      "equipmentOverrides": {
+        "trinket2": {
+          "itemId": 270164,
+          "itemLevel": 308,
+          "bonusIds": [
+            12838
+          ],
+          "gems": [],
+          "enchant": null
+        }
+      },
+      "equipmentOverrideSource": "requested_scenario"
+    },
+    "remoteDirectory": "/tmp/chickenbro-experiments-juy810st"
+  },
+  "fusionbolt-baseline": {
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "profileSha256": "18b7c86c5387231d3ae2e78caf5f55dc6358c4db0adf5126adcd597b51539ed9",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 5,
+      "iterations": 300,
+      "varyCombatLength": 0.2,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 300
+    },
+    "metric": {
+      "name": "dps",
+      "value": 492929.26286117337,
+      "error": 1525.972414764745
+    },
+    "effectiveConfig": {
+      "status": "verified",
+      "profileSha256": "18b7c86c5387231d3ae2e78caf5f55dc6358c4db0adf5126adcd597b51539ed9",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ]
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbbzMGjZZbZMmhZAAAAgFzsBDYAzGTIzCAMbzMzYmtFTbmZGjlZMzYYxyMzywYmZBAYGAMzYYYA",
+    "trinkets": [
+      {
+        "slot": "trinket1",
+        "itemId": 273796,
+        "itemLevel": 321.0
+      },
+      {
+        "slot": "trinket2",
+        "itemId": 270164,
+        "itemLevel": 328.0
+      }
+    ],
+    "source": {
+      "provider": "raiderio",
+      "sourceUrl": "https://raider.io/characters/cn/alar/fusionbolt",
+      "sourceRevision": "2026-09-08T15:03:49.000Z",
+      "sourceRawSha256": "31923edbd5dcc9462219ea063c6307d4b0b460865ea62184210e9628509620d7",
+      "snapshotRevision": 1
+    },
+    "remoteDirectory": "/tmp/chickenbro-experiments-juy810st"
+  },
+  "fusionbolt-variant": {
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "profileSha256": "92d92a67a09d5107ccc6a58c6c1841e0aeda0713fa55283c2a2c0a510d4daf71",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 5,
+      "iterations": 300,
+      "varyCombatLength": 0.2,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 300,
+      "talentOverrides": {
+        "nodes": [
+          {
+            "nodeId": 80999,
+            "entryId": 101872,
+            "rank": 1
+          }
+        ]
+      }
+    },
+    "metric": {
+      "name": "dps",
+      "value": 494564.8420175305,
+      "error": 1769.8710690297794
+    },
+    "effectiveConfig": {
+      "status": "verified",
+      "profileSha256": "92d92a67a09d5107ccc6a58c6c1841e0aeda0713fa55283c2a2c0a510d4daf71",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ]
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbbzMGjZZZZMmhZAAAAgFzsBDYAzGzAmFAY2mZmxMbLm2MzMGLzYmxwilZmlhxMzCAwMAYmxwwA",
+    "trinkets": [
+      {
+        "slot": "trinket1",
+        "itemId": 273796,
+        "itemLevel": 321.0
+      },
+      {
+        "slot": "trinket2",
+        "itemId": 270164,
+        "itemLevel": 328.0
+      }
+    ],
+    "source": {
+      "provider": "raiderio",
+      "sourceUrl": "https://raider.io/characters/cn/alar/fusionbolt",
+      "sourceRevision": "2026-09-08T15:03:49.000Z",
+      "sourceRawSha256": "31923edbd5dcc9462219ea063c6307d4b0b460865ea62184210e9628509620d7",
+      "snapshotRevision": 1,
+      "talentOverrides": {
+        "string": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbbzMGjZZZZMmhZAAAAgFzsBDYAzGzAmFAY2mZmxMbLm2MzMGLzYmxwilZmlhxMzCAwMAYmxwwA",
+        "loadout": [
+          {
+            "id": 101844,
+            "nodeID": 80978,
+            "rank": 1
+          },
+          {
+            "id": 101850,
+            "nodeID": 80981,
+            "rank": 1
+          },
+          {
+            "id": 101853,
+            "nodeID": 80983,
+            "rank": 1
+          },
+          {
+            "id": 127924,
+            "nodeID": 80984,
+            "rank": 1
+          },
+          {
+            "id": 127925,
+            "nodeID": 80985,
+            "rank": 1
+          },
+          {
+            "id": 101859,
+            "nodeID": 80988,
+            "rank": 1
+          },
+          {
+            "id": 101860,
+            "nodeID": 80989,
+            "rank": 1
+          },
+          {
+            "id": 101861,
+            "nodeID": 80990,
+            "rank": 1
+          },
+          {
+            "id": 101864,
+            "nodeID": 80992,
+            "rank": 1
+          },
+          {
+            "id": 101867,
+            "nodeID": 80995,
+            "rank": 1
+          },
+          {
+            "id": 101870,
+            "nodeID": 80997,
+            "rank": 1
+          },
+          {
+            "id": 101871,
+            "nodeID": 80998,
+            "rank": 1
+          },
+          {
+            "id": 101874,
+            "nodeID": 81000,
+            "rank": 1
+          },
+          {
+            "id": 101876,
+            "nodeID": 81002,
+            "rank": 1
+          },
+          {
+            "id": 101879,
+            "nodeID": 81004,
+            "rank": 1
+          },
+          {
+            "id": 101883,
+            "nodeID": 81007,
+            "rank": 1
+          },
+          {
+            "id": 101885,
+            "nodeID": 81008,
+            "rank": 1
+          },
+          {
+            "id": 101892,
+            "nodeID": 81015,
+            "rank": 1
+          },
+          {
+            "id": 101893,
+            "nodeID": 81016,
+            "rank": 1
+          },
+          {
+            "id": 117455,
+            "nodeID": 94858,
+            "rank": 1
+          },
+          {
+            "id": 117457,
+            "nodeID": 94860,
+            "rank": 1
+          },
+          {
+            "id": 117458,
+            "nodeID": 94861,
+            "rank": 1
+          },
+          {
+            "id": 123632,
+            "nodeID": 94862,
+            "rank": 1
+          },
+          {
+            "id": 117466,
+            "nodeID": 94869,
+            "rank": 1
+          },
+          {
+            "id": 117472,
+            "nodeID": 94875,
+            "rank": 1
+          },
+          {
+            "id": 117480,
+            "nodeID": 94883,
+            "rank": 1
+          },
+          {
+            "id": 123630,
+            "nodeID": 94884,
+            "rank": 1
+          },
+          {
+            "id": 117484,
+            "nodeID": 94887,
+            "rank": 1
+          },
+          {
+            "id": 117485,
+            "nodeID": 94888,
+            "rank": 1
+          },
+          {
+            "id": 117491,
+            "nodeID": 94894,
+            "rank": 1
+          },
+          {
+            "id": 123377,
+            "nodeID": 99845,
+            "rank": 1
+          },
+          {
+            "id": 127851,
+            "nodeID": 103579,
+            "rank": 1
+          },
+          {
+            "id": 127853,
+            "nodeID": 103581,
+            "rank": 1
+          },
+          {
+            "id": 127855,
+            "nodeID": 103582,
+            "rank": 2
+          },
+          {
+            "id": 127856,
+            "nodeID": 103583,
+            "rank": 1
+          },
+          {
+            "id": 127857,
+            "nodeID": 103584,
+            "rank": 1
+          },
+          {
+            "id": 127858,
+            "nodeID": 103585,
+            "rank": 1
+          },
+          {
+            "id": 127859,
+            "nodeID": 103586,
+            "rank": 1
+          },
+          {
+            "id": 127861,
+            "nodeID": 103588,
+            "rank": 1
+          },
+          {
+            "id": 127863,
+            "nodeID": 103590,
+            "rank": 1
+          },
+          {
+            "id": 127864,
+            "nodeID": 103591,
+            "rank": 1
+          },
+          {
+            "id": 127868,
+            "nodeID": 103593,
+            "rank": 1
+          },
+          {
+            "id": 127871,
+            "nodeID": 103596,
+            "rank": 1
+          },
+          {
+            "id": 127873,
+            "nodeID": 103598,
+            "rank": 1
+          },
+          {
+            "id": 136567,
+            "nodeID": 103599,
+            "rank": 1
+          },
+          {
+            "id": 127876,
+            "nodeID": 103601,
+            "rank": 1
+          },
+          {
+            "id": 127877,
+            "nodeID": 103602,
+            "rank": 1
+          },
+          {
+            "id": 127880,
+            "nodeID": 103605,
+            "rank": 1
+          },
+          {
+            "id": 127881,
+            "nodeID": 103606,
+            "rank": 1
+          },
+          {
+            "id": 127884,
+            "nodeID": 103608,
+            "rank": 1
+          },
+          {
+            "id": 127888,
+            "nodeID": 103611,
+            "rank": 1
+          },
+          {
+            "id": 127889,
+            "nodeID": 103612,
+            "rank": 1
+          },
+          {
+            "id": 127890,
+            "nodeID": 103613,
+            "rank": 1
+          },
+          {
+            "id": 127892,
+            "nodeID": 103615,
+            "rank": 1
+          },
+          {
+            "id": 127893,
+            "nodeID": 103616,
+            "rank": 1
+          },
+          {
+            "id": 127894,
+            "nodeID": 103617,
+            "rank": 2
+          },
+          {
+            "id": 127899,
+            "nodeID": 103620,
+            "rank": 1
+          },
+          {
+            "id": 127905,
+            "nodeID": 103624,
+            "rank": 1
+          },
+          {
+            "id": 127908,
+            "nodeID": 103626,
+            "rank": 1
+          },
+          {
+            "id": 127909,
+            "nodeID": 103627,
+            "rank": 1
+          },
+          {
+            "id": 127910,
+            "nodeID": 103628,
+            "rank": 1
+          },
+          {
+            "id": 127912,
+            "nodeID": 103630,
+            "rank": 1
+          },
+          {
+            "id": 127913,
+            "nodeID": 103631,
+            "rank": 1
+          },
+          {
+            "id": 127914,
+            "nodeID": 103632,
+            "rank": 2
+          },
+          {
+            "id": 127917,
+            "nodeID": 103635,
+            "rank": 1
+          },
+          {
+            "id": 101884,
+            "nodeID": 103637,
+            "rank": 1
+          },
+          {
+            "id": 127919,
+            "nodeID": 103638,
+            "rank": 1
+          },
+          {
+            "id": 127920,
+            "nodeID": 103639,
+            "rank": 1
+          },
+          {
+            "id": 127921,
+            "nodeID": 103640,
+            "rank": 1
+          },
+          {
+            "id": 135591,
+            "nodeID": 109387,
+            "rank": 1
+          },
+          {
+            "id": 135592,
+            "nodeID": 109388,
+            "rank": 1
+          },
+          {
+            "id": 135988,
+            "nodeID": 109730,
+            "rank": 1
+          },
+          {
+            "id": 135989,
+            "nodeID": 109731,
+            "rank": 1
+          },
+          {
+            "id": 135990,
+            "nodeID": 109732,
+            "rank": 1
+          },
+          {
+            "id": 136561,
+            "nodeID": 110066,
+            "rank": 1
+          },
+          {
+            "id": 136585,
+            "nodeID": 110085,
+            "rank": 1
+          },
+          {
+            "id": 136974,
+            "nodeID": 110402,
+            "rank": 1
+          },
+          {
+            "id": 136973,
+            "nodeID": 110402,
+            "rank": 2
+          },
+          {
+            "id": 136972,
+            "nodeID": 110402,
+            "rank": 1
+          },
+          {
+            "nodeID": 80999,
+            "id": 101872,
+            "rank": 1
+          }
+        ],
+        "changes": [
+          {
+            "nodeId": 80999,
+            "before": [
+              {
+                "id": 136714,
+                "rank": 1,
+                "nodeID": 80999
+              }
+            ],
+            "after": [
+              {
+                "id": 101872,
+                "rank": 1,
+                "nodeID": 80999
+              }
+            ]
+          }
+        ],
+        "validation": "versioned_tree_rules",
+        "catalogRevision": "f50a2121bf894570146507496f3e113bff68e445"
+      }
+    },
+    "remoteDirectory": "/tmp/chickenbro-experiments-juy810st"
+  },
+  "giannis-comparison": {
+    "delta": 6843.131012683734,
+    "deltaPct": 1.4018126994215838,
+    "combinedReportedErrorBound": 3266.810105891811,
+    "assessment": "higher",
+    "scope": "Current Raider.IO snapshots, isolated engine runs; not historical job or deployed Chat acceptance."
+  },
+  "fusionbolt-comparison": {
+    "delta": 1635.5791563571547,
+    "deltaPct": 0.33180808679597357,
+    "combinedReportedErrorBound": 3295.843483794524,
+    "assessment": "within_reported_error",
+    "scope": "Current Raider.IO snapshots, isolated engine runs; not historical job or deployed Chat acceptance."
+  }
+}

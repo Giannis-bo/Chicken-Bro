@@ -337,6 +337,19 @@ class SimulationApplication:
             )
         return persisted
 
+    def preview(self, principal: Principal, snapshot_id: UUID, scenario: Mapping[str, object]):
+        snapshot = self.read_snapshot(principal, snapshot_id)
+        report = self._readiness_validator.validate(snapshot, self._runtime_capabilities)
+        if not report.ready:
+            raise SimulationApplicationError("SNAPSHOT_NOT_READY", "snapshot is not ready", blockers=report.blockers)
+        try:
+            return self._compiler.compile(replace(snapshot, readiness=report.readiness), scenario)
+        except SimcCompileError as error:
+            raise SimulationApplicationError(error.code, str(error)) from error
+
+    def capabilities(self):
+        return self._runtime_capabilities
+
     def runtime_info(self, principal: Principal) -> dict[str, object]:
         return get_simc_runtime_info()
 

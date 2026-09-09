@@ -7,6 +7,7 @@ from typing import Mapping
 from uuid import UUID
 
 from server.app.simulation.wcl_talents import talent_catalog_matches_runtime
+from server.app.simulation.talent_editor import TalentEditError, normalize_talent_override, edit_talents
 from server.app.simulation.specializations import simc_class_token
 from server.app.simulation.domain import SourceReadiness, SourceSnapshot
 from server.app.simulation.readiness import SimcRuntimeCapabilities
@@ -42,7 +43,7 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
     allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides", "equipmentOverrides",
-               "varyCombatLength", "targetError", "raidBuffs", "bloodlust"}
+               "varyCombatLength", "targetError", "raidBuffs", "bloodlust", "talentOverrides"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
     fight_style = scenario.get("fightStyle", "Patchwerk")
@@ -108,6 +109,11 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
             if item["enchant"] is not None and (type(item["enchant"]) is not int or not 1 <= item["enchant"] <= 2147483647):
                 raise SimcCompileError("SCENARIO_INVALID")
         normalized["equipmentOverrides"] = deepcopy(dict(overrides))
+    if "talentOverrides" in scenario:
+        try:
+            normalized["talentOverrides"] = normalize_talent_override(scenario["talentOverrides"])
+        except TalentEditError as error:
+            raise SimcCompileError(error.code) from error
     return normalized
 
 
@@ -148,7 +154,7 @@ class SimcProfileCompiler:
         region = self._token(character.get("region"), "region", "MISSING_REGION")
         realm = self._server_token(character.get("realm"))
         if self._capabilities.compiler_revision not in {
-            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"
+            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"
         }:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if (
@@ -157,9 +163,9 @@ class SimcProfileCompiler:
         ):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if ({"varyCombatLength", "targetError", "raidBuffs", "bloodlust"}.intersection(normalized_scenario)
-                and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"}):
+                and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"}):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
-        if "equipmentOverrides" in normalized_scenario and self._capabilities.compiler_revision != "chickenbro-simc-compiler-v4":
+        if "equipmentOverrides" in normalized_scenario and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"}:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         equipment_overrides = normalized_scenario.get("equipmentOverrides", {})
         gear = {**gear, **equipment_overrides}
@@ -176,6 +182,16 @@ class SimcProfileCompiler:
             f"server={realm}",
             f"spec={spec_key}",
         ]
+        talent_edit = None
+        if "talentOverrides" in normalized_scenario:
+            if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v5":
+                raise SimcCompileError("COMPILER_UNAVAILABLE")
+            try:
+                talent_edit = edit_talents(talents, character, self._capabilities.runtime_revision,
+                                           normalized_scenario["talentOverrides"])
+            except TalentEditError as error:
+                raise SimcCompileError(error.code) from error
+            talents = talent_edit
         talent_string = str(talents.get("string") or "").strip()
         if talent_string and re.fullmatch(r"[A-Za-z0-9+/=_-]{4,512}", talent_string):
             lines.append(f"talents={talent_string}")
@@ -292,6 +308,8 @@ class SimcProfileCompiler:
             "sourceRawSha256": snapshot.raw_sha256,
             "snapshotRevision": snapshot.revision,
         }
+        if talent_edit is not None:
+            provenance["talentOverrides"] = talent_edit
         if equipment_overrides:
             provenance["equipmentOverrides"] = deepcopy(equipment_overrides)
             provenance["equipmentOverrideSource"] = "requested_scenario"

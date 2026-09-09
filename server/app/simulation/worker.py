@@ -15,6 +15,7 @@ from server.app.simulation.readiness import (
     ManagedSimcRuntimeError, SimcReadinessValidator, SimcRuntimeCapabilities,
     inspect_managed_simc_runtime, runtime_revision_matches_identity,
 )
+from server.app.simulation.effective_config import verify_effective_config
 from server.app.simulation.report import MAX_REPORT_BYTES, SimulationReportError, normalize_simc_report
 from server.app.simulation.report_identity import npc_sources_from_html
 from server.app.worker.handlers import RetryableJobError
@@ -305,6 +306,12 @@ class SimulationWorker:
             if execution.runtime_revision != job.runtime_revision:
                 raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
             metric = self._result_parser.parse(execution, expected_actor=compiled.actor_name)
+            effective_config = None
+            if compiled.compiler_revision == "chickenbro-simc-compiler-v5":
+                try:
+                    effective_config = verify_effective_config(compiled, metric.report)
+                except ValueError as error:
+                    raise SimulationWorkerError("SIMC_EFFECTIVE_CONFIG_MISMATCH") from error
         except SimulationWorkerError as error:
             return self._record_failure(
                 job,
@@ -347,6 +354,7 @@ class SimulationWorker:
             result={
                 "metricName": metric.name,
                 "metricValue": metric.value,
+                **({"effectiveConfig": effective_config} if effective_config is not None else {}),
                 **({"report": metric.report} if metric.report is not None else {}),
                 **({"reportIdentity": metric.report_identity} if metric.report_identity is not None else {}),
                 **({"metricError": metric.error, "metricErrorPct": metric.error_pct} if metric.error is not None else {}),
@@ -420,6 +428,7 @@ class SimulationWorker:
                 ("chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v4"),
                 ("chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v4"),
                 ("chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"),
+                *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v5") for i in range(1, 5)),
             }
             and job.runtime_revision == self._runtime_capabilities.runtime_revision
         ):

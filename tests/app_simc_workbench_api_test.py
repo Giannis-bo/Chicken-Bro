@@ -128,3 +128,20 @@ class WorkbenchApiTest(unittest.TestCase):
                 self.assertEqual(result['metricError'], expected)
                 self.assertIsNone(result['report'])
         self.assertEqual(self.client.get(path + '?view=workbench', headers=browser_session_headers(other=True)).status_code, 404)
+
+    def test_talent_scenario_is_opt_in_without_breaking_older_clients(self):
+        from server.app.api.routes.simc import _job_summary
+        from server.app.simulation.application import SimulationJobView
+        body={'sourceUrl':'https://raider.io/characters/us/area-52/Stormsample'}
+        snapshot=self.client.post('/api/v2/simc/snapshots',headers=browser_session_headers(),json=body).json()
+        response=self.client.post('/api/v2/simc/jobs',headers={**browser_session_headers(),'Idempotency-Key':'talent-version'},
+                                  json={'snapshotId':snapshot['id'],'scenario':{}})
+        self.assertEqual(response.status_code,202)
+        job=next(iter(self.repository.jobs.values()))
+        view=SimulationJobView(job=job,result=None,attempts=(),snapshot=self.repository.get_snapshot(job.user_id,job.snapshot_id),
+             scenario={'iterations':300,'talentOverrides':{'string':'A'*30},'equipmentOverrides':{}})
+        self.assertNotIn('talentOverrides',_job_summary(view,True,1)['scenario'])
+        self.assertNotIn('equipmentOverrides',_job_summary(view,True,1)['scenario'])
+        self.assertNotIn('talentOverrides',_job_summary(view,True,2)['scenario'])
+        self.assertIn('equipmentOverrides',_job_summary(view,True,2)['scenario'])
+        self.assertIn('talentOverrides',_job_summary(view,True,3)['scenario'])

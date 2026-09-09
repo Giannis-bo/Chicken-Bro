@@ -35,7 +35,8 @@ SOURCE_GATEWAY_TOKEN_ENV = "CHICKENBRO_SOURCE_GATEWAY_TOKEN"
 SIMULATION_GATEWAY_URL_ENV = "CHICKENBRO_SIMULATION_GATEWAY_URL"
 SIMULATION_GATEWAY_TOKEN_ENV = "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"
 SIMULATION_OPERATIONS = {"prepare_simulation": "prepare", "submit_simulation": "submit",
-                         "get_simulation_job": "get", "list_simulation_jobs": "list"}
+                         "get_simulation_job": "get", "list_simulation_jobs": "list",
+                         "preview_simulation": "preview", "query_simulation_options": "options", "compare_simulation_jobs": "compare"}
 TOOL_DEFINITION = {
     "name": TOOL_NAME,
     "description": (
@@ -208,6 +209,15 @@ _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties
     "varyCombatLength": {"type": "number", "minimum": 0, "maximum": 0.5},
     "targetError": {"type": "number", "minimum": 0, "maximum": 5},
     "raidBuffs": {"type": "boolean"}, "bloodlust": {"type": "boolean"},
+    "talentOverrides": {"description": "Requires compiler v5 and matching talent catalog. Replace an export OR patch node selections. Query options for verified node/entry IDs and preview before submit. Omitted nodes remain unchanged; rank 0 removes a selection if legal.",
+        "oneOf": [{"type":"object","additionalProperties":False,"required":["string"],
+                   "properties":{"string":{"type":"string","minLength":26,"maxLength":512,"pattern":"^[A-Za-z0-9+/]+$"}}},
+                  {"type":"object","additionalProperties":False,"required":["nodes"],"properties":{
+                      "nodes":{"type":"array","minItems":1,"maxItems":128,"items":{"type":"object","additionalProperties":False,
+                               "required":["nodeId","entryId","rank"],"properties":{
+                                   "nodeId":{"type":"integer","minimum":1,"maximum":2147483647},
+                                   "entryId":{"type":"integer","minimum":1,"maximum":2147483647},
+                                   "rank":{"type":"integer","minimum":0,"maximum":63}}}}}}]},
     "equipmentOverrides": {"type": "object", "maxProperties": 16,
         "description": "Canonical slot to COMPLETE replacement item. Use verified item ID, exact item level/bonus IDs, gems and enchant; []/null explicitly mean none. Never invent item data. Requires compiler v4.",
         "additionalProperties": _EQUIPMENT_ITEM_SCHEMA},
@@ -217,11 +227,17 @@ _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties
             "items": {"type": "integer", "minimum": 1, "maximum": 2147483647}}},
 }}
 for _name, _description, _required, _properties, _read_only in [
-    ("prepare_simulation", "Prepare and validate an owner-scoped SimC snapshot from a Raider.IO/WCL URL. Does not run SimC. Returns character, original gear/gem IDs, talents, snapshotId and exact readiness blockers. Reuse the same snapshot for comparisons.",
+    ("query_simulation_options", "Resolve runtime-bound talent node/entry choices (English/Chinese names, ranks, selected state) or item names to IDs for an owned snapshot/base job. kind=items returns item identity and sameUpgradeVariants when a source upgrade bonus is verified. Use the candidate only for the same upgrade progress and disclose its assumption; other variants require source research. An empty talents query returns the spec tree. Use this proactively when the user asks for talent optimization without candidates; guides suggest candidates, simulations establish gains.",
+     ["kind"], {"snapshotId":_UUID_SCHEMA,"baseJobId":_UUID_SCHEMA,"kind":{"enum":["talents","items"]},"query":{"type":"string","maxLength":120}}, True),
+    ("preview_simulation", "Compile and validate an immutable scenario edit without enqueueing. Exactly one of snapshotId/baseJobId. Returns effective character/talents/gear, actual changes, scenario/profile hashes and runtime identity. Resolve blockers before submission. Compilation is not measured performance; item syntax is not proof of legal upgrade/slot rules.",
+     ["scenario"], {"snapshotId":_UUID_SCHEMA,"baseJobId":_UUID_SCHEMA,"scenario":_SCENARIO_SCHEMA}, True),
+    ("compare_simulation_jobs", "Compare two owned completed jobs from the SAME snapshot, runtime/compiler and control parameters. Returns DPS difference/percent and conservative reported-error assessment, plus variant changes. Different environments, pending jobs and absent provenance are not comparable. Within error means no clear gain; refine BOTH jobs with identical increased iterations within budget. Never claim global optimum from limited candidates.",
+     ["baselineJobId","variantJobId"], {"baselineJobId":_UUID_SCHEMA,"variantJobId":_UUID_SCHEMA}, True),
+    ("prepare_simulation", "Prepare and validate an owner-scoped SimC snapshot from a Raider.IO character URL. Does not run SimC. Returns character, original gear/gem IDs, talents, snapshotId and exact readiness blockers. Reuse the same snapshot for comparisons.",
      ["sourceUrl"], {"sourceUrl": {"type": "string", "maxLength": 2048}}, False),
-    ("submit_simulation", "Submit an actual cloud SimulationCraft job for the current account. Use when the user asks to run a simulation, not for explanation-only questions. Provide exactly one of snapshotId or baseJobId. baseJobId reuses an owned job snapshot and preserves its scenario; scenario is a patch, including slot-wise equipmentOverrides/gemOverrides. Original job is unchanged. Read get_simulation_job first for gear and scenario; use verified replacement item data. Up to 4 distinct jobs per Chat turn; repeated same snapshot/scenario is idempotent. Compare baseline and gemOverrides with identical target/time/iterations. Queued is not a result; read get_simulation_job. Jobs also appear in the account's SimC list.",
+    ("submit_simulation", "Submit an actual cloud SimulationCraft job for the current account. Use when the user asks to run a simulation, not for explanation-only questions. Provide exactly one of snapshotId or baseJobId. baseJobId reuses an owned job snapshot and preserves its scenario; scenario is a patch, including slot-wise equipmentOverrides/gemOverrides and talentOverrides. Preview edits first with preview_simulation; query_simulation_options resolves names and talent choices. Original job is unchanged. Read get_simulation_job first for gear and scenario; use verified replacement item data. Up to 4 distinct jobs per Chat turn; repeated same snapshot/scenario is idempotent. Compare baseline and gemOverrides with identical target/time/iterations. Queued is not a result; read get_simulation_job. Jobs also appear in the account's SimC list.",
      ["scenario"], {"snapshotId": _UUID_SCHEMA, "baseJobId": _UUID_SCHEMA, "scenario": _SCENARIO_SCHEMA}, False),
-    ("get_simulation_job", "Read this account's SimC job, effective gear, original scenario, snapshotId, status, validated DPS/HPS, uncertainty when available and provenance. waitSeconds up to20 waits for completion. Poll reasonably within the Chat time budget; pending is not success. Never invent DPS or significance when uncertainty is absent.",
+    ("get_simulation_job", "Read this account's SimC job, character, original source URL, effective talents and gear, original scenario, snapshotId, status, validated DPS/HPS, uncertainty when available and provenance. waitSeconds up to20 waits for completion. Poll reasonably within the Chat time budget; pending is not success. Never invent DPS or significance when uncertainty is absent.",
      ["jobId"], {"jobId": _UUID_SCHEMA, "waitSeconds": {"type": "integer", "minimum": 0, "maximum": 20}}, True),
     ("list_simulation_jobs", "List the current account's existing SimC jobs and available results. Useful for follow-up questions and jobs still running after a prior Chat turn; no ownership parameter is accepted.",
      [], {"limit": {"type": "integer", "minimum": 1, "maximum": 10}, "cursor": {"type": "string", "maxLength": 1024}}, True),

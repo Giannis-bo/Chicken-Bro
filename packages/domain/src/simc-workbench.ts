@@ -16,6 +16,7 @@ export interface SimulationScenario {
   raidBuffs?: boolean
   bloodlust?: boolean
   equipmentOverrides?: Readonly<Record<string, { itemId: number; itemLevel: number; bonusIds: readonly number[]; gems: readonly number[]; enchant: number | null }>>
+  talentOverrides?: { string: string } | { nodes: readonly { nodeId: number; entryId: number; rank: number }[] }
   gemOverrides?: Readonly<Record<string, readonly number[]>>
 }
 
@@ -72,13 +73,27 @@ export function isSimulationCharacter(v: unknown): v is SimulationCharacter {
     && maybe(v['level'], n => num(n, 1000) && Number.isInteger(n))
 }
 export function isSimulationScenario(v: unknown): v is SimulationScenario {
-  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides'].includes(k))) return false
+  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides'].includes(k))) return false
   if ('fightStyle' in v && !['Patchwerk', 'HecticAddCleave', 'LightMovement', 'HeavyMovement'].includes(String(v['fightStyle']))) return false
   for (const [key, min, max] of [['desiredTargets', 1, 20], ['iterations', 1, 10000], ['maxTime', 30, 600]] as const) {
     if (key in v && !(num(v[key], max) && Number.isInteger(v[key]) && v[key] >= min)) return false
   }
   for (const [key, max] of [['varyCombatLength', .5], ['targetError', 5]] as const) if (key in v && !num(v[key], max)) return false
   for (const key of ['raidBuffs', 'bloodlust']) if (key in v && typeof v[key] !== 'boolean') return false
+  if ('talentOverrides' in v) {
+    const talent = v['talentOverrides']
+    if (!obj(talent)) return false
+    if (keys(talent, ['string'])) {
+      if (typeof talent['string'] !== 'string' || !/^[A-Za-z0-9+/]{26,512}$/.test(talent['string'])) return false
+    } else if (keys(talent, ['nodes'])) {
+      const nodes = talent['nodes']
+      const id = (n: unknown) => num(n, 2147483647) && Number.isInteger(n) && n > 0
+      if (!Array.isArray(nodes) || nodes.length < 1 || nodes.length > 128 || !nodes.every((node: unknown) =>
+        obj(node) && keys(node, ['nodeId', 'entryId', 'rank']) && id(node['nodeId']) && id(node['entryId'])
+        && num(node['rank'], 63) && Number.isInteger(node['rank']))) return false
+      if (new Set(nodes.map((node: Obj) => node['nodeId'])).size !== nodes.length) return false
+    } else return false
+  }
   if ('equipmentOverrides' in v) {
     const equipment = v['equipmentOverrides']
     const slots = ['head','neck','shoulder','back','chest','wrist','hands','waist','legs','feet','finger1','finger2','trinket1','trinket2','main_hand','off_hand']

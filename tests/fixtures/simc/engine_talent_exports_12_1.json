@@ -1,0 +1,353 @@
+[
+  {
+    "name": "MID1_Death_Knight_Blood.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "blood",
+      "level": 90
+    },
+    "talents": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAADMwM20YZDklBsBYGzAAAmZwgB"
+  },
+  {
+    "name": "MID1_Death_Knight_Blood_Deathbringer.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "blood",
+      "level": 90
+    },
+    "talents": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAgxsNwAWCWGmADLAmxMAAMzAMYA"
+  },
+  {
+    "name": "MID1_Death_Knight_Frost.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "frost",
+      "level": 90
+    },
+    "talents": "CsPAAAAAAAAAAAAAAAAAAAAAAMDwMjZMDY2mZmZmZZmZkZMmZYGGPgZGMzMzMDAAAAAAAAAjZbgBsAWGmQGLYmxMzAzAYYmBYmBD"
+  },
+  {
+    "name": "MID1_Death_Knight_Frost_Rider.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "frost",
+      "level": 90
+    },
+    "talents": "CsPAAAAAAAAAAAAAAAAAAAAAAMDYmZMzMDY2mZmZmZxMjMjxMDzw4BMzgZmZmZAAAAAAAAAAsZ2MMwAzmGaYDzMmZGYGADAzMzAD"
+  },
+  {
+    "name": "MID1_Death_Knight_Unholy.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "unholy",
+      "level": 90
+    },
+    "talents": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTzmZmZMjBAAAAAAAgZGmZAw2MmZ2mZGjZAbmFDDZgZjhGLAYGAGzMjZAmZmxYA"
+  },
+  {
+    "name": "MID1_Death_Knight_Unholy_San'layn.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "unholy",
+      "level": 90
+    },
+    "talents": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTzmZmZMjBAAAAAAAgZGmZAw2MmZ2mZGjZMwAzYRjlFAbTsBgZAYMzMmBzMYGjB"
+  },
+  {
+    "name": "MID1_Demon_Hunter_Devourer.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "devourer",
+      "level": 90
+    },
+    "talents": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmBzMAAAAAAALzYAzAAAAAAAAwMGMmZmZMzMzYmFzYsotNmZmZ2abmZGAjZAIwMzgxMA"
+  },
+  {
+    "name": "MID1_Demon_Hunter_Devourer_Void-Scarred.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "devourer",
+      "level": 90
+    },
+    "talents": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmxwMAAAAAAAegxsNYGAAAAAAAAmxMMmZmZMzMzMzsNzYsplNAEwAMjZmZZmZa2mZbmZMMA"
+  },
+  {
+    "name": "MID1_Demon_Hunter_Vengeance.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "vengeance",
+      "level": 90
+    },
+    "talents": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjhZkZmZGDzMzMDGzMmxMmhxMmZsMmZZMmBAAAAAAAgZmxGAAAAGYmZmZ2abmZGAYAAAAMA"
+  },
+  {
+    "name": "MID1_Demon_Hunter_Vengeance_Aldrachi_Reaver.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "vengeance",
+      "level": 90
+    },
+    "talents": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjhZkZmZGDzMzMDGzMmxMmZwMmZsMmZZMmBAAAgZZGMMW2YCDzMjFAAAAMwAAgZGgBAAAwA"
+  },
+  {
+    "name": "MID1_Druid_Balance.simc",
+    "character": {
+      "classKey": "druid",
+      "specKey": "balance",
+      "level": 90
+    },
+    "talents": "CYGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWoMbNjxMDwsYmZmZhBjZZmlZYmZswyMLzMGzshhBYstMzgxsNCMBAAAYxMzMzgNDjxAAwMDMA"
+  },
+  {
+    "name": "MID1_Druid_Feral.simc",
+    "character": {
+      "classKey": "druid",
+      "specKey": "feral",
+      "level": 90
+    },
+    "talents": "CcGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAjZwMzMzMmtFPwyMbzYGzMDAAAALBzGMmZUzYWYmZGjZmZAAAAAAAGAAAABAz2MLNbzssBmZAWMDGAAzMAYA"
+  },
+  {
+    "name": "MID1_Evoker_Devastation_FS.simc",
+    "character": {
+      "classKey": "evoker",
+      "specKey": "devastation",
+      "level": 90
+    },
+    "talents": "CsbBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgZmZwMDGMgBjZamZmJjxyMzMzwMzMzAmxMzYmZbmZwMwMmB2ALgZYCsFsMMAmZGG"
+  },
+  {
+    "name": "MID1_Monk_Brewmaster.simc",
+    "character": {
+      "classKey": "monk",
+      "specKey": "brewmaster",
+      "level": 90
+    },
+    "talents": "CwQAAAAAAAAAAAAAAAAAAAAAAAAAAgZbzYGzM2mxGmZAAAAAAAYZBjYmBmhBzYMzMzwsMmZMzywymttxMmFAAYZWmWmtZWGAAIAzwGYmBMNGAAwA"
+  },
+  {
+    "name": "MID1_Monk_Windwalker.simc",
+    "character": {
+      "classKey": "monk",
+      "specKey": "windwalker",
+      "level": 90
+    },
+    "talents": "C0QAAAAAAAAAAAAAAAAAAAAAAMzMD2mxgtZGbzAAAAAAAAAAAAsMMCzYbYAzYYmZmhZZYGmlZCAYxMbjhZmZGAAbAoZZWamZmFAMwMDAsMGwAG"
+  },
+  {
+    "name": "MID1_Monk_Windwalker_Conduit.simc",
+    "character": {
+      "classKey": "monk",
+      "specKey": "windwalker",
+      "level": 90
+    },
+    "talents": "C0QAAAAAAAAAAAAAAAAAAAAAAMzYM2GGsMzMbzAAAAAAAAAAAAsMMCzYbYAzYYmZmhZZYGmlZCAYzMbjhZmZGAALmZZWGTQAAYAMDALjBMzMLG"
+  },
+  {
+    "name": "MID1_Rogue_Assassination.simc",
+    "character": {
+      "classKey": "rogue",
+      "specKey": "assassination",
+      "level": 90
+    },
+    "talents": "CMQAAAAAAAAAAAAAAAAAAAAAAYmZMbzgBAAAAAmlBbzAAAAAAabbmZmZmZMmZmZ2mZZmZGMmZmZMzYYAMwCMjRjZBklBsZAwMzgB"
+  },
+  {
+    "name": "MID1_Shaman_Enhancement.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "enhancement",
+      "level": 90
+    },
+    "talents": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzMzMzMzMzMzMzYGAAAAAAAAAsAbwMW0YbAMTwGAzyMmZGLLzYhZmNWmZmZYYMDAgBYMjYmBAGDA"
+  },
+  {
+    "name": "MID1_Shaman_Enhancement_Stormbringer.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "enhancement",
+      "level": 90
+    },
+    "talents": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzgZmZmZmhZmZAAAAAAAAA2AsZGDLkFYGGawCAzyMmxYZZGYmZbsMzMzMGGzAAMDjZGGBmZwgxA"
+  },
+  {
+    "name": "MID2_Death_Knight_Blood.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "blood",
+      "level": 90
+    },
+    "talents": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAmZmZGmZGzMjZAgZmZGAAADMwMW0YZDklBsBYGzAAAmZwgB"
+  },
+  {
+    "name": "MID2_Death_Knight_Blood_Deathbringer.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "blood",
+      "level": 90
+    },
+    "talents": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWGzMmZmZmhZbmZmmZxMjhxAAAAAmZmZGmZGzMjZAgZmZGAAgxsNwAWCWGmADLAmhZAAMzAMYA"
+  },
+  {
+    "name": "MID2_Death_Knight_Unholy.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "unholy",
+      "level": 90
+    },
+    "talents": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTzmZmZMjBAAAAAAAgZGmZAwyMmZ2mZGjZAbmFDDZgZjhGLAYGAGzMjZAmZmxYA"
+  },
+  {
+    "name": "MID2_Death_Knight_Unholy_San'layn.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "unholy",
+      "level": 90
+    },
+    "talents": "CwPAAAAAAAAAAAAAAAAAAAAAAAwMjZMDDz2MzMTzmZmZMjBAAAAAAAgZGmZAw2MmZ2mZGjZMwAzYRjlFAbTsBgZAYMzMmBzMYGjB"
+  },
+  {
+    "name": "MID2_Demon_Hunter_Vengeance.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "vengeance",
+      "level": 90
+    },
+    "talents": "CUkAAAAAAAAAAAAAAAAAAAAAAAAYMzMjZmZkZmZY2MzMjBjZGzYmZGDzYmx2YmtxAAAAAAAABMzM2AAAAwgxMzMzSbzMzAgBAAAgB"
+  },
+  {
+    "name": "MID2_Hunter_Survival.simc",
+    "character": {
+      "classKey": "hunter",
+      "specKey": "survival",
+      "level": 90
+    },
+    "talents": "C8PAAAAAAAAAAAAAAAAAAAAAAMWgBmxoxyAYmgtZMzMGzyAAAAAAwMmxMLbzYMjZwDYaGAAAgBAzYZZmZWMmZmxMzAgZswwYYsZAA"
+  },
+  {
+    "name": "MID2_Mage_Arcane.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "arcane",
+      "level": 90
+    },
+    "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMDamZGAAAGAAEwMzMLLzMxCAAwMzMjNLzMzsMjxYmZwCzYmZGAgBAAYmZBAMDAGmZG"
+  },
+  {
+    "name": "MID2_Mage_Arcane_Sunfury.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "arcane",
+      "level": 90
+    },
+    "talents": "C4DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMDamZGAAAGAwMz0sssMDAEbAAAzMzM2sMzMzyMGjZmBLMjZmZAAGAAgBYmBMDAGmZG"
+  },
+  {
+    "name": "MID2_Mage_Fire.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "fire",
+      "level": 90
+    },
+    "talents": "C8DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMzIzMGAAAGAwMz0sstMDAwmZmx2MzMzYBAAAAALmZmZAAgZMmZmZMzsMAMzQGjBMDjB"
+  },
+  {
+    "name": "MID2_Mage_Fire_Frostfire.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "fire",
+      "level": 90
+    },
+    "talents": "C8DAAAAAAAAAAAAAAAAAAAAAAYGGLzMzswMzIzMGAAAmZZGzMLzCEAAwiZG2mZmZGLAAAAAYxMzMDAAMzwMzMzMzsAMzAyYMGMYMA"
+  },
+  {
+    "name": "MID2_Mage_Frost.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "frost",
+      "level": 90
+    },
+    "talents": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsMmZmYmZGjZMziZmZmZMDEAAYmZmllZm2AAAAAAgNA2WGzMzAbzYmZYBAAgZ2AmBGwADD"
+  },
+  {
+    "name": "MID2_Mage_Frost_Frostfire.simc",
+    "character": {
+      "classKey": "mage",
+      "specKey": "frost",
+      "level": 90
+    },
+    "talents": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsMmZmYmZGjZMziZmZmxMzsMTzMLzCAAAaBAAAAAA2AYbZMzMDsNjxM2WAAAAzMYGYADMMA"
+  },
+  {
+    "name": "MID2_Paladin_Protection.simc",
+    "character": {
+      "classKey": "paladin",
+      "specKey": "protection",
+      "level": 90
+    },
+    "talents": "CIEAAAAAAAAAAAAAAAAAAAAAAsNzYWmZMzYmxyyALzCDDAwAAAAAAg0MDzYmZMzs1GAGYGYGsNAAwMTbzMLzAEYzyGGAGmhxAAsNDwMAjN"
+  },
+  {
+    "name": "MID2_Paladin_Protection_Lightsmith.simc",
+    "character": {
+      "classKey": "paladin",
+      "specKey": "protection",
+      "level": 90
+    },
+    "talents": "CIEAAAAAAAAAAAAAAAAAAAAAAsNzYWmZMzYmxyyALzCDDAwAAAAAAg0MDzYmZMzs1GAGYGYGsNAAACwMzyySLzMWsshBghZYMAYmBAzAM2A"
+  },
+  {
+    "name": "MID2_Rogue_Assassination_Deathstalker.simc",
+    "character": {
+      "classKey": "rogue",
+      "specKey": "assassination",
+      "level": 90
+    },
+    "talents": "CMQAAAAAAAAAAAAAAAAAAAAAAYmlxsNDGAAAAAYWGsNDAAAAAIbzMzMzMjxyMzMbzsMzMzYGzYMmZMMAbmlBGwSwywEYYxgZGgxYA"
+  },
+  {
+    "name": "MID2_Rogue_Assassination_Fatebound.simc",
+    "character": {
+      "classKey": "rogue",
+      "specKey": "assassination",
+      "level": 90
+    },
+    "talents": "CMQAAAAAAAAAAAAAAAAAAAAAAYmlxsNDGAAAAAYWGsNDAAAAAIbzMzMzMjxyMzMbzsMzMzYGzYMmZMMAGYBmxoxsBy2A2MAYmZMGA"
+  },
+  {
+    "name": "MID2_Shaman_Elemental.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "elemental",
+      "level": 90
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbbzMmZmZZbZMMjBAAAAsYmNYADY2YCZWAgZbmZGjtFTYmxYxMzMmZWsMjFzMMzyAAGGAzMGGGA"
+  },
+  {
+    "name": "MID2_Shaman_Elemental_Stormbringer.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "elemental",
+      "level": 90
+    },
+    "talents": "CYQAAAAAAAAAAAAAAAAAAAAAAAAAAAzMbbzMmZmZZbZgxMDAAAAAWMjhNYBmRDN2AgZbmZGjtFTYmxYxMzMmZWsMjFzMjZWAAGGYmBGGGA"
+  },
+  {
+    "name": "MID2_Shaman_Enhancement.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "enhancement",
+      "level": 90
+    },
+    "talents": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzgZmZmZmhZmZAAAAAAAAA2AsZGDLkFYGGawCAzyMmxYZZGYmZbsMzMzMGGzAAMDjZGGBmZwgxA"
+  },
+  {
+    "name": "MID2_Shaman_Enhancement_Totemic.simc",
+    "character": {
+      "classKey": "shaman",
+      "specKey": "enhancement",
+      "level": 90
+    },
+    "talents": "CcQAAAAAAAAAAAAAAAAAAAAAAMzMzMzMzMzMzMzMzYGAAAAAAAAAsAbwMW0YbAMTwGAzyMmZGLLzYhZmNWmZmZYYMDAgBYMjYmBAGDA"
+  }
+]
