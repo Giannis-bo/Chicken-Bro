@@ -1,13 +1,14 @@
 {
   "source_sha": "007074a8670fecf2bfa26a7aca4d076984aee344",
   "observed_at": "2026-09-09T11:56:09.390621+00:00",
-  "backend_tests": 558,
+  "backend_tests": 561,
   "control_tests": 63,
-  "release专项_tests": 78,
+  "release专项_tests": 81,
   "passed": true,
   "logs": {
     "badcase-backend-v3.log": "99148bdec5036731ef30547877ca21bd62d20b9ce0da66c0df9e46fb58ec7079",
-    "badcase-control-v3.log": "6f1d70a9a4124cf400a33270b0c32774bbc078859a720e5fdd789520f5df79cc"
+    "badcase-control-v3.log": "6f1d70a9a4124cf400a33270b0c32774bbc078859a720e5fdd789520f5df79cc",
+    "badcase-backend-v3-final.log": "b9a0df890b288be45081ac87635938ce0d8bb94b70b5db9e71043ea66905310d"
   },
   "runtime_diff_files": [
     "server/app/chickenbro/agent/AGENTS.md",
@@ -15,5 +16,6 @@
     "server/app/chickenbro/wcl_rankings.py",
     "server/chickenbro_native_mcp.py"
   ],
-  "notes": "New administrative backend base is preserved; only four reviewed rankings runtime files differ. No runtime budget or permissions increase."
+  "notes": "New administrative backend base is preserved; only four reviewed rankings runtime files differ. No runtime budget or permissions increase.",
+  "executor_snapshot_tests": 21
 }

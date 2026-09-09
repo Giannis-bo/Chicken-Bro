@@ -11,5 +11,5 @@
   "case_specialization_findings": [],
   "blocking_findings": [],
   "review_status": "passed",
-  "verification": "558 backend /63 control /78 badcase checks. Root-cause reproduced read-only then fixed SELECT1 succeeds without global environment mutation. No service stop occurred in failed attempt."
+  "verification": "561 backend /63 control;21 snapshot/executor tests. New complete-snapshot validator rejects partial joins while allowing real full-board updates; registered coverage criteria unchanged. Root-cause reproduced read-only then fixed SELECT1 succeeds without global environment mutation. No service stop occurred in failed attempt."
 }
