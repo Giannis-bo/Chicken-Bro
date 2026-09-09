@@ -1,0 +1,16 @@
+{
+  "source_sha": "ec73e5df67983e3f2c29133fba08ab9acc6a956f",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "e810742e395babf5afb2135280a13f2921d1dcbbadf4330b69b04f57a2fd60c6",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "860284cd60f94ce64043e1c2b2970766becdca45bcc380e852268174c26c0745",
+  "kind": "candidate",
+  "status": "failed",
+  "observed_at": "2026-09-09T15:07:25.585894+00:00",
+  "checks": {},
+  "details": "Both V7 original100 repetitions acquired899 valid leaderboard entries, failing unchanged full-topN criterion, despite supported and honest analyses/completion. Original10 two repetitions pass. All12 V7 trials completed and are independently graded; both original100 acquisition fail, other10 candidate samples pass. A fresh official raw-presence diagnostic confirms anonymous row omits server key; prior lossy projection inserted None and incorrectly implied explicit null. No historical result is reclassified. Strict anonymous protocol omission fix requires V8 fresh trials. HTTP/general never launched; production not attempted.",
+  "production_attempted": false,
+  "downstream_http_general": "not_run_due_to_model_gate_failure",
+  "anonymous_presence_receipt_sha256": "f59f003351e631ae9a389552d9c4b8d0d7e0fd3cccb22545259b0b1a1d80574a",
+  "full_generalization_gate_sha256": "d5c5994ff408edaf9f520bf83716abfafc62ad93bb818b2469fb4afeaa58fc84"
+}
