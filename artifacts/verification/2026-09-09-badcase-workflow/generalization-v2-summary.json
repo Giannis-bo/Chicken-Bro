@@ -1,0 +1,168 @@
+{
+  "status": "passed",
+  "samples": {
+    "holdout": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          207.091,
+          212.885
+        ],
+        "source_gateway_calls": [
+          17,
+          18
+        ]
+      },
+      "before": {
+        "passed": 0,
+        "total": 2,
+        "seconds": [
+          104.986,
+          82.116
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    },
+    "normal": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          12.642,
+          11.836
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      },
+      "before": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          13.517,
+          12.57
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    },
+    "original10": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          411.682,
+          271.118
+        ],
+        "source_gateway_calls": [
+          75,
+          37
+        ]
+      },
+      "before": {
+        "passed": 0,
+        "total": 2,
+        "seconds": [
+          32.994,
+          33.377
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    },
+    "original100": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          262.785,
+          218.613
+        ],
+        "source_gateway_calls": [
+          30,
+          30
+        ]
+      },
+      "before": {
+        "passed": 0,
+        "total": 2,
+        "seconds": [
+          40.647,
+          46.695
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    },
+    "permission": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          8.397,
+          7.123
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      },
+      "before": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          5.914,
+          11.7
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    },
+    "variant": {
+      "after": {
+        "passed": 2,
+        "total": 2,
+        "seconds": [
+          210.155,
+          220.776
+        ],
+        "source_gateway_calls": [
+          23,
+          23
+        ]
+      },
+      "before": {
+        "passed": 0,
+        "total": 2,
+        "seconds": [
+          59.497,
+          55.605
+        ],
+        "source_gateway_calls": [
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "source_sha": "8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+  "prompt_sha256": "5916a4170457f4a2c1c8c868e656fc0ad6f4865bc64968588d87f4a016b0e724",
+  "model_config_sha256": "4a62a3564e885d273cc4a3fade4446e9256c38247d996c2115a0325fe74e4749",
+  "conditions_sha256": "4a2c23a74d5998a79af52331d5c48aca0bd51d6c917b33785a18e316901900e5",
+  "provider_tokens_and_bill": "not_exposed; not zero",
+  "v1": "failed7/9; retained; no release",
+  "cohort_limit": "Whole requested rankings acquired; only explicitly disclosed report samples analyzed, not all90/900 logs"
+}
