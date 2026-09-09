@@ -13,6 +13,53 @@ from tests.app_chickenbro_application_test import FakeCodex
 
 @unittest.skipUnless(os.environ.get('WOW_PG_TEST_DSN_V2'), 'isolated PostgreSQL DSN is not configured')
 class ChatProgressPostgresTest(unittest.TestCase):
+    def test_background_delivery_survives_disconnect_and_reopens_from_database(self):
+        import psycopg
+        from threading import Event
+        from server.app.chickenbro.application import ChatApplicationError
+
+        connect = lambda: psycopg.connect(os.environ['WOW_PG_TEST_DSN_V2'])
+        with psycopg.connect(os.environ['WOW_PG_TEST_DSN_V2'], autocommit=True) as connection:
+            importlib.import_module('server.migrations.product.apply').apply_product_migrations(
+                connection, Path(__file__).resolve().parents[1] / 'server/migrations/product')
+        owner, other = uuid4(), uuid4()
+        with connect() as connection:
+            connection.execute('INSERT INTO identity.users (id) VALUES (%s), (%s)', (owner, other))
+        principal = Principal(user_id=owner, session_kind='mini_bearer')
+        release = Event()
+        class SlowCodex(FakeCodex):
+            def stream(self, **kwargs):
+                if not release.wait(5):
+                    raise TimeoutError()
+                yield {'type': 'completed', 'text': '数据库中保存的断线回答'}
+        app = ChatApplication(repository=PostgresChatRepository(connect), codex=SlowCodex())
+        conversation = app.create_conversation(principal, idempotency_key='postgres-detach-create')
+        second = app.create_conversation(principal, idempotency_key='postgres-detach-second')
+        delivery = app.start_delivery(principal, conversation.id, '问题',
+                                      client_message_id='detach-client', idempotency_key='postgres-detach-send')
+        next(delivery)
+        delivery.close()
+        try:
+            with self.assertRaises(ChatApplicationError) as error:
+                app.start_delivery(principal, second.id, '另一个问题',
+                                   client_message_id='second-client', idempotency_key='postgres-detach-other')
+            self.assertEqual(error.exception.code, 'CHAT_ACCOUNT_BUSY')
+        finally:
+            release.set()
+        self.assertTrue(delivery.finished.wait(5))
+        restored = ChatApplication(repository=PostgresChatRepository(connect), codex=FakeCodex())
+        web_owner = Principal(user_id=owner, session_kind='web_cookie')
+        reply = restored.load_conversation(web_owner, conversation.id)['messages'][-1]
+        self.assertEqual(reply['reply_status'], 'completed')
+        self.assertEqual(reply['content'], '数据库中保存的断线回答')
+        with self.assertRaises(ChatApplicationError) as error:
+            restored.load_conversation(Principal(user_id=other, session_kind='web_cookie'), conversation.id)
+        self.assertEqual(error.exception.code, 'CONVERSATION_NOT_FOUND')
+        replay = list(restored.start_delivery(principal, conversation.id, '问题',
+                      client_message_id='detach-client', idempotency_key='postgres-detach-send'))
+        self.assertEqual(replay[-1].text, reply['content'])
+        self.assertEqual(restored._codex.calls, 0)
+
     def test_public_progress_survives_repository_restart_and_is_owner_scoped(self):
         import psycopg
         connect = lambda: psycopg.connect(os.environ['WOW_PG_TEST_DSN_V2'])

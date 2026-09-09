@@ -1,20 +1,24 @@
 import base64
 import json
 import os
+import logging
 import re
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+from threading import BoundedSemaphore
 from typing import Any
 from uuid import UUID, uuid4, uuid5
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
+from server.app.chickenbro.delivery import BackgroundDelivery, DeliveryCapacity
 from server.app.chickenbro.domain import ConversationUnavailable, ConversationBusy, ChatAccountBusy, AgentRunStatus, Conversation, ConversationStatus
 from server.app.chickenbro.images import ImageError, MAX_IMAGES, MAX_BYTES, normalize_image
 from server.app.chickenbro.image_repository import unavailable
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
 from server.app.identity.domain import Principal
 
+_LOG = logging.getLogger(__name__)
 
 class ChatApplicationError(ValueError):
     def __init__(self, code: str, message: str):
@@ -112,6 +116,7 @@ class ChatApplication:
         images_enabled: bool | None = None,
     ):
         self._images_enabled = images_enabled if images_enabled is not None else os.environ.get("CHICKENBRO_CHAT_IMAGES_ENABLED") == "1"
+        self._generation_capacity = BoundedSemaphore(8)
         self._repository = repository
         self._codex = codex
         self._clock = clock or (lambda: datetime.now(timezone.utc))
@@ -137,6 +142,27 @@ class ChatApplication:
 
     def remove_image(self, principal, image_id):
         self._repository.remove_image(principal.user_id, image_id, _utc(self._clock))
+
+    def start_delivery(
+        self,
+        principal: Principal,
+        conversation_id: UUID,
+        content: str,
+        *,
+        client_message_id: str | None,
+        idempotency_key: str,
+        image_ids: Sequence[UUID] = (),
+    ) -> BackgroundDelivery:
+        """Admit synchronously, then generate independently of the HTTP subscriber."""
+        try:
+            return BackgroundDelivery(
+                self.stream_message(principal, conversation_id, content,
+                                    client_message_id=client_message_id, idempotency_key=idempotency_key,
+                                    image_ids=image_ids),
+                capacity=self._generation_capacity,
+            )
+        except DeliveryCapacity:
+            raise ChatApplicationError("CODEX_UNAVAILABLE", "鸡哥当前请求较多，请稍后再试。") from None
 
     def create_conversation(
         self,
@@ -555,7 +581,8 @@ class ChatApplication:
                 sequence,
                 CodexTimeout(),
             )
-        except Exception:
+        except Exception as error:
+            _LOG.error("chat_run_failed run_id=%s reason=application_exception exception_type=%s", run_id, type(error).__name__)
             yield from self._fail_run(
                 principal,
                 run,
@@ -575,12 +602,14 @@ class ChatApplication:
             seconds=self._timeout_seconds + self._stale_run_grace_seconds,
         )
         try:
-            self._repository.recover_stale_agent_runs(
+            recovered = self._repository.recover_stale_agent_runs(
                 principal.user_id,
                 conversation_id,
                 stale_before,
                 now,
             )
+            if recovered:
+                _LOG.warning("chat_runs_recovered reason=stale_or_process_interrupted count=%s", recovered)
         except Exception as error:
             raise ChatApplicationError(
                 "CHAT_PERSISTENCE_FAILED",
@@ -588,6 +617,7 @@ class ChatApplication:
             ) from error
 
     def _cancel_run(self, principal: Principal, run: Any) -> None:
+        _LOG.warning("chat_run_cancelled run_id=%s reason=generation_iterator_closed", _value(run, "id"))
         try:
             self._repository.finish_agent_run(
                 principal.user_id,
@@ -609,6 +639,7 @@ class ChatApplication:
         sequence: int,
         error: CodexStreamError,
     ) -> Iterator[ChatEvent]:
+        _LOG.warning("chat_run_failed run_id=%s reason=%s", _value(run, "id"), error.code)
         finished = _utc(self._clock)
         self._repository.finish_agent_run(
             principal.user_id,

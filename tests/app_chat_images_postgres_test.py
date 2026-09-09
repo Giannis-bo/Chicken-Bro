@@ -78,6 +78,34 @@ class ChatImagesPostgresTest(unittest.TestCase):
         self.assertEqual(vision.calls[-1]['images'],vision.calls[0]['images'])
         self.assertEqual(next(row for row in app.load_conversation(self.web,self.a)['messages'] if row.get('images'))['images'],[image])
 
+    def test_image_delivery_survives_disconnect_and_replays_from_web(self):
+        from threading import Event
+        from server.app.chickenbro.application import ChatApplication
+        release = Event()
+        seen = []
+        class Vision:
+            runtime_revision = 'image-background-test'
+            def stream(self, **kwargs):
+                seen.append(kwargs.get('images'))
+                if not release.wait(3):
+                    raise AssertionError('generation was not released')
+                yield {'type': 'completed', 'text': '断线后图片回答已保存'}
+        app = ChatApplication(repository=self.repository, codex=Vision(), images_enabled=True, clock=lambda: self.now)
+        image = self.upload()
+        args = dict(client_message_id='image-disconnect-1', idempotency_key='image-disconnect-1', image_ids=(image['id'],))
+        delivery = app.start_delivery(self.owner, self.a, '', **args)
+        self.assertEqual(next(delivery).event_type, 'started')
+        delivery.close()
+        release.set()
+        self.assertTrue(delivery.finished.wait(3))
+        self.assertEqual(seen, [['data:image/png;base64,cGl4ZWxz']])
+        history = app.load_conversation(self.web, self.a)['messages']
+        self.assertTrue(any(row.get('images') == [image] for row in history))
+        self.assertTrue(any(row['content'] == '断线后图片回答已保存' for row in history))
+        replay = list(app.start_delivery(self.web, self.a, '', **args))
+        self.assertEqual(replay[-1].event_type, 'completed')
+        self.assertEqual(len(seen), 1)
+
     def test_api_authenticated_read_csrf_and_limits(self):
         from unittest.mock import patch
         from fastapi.testclient import TestClient

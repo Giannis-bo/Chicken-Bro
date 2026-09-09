@@ -287,7 +287,9 @@ def _safe_scores(value: object) -> list[dict[str, Any]]:
 
 
 class RaiderIOResearch:
-    def __init__(self, http_client: object | None = None):
+    def __init__(self, http_client: object | None = None, *, realm_resolver=None):
+        from server.app.chickenbro.character_discovery import resolve_wcl_realm
+        self._realm_resolver = realm_resolver or resolve_wcl_realm
         self._http_client = http_client or HttpxSourceGateway(timeout_seconds=15)
 
     def rankings(self, options: Mapping[str, Any]) -> dict[str, Any]:
@@ -445,9 +447,14 @@ class RaiderIOResearch:
                 limitations=["Raider.IO did not return a usable character profile."],
                 next_actions=["Check the character region, realm and name, then retry."],
             )
-        if not self._identity_matches(
-            parsed.region, parsed.realm, parsed.character_name, raw
-        ):
+        try:
+            identity_matches = self._verified_identity(parsed.region, parsed.realm, parsed.character_name, raw)
+        except Exception:
+            evidence['sourceStatus'] = 'identity_unverified'
+            return _packet(status='unavailable', facts=[], evidence=[evidence],
+                           limitations=['The realm alias could not be verified because its source was unavailable.'],
+                           next_actions=['Retry the same character after the source recovers.'])
+        if not identity_matches:
             evidence["sourceStatus"] = "identity_mismatch"
             return _packet(
                 status="blocked",
@@ -623,6 +630,24 @@ class RaiderIOResearch:
             and _identity(realm) == _identity(raw.get("realm"))
             and _identity(name) == _identity(raw.get("name"))
         )
+
+    def _verified_identity(self, region, realm, name, raw):
+        if _identity(region) != _identity(raw.get('region')) or _identity(name) != _identity(raw.get('name')):
+            return False
+        try:
+            canonical = parse_character_source_url(raw.get('profile_url') or '')
+        except InvalidSourceLink:
+            return False
+        if (canonical.provider is not SourceProvider.RAIDERIO or canonical.region != region
+                    or _identity(canonical.character_name) != _identity(name)):
+            return False
+        # A display name may contain punctuation omitted by the provider's URL slug.
+        display_slug = _identity(raw.get('realm')).replace("'", '').replace('’', '')
+        if _identity(realm) == _identity(canonical.realm) and display_slug == _identity(canonical.realm):
+            return True
+        server = self._realm_resolver(region, realm)
+        return bool(server and str((server.get('region') or {}).get('slug', '')).lower() == region
+                    and _identity(server.get('slug')) == _identity(canonical.realm))
 
 
 __all__ = ("RaiderIOResearch",)

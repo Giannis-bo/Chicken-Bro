@@ -56,6 +56,11 @@ class ServerConfiguredSourceQuery:
     def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
         options = options or {}
+        if normalized_provider == "warcraftlogs_character":
+            from server.app.chickenbro.character_discovery import discover_wcl_character
+            if target != "character":
+                raise InvalidSourceLink()
+            return discover_wcl_character(options)
         if normalized_provider == "raiderio_rankings":
             if target != "rankings":
                 raise InvalidSourceLink()
@@ -64,6 +69,9 @@ class ServerConfiguredSourceQuery:
             if target != "characters" or set(options) != {"targets"}:
                 raise InvalidSourceLink()
             return self._raiderio.characters(options["targets"])
+        if normalized_provider == "warcraftlogs":
+            from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+            target = normalize_wcl_report_url(target)
         parsed = parse_character_source_url(target)
         if normalized_provider == "warcraftlogs" and parsed.provider is SourceProvider.WARCRAFTLOGS:
             return self._query_warcraftlogs(parsed.url, validate_wcl_options(options))
@@ -125,9 +133,10 @@ class ServerConfiguredSourceQuery:
                 if _text(value, 360)
             ][:4],
         }
-        if verified:
+        if verified or (source_status == "partial" and evidence.get("fights")):
             result["facts"] = [{
                 "queryMode": "server_configured_warcraftlogs_api",
+                "queryScope": evidence.get("queryScope", "scoped_analysis"),
                 "reportCode": report_code,
                 "fightId": fight_id,
                 "reportTitle": _text(evidence.get("reportTitle"), 240),
@@ -154,7 +163,7 @@ class ServerConfiguredSourceQuery:
                 "logVersion": evidence.get("logVersion"),
                 "versionScope": evidence.get("versionScope", ""),
                 "events": evidence.get("events", []),
-                "summary": "Warcraft Logs report evidence was fetched through the server-configured API.",
+                "summary": "Returned fields only; consult queryScope, eventPage and limitations before drawing conclusions.",
             }]
         return result
 

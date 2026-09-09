@@ -243,14 +243,17 @@ def stream_message(
     principal: Principal = Depends(require_mutating_principal),
     application: ChatApplication = Depends(chat_application),
 ) -> StreamingResponse:
-    events: Iterator[ChatEvent] = application.stream_message(
-        principal,
-        conversation_id,
-        body.content,
-        client_message_id=body.client_message_id,
-        idempotency_key=idempotency_key or "",
-        **({"image_ids": body.image_ids} if body.image_ids else {}),
-    )
+    try:
+        events: Iterator[ChatEvent] = application.start_delivery(
+            principal,
+            conversation_id,
+            body.content,
+            client_message_id=body.client_message_id,
+            idempotency_key=idempotency_key or "",
+            **({"image_ids": body.image_ids} if body.image_ids else {}),
+        )
+    except (ChatApplicationError, ImageError) as error:
+        _raise_chat_error(error)
     events = _client_events(events, include_progress)
     try:
         first = next(events)

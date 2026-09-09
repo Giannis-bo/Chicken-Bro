@@ -1,0 +1,24 @@
+{
+  "runtimeRoot": "/opt/chickenbro-releases/badcase-913d901c7ed3e839cbe611b6037ed71f0848de8f",
+  "processCwd": "/opt/chickenbro-releases/badcase-913d901c7ed3e839cbe611b6037ed71f0848de8f",
+  "fileHashes": {
+    "server/app/api/routes/chat.py": "6c84ae55705de8ec5998d0550358ba07a3006caeba2f83ed99eaaeab1a09810a",
+    "server/app/chickenbro/agent/AGENTS.md": "a8c2eb1b1071af78d3618d584c32140a1dd832c23d5d638d04c76e1415516aa4",
+    "server/app/chickenbro/application.py": "810c8bd89cdc15d00fefcdf450ebb919d0c3646aeea587a0bc74cc15a2dd71e8",
+    "server/app/chickenbro/character_discovery.py": "79390b66b1db5ac601487882efc643e544059ab41d134b05902419c2cb3d68a3",
+    "server/app/chickenbro/codex_adapter.py": "a3355714b0baeb3205d64a5a7420074db380b843bf88a8af18a360b34921f3d0",
+    "server/app/chickenbro/delivery.py": "29a3a21e941612436a70e2fce6a87d97a69a872da047c7ede111609a16323115",
+    "server/app/chickenbro/raiderio_research.py": "50a48bf7c27ecde92f3c495028e98d67b8da5ae4861d7d5b2332125879e6d8ab",
+    "server/app/chickenbro/source_gateway.py": "3a6dddc1026dc0298aabde756cc85eae94f92eba53349a9c485dfcd5c5031a44",
+    "server/app/chickenbro/wcl_source.py": "76905dff059b639e87e459ba40cd869c914bb14fecc80ab26dc1feb1587385eb",
+    "server/chickenbro_native_mcp.py": "9075d7c7dbaef959352d51d4caf92cf63b2eb47c2d2d83b2eb2d27556c82317f"
+  },
+  "runtimeFilesMatch": true,
+  "profilesUnchanged": true,
+  "webUnchanged": true,
+  "migrationsUnchanged": true,
+  "units": {
+    "chickenbro-api.service": "active",
+    "chickenbro-worker.service": "active"
+  }
+}

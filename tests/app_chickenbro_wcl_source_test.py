@@ -154,3 +154,65 @@ class ChickenbroWclSourceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ReportDiscoveryRegressionTest(unittest.TestCase):
+    def test_bare_report_only_queries_metadata_and_requests_selection(self):
+        from server.app.chickenbro import wcl_source as w
+        report = {"fights": [{"id": 1}, {"id": 2}]}
+        with patch.object(w, 'warcraftlogs_credentials_state', return_value={"configured": True, "mode": "v2_oauth", "api": "v2"}), patch.object(w, '_graphql', return_value={"reportData": {"report": report}}) as call:
+            result = w.build_wcl_log_evidence({"wclUrl": "https://www.warcraftlogs.com/reports/abc123"})
+        self.assertNotIn('table(', call.call_args.args[0])
+        self.assertNotIn('playerDetails(', call.call_args.args[0])
+        self.assertEqual(result['queryScope'], 'report_discovery')
+        self.assertFalse(result['eventPage']['complete'])
+        self.assertTrue(any('fight' in s for s in result['nextActions']))
+
+    def test_graphql_partial_data_retains_metadata_and_error(self):
+        from server.app.chickenbro import wcl_source as w
+        payload = {'data': {'reportData': {'report': {'fights': [{'id': 1}], 'events': None}}}, 'errors': [{'message': 'events unavailable', 'path': ['reportData','report','events']}]}
+        with patch.object(w, 'urlopen', return_value=FakeResponse(payload)):
+            result = w._graphql('query{}', token='test')
+        self.assertEqual(result['reportData']['report']['fights'][0]['id'], 1)
+        self.assertIn('events unavailable', result['_fieldErrors'][0])
+
+    def test_partial_statistics_reach_gateway_without_becoming_verified(self):
+        from server.app.chickenbro import wcl_source as w
+        from server.app.chickenbro.source_gateway import ServerConfiguredSourceQuery
+        data = {'reportData': {'report': {'fights': [{'id': 2}], 'events': None}}, '_fieldErrors': ['events unavailable']}
+        with patch.object(w, 'warcraftlogs_credentials_state', return_value={'configured': True, 'mode': 'v2_oauth', 'api': 'v2'}), patch.object(w, '_graphql', return_value=data):
+            result = ServerConfiguredSourceQuery(wcl_reader=w.build_wcl_log_evidence).query('warcraftlogs', 'https://www.warcraftlogs.com/reports/abc123?fight=2')
+        self.assertEqual(result['status'], 'partial')
+        self.assertEqual(result['facts'][0]['fights'][0]['id'], '2')
+        self.assertFalse(result['facts'][0]['eventPage']['complete'])
+        self.assertIn('events unavailable', result['limitations'])
+
+    def test_permission_error_without_data_stays_blocked(self):
+        from server.app.chickenbro import wcl_source as w
+        with patch.object(w, 'urlopen', return_value=FakeResponse({'data': {'reportData': {'report': None}}, 'errors': [{'message': 'permission denied'}]})):
+            with self.assertRaisesRegex(RuntimeError, 'permission denied'):
+                w._graphql('query{}', token='test')
+
+    def test_explicit_window_keeps_scoped_query(self):
+        from server.app.chickenbro import wcl_source as w
+        with patch.object(w, 'warcraftlogs_credentials_state', return_value={'configured': True, 'mode': 'v2_oauth', 'api': 'v2'}), patch.object(w, '_graphql', return_value={'reportData': {'report': {'fights': [{'id': 1}]}}}) as call:
+            result=w.build_wcl_log_evidence({'wclUrl':'https://www.warcraftlogs.com/reports/abc123', 'options':{'startTime':10,'endTime':20}})
+        self.assertIn('table(', call.call_args.args[0])
+        self.assertEqual(result['queryScope'], 'scoped_analysis')
+
+    def test_wcl_display_parameters_are_canonicalized_before_gateway_validation(self):
+        from server.app.chickenbro.source_gateway import ServerConfiguredSourceQuery
+        reader = unittest.mock.Mock(return_value={'sourceStatus':'verified'})
+        service=ServerConfiguredSourceQuery(wcl_reader=reader)
+        service.query('warcraftlogs','https://cn.warcraftlogs.com/reports/LPZNxhXGgdmDH6Cq?fight=2&type=summary&source=5&view=events')
+        self.assertIn('fight=2', reader.call_args.args[0]['wclUrl'])
+        self.assertIn('source=5', reader.call_args.args[0]['wclUrl'])
+        self.assertNotIn('type=', reader.call_args.args[0]['wclUrl'])
+
+    def test_display_normalization_preserves_url_security_and_identity_checks(self):
+        from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+        for url in ('https://evil.example/reports/abc123?type=summary',
+                    'https://www.warcraftlogs.com/reports/abc123?fight=1&fight=2&type=summary',
+                    'https://www.warcraftlogs.com/reports/abc123?redirect=https://evil.example&type=summary'):
+            with self.assertRaises(ValueError):
+                normalize_wcl_report_url(url)
+        self.assertIn('fight=2', normalize_wcl_report_url('https://cn.warcraftlogs.com/reports/abc123#fight=2&type=damage-done&view=events'))

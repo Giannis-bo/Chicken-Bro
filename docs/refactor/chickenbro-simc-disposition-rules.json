@@ -2,6 +2,21 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "badcase-local-verification",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized badcase investigation and isolated regression evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-09-09-badcase-g1/",
+        "artifacts/verification/2026-09-09-badcase-g2/",
+        "artifacts/verification/2026-09-09-badcase-g3/",
+        "artifacts/verification/2026-09-09-badcase-g5/",
+        "artifacts/verification/2026-09-09-badcase-inventory/",
+        "artifacts/releases/2026-09-09-badcase/"
+      ]
+    },
+    {
       "id": "chat-image-input",
       "disposition": "keep",
       "category": "target-product-code",

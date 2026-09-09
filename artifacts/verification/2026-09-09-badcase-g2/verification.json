@@ -1,0 +1,18 @@
+{
+  "status": "local_verified_not_deployed",
+  "finalSourceSha256": {
+    "server/app/chickenbro/delivery.py": "29a3a21e941612436a70e2fce6a87d97a69a872da047c7ede111609a16323115",
+    "server/app/chickenbro/application.py": "810c8bd89cdc15d00fefcdf450ebb919d0c3646aeea587a0bc74cc15a2dd71e8",
+    "server/app/chickenbro/codex_adapter.py": "a3355714b0baeb3205d64a5a7420074db380b843bf88a8af18a360b34921f3d0",
+    "server/app/api/routes/chat.py": "6c84ae55705de8ec5998d0550358ba07a3006caeba2f83ed99eaaeab1a09810a",
+    "tests/app_chat_delivery_test.py": "039e467ec6a1aafff1afb0e7b6a8dd67493882f795ad8cfaddd39ff33de63dc7",
+    "tests/app_chat_progress_postgres_test.py": "e65c82928f3fd2bfeac1bb71b5d6bd3a1d5d9cc6c09b292e711366279f4da821"
+  },
+  "realReplay": {
+    "seconds": 417.43,
+    "successfulWclCalls": 46,
+    "gateway422": 4,
+    "storage": "isolated_memory_repository",
+    "sourceBoundary": "Pre-final G2 candidate injected in memory; final edits after launch: explicit delivery signature, import placement, log severity/run association, synchronized error assignment, thread-start failure capacity release. No G1 injection."
+  }
+}
