@@ -21,7 +21,8 @@ from uuid import uuid4
 
 ALLOWED = frozenset(('server/app/chickenbro/wcl_rankings.py',
     'server/app/chickenbro/source_gateway.py', 'server/chickenbro_native_mcp.py',
-    'server/app/chickenbro/agent/AGENTS.md'))
+    'server/app/chickenbro/agent/AGENTS.md', 'server/app/chickenbro/answer_grounding.py',
+    'server/app/chickenbro/codex_adapter.py', 'server/app/chickenbro/worker_gateway.py'))
 UNITS = ('chickenbro-api', 'chickenbro-worker')
 VOLATILE_ENV = frozenset(('INVOCATION_ID', 'JOURNAL_STREAM', 'SYSTEMD_EXEC_PID'))
 

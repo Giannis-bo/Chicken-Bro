@@ -1,0 +1,10 @@
+{
+  "source_sha": "007074a8670fecf2bfa26a7aca4d076984aee344",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "status": "failed",
+  "runId": "6745ad07-f623-4dd0-b5f1-4306786110af",
+  "seconds": 397.61,
+  "failure": "Invalid WCL report reference plus empty group analysis while claiming complete9-group coverage. Full raw evidence18/18 exists, but the actual answer fails the fixed semantic criterion.",
+  "production_attempted": false,
+  "scope": "Final reference integrity and bounded repair under existing deadline; preserve current baseline and all failed evidence."
+}

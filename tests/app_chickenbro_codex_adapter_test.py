@@ -61,9 +61,168 @@ class Gateway:
         return 'job-capability'
     def revoke(self, token):
         self.revoked = token
+    def answer_evidence(self, token):
+        return {'reports': [], 'groups': [], 'truncated': False}
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_invalid_draft_repaired_once_before_any_answer_delta(self):
+        from server.app.chickenbro import codex_adapter as module
+        class EvidenceGateway(Gateway):
+            def answer_evidence(self, token):
+                return {'reports': [{'canonicalUrl': 'verified'}], 'groups': [], 'truncated': False}
+        original = FakeProcess(transcript(item('item/started'), delta('BAD DRAFT'), item('item/completed', 'BAD DRAFT')))
+        repaired = FakeProcess(transcript(item('item/started'), delta('REPAIRED'), item('item/completed', 'REPAIRED')))
+        gateway, calls = EvidenceGateway(), []
+        def popen(*args, **kwargs):
+            calls.append(kwargs)
+            if len(calls) == 2:
+                self.assertEqual(gateway.revoked, 'job-capability')
+            return original if len(calls) == 1 else repaired
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(module, '_answer_errors', side_effect=[['INVALID_REPORT_REFERENCE'], []]), \
+             patch.object(module, '_repair_context', return_value='{"reports":[]}'), \
+             patch.dict(os.environ, {'CODEX_HOME': directory}):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=gateway, popen=popen)
+            result = list(adapter.stream(prompt='original question', timeout_seconds=480))
+        self.assertEqual(result, [{'type': 'delta', 'text': 'REPAIRED'}, {'type': 'completed', 'text': 'REPAIRED'}])
+        self.assertEqual(len(calls), 2)
+        self.assertFalse(any(key.startswith('CHICKENBRO_') for key in calls[1]['env']))
+        config = repaired.sent()[2]['params']['config']
+        self.assertEqual(config['web_search'], 'disabled')
+        self.assertFalse(config['features']['shell_tool'])
+        self.assertFalse(config['features']['unified_exec'])
+        self.assertIn('BAD DRAFT', repaired.sent()[3]['params']['input'][0]['text'])
+
+    def test_repair_failure_never_leaks_original_or_repaired_draft(self):
+        from server.app.chickenbro import codex_adapter as module
+        gateway = Gateway()
+        gateway.answer_evidence = lambda token: {'reports': [{'id': 'evidence'}]}
+        processes = [FakeProcess(answer()), FakeProcess(answer())]
+        emitted = []
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(module, '_answer_errors', return_value=['INVALID_REPORT_REFERENCE']), \
+             patch.object(module, '_repair_context', return_value='{}'), \
+             patch.dict(os.environ, {'CODEX_HOME': directory}):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=gateway,
+                popen=lambda *a, **k: processes.pop(0))
+            with self.assertRaises(CodexStreamError) as caught:
+                for event in adapter.stream(prompt='question', timeout_seconds=480):
+                    emitted.append(event)
+        self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+        self.assertEqual(emitted, [])
+        self.assertEqual(len(processes), 0)
+
+    def test_repair_profile_explicitly_disables_inherited_servers_and_tools(self):
+        from server.app.chickenbro.codex_adapter import _repair_profile
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}):
+            Path(directory, 'config.toml').write_text('[mcp_servers.inherited]\ncommand="private-command"\n')
+            original = {'model': 'gpt-6-astra', 'web_search': 'live', 'features': {'shell_tool': True},
+                        'mcp_servers': {'chickenbro_toolbox': {'command': 'tool', 'enabled': True}}}
+            result = _repair_profile(original)
+        self.assertEqual(result['mcp_servers'], {'inherited': {'command': 'private-command', 'enabled': False},
+                                                  'chickenbro_toolbox': {'command': 'tool', 'enabled': False}})
+        self.assertTrue(original['features']['shell_tool'])
+        self.assertEqual(result['model'], 'gpt-6-astra')
+        self.assertTrue(all(result['features'][name] is False for name in ('shell_tool', 'unified_exec', 'apps', 'plugins', 'multi_agent')))
+
+    def test_repair_deadline_uses_remaining_original_budget_and_rejects_tools(self):
+        from server.app.chickenbro import codex_adapter as module
+        adapter = NativeCodexChatAdapter(enabled=True)
+        with patch.object(module.time, 'monotonic', return_value=476):
+            with self.assertRaises(CodexStreamError) as caught:
+                adapter._repair_answer('q', 'bad', ['BAD'], {}, 480, [], {}, {})
+        self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+        process = FakeProcess(answer())
+        captured = []
+        RealSession = module._RepairSession
+        def session(child, deadline):
+            captured.append(deadline)
+            return RealSession(child, deadline)
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}), \
+             patch.object(module.time, 'monotonic', return_value=450), \
+             patch.object(module, '_repair_context', return_value='{}'), \
+             patch.object(module, '_answer_errors', return_value=[]), patch.object(module, '_RepairSession', side_effect=session):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=lambda *a, **k: process)
+            self.assertEqual(adapter._repair_answer('q', 'bad', ['BAD'], {}, 480, [], {}, {}), 'answer')
+        self.assertEqual(captured, [475])
+        forbidden = FakeProcess(transcript(item('item/started', kind='mcpToolCall')))
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}), \
+             patch.object(module, '_repair_context', return_value='{}'):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=lambda *a, **k: forbidden)
+            with self.assertRaises(CodexStreamError) as caught:
+                adapter._repair_answer('q', 'bad', ['BAD'], {}, time.monotonic() + 480, [], {}, {})
+        self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+        self.assertTrue(forbidden.killed)
+
+    def test_repair_timeout_maps_to_invalid_and_revoked_evidence_never_leaks(self):
+        from server.app.chickenbro import codex_adapter as module
+        process = FakeProcess(answer(), wait_error=subprocess.TimeoutExpired('repair', 1))
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}), \
+             patch.object(module, '_repair_context', return_value='{}'):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, popen=lambda *a, **k: process)
+            with self.assertRaises(CodexStreamError) as caught:
+                adapter._repair_answer('q', 'bad', ['BAD'], {}, time.monotonic() + 480, [], {}, {})
+        self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+        self.assertTrue(process.killed)
+        gateway = Gateway()
+        gateway.answer_evidence = lambda token: (_ for _ in ()).throw(ValueError('expired private token'))
+        emitted = []
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=gateway, popen=lambda *a, **k: FakeProcess(answer()))
+            with self.assertRaises(CodexStreamError) as caught:
+                for event in adapter.stream(prompt='q', timeout_seconds=480): emitted.append(event)
+        self.assertEqual(emitted, [])
+        self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+        self.assertEqual(gateway.revoked, 'job-capability')
+
+    def test_public_progress_still_streams_before_validation_and_close_terminates(self):
+        process = FakeProcess(transcript(item('item/started', identity='thought', kind='reasoning'),
+            note('item/reasoning/summaryTextDelta', threadId='thread', turnId='turn', itemId='thought', summaryIndex=0, delta='核对中'),
+            item('item/completed', identity='thought', kind='reasoning'), item('item/started'), delta('answer'), item('item/completed', 'answer')))
+        gateway = Gateway()
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=gateway, popen=lambda *a, **k: process)
+            stream = adapter.stream(prompt='q', timeout_seconds=480)
+            self.assertEqual(next(stream), {'type': 'progress', 'text': '核对中'})
+            self.assertEqual(process.wait_calls, 0)
+            stream.close()
+        self.assertTrue(process.killed)
+        self.assertEqual(gateway.revoked, 'job-capability')
+
+    def test_empty_evidence_still_rejects_malformed_reference_and_repairs_without_facts(self):
+        from server.app.chickenbro import codex_adapter as module
+        bad = 'https://www.warcraftlogs.com/reports/jx不存在'
+        good = '当前没有可核验的日志证据，不能确认这些结论。'
+        processes = [FakeProcess(transcript(item('item/started'), delta(bad), item('item/completed', bad))),
+                     FakeProcess(transcript(item('item/started'), delta(good), item('item/completed', good)))]
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=Gateway(),
+                popen=lambda *a, **k: processes.pop(0))
+            result = list(adapter.stream(prompt='read logs', timeout_seconds=480))
+        self.assertEqual(result, [{'type': 'delta', 'text': good}, {'type': 'completed', 'text': good}])
+        self.assertEqual(processes, [])
+
+    def test_attempted_wcl_empty_evidence_reaches_both_validation_passes(self):
+        from server.app.chickenbro import codex_adapter as module
+        gateway = Gateway()
+        evidence = {'reports': [], 'groups': [], 'truncated': False, 'attemptedWcl': True}
+        gateway.answer_evidence = lambda token: evidence
+        processes = [FakeProcess(answer()), FakeProcess(answer())]
+        seen = []
+        def validate(text, supplied):
+            seen.append(supplied)
+            return ['WCL_REFERENCE_UNOBSERVED'] if len(seen) == 1 else []
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}), \
+             patch.object(module, '_answer_errors', side_effect=validate), \
+             patch.object(module, '_repair_context', return_value=json.dumps(evidence)):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=gateway,
+                popen=lambda *a, **k: processes.pop(0))
+            result = list(adapter.stream(prompt='read report', timeout_seconds=480))
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(all(item['attemptedWcl'] is True for item in seen))
+        self.assertEqual(result[-1]['type'], 'completed')
+
     def test_images_are_ordered_native_blocks_and_not_written_to_job_files(self):
         images = ['data:image/png;base64,aGVsbG8=', 'data:image/jpeg;base64,d29ybGQ=']
         process = FakeProcess(answer())
@@ -352,17 +511,16 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertTrue(captured['env']['CHICKENBRO_NATIVE_OBSERVATIONS_PATH'].endswith('native-tool-observations.jsonl'))
         self.assertEqual(gateway.revoked, 'job-capability')
 
-    def test_terminal_waits_for_exit_and_revocation_and_close_kills_partial_child(self):
+    def test_buffered_final_waits_for_exit_and_revocation_before_first_delta(self):
         for partial in [False, True]:
             gateway = Gateway(); process = FakeProcess(answer() if partial else transcript(item('item/started'), item('item/completed', 'answer')))
             with tempfile.TemporaryDirectory() as directory:
                 adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, source_gateway=gateway, popen=lambda *a, **k: process)
                 stream = adapter.stream(prompt='hello', timeout_seconds=2)
                 self.assertEqual(next(stream)['type'], 'delta' if partial else 'completed')
-                if not partial:
-                    self.assertGreaterEqual(process.wait_calls, 1); self.assertEqual(gateway.revoked, 'job-capability')
+                self.assertGreaterEqual(process.wait_calls, 1); self.assertEqual(gateway.revoked, 'job-capability')
                 stream.close()
-            if partial: self.assertTrue(process.killed)
+            self.assertFalse(process.killed)
             self.assertEqual(gateway.revoked, 'job-capability')
 
     def test_nonzero_exit_and_timeout_return_stable_errors(self):

@@ -6,6 +6,9 @@ the model or the MCP subprocess.
 """
 
 import secrets
+import copy
+from threading import RLock
+from server.app.chickenbro.answer_grounding import collect_evidence
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
@@ -213,25 +216,41 @@ class ChickenbroSourceGateway:
         self._now = now or _utc_now
         self._ttl = timedelta(seconds=max(60, min(900, int(capability_ttl_seconds))))
         self._capabilities: dict[str, datetime] = {}
+        self._answer_evidence: dict[str, dict] = {}
+        self._lock = RLock()
 
     def issue_capability(self) -> str:
-        now = self._aware_now()
-        self._prune(now)
-        token = secrets.token_urlsafe(32)
-        self._capabilities[token] = now + self._ttl
-        return token
+        with self._lock:
+            now = self._aware_now()
+            self._prune(now)
+            if len(self._capabilities) >= 256:
+                raise SourceGatewayUnauthorized("source gateway capacity reached")
+            token = secrets.token_urlsafe(32)
+            self._capabilities[token] = now + self._ttl
+            return token
 
     def revoke(self, token: str) -> None:
-        self._capabilities.pop(str(token or ""), None)
+        with self._lock:
+            self._capabilities.pop(str(token or ""), None)
+            self._answer_evidence.pop(str(token or ""), None)
 
     def query(self, token: str, provider: str, target: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        now = self._aware_now()
-        if not self._valid(token, now):
-            raise SourceGatewayUnauthorized("source gateway capability is invalid or expired")
+        with self._lock:
+            now = self._aware_now()
+            self._prune(now)
+            if not self._valid(token, now):
+                raise SourceGatewayUnauthorized("source gateway capability is invalid or expired")
+            if str(provider).lower().startswith('warcraftlogs'):
+                index = self._answer_evidence.setdefault(token, {"reports": [], "groups": [], "truncated": False})
+                index['attemptedWcl'] = True
         if hasattr(self._query_service, "query"):
             result = self._query_service.query(provider, target, options=options) if options else self._query_service.query(provider, target)
         else:
             result = self._query_service(provider, target)
+        with self._lock:
+            self._prune(self._aware_now())
+            if self._valid(token, self._aware_now()) and isinstance(result, Mapping):
+                self._answer_evidence[token] = collect_evidence(self._answer_evidence.get(token), result)
         return result if isinstance(result, Mapping) else {
             "sourceKey": str(provider or "source"),
             "status": "partial",
@@ -241,6 +260,14 @@ class ChickenbroSourceGateway:
             "limitations": ["The configured source API returned no bounded result."],
             "nextActions": [],
         }
+
+    def answer_evidence(self, token: str) -> dict:
+        with self._lock:
+            now = self._aware_now()
+            self._prune(now)
+            if not self._valid(token, now):
+                raise SourceGatewayUnauthorized("source gateway capability is invalid or expired")
+            return copy.deepcopy(self._answer_evidence.get(token, {"reports": [], "groups": [], "truncated": False}))
 
     def _aware_now(self) -> datetime:
         value = self._now()
@@ -255,6 +282,7 @@ class ChickenbroSourceGateway:
         for token, expires_at in list(self._capabilities.items()):
             if expires_at <= now:
                 self._capabilities.pop(token, None)
+                self._answer_evidence.pop(token, None)
 
 
 __all__ = (

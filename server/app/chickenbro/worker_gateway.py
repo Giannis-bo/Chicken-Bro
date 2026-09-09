@@ -61,6 +61,9 @@ class RegisteredGateway:
         with self.host.lock:
             self.host.routes.pop(token,None)
 
+    def answer_evidence(self, token):
+        return self.gateway.answer_evidence(token)
+
     def execute(self, token, body):
         if self.kind == 'source':
             if set(body)-{'provider','target','options'}:

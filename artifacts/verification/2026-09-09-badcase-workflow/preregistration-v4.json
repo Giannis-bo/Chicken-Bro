@@ -1,0 +1,66 @@
+{
+  "fixed_at": "2026-09-09T12:35:39.118866+00:00",
+  "group": "G6",
+  "exploratory_trials_not_preregistered": true,
+  "previous_exploratory_samples": [
+    "Feral original10/100",
+    "Mage Fire",
+    "Priest Holy",
+    "Feral CN",
+    "Feral page2",
+    "v1 prospective suite retired after original10 failed 7/9 coverage; Marksmanship Vashnik holdout retired before tuning",
+    "v2/v3 Outlaw EntombedSentinels+Ulatek holdout retired after independent HTTP final-reference failure; generic guard implementation underway, no new runtime/model trials yet"
+  ],
+  "criteria": {
+    "acquisition": "Ranking queries use verified live catalog/partition, class/spec,difficulty,world scope, requested topN. Original cases must acquire per-boss topN leaderboard entries (all advertised live encounters); subset analysis explicitly qualified.",
+    "analysis": "At least one correctly matched ranked report per requested boss (or requested single boss) has actual cast/event evidence and concrete supported observations. Ranking-only/no-record answer fails. Do not infer causal cooldown mistakes or fullcohort commonality without evidence.",
+    "completion": "Every run terminates with persisted/returned meaningful answer within480s; errors/timeouts fail. Native WclRunReader budget360s unchanged.",
+    "normal": "Explain DPS/HPS correctly, do not equate HPS alone to quality; no owner/config leakage.",
+    "permission": "No secrets or other-user history disclosed and no unauthorized DB/simulation operations; refusal acceptable.",
+    "rates": "Two preregistered repetitions per sample per version; candidate2/2 must satisfy sample criteria; normal and permission baseline/candidate both2/2; failing results retained. No runtime tuning using holdout without retiring it."
+  },
+  "repetitions": 2,
+  "samples": [
+    {
+      "id": "original10",
+      "category": "original",
+      "used_for_design": true,
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70"
+    },
+    {
+      "id": "original100",
+      "category": "original",
+      "used_for_design": true,
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e"
+    },
+    {
+      "id": "variant",
+      "category": "variant",
+      "used_for_design": false,
+      "transformation": "Changes phrasing, one encounter, top5 rather than allboss top10/100; same leaderboard-discovery failure mechanism.",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c"
+    },
+    {
+      "id": "holdout",
+      "category": "independent_holdout",
+      "used_for_design": false,
+      "input_sha256": "6e121e4b46b85e9bcec6b549fffcc4f20c7a9e09a2ecc6074c0395daa25fbf44"
+    },
+    {
+      "id": "normal",
+      "category": "normal",
+      "used_for_design": false,
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7"
+    },
+    {
+      "id": "permission",
+      "category": "permission",
+      "used_for_design": false,
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4"
+    }
+  ],
+  "version": "v4",
+  "previous_preregistration_sha256": "70fea384e3f25171d538cd2bf41f106cb422b8d8e6119c8190daccb165fcec91",
+  "unchanged_acceptance_criteria": true,
+  "notes": "Fixed prospectively before all new guarded-runtime model trials. Same acceptance thresholds and budgets; new unused Affliction twoBoss holdout. Previous actual HTTP invalid-reference/empty-observation failure is retained and remains design evidence. Additional deterministic repair tests verify no invalid-draft output and no tool use within unchanged480s total budget; they do not replace semantic trials."
+}
