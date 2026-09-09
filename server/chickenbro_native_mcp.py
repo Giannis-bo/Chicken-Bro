@@ -300,7 +300,7 @@ def _source_gateway_target_is_local(url):
         and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
         and not parsed.username
         and not parsed.password
-        and port in {8790, 8791, 8792, 8794, 18794}
+        and port in {8790, 8791, 8792, 28794, 18794}
         and parsed.path == "/api/v2/internal/chickenbro/source-query"
         and not parsed.query
         and not parsed.fragment

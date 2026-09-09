@@ -97,6 +97,9 @@ if a.action in ('preflight','stage','promote'):
     with connect() as conn:counts=active(conn)
     print(json.dumps({'action':a.action,'expectedBase':str(base),'target':str(target),'active':counts,
         'rootFreeBytes':shutil.disk_usage('/opt').free,'web':str(Path('/var/www/chickenbro-web/current').resolve())}),flush=True)
+    import socket
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1',28794))
     if a.action=='preflight':raise SystemExit(0)
     if not target.exists():
         shutil.copytree(base,target,symlinks=True)
@@ -160,11 +163,17 @@ if a.action in ('preflight','stage','promote'):
             path.parent.mkdir(parents=True,exist_ok=True)
             text='[Service]\nEnvironment=WOW_CHAT_DURABLE_ENABLED=1\n'
             if index==1:
-                text+=f'EnvironmentFile={worker_env}\nEnvironment=WOW_CHAT_WORKER_TOOL_PORT=8794\nProtectHome=read-only\nReadWritePaths=/home/ubuntu/.codex\n'
+                text+=f'EnvironmentFile={worker_env}\nEnvironment=WOW_CHAT_WORKER_TOOL_PORT=28794\nProtectHome=read-only\nReadWritePaths=/home/ubuntu/.codex\n'
             path.write_text(text)
         switch(target)
         service('daemon-reload')
         service('start','chickenbro-worker')
+        for attempt in range(20):
+            worker_pid=subprocess.check_output(['systemctl','show','chickenbro-worker','-p','MainPID','--value'],text=True).strip()
+            listeners=subprocess.check_output(['ss','-ltnp','sport = :28794'],text=True)
+            if worker_pid!='0' and ('pid='+worker_pid+',') in listeners:break
+            time.sleep(1)
+        else:raise RuntimeError('worker did not own its tool listener before API admission')
         api_start_attempted=True
         service('start','chickenbro-api')
     except Exception:
@@ -179,7 +188,8 @@ if a.action in ('preflight','stage','promote'):
             service('start','chickenbro-worker')
             service('start','chickenbro-api')
         raise
-    if not ready():raise RuntimeError('readiness failed; inspect active admissions before the explicit rollback action')
+    if not ready() or Path('/opt/chickenbro').resolve()!=target or subprocess.run(['systemctl','is-active','--quiet','chickenbro-api','chickenbro-worker']).returncode:
+        raise RuntimeError('readiness failed; inspect active admissions before the explicit rollback action')
     print(json.dumps({'promoted':True,'sourceCommit':commit,'runtimeFiles':len(m['files']),
         'pointer':str(Path('/opt/chickenbro').resolve()),'readiness':'ready','businessRegression':'required'}),flush=True)
 else:

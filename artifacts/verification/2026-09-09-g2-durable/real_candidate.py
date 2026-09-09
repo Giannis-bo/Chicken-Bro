@@ -40,7 +40,7 @@ for line in Path(env['PGPASSFILE']).read_text().splitlines():
         break
 if 'PGPASSWORD' not in env:raise RuntimeError('configured role credential unavailable')
 env.update(WOW_DATABASE_URL=urlunsplit(dsn._replace(path='/'+a.database)),WOW_APP_ENV='test',
-    WOW_API_V2_PORT='18790',WOW_CHAT_WORKER_TOOL_PORT='18794',WOW_CHAT_DURABLE_ENABLED='1',WOW_TEST_LOGIN_ENABLED='0',
+    WOW_API_V2_PORT='18790',WOW_CHAT_WORKER_TOOL_PORT='28794',WOW_CHAT_DURABLE_ENABLED='1',WOW_TEST_LOGIN_ENABLED='0',
     WOW_WORKER_V2_HEARTBEAT_PATH='/var/lib/chickenbro/g2-live-worker-heartbeat.json',PYTHONPATH=a.source)
 env['WOW_QQ_REDIRECT_URI']=env.get('WOW_WEB_ORIGIN','https://www.chickenbro.cloud').rstrip('/')+'/test/api/v2/auth/qq/callback'
 os.environ.update(env)

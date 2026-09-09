@@ -1,0 +1,16 @@
+{
+  "firstAdmissionFence": "rejected active Chat without stopping services",
+  "secondCutover": "worker startup failed: port 8794 owned by chickenbro-qq-candidate-api.service",
+  "productionActiveChatAtRollback": 0,
+  "rollback": {
+    "rolledBack": true,
+    "pointer": "/opt/chickenbro-releases/qq-a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+    "schema": "additive migration retained"
+  },
+  "afterRollback": {
+    "api": "active",
+    "worker": "active",
+    "readiness": "ready"
+  },
+  "fix": "dedicated port 28794; bind preflight and worker MainPID listener verification before opening API"
+}

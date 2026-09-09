@@ -85,8 +85,8 @@ def start_chat_workers(settings, connection_factory, stop):
     from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
     from server.app.simulation.compiler import SimcProfileCompiler
 
-    port = int(os.environ.get('WOW_CHAT_WORKER_TOOL_PORT','8794'))
-    if port not in (8794,18794):
+    port = int(os.environ.get('WOW_CHAT_WORKER_TOOL_PORT','28794'))
+    if port not in (28794,18794):
         raise ValueError('Chat worker tool port must be an allowlisted loopback port')
     host = WorkerToolServer(port)
     host.start()

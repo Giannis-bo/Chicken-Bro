@@ -600,7 +600,7 @@ API 网关需对 `/api/v2/chat/images` 上传允许 7 MiB JSON body（base64 膨
 
 ## G2 独立 Chat Worker 发布流程（2026-09-09）
 
-实现与验证见 [G2 计划](plans/2026-09-09-g2-durable-generation.md) 和 [证据](../artifacts/verification/2026-09-09-g2-durable/README.md)。`WOW_CHAT_DURABLE_ENABLED=1` 必须在 API 与 Worker 同时配置；先应用 additive `0008_chat_durable_execution`。Worker 自有工具监听 127.0.0.1:8794，并继承原 API 的 Codex、WCL、代理与图片能力配置；Codex home 只允许既有目录读写。QQ 登录配置与现有 Web 构建保持当前生产身份。
+实现与验证见 [G2 计划](plans/2026-09-09-g2-durable-generation.md) 和 [证据](../artifacts/verification/2026-09-09-g2-durable/README.md)。`WOW_CHAT_DURABLE_ENABLED=1` 必须在 API 与 Worker 同时配置；先应用 additive `0008_chat_durable_execution`。Worker 自有工具监听 127.0.0.1:28794，并继承原 API 的 Codex、WCL、代理与图片能力配置；Codex home 只允许既有目录读写。QQ 登录配置与现有 Web 构建保持当前生产身份。
 
 发布脚本绑定 source commit、当前基底、逐文件旧/新 SHA 与完整 staged manifest。持 SHARE 表锁确认 Chat/SimC/queue 均空后停止 API/Worker，应用迁移，再切换代码与本次 drop-in。API 开放准入前失败恢复旧拓扑；开放后需重新排空，不能直接杀掉新任务。回滚保留新增 schema/任务记录，移除仅本次 drop-in，恢复旧代码；API 无法启动时可使用仍运行 Worker 的数据库配置。readiness 之后仍须实际图片和文本生成、历史、隔离与幂等回归。
 
