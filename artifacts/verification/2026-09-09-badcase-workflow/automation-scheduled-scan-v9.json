@@ -1,0 +1,29 @@
+{
+  "automation_id": "badcase",
+  "status": "ACTIVE",
+  "scheduled_task_id": "01a080fe-af7a-7b32-a00f-740e2decff4b",
+  "scheduled_turn_id": "01a086e6-9345-7240-bf3b-dc665f799f9a",
+  "started_at": "2026-09-09T16:00:53+00:00",
+  "completed_at": "2026-09-09T16:01:17+00:00",
+  "actual_scan_at": "2026-09-09T16:01:09.631269+00:00",
+  "scan_sha256": "a5df6cfc4c0387dd5954af3f0ed86cb8f1c6ceffafc2aa981f027fd52e203339",
+  "scan": {
+    "cursor": [
+      "2026-09-09T10:45:14.912483Z",
+      "0110ab82-9d9a-493d-b1ab-d4e916a5edbf"
+    ],
+    "deduplicated": 0,
+    "diagnosis": "not_run",
+    "evidence_insufficient": 0,
+    "limit": 100,
+    "mode": "incremental",
+    "new": 0,
+    "page_full": false,
+    "reconciliation_pending": false,
+    "scan_time": 1788969669.6312692,
+    "scanned": 0,
+    "unfinished": 0,
+    "verified": 0
+  },
+  "interpretation": "Actual scheduled midnight wake and CLI incremental scan observed. New0 is only no new feedback since cursor, not resolution of existing cases. Existing G6 remains approved/in validation, G7 pending; no production release occurred."
+}

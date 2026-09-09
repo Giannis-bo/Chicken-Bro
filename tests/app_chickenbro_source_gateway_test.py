@@ -1,4 +1,6 @@
 import unittest
+import json
+import copy
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +13,54 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_oversized_batch_preserves_whole_members_and_indexes_only_delivered_evidence(self):
+        from server.app.chickenbro.answer_grounding import validate_answer
+        members = []
+        for code in ('AAAAAAAAAAAAAAAA', 'BBBBBBBBBBBBBBBB', 'CCCCCCCCCCCCCCCC'):
+            members.append({'sourceKey': 'warcraftlogs', 'status': 'verified',
+                'facts': [{'reportCode': code, 'fightId': 1, 'sourceId': 2,
+                    'events': [{'timestamp': 100, 'type': 'cast', 'abilityGameID': 7}],
+                    'eventPage': {'complete': True}, 'reportTitle': '文' * 23000}]})
+        raw = {'sourceKey': 'warcraftlogs', 'status': 'verified', 'results': members,
+               'limitations': ['Independent coverage.']}
+        original = copy.deepcopy(raw)
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
+        token = gateway.issue_capability()
+        result = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        self.assertLessEqual(len(json.dumps(result, ensure_ascii=False).encode()), 180000)
+        self.assertEqual(result['status'], 'partial')
+        self.assertEqual(result['results'][:2], members[:2])
+        omitted = result['results'][2]
+        self.assertEqual(omitted['facts'], [])
+        self.assertEqual(omitted['status'], 'partial')
+        self.assertTrue(omitted['transportOmitted'])
+        self.assertEqual(raw, original)
+        evidence = gateway.answer_evidence(token)
+        self.assertEqual(validate_answer('https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=1&source=2', evidence), [])
+        self.assertEqual(validate_answer('https://www.warcraftlogs.com/reports/CCCCCCCCCCCCCCCC?fight=1&source=2', evidence), ['WCL_REFERENCE_UNOBSERVED'])
+
+    def test_oversized_first_member_does_not_discard_later_small_members(self):
+        raw = {'sourceKey': 'warcraftlogs', 'status': 'verified', 'results': [
+            {'status': 'verified', 'facts': ['文' * 65000]},
+            {'status': 'verified', 'facts': [{'value': 2}]},
+            {'status': 'partial', 'facts': [{'value': 3}], 'limitations': ['Partial source coverage.']} ]}
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
+        result = gateway.query(gateway.issue_capability(), 'warcraftlogs_batch', 'reports')
+        self.assertLessEqual(len(json.dumps(result, ensure_ascii=False).encode()), 180000)
+        self.assertTrue(result['results'][0]['transportOmitted'])
+        self.assertEqual(result['results'][1:], raw['results'][1:])
+
+    def test_oversized_single_result_is_not_collected_as_visible_evidence(self):
+        raw = {'sourceKey': 'warcraftlogs', 'status': 'verified', 'facts': [
+            {'reportCode': 'DDDDDDDDDDDDDDDD', 'fightId': 1, 'sourceId': 2,
+             'events': [], 'reportTitle': '文' * 65000}]}
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
+        token = gateway.issue_capability()
+        result = gateway.query(token, 'warcraftlogs', 'report')
+        self.assertEqual(result['status'], 'partial')
+        self.assertEqual(result['facts'], [])
+        self.assertEqual(gateway.answer_evidence(token)['references'], [])
+
     def test_source_capability_lasts_through_analysis_but_can_still_be_revoked(self):
         now = datetime(2026, 9, 5, tzinfo=timezone.utc)
         gateway = ChickenbroSourceGateway(query_service=lambda *_: {"status": "verified"}, now=lambda: now)
@@ -149,6 +199,90 @@ class ChickenbroSourceGatewayTest(unittest.TestCase):
         ]:
             with self.subTest(provider=provider), self.assertRaises(InvalidSourceLink):
                 service.query(provider, target, options)
+
+
+class BoundedSourceResultIndependentReviewTest(unittest.TestCase):
+    """Additional transport-contract checks; run through unittest discovery."""
+
+    @staticmethod
+    def encoded_size(value):
+        return len(json.dumps(value, ensure_ascii=False).encode('utf-8'))
+
+    @staticmethod
+    def member(code='EEEEEEEEEEEEEEEE', padding=''):
+        return {'sourceKey': 'warcraftlogs', 'status': 'verified',
+                'facts': [{'reportCode': code, 'fightId': 9, 'sourceId': 3,
+                           'casts': {'entries': [{'name': 'Spell', 'total': 1}]}}],
+                'padding': padding}
+
+    def test_exact_utf8_boundary_returns_original_and_one_more_byte_omits(self):
+        from server.app.chickenbro.source_gateway import _bounded_result, MAX_SOURCE_RESULT_BYTES
+        packet = self.member()
+        room = MAX_SOURCE_RESULT_BYTES - self.encoded_size(packet)
+        packet['padding'] = '文' * (room // 3) + 'x' * (room % 3)
+        self.assertEqual(self.encoded_size(packet), MAX_SOURCE_RESULT_BYTES)
+        self.assertLess(len(json.dumps(packet, ensure_ascii=False)), MAX_SOURCE_RESULT_BYTES)
+        self.assertIs(_bounded_result(packet), packet)
+        packet['padding'] += 'x'
+        omitted = _bounded_result(packet)
+        self.assertTrue(omitted['transportOmitted'])
+        self.assertEqual(omitted['facts'], [])
+        self.assertLessEqual(self.encoded_size(omitted), MAX_SOURCE_RESULT_BYTES)
+
+    def test_oversized_middle_member_keeps_original_positions_and_whole_neighbors(self):
+        from server.app.chickenbro.source_gateway import _bounded_result
+        members = [self.member('AAAAAAAAAAAAAAAA'), self.member('BBBBBBBBBBBBBBBB', '文' * 70000),
+                   {**self.member('CCCCCCCCCCCCCCCC'), 'status': 'partial'}]
+        original = {'sourceKey': 'warcraftlogs', 'status': 'partial', 'results': members}
+        before = copy.deepcopy(original)
+        bounded = _bounded_result(original)
+        self.assertEqual(bounded['results'][0], members[0])
+        self.assertTrue(bounded['results'][1]['transportOmitted'])
+        self.assertEqual(bounded['results'][2], members[2])
+        self.assertEqual(bounded['transportProjection'],
+                         {'originalMembers': 3, 'retainedMembers': 2, 'omittedMembers': 1})
+        self.assertEqual(original, before)
+        self.assertLessEqual(self.encoded_size(bounded), 180000)
+
+    def test_all_members_omitted_never_registers_source_facts_or_query_failures(self):
+        raw = {'sourceKey': 'warcraftlogs', 'status': 'verified',
+               'results': [self.member(code * 16, '文' * 70000) for code in 'ABC']}
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
+        token = gateway.issue_capability()
+        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        self.assertEqual(bounded['transportProjection']['retainedMembers'], 0)
+        self.assertEqual(bounded['transportProjection']['omittedMembers'], 3)
+        self.assertTrue(all(r['transportOmitted'] and not r['facts'] for r in bounded['results']))
+        evidence = gateway.answer_evidence(token)
+        self.assertEqual(evidence['references'], [])
+        self.assertEqual(evidence['coverage']['reportReceipts'], [])
+        self.assertEqual(evidence['coverage']['failures'], [])
+        self.assertLessEqual(self.encoded_size(bounded), 180000)
+
+    def test_oversized_outer_metadata_falls_back_without_leaking_member_references(self):
+        raw = {'sourceKey': 'warcraftlogs', 'status': 'verified', 'padding': '文' * 70000,
+               'results': [self.member()]}
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
+        token = gateway.issue_capability()
+        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        self.assertTrue(bounded['transportOmitted'])
+        self.assertNotIn('results', bounded)
+        self.assertEqual(gateway.answer_evidence(token)['references'], [])
+        self.assertLessEqual(self.encoded_size(bounded), 180000)
+
+    def test_transport_omission_does_not_clear_previous_observed_scoped_reference(self):
+        from server.app.chickenbro.answer_grounding import validate_answer
+        current = [self.member()]
+        gateway = ChickenbroSourceGateway(query_service=lambda *_: current[0])
+        token = gateway.issue_capability()
+        gateway.query(token, 'warcraftlogs', 'report')
+        current[0] = self.member('FFFFFFFFFFFFFFFF', '文' * 70000)
+        bounded = gateway.query(token, 'warcraftlogs', 'report')
+        self.assertTrue(bounded['transportOmitted'])
+        evidence = gateway.answer_evidence(token)
+        self.assertEqual(validate_answer('https://www.warcraftlogs.com/reports/EEEEEEEEEEEEEEEE?fight=9&source=3', evidence), [])
+        self.assertEqual(validate_answer('https://www.warcraftlogs.com/reports/FFFFFFFFFFFFFFFF?fight=9&source=3', evidence), ['WCL_REFERENCE_UNOBSERVED'])
+        self.assertEqual(len(evidence['coverage']['reportReceipts']), 1)
 
 
 if __name__ == "__main__":

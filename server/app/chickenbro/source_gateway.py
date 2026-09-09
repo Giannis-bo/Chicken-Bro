@@ -7,6 +7,7 @@ the model or the MCP subprocess.
 
 import secrets
 import copy
+import json
 from threading import RLock
 from server.app.chickenbro.answer_grounding import collect_evidence
 from concurrent.futures import ThreadPoolExecutor
@@ -24,6 +25,49 @@ from server.app.chickenbro.wcl_source import build_wcl_log_evidence, validate_wc
 
 SOURCE_GATEWAY_PATH = "/api/v2/internal/chickenbro/source-query"
 DEFAULT_SOURCE_GATEWAY_URL = "http://127.0.0.1:8790" + SOURCE_GATEWAY_PATH
+MAX_SOURCE_RESULT_BYTES = 180000  # Match ToolRecorder's UTF-8 serialization limit.
+
+
+def _bounded_result(result: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Keep whole batch members; index exactly the receipt delivered to the model.
+
+    First-fit preserves input order and every retained member's original coverage.
+    An omitted member was queried, but supplies no evidence to this response.
+    """
+    def fits(value):
+        return len(json.dumps(value, ensure_ascii=False).encode()) <= MAX_SOURCE_RESULT_BYTES
+
+    if fits(result):
+        return result
+    omitted = {
+        'sourceKey': _text(result.get('sourceKey'), 40) or 'source',
+        'status': 'partial', 'facts': [], 'transportOmitted': True,
+        'limitations': ['The query ran, but its result did not fit the bounded response. '
+                        'No evidence from this member is delivered. Narrow the query to retrieve it.'],
+    }
+    members = result.get('results')
+    if not isinstance(members, list) or not 1 <= len(members) <= 3:
+        return omitted
+    bounded = {**result, 'status': 'partial',
+        'results': [dict(omitted) for _ in members],
+        'transportProjection': {'originalMembers': len(members), 'retainedMembers': 0,
+                                'omittedMembers': len(members)},
+        'limitations': list(result.get('limitations') or []) + [
+            'Some whole batch members were omitted to fit the response size limit. '
+            'Retained members preserve their independent source coverage; input order is unchanged.'],
+    }
+    if not fits(bounded):
+        return omitted
+    retained = 0
+    for index, member in enumerate(members):
+        placeholder = bounded['results'][index]
+        bounded['results'][index] = member
+        if fits(bounded):
+            retained += 1
+        else:
+            bounded['results'][index] = placeholder
+    bounded['transportProjection'].update(retainedMembers=retained, omittedMembers=len(members)-retained)
+    return bounded if fits(bounded) else omitted
 
 
 class SourceGatewayUnauthorized(ValueError):
@@ -247,6 +291,8 @@ class ChickenbroSourceGateway:
             result = self._query_service.query(provider, target, options=options) if options else self._query_service.query(provider, target)
         else:
             result = self._query_service(provider, target)
+        if isinstance(result, Mapping):
+            result = _bounded_result(result)
         with self._lock:
             self._prune(self._aware_now())
             if self._valid(token, self._aware_now()) and isinstance(result, Mapping):

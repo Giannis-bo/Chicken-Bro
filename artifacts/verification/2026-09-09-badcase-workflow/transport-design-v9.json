@@ -1,0 +1,20 @@
+{
+  "observed_at": "2026-09-09T16:03:39.175566+00:00",
+  "design_only": true,
+  "v8_http_failure_retained": true,
+  "instrumented_replay_summary_sha256": "903d2c4b8db3b652ea020dbc09b14e1720c8f800d85715de6bd722e5838f6fff",
+  "instrumented_replay": "One actual HTTP originaltop10 run succeeded; first validation had no errors and repair was not entered. Did not reproduce the old repair failure, whose inner cause remains unknown. No replacement acceptance credit.",
+  "confirmed_defect": "Three prior actual HTTP batches were wholly replaced by180000-byte cap empty receipts after the source gateway had already indexed raw unseen results. Native suite omitted this product boundary.",
+  "fix": "Before evidence collection, measure exact ToolRecorder UTF8 JSON size. Keep fitting whole batch members in original positions; mark omitted members as transport omissions without inventing evidence or query failures. Record, index and return same bounded receipt. Single oversized responses yield no evidence.",
+  "limitations": [
+    "Input-order first-fit is not a maximum-member or fairness optimizer.",
+    "No events/table truncation, larger response cap, increased480/360 budget or relaxed validation.",
+    "V9 uses a newly preregistered actual HTTP paired harness; V8 native evidence is historical different conditions."
+  ],
+  "tests": {
+    "command": "PATH=<existing-venv>:$PATH npm run test:backend",
+    "passed": 621,
+    "log_sha256": "a50be3cc7125711cc702eab39b56905baa940a5d272f75c074718707a1f32746",
+    "independent_review": "No blocking findings; additional boundary tests included in621."
+  }
+}
