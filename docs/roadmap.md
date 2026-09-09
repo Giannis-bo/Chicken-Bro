@@ -20,6 +20,8 @@
 
 ## 1.0 后续更新
 
+- `正在推进`：G2 剩余恢复与耗时问题，迁移为持久化任务和独立 Worker，以租约识别中断并拒绝不安全重复执行；原问题/同类问题实测及隔离重启演练通过后发布，见 [计划](plans/2026-09-09-g2-durable-generation.md)。
+
 - `已完成 / 后端已发布`：Badcase G1/G2/G3/G5 通用修复已上线，运行源码 `913d901c7`；444 项后端、62 项控制面、9 项 PostgreSQL 测试通过。Candidate 与正式公网均验证断线继续落库、跨端历史、账号互斥、用户隔离、幂等及来源查询/治疗判断。G2 进程重启续跑与长耗时仍未解决；见 [发布记录](../artifacts/releases/2026-09-09-badcase/README.md)。
 
 - `已完成 / Web 已发布`：桌面 Web 的 `Powered By Lighthouse&Codex` 融入右下角，不占独立一行或底栏；Mini 和窄屏 Web 不展示。Web 源码 `189d71164` 已发布，27 个公网文件哈希匹配；该次未更新 Mini（当时为 1.0.4，本轮累计上传为 1.0.5），见 [发布记录](../artifacts/verification/2026-09-08-powered-by/README.md)。

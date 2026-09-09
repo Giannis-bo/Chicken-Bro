@@ -6,6 +6,7 @@ the model or the MCP subprocess.
 """
 
 import secrets
+from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -56,6 +57,32 @@ class ServerConfiguredSourceQuery:
     def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
         options = options or {}
+        if normalized_provider == 'warcraftlogs_batch':
+            from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+            queries = options.get('queries')
+            if target != 'reports' or set(options) != {'queries'} or not isinstance(queries,list) or not 1<=len(queries)<=3:
+                raise InvalidSourceLink('bounded WCL batch required')
+            validated = []
+            for item in queries:
+                if not isinstance(item,Mapping) or set(item)-{'target','options'}:
+                    raise InvalidSourceLink('invalid batch item')
+                url = normalize_wcl_report_url(item.get('target',''))
+                parsed = parse_character_source_url(url)
+                if parsed.provider is not SourceProvider.WARCRAFTLOGS:
+                    raise InvalidSourceLink()
+                event_options = validate_wcl_options(item.get('options'))
+                event_options['limit'] = min(event_options.get('limit',200),200)
+                validated.append((parsed.url,event_options))
+            def fetch(item):
+                try:
+                    return self._query_warcraftlogs(*item)
+                except Exception:
+                    return {'sourceKey':'warcraftlogs','status':'partial','facts':[],
+                        'limitations':['This batch member could not be queried; other members remain usable.']}
+            with ThreadPoolExecutor(max_workers=3,thread_name_prefix='wcl-batch') as pool:
+                results = list(pool.map(fetch,validated))
+            return {'sourceKey':'warcraftlogs','status':'verified' if all(r.get('status')=='verified' for r in results) else 'partial',
+                'results':results,'limitations':['Results retain input order and independent coverage; do not combine overlapping events as distinct events.']}
         if normalized_provider == "warcraftlogs_character":
             from server.app.chickenbro.character_discovery import discover_wcl_character
             if target != "character":

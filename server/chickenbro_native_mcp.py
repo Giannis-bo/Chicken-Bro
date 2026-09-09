@@ -171,10 +171,21 @@ WCL_CHARACTER_TOOL_DEFINITION = {
             "limit": {"type":"integer", "minimum":1, "maximum":10}}},
     "annotations": {"readOnlyHint": True},
 }
+WCL_BATCH_TOOL_NAME = 'query_warcraftlogs_batch'
+WCL_BATCH_TOOL_DEFINITION = {
+    'name': WCL_BATCH_TOOL_NAME,
+    'description': 'Query up to 3 independent WCL event filters or time windows concurrently, at most 200 events per member. Use after identifying report/fight/actor. Preserve each result scope; pagination dependent on an unknown nextPageTimestamp must stay sequential. Results retain input order. Prefer this over separate calls when all query arguments are already known.',
+    'inputSchema': {'type':'object','additionalProperties':False,'required':['queries'],
+        'properties':{'queries':{'type':'array','minItems':1,'maxItems':3,
+            'items':json.loads(json.dumps(WARCRAFTLOGS_TOOL_DEFINITION['inputSchema']))}}},
+    'annotations':{'readOnlyHint':True},
+}
+WCL_BATCH_TOOL_DEFINITION['inputSchema']['properties']['queries']['items']['properties']['options']['properties']['limit']['maximum'] = 200
 TOOL_DEFINITIONS = [
     TOOL_DEFINITION,
     WCL_CHARACTER_TOOL_DEFINITION,
     WARCRAFTLOGS_TOOL_DEFINITION,
+    WCL_BATCH_TOOL_DEFINITION,
     RAIDERIO_TOOL_DEFINITION,
     RAIDERIO_RANKINGS_TOOL_DEFINITION,
     RAIDERIO_BATCH_TOOL_DEFINITION,
@@ -234,7 +245,14 @@ def _error(request_id, code, message):
 
 
 def _tool_text(result):
-    return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    encoded = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    # App-server wraps this JSON string in its own bounded stdio notification.
+    # Fail with a usable partial packet instead of emitting an oversized frame.
+    if len(encoded.encode('utf-8')) > 196608:
+        return json.dumps(_partial_tool_result(
+            'The result exceeds the bounded tool response size. Narrow the time window, actor, event limit or batch size; no facts from this response are usable.',
+            result.get('sourceKey','source') if isinstance(result,dict) else 'source'))
+    return encoded
 
 
 def _partial_tool_result(limitation, source_key="public_web_research"):
@@ -282,7 +300,7 @@ def _source_gateway_target_is_local(url):
         and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
         and not parsed.username
         and not parsed.password
-        and port in {8790, 8791, 8792}
+        and port in {8790, 8791, 8792, 8794, 18794}
         and parsed.path == "/api/v2/internal/chickenbro/source-query"
         and not parsed.query
         and not parsed.fragment
@@ -403,6 +421,8 @@ def handle_rpc_request(request, *, observation_writer=None):
             result = query_simulation_gateway(SIMULATION_OPERATIONS[tool_name], arguments)
         elif tool_name == WCL_CHARACTER_TOOL_NAME:
             result = query_source_gateway("warcraftlogs_character", "character", options=arguments)
+        elif tool_name == WCL_BATCH_TOOL_NAME:
+            result = query_source_gateway('warcraftlogs_batch','reports',options=arguments)
         elif tool_name in {RAIDERIO_RANKINGS_TOOL_NAME, RAIDERIO_BATCH_TOOL_NAME}:
             provider, target = (("raiderio_rankings", "rankings") if tool_name == RAIDERIO_RANKINGS_TOOL_NAME
                                 else ("raiderio_batch", "characters"))

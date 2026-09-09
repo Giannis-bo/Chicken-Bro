@@ -9,6 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FormalChickenbroNativeMcpTest(unittest.TestCase):
+    def test_oversized_tool_result_returns_valid_bounded_partial_instead_of_breaking_stdio(self):
+        native_mcp = importlib.import_module('server.chickenbro_native_mcp')
+        result = native_mcp._tool_text({'sourceKey':'warcraftlogs','status':'verified',
+            'facts':[{'events':['x'*1000 for _ in range(1500)]}]})
+        self.assertLess(len(result.encode()),200000)
+        packet = json.loads(result)
+        self.assertEqual(packet['status'],'partial')
+        self.assertEqual(packet['facts'],[])
+
     def test_event_options_are_forwarded_to_server_gateway(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
         options = {"dataType": "Casts", "startTime": 500, "endTime": 900, "limit": 1000}
@@ -40,6 +49,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
             {
                 "research_public_web",
                 "query_warcraftlogs_report",
+                "query_warcraftlogs_batch",
                 "query_warcraftlogs_character",
                 "query_raiderio_character",
                 "query_raiderio_rankings",

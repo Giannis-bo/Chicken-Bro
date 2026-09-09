@@ -31,7 +31,9 @@
         "tests/app_chickenbro_public_web_test.py",
         "tests/app_chickenbro_native_mcp_test.py",
         "tests/app_chickenbro_source_gateway_test.py",
-        "tests/app_chickenbro_simulation_tools_test.py"
+        "tests/app_chickenbro_simulation_tools_test.py",
+        "tests/app_chat_durable_postgres_test.py",
+        "tests/app_wcl_run_reader_test.py"
       ]
     },
     "simc": {

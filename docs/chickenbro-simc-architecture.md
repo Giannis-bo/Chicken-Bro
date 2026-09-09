@@ -34,7 +34,7 @@
                                > API/BFF -> Principal(user_id, session_kind)
 Web/H5 ---- HttpOnly Cookie ---/                   |
                                                    +-> Identity
-                                                   +-> Chat -> Codex Adapter
+                                                   +-> Chat -> chat.executions -> Worker -> Codex Adapter
                                                    +-> SimC -> ops.job_queue -> Worker
                                                                   |            |
                                                                   |            +-> cloud SimulationCraft
@@ -166,8 +166,8 @@ Identity API 的请求体拒绝额外字段，并在调用微信 provider 前完
 Chat 的服务端事实流是：
 
 1. 验证 owner、conversation、消息长度、`Idempotency-Key` 和 `clientMessageId`。
-2. 追加用户消息并创建 `streaming` AgentRun。
-3. 只调用原生 Codex adapter，按严格递增 sequence 输出 SSE。
+2. 同一事务追加用户消息、`streaming` AgentRun 与 `pending` execution；准入总量最多 32。
+3. 独立 Worker 的 Chat lane 领取一次执行权，只调用原生 Codex adapter；API 订阅持久化公开进展/正文，以严格递增 sequence 输出 SSE。
 4. 完整且合法的 assistant 文本先持久化，再把 AgentRun 置为 `succeeded`。
 5. Codex 不可用、超时、输出非法或持久化失败时，用户消息保留，AgentRun 进入明确失败；不切换普通 LLM，不写模板答案。
 
@@ -175,7 +175,9 @@ Chat 的服务端事实流是：
 
 列表按 `(updated_at, id)` 使用稳定游标。重连从持久化消息/AgentRun 恢复，不能再次调用模型伪造相同 run。第二个用户访问第一个用户的 ID 时对外返回 404，避免枚举。
 
-正常断流由当前请求收口 AgentRun；若 API 进程在用户消息落库后退出，则同一请求重试或下一次发送会在 Codex 执行超时再加 60 秒安全宽限期后，以 owner + conversation + `started_at` 条件原子地把遗留 `streaming` 收口为可重试的 `CODEX_EXECUTION_FAILED`。宽限期内仍返回 `CHAT_RUN_IN_PROGRESS`，且恢复绝不再次调用模型。只读会话 GET 不承担这一状态写入。
+启用 `WOW_CHAT_DURABLE_ENABLED=1` 时，API 断流、退出或重启只影响订阅，不能取消已落库执行。未领取任务可由 Worker 领取；已领取任务不自动重放。Worker 以 30 秒租约、10 秒心跳和随机令牌保护写入，拿到行锁后再次核对实际时间。Worker 中断后，Worker sweeper 或 owner 的历史读取/订阅/发送将过期执行收口为可重试的 `CODEX_EXECUTION_FAILED`；超过 540 秒未领取的准入也明确失败。已提交成功答案但尚未确认 execution 的情况保留成功。旧模式和未含 execution 的历史仍兼容原回放。
+
+Worker 自有 loopback 工具网关与短期能力，不依赖 API 进程内 token。每次运行最多记录 128 次有界工具调用结果，仅服务端可见；SimC 写入使用同一个租约保护连接及原有幂等合同。结果不用于自动重放未知副作用，也不声称任意恢复 Codex 会话。WCL 静态战斗上下文仅在单个 run 内按报告/战斗/角色复用 60 秒，事件筛选仍独立查询；独立查询最多合并 3 个，游标翻页保持顺序。研究预算耗尽或结果过大明确返回不足，不伪造完整证据。
 
 会话标题与 `chat.conversations.title` 共用 256 字符上限；正式迁移、创建 API、application 和双端 response guard 必须接受同一完整范围。白名单迁移允许保留空标题，双端对空标题统一显示“炸鸡队长对话”，但不改写持久化事实。
 

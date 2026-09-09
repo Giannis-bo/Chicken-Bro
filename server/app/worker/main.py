@@ -203,6 +203,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.once:
         worker.run_once()
         return 0
+    if os.environ.get('WOW_CHAT_DURABLE_ENABLED') == '1':
+        from server.app.chickenbro.worker import start_chat_workers
+        settings = AppSettings.from_env(os.environ)
+        start_chat_workers(settings, PostgresConnectionFactory(settings).connection, Event())
     worker.run_forever(lambda: False)
     return 0
 

@@ -315,6 +315,7 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0004_chat_public_progress",
                     "0005_chat_account_concurrency",
                     "0006_chat_resolution_feedback",
+                    "0008_chat_durable_execution",
                 ),
             )
             avatar_column = connection.execute(
@@ -331,7 +332,8 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
             by_schema: dict[str, set[str]] = {}
             for schema, table in actual:
                 by_schema.setdefault(schema, set()).add(table)
-            self.assertEqual(by_schema, EXPECTED_TABLES)
+            self.assertEqual(by_schema, {**EXPECTED_TABLES,
+                'chat': {'conversations','messages','agent_runs','executions','tool_results'}})
         finally:
             connection.rollback()
             connection.close()

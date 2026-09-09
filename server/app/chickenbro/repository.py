@@ -25,8 +25,12 @@ def _row_value(row: Any, key: str, index: int) -> Any:
 class PostgresChatRepository:
     """Owner-scoped repository for the additive v2 chat tables."""
 
-    def __init__(self, connection_factory: Callable[[], Any]):
+    def __init__(self, connection_factory: Callable[[], Any], *, durable: bool = False):
         self._connection_factory = connection_factory
+        self.durable = durable
+        if durable:
+            from server.app.chickenbro.durable import PostgresChatExecutions
+            self.executions = PostgresChatExecutions(connection_factory)
 
     def create_conversation(
         self,
@@ -276,6 +280,7 @@ class PostgresChatRepository:
                       {"AND conversation_id = %s" if conversation_id is not None else ""}
                       AND status = 'streaming'
                       AND started_at <= %s
+                      {"AND NOT EXISTS (SELECT 1 FROM chat.executions e WHERE e.run_id = chat.agent_runs.id)" if self.durable else ""}
                     """,
                     (finished_at, user_id, *((conversation_id,) if conversation_id is not None else ()), stale_before),
                 )
@@ -333,6 +338,9 @@ class PostgresChatRepository:
                     if getattr(getattr(error, "diag", None), "constraint_name", None) == "agent_runs_one_streaming_per_user":
                         raise ChatAccountBusy("account already has a streaming reply") from error
                     raise
+                if self.durable:
+                    from server.app.chickenbro.durable import enqueue_execution
+                    enqueue_execution(cursor, run_id, user_id)
                 cursor.execute(
                     """
                     UPDATE chat.conversations

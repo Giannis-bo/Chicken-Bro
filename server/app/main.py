@@ -83,7 +83,8 @@ def create_app(
         if postgres_factory is None:
             raise RuntimeError("Chat application was not constructed")
         chat_application = ChatApplication(
-            repository=PostgresChatRepository(postgres_factory.connection),
+            repository=PostgresChatRepository(postgres_factory.connection,
+                durable=os.environ.get('WOW_CHAT_DURABLE_ENABLED') == '1'),
             codex=NativeCodexChatAdapter(
                 source_gateway=source_gateway,
                 simulation_gateway=simulation_gateway,

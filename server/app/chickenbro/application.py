@@ -128,8 +128,24 @@ class ChatApplication:
         *,
         client_message_id: str | None,
         idempotency_key: str,
-    ) -> BackgroundDelivery:
+    ) -> Iterator[ChatEvent]:
         """Admit synchronously, then generate independently of the HTTP subscriber."""
+        if getattr(self._repository, "durable", False):
+            from server.app.chickenbro.durable import DurableSubscription
+            source = self.stream_message(principal, conversation_id, content,
+                client_message_id=client_message_id, idempotency_key=idempotency_key)
+            first = next(source)
+            executions = self._repository.executions
+            if not executions.contains(principal.user_id,first.run_id):
+                def legacy_replay():
+                    try:
+                        yield first
+                        yield from source
+                    finally:
+                        source.close()
+                return legacy_replay()
+            source.close()
+            return DurableSubscription(first, executions, principal.user_id)
         try:
             return BackgroundDelivery(
                 self.stream_message(principal, conversation_id, content,
@@ -198,6 +214,8 @@ class ChatApplication:
         return ConversationPage(items=items, next_cursor=next_cursor)
 
     def load_conversation(self, principal: Principal, conversation_id: UUID) -> Any:
+        if getattr(self._repository, 'durable', False):
+            self._recover_stale_agent_runs(principal, conversation_id)
         conversation = self._repository.get_conversation(principal.user_id, conversation_id)
         if conversation is None:
             raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
@@ -361,6 +379,9 @@ class ChatApplication:
                 runtime_revision=runtime_revision,
             )
         except Exception as error:
+            from server.app.chickenbro.durable import ChatQueueFull
+            if isinstance(error, ChatQueueFull):
+                raise ChatApplicationError('CODEX_UNAVAILABLE','鸡哥当前请求较多，请稍后再试。') from error
             try:
                 raced_run = self._find_idempotent_run(
                     principal,
@@ -399,16 +420,25 @@ class ChatApplication:
                 run_id=run_id,
             )
         except GeneratorExit:
-            self._cancel_run(principal, run)
+            if not getattr(self._repository, "durable", False):
+                self._cancel_run(principal, run)
             raise
+        if getattr(self._repository, "durable", False):
+            return
+        yield from self.execute_run(principal, run, request_id=request_id)
 
+    def execute_run(self, principal: Principal, run: Any, *, request_id: str | None = None):
+        conversation_id = _as_uuid(_value(run, "conversation_id"))
+        request_id = request_id or str(uuid4())
+        run_id = str(_value(run, "id"))
+        sequence = 1
         progress_chars = 0
         answer_parts: list[str] = []
         completed = False
         terminal_persisted = False
         try:
             history = self._repository.list_messages(principal.user_id, conversation_id)
-            prompt = self._prompt(history, message)
+            prompt = self._prompt(history, "")
             scoped_stream = getattr(self._codex, "stream_for_chat", None)
             if callable(scoped_stream):
                 codex_events = scoped_stream(principal=principal, conversation_id=conversation_id,
@@ -537,6 +567,8 @@ class ChatApplication:
             seconds=self._timeout_seconds + self._stale_run_grace_seconds,
         )
         try:
+            if getattr(self._repository, 'durable', False):
+                self._repository.executions.recover(principal.user_id)
             recovered = self._repository.recover_stale_agent_runs(
                 principal.user_id,
                 conversation_id,

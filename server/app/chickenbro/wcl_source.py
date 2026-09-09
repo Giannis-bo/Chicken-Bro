@@ -9,6 +9,9 @@ or the OAuth token.
 import json
 import os
 import re
+import threading
+from contextvars import ContextVar
+from copy import deepcopy
 from collections.abc import Mapping
 from math import ceil, isfinite
 from time import monotonic
@@ -53,6 +56,61 @@ query WowMiniProgramReportEvidence($code: String!, $fightIds: [Int], $sourceId: 
   }
 }
 """
+
+WCL_EVENTS_QUERY = """
+query WowMiniProgramEvents($code: String!, $fightIds: [Int], $sourceId: Int,
+  $dataType: EventDataType, $startTime: Float, $endTime: Float, $limit: Int) {
+  reportData { report(code: $code) {
+    events(fightIDs: $fightIds, sourceID: $sourceId, dataType: $dataType,
+      startTime: $startTime, endTime: $endTime, limit: $limit, includeResources: true) {
+      data nextPageTimestamp
+    }
+  }}
+}
+"""
+_RUN_READER = ContextVar('wcl_run_reader', default=None)
+
+
+class WclRunReader:
+    """Reuse fight-scoped context within one run; never reuse event windows.
+
+    No global/user-crossing cache. Context expires after 60s for live logs and
+    is capped at 16 scopes / 4 MiB. Upstream partial/error responses are not cached.
+    """
+    def __init__(self):
+        self.contexts = {}
+        self.lock = threading.RLock()
+        self.started = monotonic()
+
+    def __call__(self, request):
+        if monotonic()-self.started >= 360:
+            return {'sourceStatus':'partial','blockers':['Research time budget exhausted. Finish with verified evidence and explicit gaps; do not request more pages.'],
+                'nextActions':['Write the answer now using only evidence already obtained.']}
+        token = _RUN_READER.set(self)
+        try:
+            return build_wcl_log_evidence(request)
+        finally:
+            _RUN_READER.reset(token)
+
+    def query(self, query, variables):
+        if query != WCL_REPORT_EVIDENCE_QUERY:
+            return _graphql(query,variables)
+        key = json.dumps({k:variables[k] for k in ('code','fightIds','sourceId')},sort_keys=True)
+        with self.lock:
+            self.contexts = {k:v for k,v in self.contexts.items() if monotonic()-v[0]<60}
+            cached = self.contexts.get(key)
+        data = _graphql(WCL_EVENTS_QUERY if cached else query,variables)
+        report = (data.get('reportData') or {}).get('report')
+        if cached and isinstance(report,Mapping):
+            data = deepcopy(data)
+            data['reportData']['report'] = {**deepcopy(cached[1]),**report}
+        elif isinstance(report,Mapping) and not data.get('_fieldErrors'):
+            context = {k:v for k,v in report.items() if k!='events'}
+            size = len(json.dumps(context,ensure_ascii=False).encode())
+            with self.lock:
+                if len(self.contexts)<16 and sum(v[2] for v in self.contexts.values())+size<=4194304:
+                    self.contexts[key] = (monotonic(),deepcopy(context),size)
+        return data
 
 
 def _text(value: Any) -> str:
@@ -312,7 +370,8 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None,
         "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
         "endTime": options.get("endTime"), "limit": options.get("limit", 300)}
-    data = _graphql(query, variables)
+    reader = _RUN_READER.get()
+    data = reader.query(query, variables) if reader else _graphql(query, variables)
     field_errors = data.get("_fieldErrors", [])
     # The discovery query never requests tables without a valid scope.
     # Preserve useful metadata when independent statistics fail.
