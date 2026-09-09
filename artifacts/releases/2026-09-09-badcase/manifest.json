@@ -1,0 +1,43 @@
+{
+  "previousCode": "/opt/chickenbro-releases/raider-4315455479566aab7ead4488c52842f3b83c55b1",
+  "previousWeb": "/var/www/chickenbro-web/releases/credit-189d711648c6846df73f07d9aeb2ae7f9766ff15",
+  "beforeFiles": {
+    "server/app/api/routes/chat.py": "b76f1f2caf13a0a50237fb320e23fa0d272e05afcfaae12e8fdde81dce4a47aa",
+    "server/app/chickenbro/agent/AGENTS.md": "1924a7351be530b7b7dfac60c13f942fa9eb21bd0eaf2be6c25ae7236a6f7efc",
+    "server/app/chickenbro/application.py": "47a2c607a3e441fd379f9cade9e9d0e228df718ba2fc3db52bce29f2cf4dc479",
+    "server/app/chickenbro/character_discovery.py": null,
+    "server/app/chickenbro/codex_adapter.py": "71621781059f63f5db3327a7db5569950635e9332da851ce4a769a5851abf72c",
+    "server/app/chickenbro/delivery.py": null,
+    "server/app/chickenbro/raiderio_research.py": "855219c7da7a5c3b3a060da2637d202d771b1bcdd2504acfcfc470d2b5d80620",
+    "server/app/chickenbro/source_gateway.py": "44ce18a14969e5ad56bb56b43c9f586b91905d8bcec65a6570b72f8598ebab30",
+    "server/app/chickenbro/wcl_source.py": "b7eeb63ca3cdf971a8050ac5b733032cf5edbe1fedad4d8e554c182b0c2aa2b7",
+    "server/chickenbro_native_mcp.py": "11db0ea5f8f071a657d8586918716d3dae2f7c6dc4117ede2424993842ab4a59"
+  },
+  "migrations": [
+    "0001_chickenbro_simc_core",
+    "0002_chat_idempotent_replay",
+    "0003_account_avatar",
+    "0004_chat_public_progress",
+    "0005_chat_account_concurrency",
+    "0006_chat_resolution_feedback"
+  ],
+  "profileHashes": {
+    "/home/ubuntu/.codex/chickenbro-native.config.toml": "5aa7f70987a78d63ffc37900723a6ebe0484f534943ebcf7f7db2739af526587",
+    "/home/ubuntu/.codex/config.toml": "b9a821ae4a9bc5cb1286c26e4b1ce7abc08f80bd9307ab4ae5a1fc4114847e00",
+    "/home/ubuntu/.codex/chickenbro-candidate.config.toml": "4ac93c507c54622603c6b0c7e8a0b5395eed2589468c71f7c3ac819945d2deb0",
+    "/home/ubuntu/.codex/chickenbro-production.config.toml": "60d99690f98921146b8602cf31896be346fa65c8cdc083174cd36f1f32132608"
+  },
+  "files": {
+    "server/app/api/routes/chat.py": "6c84ae55705de8ec5998d0550358ba07a3006caeba2f83ed99eaaeab1a09810a",
+    "server/app/chickenbro/agent/AGENTS.md": "a8c2eb1b1071af78d3618d584c32140a1dd832c23d5d638d04c76e1415516aa4",
+    "server/app/chickenbro/application.py": "810c8bd89cdc15d00fefcdf450ebb919d0c3646aeea587a0bc74cc15a2dd71e8",
+    "server/app/chickenbro/character_discovery.py": "79390b66b1db5ac601487882efc643e544059ab41d134b05902419c2cb3d68a3",
+    "server/app/chickenbro/codex_adapter.py": "a3355714b0baeb3205d64a5a7420074db380b843bf88a8af18a360b34921f3d0",
+    "server/app/chickenbro/delivery.py": "29a3a21e941612436a70e2fce6a87d97a69a872da047c7ede111609a16323115",
+    "server/app/chickenbro/raiderio_research.py": "50a48bf7c27ecde92f3c495028e98d67b8da5ae4861d7d5b2332125879e6d8ab",
+    "server/app/chickenbro/source_gateway.py": "3a6dddc1026dc0298aabde756cc85eae94f92eba53349a9c485dfcd5c5031a44",
+    "server/app/chickenbro/wcl_source.py": "76905dff059b639e87e459ba40cd869c914bb14fecc80ab26dc1feb1587385eb",
+    "server/chickenbro_native_mcp.py": "9075d7c7dbaef959352d51d4caf92cf63b2eb47c2d2d83b2eb2d27556c82317f"
+  },
+  "commit": "913d901c7ed3e839cbe611b6037ed71f0848de8f"
+}

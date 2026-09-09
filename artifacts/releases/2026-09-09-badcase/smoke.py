@@ -14,13 +14,18 @@ factory=PostgresConnectionFactory(AppSettings.from_env(os.environ)).connection
 child=None
 if mode=='candidate':
  child_env=dict(env,WOW_API_V2_PORT='8791');u=pwd.getpwnam('ubuntu')
- child=subprocess.Popen(['/opt/chickenbro-runtime/bin/python','-m','uvicorn','server.app.main:create_app','--factory','--host','127.0.0.1','--port','8791'],cwd=root,env=child_env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,user=u.pw_uid,group=u.pw_gid,start_new_session=True)
+ child=subprocess.Popen(['/opt/chickenbro-runtime/bin/python','-m','uvicorn','server.app.main:app','--host','127.0.0.1','--port','8791'],cwd=root,env=child_env,stdout=subprocess.DEVNULL,stderr=open('/tmp/chickenbro-badcase-candidate.log','w'),user=u.pw_uid,group=u.pw_gid,start_new_session=True)
  for _ in range(30):
   try:
    with urlopen(base+'/health/readiness',timeout=3) as r:
     if json.load(r).get('status')=='ready':break
   except Exception:time.sleep(1)
- else:child.terminate();raise RuntimeError('candidate_not_ready')
+ else:
+  child.terminate()
+  try:
+   with urlopen(base+'/health/readiness',timeout=3) as r:print(json.dumps({'candidateReadiness':json.load(r)}),flush=True)
+  except Exception as e:print(json.dumps({'candidateReadinessError':type(e).__name__}),flush=True)
+  raise RuntimeError('candidate_not_ready')
 owner,other=uuid.uuid4(),uuid.uuid4();mini,web,other_token=[secrets.token_urlsafe(32) for _ in range(3)]
 tokens=[(mini,owner,'mini_bearer'),(web,owner,'web_cookie'),(other_token,other,'mini_bearer')]
 now=datetime.now(timezone.utc);conversations=[]
