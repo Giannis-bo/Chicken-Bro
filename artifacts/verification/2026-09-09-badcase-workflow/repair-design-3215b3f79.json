@@ -1,0 +1,35 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-3215b3f796d50542b530cbd4a6c27cdbfc1ad0f1",
+  "initialErrors": [
+    "WCL_GROUP_OBSERVATION_EMPTY",
+    "WCL_REFERENCE_MALFORMED"
+  ],
+  "toolEvents": [],
+  "capabilityEnvironmentAbsent": true,
+  "sourceProfileSha256": "f1481a6c68084e64b3a9bfc7885ce15a434c198bc12f3f19b3677773b30e994a",
+  "runtimeAgentRulesSha256": "5916a4170457f4a2c1c8c868e656fc0ad6f4865bc64968588d87f4a016b0e724",
+  "adapterSha256": "f237e684f1fb9c3690671fd3f8a62d350b78a1b8f3748750d111c873e392fad3",
+  "groundingSha256": "b0f39c0c35b7379ca27b6b30b1055b8db74273cebdd08d723c0f96182e6dc3b4",
+  "repairProfileSha256": "2573b0069a88a8dea0d11df8aef4966b98d3c74ec547f5c5d958cee597bcadfa",
+  "repairReasoningEffort": "low",
+  "repairModel": "gpt-6-astra",
+  "repairInstructionSha256": "770e434c25af3c5085f2d1e1e78af9f321a39d83644b20419811f355e102f604",
+  "repairInstructionChars": 1058,
+  "actualToolPolicy": {
+    "webSearch": "disabled",
+    "shellToolEnabled": false,
+    "configuredMcpServerCount": 1,
+    "enabledMcpServerCount": 0,
+    "appsEnabled": false,
+    "pluginsEnabled": false
+  },
+  "repairInputSha256": "9750025f85c9ae84dc6f6fd3955b7621fb6a895af17e5633663b5fb835dbab9d",
+  "rawPatchChars": 375,
+  "passed": true,
+  "answerSha256": "6f3a5cec714e205fc23a1aa20dea3cedd1bd513590238dc79a42bfa361645828",
+  "seconds": 12.18,
+  "spawnCount": 1,
+  "design_only": true,
+  "production_attempted": false,
+  "receiptSha256": "c84d4a7443d0e21cfff178e44e2b940240cc22afbb0a6d5872b6afcd311dddd5"
+}

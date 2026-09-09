@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-09T11:57:43.686188+00:00",
+  "observed_at": "2026-09-09T13:22:18.734447+00:00",
   "automation_id": "badcase",
   "name": "鸡哥 Badcase 复盘与每日发布",
   "kind": "heartbeat",
@@ -12,8 +12,10 @@
   ],
   "conditional_release_hour": 18,
   "target_thread_id": "01a080fe-af7a-7b32-a00f-740e2decff4b",
-  "prompt_sha256": "e1bc849c343d44fad732cc5f5f74f21cd9148bfcbab81cf4c0901db2eefedc4c",
+  "prompt_sha256": "42288b696303db46d51a7aee9fb099bacca4bb1c3375a09f35ae0264c3c39646",
   "actual_cli_connected": true,
   "next_scheduled_execution_observed": false,
-  "notes": "Tool update succeeded and saved TOML was read back. Prior18:00 heartbeat woke but skipped before implementation. This task manually exercises real scan/gates/release; future00:00 wake still requires its own result. No duplicate automation created."
+  "notes": "Tool update succeeded and saved TOML was read back. Prior18:00 heartbeat woke but skipped before implementation. This task manually exercises real scan/gates/release; future00:00 wake still requires its own result. No duplicate automation created. Updated same heartbeat via app tool to orchestrate actual async live semantic review before executor completion; current TOML readback verified.",
+  "previous_prompt_sha256": "e1bc849c343d44fad732cc5f5f74f21cd9148bfcbab81cf4c0901db2eefedc4c",
+  "actual_live_semantic_gate_connected": true
 }
