@@ -1,0 +1,21 @@
+{
+  "scan_first_new": 2,
+  "scan_second_new": 0,
+  "scan_latest_new": 1,
+  "total_feedback_records": 3,
+  "G6": "approved; exact original two",
+  "G7": "pending; newly discovered separately",
+  "missing_evidence_freeze": {
+    "exit_code": 1,
+    "reason": "generalization unverified: missing evidence"
+  },
+  "original_feedback_mutations": 0,
+  "release_attempted": false,
+  "read_only_executor_preflight": {
+    "first": "rejected Web pointer drift; no backend switch",
+    "latest": "passed exact base/diff; checkout override only for isolated preflight exercise",
+    "protected_web": "help-unread-32a43a17f6b47fed83f45c0bfb094aabaff8e0e6",
+    "verified_payload_bytes": true,
+    "release_attempted": false
+  }
+}

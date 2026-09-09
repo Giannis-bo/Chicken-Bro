@@ -1,0 +1,254 @@
+"""Verified-byte executor; normal work has 1350 seconds, recovery reserves 300."""
+import fcntl
+import hashlib
+import json
+import os
+import re
+import signal
+import stat
+import subprocess
+import sys
+import time
+import types
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.request import Request, urlopen
+
+ROOT = Path('/var/tmp/chickenbro-badcase-release-20260909')
+LIVE_BOSSES = frozenset((3470, 3445, 3455, 3497, 3420, 3421, 3429, 3492, 3379))
+
+
+class DeadlineExceeded(BaseException):
+    pass
+
+
+class Budget:
+    def __init__(self):
+        self.started = time.monotonic()
+        self.total_end = self.started + 1650
+        self.end = self.started + 1350
+
+    def remaining(self, cap=None):
+        value = self.end - time.monotonic()
+        if value <= 0:
+            raise DeadlineExceeded('executor deadline reached')
+        return min(value, cap) if cap is not None else value
+
+    def arm(self, recovery=False):
+        if recovery:
+            self.end = self.total_end
+        signal.signal(signal.SIGALRM, self.expired)
+        signal.setitimer(signal.ITIMER_REAL, self.remaining())
+
+    @staticmethod
+    def expired(*_):
+        raise DeadlineExceeded('executor deadline reached')
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def stamp():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def private_output(name, value):
+    path = ROOT / name
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, 'w') as handle:
+        os.fchmod(handle.fileno(), 0o600)
+        json.dump(value, handle, ensure_ascii=False)
+
+
+def verified_manifest(data):
+    """Private immutable-by-convention snapshot; helper never reads unpinned input."""
+    path = ROOT / 'manifest-verified.json'
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except FileExistsError:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, 'rb') as handle:
+            info = os.fstat(handle.fileno())
+            assert info.st_uid == 0 and stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and stat.S_IMODE(info.st_mode) == 0o600
+            assert handle.read() == data, 'existing verified manifest differs'
+    else:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    return path
+
+
+def load_deploy(data):
+    module = types.ModuleType('badcase_deploy_verified')
+    module.__file__ = str(ROOT / 'deploy.py')
+    exec(compile(data, module.__file__, 'exec'), module.__dict__)
+    return module
+
+
+def run_smoke(name, source, label, payload, budget):
+    # Execute precisely the already verified bytes, never reopening Python files.
+    output, error = ROOT / (label + '.jsonl'), ROOT / (label + '.stderr')
+    fds = [os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600) for path in (output, error)]
+    with os.fdopen(fds[0], 'wb') as out, os.fdopen(fds[1], 'wb') as err:
+        os.fchmod(out.fileno(), 0o600)
+        os.fchmod(err.fileno(), 0o600)
+        done = subprocess.run(['/opt/chickenbro-runtime/bin/python', '-', 'production', str(source)],
+                              input=payload[name], stdout=out, stderr=err, timeout=budget.remaining(1100))
+    if done.returncode:
+        raise RuntimeError('business smoke failed; private ' + label)
+    rows = [json.loads(line) for line in output.read_text().splitlines() if line.strip()]
+    if not rows or rows[-1].get('passed') is not True:
+        raise RuntimeError('business smoke has no pass evidence')
+    return rows[-1]
+
+
+def realm(value):
+    if isinstance(value, dict):
+        value = value.get('name')
+    return re.sub(r'[^\w]', '', str(value or '')).casefold()
+
+
+def matched_cast(row, facts):
+    code, fight = row['report']['code'], str(row['report']['fightID'])
+    same = [f for f in facts if f.get('reportCode') == code and str(f.get('fightId')) == fight]
+    actors = {str(p['id']) for f in same for p in f.get('players', [])
+              if 'id' in p and p.get('name', '').casefold() == row['name'].casefold()
+              and realm(p.get('server')) == realm(row['server']['name'])}
+    for fact in same:
+        source = str(fact.get('sourceId'))
+        if source not in actors:
+            continue
+        if any(isinstance(e.get('total'), (int, float)) and e['total'] > 0
+               for e in fact.get('casts', {}).get('entries', [])):
+            return True
+        if any(e.get('type') == 'cast' and str(e.get('sourceID')) == source for e in fact.get('events', [])):
+            return True
+    return False
+
+
+def validate_cases(result, release):
+    cases = result.get('cases', [])
+    assert len(cases) == 2 and {c['case'] for c in cases} == {'top10', 'top100'}
+    summaries = []
+    with release.connect() as conn:
+        for case in cases:
+            wanted = 10 if case['case'] == 'top10' else 100
+            assert type(case.get('seconds')) in (int, float) and 0 < case['seconds'] <= 480, 'completion deadline exceeded'
+            answer = case['answer']
+            assert len(answer) > 200 and re.search(r'https://www\.warcraftlogs\.com/reports/[A-Za-z0-9]{16}', answer)
+            run = conn.execute('SELECT status FROM chat.agent_runs WHERE id=%s', (case['runId'],)).fetchone()
+            assert run and run[0] == 'succeeded'
+            results = conn.execute("SELECT operation,result_json FROM chat.tool_results WHERE run_id=%s AND state='completed'", (case['runId'],)).fetchall()
+            ranks = [r for op, r in results if op == 'source.warcraftlogs_rankings' and r.get('rankings')]
+            reports = []
+            for operation, packet in results:
+                if operation not in ('source.warcraftlogs', 'source.warcraftlogs_batch'):
+                    continue
+                members = packet.get('results', []) if operation.endswith('_batch') else [packet]
+                reports.extend(r for r in members if r.get('status') == 'verified' and r.get('facts'))
+            facts = [f for r in reports for f in r['facts']]
+            by_boss = {boss: {} for boss in LIVE_BOSSES}
+            for packet in ranks:
+                scope = packet['scope']
+                assert (scope['zoneId'] == 53 and scope['difficulty'] == 4 and scope['className'] == 'Druid'
+                        and scope['specName'] == 'Feral' and scope['region'] == 'world' and scope['metric'] == 'dps'
+                        and scope['partitionName'] == '12.1' and scope['encounterId'] in LIVE_BOSSES), 'wrong leaderboard scope'
+                for row in packet['rankings']:
+                    if 1 <= row['rank'] <= wanted:
+                        existing = by_boss[scope['encounterId']].get(row['rank'])
+                        assert existing is None or existing == row, 'ranking snapshot changed within acceptance'
+                        by_boss[scope['encounterId']][row['rank']] = row
+            for boss, rows in by_boss.items():
+                assert set(rows) == set(range(1, wanted + 1)), 'incomplete requested ranking coverage: ' + str(boss)
+                assert any(matched_cast(row, facts) for row in rows.values()), 'missing matched boss cast evidence: ' + str(boss)
+            assert all(case['checks'][key] for key in ('terminal', 'history', 'ownerIsolation', 'idempotency', 'detached'))
+            summaries.append({'case': case['case'], 'runId': case['runId'], 'seconds': case['seconds'],
+                              'rankingPackets': len(ranks), 'verifiedReportPackets': len(reports),
+                              'bosses': sorted(by_boss), 'requestedRanksPerBoss': wanted,
+                              'bossesWithMatchedCasts': len(by_boss), 'answerSha256': hashlib.sha256(answer.encode()).hexdigest(),
+                              'semanticReview': 'automatic provenance/coverage checks; human review separately recorded'})
+    return summaries
+
+
+def web_verify(manifest, budget):
+    for name, expected in manifest['webFiles'].items():
+        with urlopen(Request('https://www.chickenbro.cloud/' + name, headers={'Accept-Encoding': 'identity', 'Cache-Control': 'no-cache'}), timeout=budget.remaining(20)) as response:
+            assert hashlib.sha256(response.read()).hexdigest() == expected, 'public Web bytes differ'
+    return len(manifest['webFiles'])
+
+
+def execute(envelope, mode, payload):
+    budget = Budget()
+    budget.arm()
+    deploy = load_deploy(payload['deploy.py'])
+    path = verified_manifest(payload['manifest.json'])
+    release = deploy.Release(path)
+    manifest = release.m
+    def checked_run(action):
+        assert path.read_bytes() == payload['manifest.json'], 'verified manifest drift'
+        budget.remaining()
+        return release.run(action)
+    identity = {'source_sha': manifest['sourceCommit'], 'baseline_sha': manifest['expectedBackend'].rsplit('-', 1)[-1],
+                'build_sha256': digest({**manifest['baseInventory'], **manifest['files']}),
+                'config_sha256': digest(manifest['environmentHashes']),
+                'diff_sha256': digest({'files': manifest['files'], 'baseHashes': manifest['baseHashes']})}
+    assert mode in ('preflight', 'release')
+    assert all(envelope['batch'][key] == value for key, value in identity.items()), 'batch/manifest identities differ'
+    with open('/run/lock/chickenbro-release.lock', 'a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            checked_run('preflight')
+            release.runtime()
+            if mode == 'preflight':
+                return {'batch_sha256': envelope['batch_sha256'], 'baseline_sha': identity['baseline_sha'], 'diff_sha256': identity['diff_sha256'], 'clean': True}
+            checked_run('promote')
+            cases = validate_cases(run_smoke('http-smoke.py', release.target, 'live-rankings', payload, budget), release)
+            general = run_smoke('general-smoke.py', release.target, 'live-general', payload, budget)
+            checked_run('verify')
+            count = web_verify(manifest, budget)
+            observation_start = time.monotonic()
+            for _ in range(4):
+                checked_run('verify')
+                with release.connect() as conn:
+                    stuck = conn.execute("SELECT count(*) FROM chat.executions WHERE stage IN ('pending','running') AND created_at<now()-interval '10 minutes'").fetchone()[0]
+                assert stuck == 0, 'stuck executions during observation'
+                time.sleep(min(10, budget.remaining()))
+            result = {'batch_sha256': envelope['batch_sha256'], **identity, 'status': 'passed', 'observed_at': stamp(),
+                      'checks': {key: True for key in ('real_chat_terminal', 'history_readback', 'affected_tools', 'owner_isolation', 'web_artifact_verified', 'drained_without_kill', 'api_worker_identity', 'observation_passed')},
+                      'details': {'cases': cases, 'general': {k: v for k, v in general.items() if k != 'cases'},
+                                  'publicWebFiles': count, 'observationSeconds': round(time.monotonic() - observation_start, 2),
+                                  'source': str(release.target), 'web': str(release.web)}}
+            private_output('live-evidence.json', result)
+            return result
+        except BaseException as failure:
+            if mode == 'preflight':
+                raise
+            recovery = {'status': 'failed', 'errorType': type(failure).__name__, 'observed_at': stamp()}
+            try:
+                budget.arm(recovery=True)
+                if release.link.resolve() == release.target:
+                    checked_run('rollback')
+                else:
+                    assert release.link.resolve() == release.base, 'foreign pointer prevents recovery'
+                recovery['business'] = run_smoke('general-smoke.py', release.base, 'recovery-general', payload, budget)
+                recovery['status'] = 'recovery_verified'
+            except BaseException as error:
+                recovery['recoveryErrorType'] = type(error).__name__
+            private_output('recovery-result.json', recovery)
+            raise RuntimeError('release did not pass; inspect private recovery result') from None
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+
+
+def main():
+    # This file is intentionally not a standalone trusted entry point.
+    payload = globals().get('VERIFIED_PAYLOAD')
+    assert payload is not None, 'verified local bootstrap required'
+    result = execute(globals()['REQUEST_ENVELOPE'], sys.argv[1], payload)
+    print(json.dumps(result, ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    main()

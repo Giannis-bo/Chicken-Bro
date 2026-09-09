@@ -1,0 +1,15 @@
+{
+  "backend": {
+    "tests": 549,
+    "passed": true,
+    "log_sha256": "ff1b9d530c10006873359abbb6e0bd73701a5f3b7d673ca7436fedfa5a150721"
+  },
+  "control": {
+    "tests": 63,
+    "passed": true,
+    "log_sha256": "2ac69fb61bffb21c7487f04edbb438e71568c9bb316266dd62290dbd3714423b"
+  },
+  "interpreter": "existing chickenbro-merge-check-venv-20260907; no install",
+  "source_server_tree": "141d50756534408397fdece5484643bb52fbc40f",
+  "runtime_source": "8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf"
+}

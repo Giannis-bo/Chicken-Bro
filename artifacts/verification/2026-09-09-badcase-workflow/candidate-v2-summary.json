@@ -1,0 +1,155 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+  "candidateDatabase": "chickenbro_badcase_candidate_20260909",
+  "httpCases": [
+    {
+      "case": "top10",
+      "runId": "ee1d6172-4d14-432d-8c7e-d5ffec5564b2",
+      "seconds": 410.56,
+      "rankingPackets": 18,
+      "verifiedReportPackets": 40,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 10,
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "49cad6e7df69c7ca3455443a6fdc66cd4f10cae347db392a1efb0ad872a201a2",
+      "semanticReview": "automatic provenance/coverage checks; human review separately recorded"
+    },
+    {
+      "case": "top100",
+      "runId": "80eddc7a-5b6b-40b6-9c7c-e401fe3beeca",
+      "seconds": 261.29,
+      "rankingPackets": 9,
+      "verifiedReportPackets": 18,
+      "bosses": [
+        3379,
+        3420,
+        3421,
+        3429,
+        3445,
+        3455,
+        3470,
+        3492,
+        3497
+      ],
+      "requestedRanksPerBoss": 100,
+      "bossesWithMatchedCasts": 9,
+      "answerSha256": "8bf1eec2eeddf8899b841fafb4ff88e50b2857dff0b1dc19f97a489fe8c56c21",
+      "semanticReview": "automatic provenance/coverage checks; human review separately recorded"
+    }
+  ],
+  "httpChecks": [
+    {
+      "case": "top10",
+      "seconds": 410.56,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      }
+    },
+    {
+      "case": "top100",
+      "seconds": 261.29,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      }
+    }
+  ],
+  "general": {
+    "mode": "candidate",
+    "source": "/opt/chickenbro-releases/badcase-8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "1631726f-3fa4-45cd-bb41-2ee85bb03846",
+    "jobId": "fe988ffa-af78-4459-8b6d-ac6cb4b47bcb",
+    "dps": 158775.9592784896,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "semanticReview": {
+    "status": "passed",
+    "review_type": "independent candidate HTTP answer semantics and provenance review",
+    "audit_receipt_sha256": "cccb6c8aaa086c13aa4762cb1768803014b0ff8d199794ea0746c44b38cd813f",
+    "source_sha": "8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+    "cases": [
+      {
+        "case": "top10",
+        "status": "passed",
+        "answerSha256": "49cad6e7df69c7ca3455443a6fdc66cd4f10cae347db392a1efb0ad872a201a2",
+        "duration_seconds": 410.56,
+        "rank_rows": 90,
+        "analyzed_samples": 19,
+        "bosses_with_matched_casts": 9,
+        "full_fight_event_samples": 7,
+        "notes": [
+          "Independently cross-checked all 9 scoped live heroic global Feral DPS leaderboards and complete requested ordinal ranges.",
+          "Cross-matched every claimed analyzed sample to ranked report/fight, character name, realm/region and actor-scoped cast/event facts.",
+          "Table counts and timing examples agree with the supplied facts and previously checked same-report observations.",
+          "Advice concerns observed skill allocation and cooldown sequencing; delayed cooldown causes, bleed-refresh quality and unexamined ranks are explicitly excluded.",
+          "Exactly 19 analyzed samples found: ranks 1 and 2 of all bosses plus rank 3 of encounter3470; exactly 7 full-fight event samples found, matching answer coverage.",
+          "Checked utility/spec-count caveat and the 271.150-second third Berserk evidence; no unsupported claim of a fixed optimal delay."
+        ]
+      },
+      {
+        "case": "top100",
+        "status": "passed",
+        "answerSha256": "8bf1eec2eeddf8899b841fafb4ff88e50b2857dff0b1dc19f97a489fe8c56c21",
+        "duration_seconds": 261.29,
+        "rank_rows": 900,
+        "analyzed_samples": 9,
+        "bosses_with_matched_casts": 9,
+        "full_fight_event_samples": 7,
+        "notes": [
+          "Independently cross-checked all 9 scoped live heroic global Feral DPS leaderboards and complete requested ordinal ranges.",
+          "Cross-matched every claimed analyzed sample to ranked report/fight, character name, realm/region and actor-scoped cast/event facts.",
+          "Table counts and timing examples agree with the supplied facts and previously checked same-report observations.",
+          "Advice concerns observed skill allocation and cooldown sequencing; delayed cooldown causes, bleed-refresh quality and unexamined ranks are explicitly excluded.",
+          "Exactly 9 rank-1 analyzed samples found, with 7 full-fight event samples and 2 complete initial40-second windows, matching answer coverage.",
+          "New utility statement supported by casts: Remove Corruption5, Rebirth1. Twin Fangs fourth Berserk369.089s and Convoke377.098s precede fight end383.184s; last-burst comparison is factual."
+        ]
+      }
+    ],
+    "limitations": [
+      "This is Candidate HTTP evidence, not production cutover or live user acceptance.",
+      "Review uses supplied immutable HTTP/PG tool-result receipt; it does not independently rerun network requests.",
+      "Image, positive-SimC and broader isolation checks are outside this semantic review and require their own evidence.",
+      "Only the explicitly analyzed samples and windows support rotation observations; no claim of all top-N cohort analysis or causal superiority."
+    ]
+  },
+  "initial_general_start": "port precheck failed before business; after verified release of sockets same-source rerun passed",
+  "rawAuditSha256": "cccb6c8aaa086c13aa4762cb1768803014b0ff8d199794ea0746c44b38cd813f",
+  "generalOutputSha256": "90157405f990c65f20c2f43bafbc2aa80c9c894d948b1f13ca654590dbcca4cb",
+  "status": "passed"
+}

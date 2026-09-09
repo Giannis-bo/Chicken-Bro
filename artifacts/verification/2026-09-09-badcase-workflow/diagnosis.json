@@ -1,0 +1,35 @@
+{
+  "group": "G6",
+  "feedbackCount": 2,
+  "runPrefixes": [
+    "9be483ad",
+    "e3c2ac3c"
+  ],
+  "verifiedRootCauses": [
+    "No official encounter leaderboard gateway/tool in current runtime",
+    "Original answer used PTR zone54 while live zone53 has records"
+  ],
+  "officialApiObservation": {
+    "liveZone": 53,
+    "partition": "12.1",
+    "difficulty": 4,
+    "class": "Druid",
+    "spec": "Feral",
+    "encounter": 3470,
+    "page1Rows": 100,
+    "ptrZone": 54,
+    "ptrPage1Rows": 0
+  },
+  "originalContext": "private packets; immutable user-visible history only before question",
+  "baseline": {
+    "top10Seconds": 66,
+    "outcome": "no_ranking_tool_no_analysis"
+  },
+  "acceptance": [
+    "Official live catalog and scoped rankings top10/top100 are queryable with provenance",
+    "Real model continues into actual ranked report/actor/cast evidence; corrects PTR error",
+    "No claim of full cohort analysis unless all requested samples actually examined",
+    "Original feedback not changed; private case status separate"
+  ],
+  "status": "candidate_verification_in_progress"
+}
