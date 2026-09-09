@@ -1,3 +1,4 @@
+import { createAdminClient, type AdminClient } from './admin'
 import { createAvatarClient, type AvatarClient } from './avatar'
 import { createChatClient, type ChatClient } from './chat'
 import { createSimcClient, type SimcClient } from './simc'
@@ -8,6 +9,7 @@ export interface WowApiClients {
   transport: ApiTransport
   chat: ChatClient
   simc: SimcClient
+  admin: AdminClient
   avatar: AvatarClient
   webAuth: WebAuthClient
 }
@@ -18,6 +20,7 @@ export function createWowApiClients(config: WowApiClientConfig = {}): WowApiClie
   const transport = createTaroTransport(config)
   return {
     transport,
+    admin: createAdminClient(transport),
     avatar: createAvatarClient(transport),
     chat: createChatClient(transport),
     simc: createSimcClient(transport),

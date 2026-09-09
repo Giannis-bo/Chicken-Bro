@@ -22,6 +22,7 @@ class AppSettings:
     web_csrf_cookie_name: str = "__Host-chickenbro-csrf"
     web_login_ttl_seconds: int = 300
     web_session_ttl_seconds: int = 604800
+    admin_user_id: str = ""
     qq_appid: str = ""
     qq_app_key: str = field(default="", repr=False)
     qq_redirect_uri: str = ""
@@ -43,6 +44,15 @@ class AppSettings:
         return self.web_cookie_name + "-qq-login"
 
     def __post_init__(self) -> None:
+        if self.admin_user_id:
+            from uuid import UUID
+            from server.app.identity.test_accounts import TEST_ACCOUNT_IDS
+            try:
+                administrator = UUID(self.admin_user_id)
+            except (ValueError, TypeError, AttributeError):
+                raise ValueError("Admin must be one canonical internal UUID") from None
+            if str(administrator) != self.admin_user_id or administrator in TEST_ACCOUNT_IDS.values():
+                raise ValueError("Admin must be one real QQ owner; test owners are forbidden")
         if self.qq_appid and re.fullmatch(r"[0-9]{1,32}", self.qq_appid) is None:
             raise ValueError("QQ appid must be numeric")
         if self.qq_redirect_uri or self.qq_appid or self.qq_app_key:
@@ -163,6 +173,7 @@ class AppSettings:
             web_csrf_cookie_name=web_csrf_cookie_name,
             web_login_ttl_seconds=web_login_ttl_seconds,
             web_session_ttl_seconds=web_session_ttl_seconds,
+            admin_user_id=env.get("WOW_ADMIN_USER_ID", "").strip(),
             qq_appid=env.get("WOW_QQ_APPID", "").strip(),
             qq_app_key=env.get("WOW_QQ_APP_KEY", "").strip(),
             qq_redirect_uri=env.get("WOW_QQ_REDIRECT_URI", "").strip(),

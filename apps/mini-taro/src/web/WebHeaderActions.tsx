@@ -11,7 +11,8 @@ import styles from './WebHeaderActions.module.scss'
 // Compare the exact public content so same-day edits count, unrelated builds do not.
 const helpRevisions = { faq: JSON.stringify(faqGroups), changelog: JSON.stringify(releases) }
 
-export default function WebHeaderActions({ accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar, themeId = 'horde', onSelectTheme, themeSaveFailed = false }: {
+export default function WebHeaderActions({ adminHref, accountLabel, onLogout, faqActive, faqHref, onFaq, avatarDataUrl, onRefreshAvatar, themeId = 'horde', onSelectTheme, themeSaveFailed = false }: {
+  adminHref?: string
   themeId?: WebThemeId
   onSelectTheme?: (id: WebThemeId) => void
   themeSaveFailed?: boolean
@@ -86,6 +87,7 @@ export default function WebHeaderActions({ accountLabel, onLogout, faqActive, fa
             <span className={styles['accountName']}>{accountLabel}</span>
             {onSelectTheme ? <button type="button" aria-label="修改主题" aria-haspopup="dialog" className={styles['themeAction']}
               onClick={() => { setAccountOpen(false); setThemeOpen(true) }}>修改主题 <span aria-hidden="true">◈</span></button> : null}
+            {adminHref ? <a className={styles['themeAction']} href={adminHref}>运营后台 <span aria-hidden="true">↗</span></a> : null}
             <button type="button" aria-label="退出登录" className={styles['logout']}
               onClick={() => { setAccountOpen(false); onLogout() }}>
               退出登录 <span aria-hidden="true">↗</span>

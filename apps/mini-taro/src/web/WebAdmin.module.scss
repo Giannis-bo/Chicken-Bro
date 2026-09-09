@@ -1,0 +1,59 @@
+.admin { min-height:100vh; background:#f5f6f8; color:#202731; color-scheme:light; font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif; }
+.admin * { box-sizing:border-box; }
+.admin button,.admin input { font:inherit; }
+.admin button { cursor:pointer; border:1px solid #dfe3e8; background:#fff; color:#374151; border-radius:8px; padding:8px 13px; }
+.admin button:disabled { cursor:wait; opacity:.5; }
+.admin button:hover { background:#f0f3f7; }
+.admin button[aria-pressed=true] { background:#263e35; border-color:#263e35; color:white; }
+.admin a { color:inherit; text-decoration:none; }
+.admin button:focus-visible,.admin a:focus-visible,.admin input:focus-visible { outline:3px solid #568b74; outline-offset:3px; }
+.header { min-height:76px; background:#fff; border-bottom:1px solid #e4e7eb; padding:18px 40px; display:flex; justify-content:space-between; align-items:center; gap:20px; }
+.brand { font-size:19px; font-weight:700; display:flex; align-items:center; gap:20px; }
+.brand span { font-size:13px; font-weight:400; color:#647069; border-left:1px solid #dfe3e8; padding-left:20px; }
+.account { display:flex; align-items:center; gap:20px; color:#647069; }
+.content { max-width:1360px; margin:auto; padding:36px 40px 64px; }
+.heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:26px; gap:16px; }
+.eyebrow { letter-spacing:2px; font-size:11px; color:#728078; margin:0 0 9px; }
+.heading h1 { font-size:30px; letter-spacing:-1px; margin:0 0 8px; }
+.heading p:not(.eyebrow) { color:#6b7280; margin:0; }
+.badge { font-size:12px; color:#47735f; background:#e6eee9; padding:6px 12px; border-radius:20px; white-space:nowrap; }
+.filters { display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap; border-top:1px solid #dfe3e8; padding:22px 0 16px; }
+.presets { display:flex; gap:6px; flex-wrap:wrap; }
+.dates { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.dates label { font-size:11px; color:#6b7280; display:flex; flex-direction:column; gap:4px; }
+.dates input { border:1px solid #dfe3e8; background:white; padding:6px 10px; border-radius:7px; color:#202731; min-width:142px; }
+.snapshot { display:flex; justify-content:space-between; color:#77808b; font-size:12px; margin:0 0 16px; gap:12px; flex-wrap:wrap; }
+.stats { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border:1px solid #e1e5e9; border-radius:12px; background:white; padding:22px 4px; margin-bottom:24px; }
+.stat { display:flex; flex-direction:column; padding:0 22px; min-width:0; }
+.stats .stat + .stat { border-left:1px solid #e8ebee; }
+.stat > span { color:#697380; font-size:12px; }
+.stat strong { font-size:32px; line-height:1.25; letter-spacing:-1px; font-weight:600; margin:10px 0; font-variant-numeric:tabular-nums; }
+.stat small { color:#89929c; font-size:11px; }
+.panel { background:#fff; border:1px solid #e1e5e9; border-radius:12px; padding:24px; margin-bottom:24px; min-width:0; }
+.panel h2 { font-size:17px; font-weight:600; margin:0 0 6px; }
+.panelTitle { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.panelTitle p { color:#89929c; font-size:12px; margin:0; }
+.chart { height:205px; margin:30px 0 30px; position:relative; padding:10px 0 0 35px; }
+.chartMax { position:absolute; top:0; left:0; font-size:11px; color:#929aa2; }
+.bars { display:flex; align-items:end; height:100%; gap:clamp(1px,1.5vw,20px); border-bottom:1px solid #dfe5e2; background:repeating-linear-gradient(to top,transparent 0,transparent 48px,#f0f2f4 49px,#f0f2f4 50px); }
+.barColumn { flex:1; min-width:0; height:100%; display:flex; align-items:center; justify-content:end; flex-direction:column; position:relative; }
+.bar { width:70%; max-width:58px; background:#668c7a; border-radius:4px 4px 0 0; min-height:1px; }
+.barColumn span { position:absolute; bottom:-24px; font-size:10px; color:#7b8590; white-space:nowrap; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.featureStats { display:grid; grid-template-columns:1fr 1fr; padding:20px 0; }
+.featureStats .stat { padding:0; }
+.metric { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0f2f5; gap:12px; }
+.metric dt { color:#6b7280; }.metric dd { margin:0; font-variant-numeric:tabular-nums; text-align:right; }
+.footnote { color:#89929c; font-size:12px; line-height:1.8; margin:14px 0 0; }
+.details { border-top:1px solid #edf0f2; padding-top:15px; }.details summary { color:#65786e; cursor:pointer; font-size:12px; }
+.tableWrap { overflow:auto; max-height:420px; margin-top:16px; }
+.admin table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:13px; }
+.admin th { text-align:left; font-size:12px; font-weight:500; color:#78818b; background:#f6f8f9; position:sticky; top:0; }
+.admin td,.admin th { padding:11px 16px; border-bottom:1px solid #edf0f2; white-space:nowrap; }
+.admin td:nth-child(n+3),.admin th:nth-child(n+3) { text-align:right; }
+.method { color:#7b8590; font-size:12px; line-height:1.8; }.method strong { color:#5d6670; font-weight:500; }.method p { margin:6px 0; }
+.notice { background:#fff9e9; border:1px solid #edddb3; border-radius:10px; padding:16px; margin:16px 0; }.notice button { margin-left:20px; }
+.denied { background:white; border:1px solid #e1e5e9; border-radius:12px; padding:40px; }.denied h2 { font-size:20px; }.denied p { color:#77808b; }.denied code { display:block; margin:18px 0; overflow-wrap:anywhere; }
+.empty { text-align:center; padding:30px; color:#8b949e; }
+@media(max-width:900px) { .content { padding:24px 20px; }.header { padding:16px 20px; }.stats { grid-template-columns:repeat(3,1fr); gap:24px 0; }.stats .stat:nth-child(4) { border-left:0; }.grid { grid-template-columns:1fr; gap:0; }.stat strong { font-size:27px; } }
+@media(max-width:560px) { .header { flex-direction:column; align-items:start; gap:12px; }.account { width:100%; justify-content:space-between; font-size:12px; }.heading { align-items:start; }.heading h1 { font-size:26px; }.badge { font-size:10px; padding:5px 7px; }.stats { grid-template-columns:repeat(2,1fr); }.stats .stat:nth-child(4) { border-left:1px solid #e8ebee; }.stats .stat:nth-child(odd) { border-left:0; }.panel { padding:18px; }.dates { gap:6px; }.barColumn span { font-size:8px; }.stat { padding:0 16px; } }

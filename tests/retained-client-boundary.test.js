@@ -91,6 +91,7 @@ test('the root workspace and CI expose only retained product workflows', () => {
     'test:ops',
     'harness',
     'test:chat-images',
+    'test:admin:postgres',
   ])
   for (const removedTool of ['@babel/parser', '@babel/traverse', 'miniprogram-automator', 'playwright-core']) {
     assert.equal(workspace.devDependencies[removedTool], undefined)

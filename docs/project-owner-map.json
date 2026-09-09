@@ -15,7 +15,8 @@
     ],
     "webRoutes": [
       "/",
-      "/simc"
+      "/simc",
+      "/admin"
     ],
     "miniPages": [],
     "tabs": []
@@ -183,6 +184,28 @@
         "artifacts/releases/2026-09-02-chickenbro-simc-*/**",
         "scripts/project-harness.js",
         "scripts/*chickenbro-simc*"
+      ]
+    },
+    {
+      "id": "admin_analytics",
+      "status": "active",
+      "factOwner": "server/app/admin/application.py",
+      "writeOwner": "server/app/admin/repository.py",
+      "runtimeSurfaces": [
+        "server/app/api/routes/admin.py",
+        "apps/mini-taro/src/web/WebAdmin.tsx"
+      ],
+      "characterization": [
+        "tests/app_admin_test.py",
+        "tests/app_admin_postgres_test.py",
+        "apps/mini-taro/src/web/web-admin.test.tsx"
+      ],
+      "changedPathPatterns": [
+        "server/app/admin/**",
+        "server/app/api/routes/admin.py",
+        "packages/api-client/src/admin.ts",
+        "packages/domain/src/admin.ts",
+        "apps/mini-taro/src/web/WebAdmin*"
       ]
     }
   ]

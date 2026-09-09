@@ -8,7 +8,10 @@ from server.app.api.routes.simc import router as simc_router
 from server.app.api.routes.source_gateway import router as source_gateway_router
 
 
+from server.app.api.routes.admin import router as admin_router
+
 router = APIRouter()
+router.include_router(admin_router)
 router.include_router(simulation_tools_router)
 router.include_router(health_router)
 router.include_router(auth_router)

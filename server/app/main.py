@@ -27,6 +27,8 @@ from server.app.identity.audit import AuthAuditSink, NullAuthAuditSink
 from server.app.identity.repository import PostgresIdentityRepository
 from server.app.integrations.qq_connect import QqConnectClient
 from server.app.identity.qq_application import QqAuthApplication
+from server.app.admin.application import AdminApplication
+from server.app.admin.repository import PostgresAnalyticsRepository
 from server.app.platform.config import AppSettings
 from server.app.platform.health import ReadinessRegistry, default_readiness_registry
 from server.app.platform.postgres import PostgresConnectionFactory
@@ -63,6 +65,7 @@ def create_app(
     simulation_application: SimulationApplication | None = None,
     auth_audit_sink: AuthAuditSink | None = None,
     readiness_environment: Mapping[str, str] | None = None,
+    admin_application: AdminApplication | None = None,
 ) -> FastAPI:
     access_logger = logging.getLogger('uvicorn.access')
     if not any(isinstance(item, QqCallbackAccessFilter) for item in access_logger.filters):
@@ -115,6 +118,8 @@ def create_app(
                 source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
             ),
         )
+    app.state.admin_application = admin_application or AdminApplication(
+        repository=PostgresAnalyticsRepository((postgres_factory or PostgresConnectionFactory(settings)).connection), settings=settings)
     app.state.web_auth_application = web_auth_application
     app.state.auth_audit_sink = (
         repository
@@ -147,6 +152,9 @@ def create_app(
             response.headers['Referrer-Policy'] = 'no-referrer'
         else:
             response = await call_next(request)
+        if path.startswith('/api/v2/admin/'):
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['Vary'] = 'Cookie'
         response.headers["X-Request-Id"] = request_id
         return response
 

@@ -39,3 +39,9 @@ PostgreSQL 当前 schema 为 `identity`、`chat`、`simc`、`ops`。所有用户
 历史 migration 不改写，旧微信 schema 只作为已应用迁移与恢复兼容结构保留；本轮数据清理以精确清单及新恢复证据执行，不与 QQ 数据合并。
 
 当前职责与检查入口见[项目 owners](project-owner-map.json)、[后端 owners](backend-owner-map.json)和[验证矩阵](verification-matrix.md)。[旧双端架构](chickenbro-simc-architecture-pre-mini-retirement.md)仅供追溯。
+
+## 运营统计后台
+
+`/admin` 是只读运营页面；`server/app/admin/application.py` 管理唯一管理员和北京时间查询范围，`repository.py` 在只读快照事务中聚合当前 QQ 用户的 Chat/SimC。`WOW_ADMIN_USER_ID` 只能配置一个经真实 QQ 会话核验的内部 UUID，空值拒绝所有人，固定测试账号及已知模拟身份不得成为管理员。每次统计请求检查 Web session 和服务端权限并记录审计，响应禁止缓存。`/admin/access` 只返回当前账号自己的核验标识和权限。
+
+累计用户截至所选结束日，活跃用户以提问/模拟提交去重；成功率不含进行中或取消，SimC 缺少有效指标/来源的成功状态单列异常并计入失败分母；反馈和任务状态是查询时的当前值。统计排除已知验收模拟身份，不包含页面访问量或推算费用。

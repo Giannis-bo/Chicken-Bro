@@ -3,7 +3,8 @@ import { isTestLoginEnabled } from '../features/auth/test-login-mode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readWebCsrfCookie, wowApi, type ApiResult, type ClientAuthContext, type WebAuthClient } from '@wow-mini/api-client'
 import { isMeResponse, isQqLoginCreated, type MeResponse } from '@wow-mini/domain'
-import { normalizeWebUrl } from './web-routing'
+import WebAdmin from './WebAdmin'
+import { normalizeWebUrl, readWebView, webViewHref } from './web-routing'
 import WebShell from './WebShell'
 import WebLoginHome from './WebLoginHome'
 import { readAndClearLoginError } from './web-auth-model'
@@ -38,6 +39,12 @@ export default function WebApp({ authClient = wowApi.webAuth, navigateToProvider
     if (!result.fromFallback && isMeResponse(result.payload)) {
       try {
         const csrfToken = readWebCsrfCookie()
+        try {
+          if (window.sessionStorage.getItem('chickenbro-admin-return') === '1') {
+            window.sessionStorage.removeItem('chickenbro-admin-return')
+            window.history.replaceState(window.history.state, '', webViewHref('admin'))
+          }
+        } catch { /* Storage may be unavailable. */ }
         setAccount(result.payload); setAuthContext({ kind: 'web', csrfToken }); setErrorMessage(''); setPhase('authenticated'); return true
       } catch (error) {
         const code = error instanceof Error ? error.message : 'WEB_CSRF_COOKIE_INVALID'
@@ -68,6 +75,7 @@ export default function WebApp({ authClient = wowApi.webAuth, navigateToProvider
     if (result.fromFallback || !isQqLoginCreated(result.payload)) {
       setErrorMessage(publicProblem(result, 'QQ 登录入口暂不可用，请稍后重试')); setPhase('blocked'); return
     }
+    try { if (readWebView() === 'admin') window.sessionStorage.setItem('chickenbro-admin-return', '1') } catch { /* Navigation remains available manually. */ }
     navigateToProvider(result.payload.authorizationUrl)
   }
   const logout = async () => {
@@ -78,6 +86,7 @@ export default function WebApp({ authClient = wowApi.webAuth, navigateToProvider
     if (result.fromFallback) { setErrorMessage(publicProblem(result, '退出登录失败，请稍后重试')); setPhase('blocked'); return }
     setAccount(null); setAuthContext(null); setPhase('signed_out')
   }
+  if (phase === 'authenticated' && account && authContext && readWebView() === 'admin') return <WebAdmin auth={authContext} accountLabel={account.displayName || 'QQ 账号'} onLogout={() => void logout()} />
   if (phase === 'authenticated' && account && authContext) return <WebShell accountLabel={account.displayName || 'QQ 账号'} {...(account.avatarUrl ? { avatarUrl: account.avatarUrl } : {})} auth={authContext} onLogout={() => void logout()} />
   if (isTestLoginEnabled() && phase !== 'checking') return <TestLoginForm onLogin={async (testAccount, credential) => {
     const result = await authClient.loginTestWeb(testAccount, credential)
