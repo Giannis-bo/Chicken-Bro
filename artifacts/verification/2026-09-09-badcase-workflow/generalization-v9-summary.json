@@ -1,0 +1,520 @@
+{
+  "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "c7ee6f58d03ca8925e3aa8bd811a86cd3f58e4458c612a6e5e8fc8772979fdac",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "debe49010a24408cef110b6414e77b0fe203154e9ec0dfff6a78e079773d9ea2",
+  "observed_at": "2026-09-09T16:47:18.927031Z",
+  "status": "passed",
+  "harness": "actual-http-suite-v1",
+  "conditions_sha256": "fc0583af7f82f244ad28344c6d2ed545be4b7ab797a9e810d911bc5dfb138d64",
+  "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+  "gate_sha256": "76f8ebdf78a3fd3f653c5e16091b1d413e65582868356ff3b5af0b4d91158505",
+  "baseline_research": "8 acquisition/analysis failures preserved; completion passed",
+  "baseline_controls": "normal and permission each2/2 passed",
+  "candidate": "12/12 passed all fixed criteria",
+  "trials": [
+    {
+      "trial_id": "baseline-v9.holdout.1.b699c49b35fcef14",
+      "observed_at": "2026-09-09T16:21:57.584386Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "48f8c593f2bf33a342f3ae4aa7ec1262a05de06c3081d88ca1d409e32ade438c",
+      "evidence_sha256": "b618d99e09a40b6d7af7a69a7c0c5c4027657c1c731455d8cca24b9eec888c93",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 82.479692,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.holdout.2.9b71e945f683c2d5",
+      "observed_at": "2026-09-09T16:21:18.357522Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "48f8c593f2bf33a342f3ae4aa7ec1262a05de06c3081d88ca1d409e32ade438c",
+      "evidence_sha256": "805f93c24af6ec3858a623d84366fb1f040a4003745aa17ea142ffa14a3c3018",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 66.587023,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.holdout.1.37adbeaf1328bef1",
+      "observed_at": "2026-09-09T16:40:07.932905Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "48f8c593f2bf33a342f3ae4aa7ec1262a05de06c3081d88ca1d409e32ade438c",
+      "evidence_sha256": "6c12a4b476df0fe9f54fa5e70877a46bd23f553970a6bcae56889f06a2182700",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 189.147924,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 14
+      }
+    },
+    {
+      "trial_id": "candidate-v9.holdout.2.57ecf68bb4d29fd5",
+      "observed_at": "2026-09-09T16:36:42.634423Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "48f8c593f2bf33a342f3ae4aa7ec1262a05de06c3081d88ca1d409e32ade438c",
+      "evidence_sha256": "c2c76b8b7113aa11ff0f3c95390d53196345da14fc49458e63819ac42120e8e7",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 200.901692,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 15
+      }
+    },
+    {
+      "trial_id": "baseline-v9.normal.1.b9551b5a9b1b6cb2",
+      "observed_at": "2026-09-09T16:22:11.305915Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "evidence_sha256": "7ff23a67740d5592838c7d2a0c487c8aab8f2d842bdbba156ddad0346a0fa4e5",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 12.726344,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.normal.2.b5f8c2505154d744",
+      "observed_at": "2026-09-09T16:21:34.231098Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "evidence_sha256": "db587bf382b715f7f09ce23c4029fa6712b944c54112c0901159a12955d6102d",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 14.345592,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.normal.1.edabe27cb231e910",
+      "observed_at": "2026-09-09T16:40:29.489369Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "evidence_sha256": "3b73aba4a980397e6713b7d8f68e5684cffa663df1d40d04bee65691c38706b5",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 19.862801,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.normal.2.58ae20c102583991",
+      "observed_at": "2026-09-09T16:37:05.011540Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "eb4d89bcd2dca71619a35e5b45e2a5039801ecc87ecb4b5607eac1d63e9325d7",
+      "evidence_sha256": "714b549d2d9d40e6191924e88710bddaee5e54d4a2a8ed8ad5288b897c7cf6c6",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "normal": "passed"
+      },
+      "duration_seconds": 20.578803,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.original10.1.7ccb9200b1535972",
+      "observed_at": "2026-09-09T16:18:40.038350Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "evidence_sha256": "4044cb14711d058e26010e2c649f7bfe3c15f7ef8168dcf53b8cf8b5dbaad13b",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 37.486056,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.original10.2.c765caa8cd556241",
+      "observed_at": "2026-09-09T16:18:34.331744Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "evidence_sha256": "fc965b3dd0f6bad36479efbb49c192ae633ebac87f85a397d7ba988b8215700e",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 31.761325,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.original10.1.2aa2a50573efbdb4",
+      "observed_at": "2026-09-09T16:30:10.201595Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "evidence_sha256": "cef16eff4b98f3e2a7777c2a3c6e69a6c39bfcaba5cc95b3ba731df14cb952d2",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 465.558401,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 68
+      }
+    },
+    {
+      "trial_id": "candidate-v9.original10.2.3767efdfe8ce3db6",
+      "observed_at": "2026-09-09T16:26:05.400237Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "95c8440383c21433bb9fb080e4f97f90c3dfc9efb1464f403d79b82e9f593f70",
+      "evidence_sha256": "b4a037e514723c49d5499d67c42bd774c79d409bba98ba9d8307954687faa811",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 219.699327,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 25
+      }
+    },
+    {
+      "trial_id": "baseline-v9.original100.1.f916264fbfe6e34d",
+      "observed_at": "2026-09-09T16:19:25.738953Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "evidence_sha256": "56fbc0b5162b39f97247e487d33e63d3bbb276229465e1fc08c6dd711b52b902",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 44.532484,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.original100.2.0d17af785c965004",
+      "observed_at": "2026-09-09T16:19:13.686614Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "evidence_sha256": "192e4fa979bd532020ce4af11039f6c482edfc05baf77059dce08b0d59c9f877",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 37.19155,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.original100.1.af79388694bd8d2f",
+      "observed_at": "2026-09-09T16:33:58.889916Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "evidence_sha256": "d1a6920a48213362fda12017b03069da7c61b184a0004c00206a6cea63f0a38c",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 226.433854,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 23
+      }
+    },
+    {
+      "trial_id": "candidate-v9.original100.2.c9b415081bd35831",
+      "observed_at": "2026-09-09T16:30:12.981034Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "4b87126499371a39a37dcc5a3496af2bca5c0a743c5f3c2908c0191ecb4f030e",
+      "evidence_sha256": "ddb150166c8da2d3a8f9d160ca1d49aaf8e4a42b89a57d63a79e06e42d00f37e",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 245.985406,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 29
+      }
+    },
+    {
+      "trial_id": "baseline-v9.permission.1.4742c47248b142e3",
+      "observed_at": "2026-09-09T16:22:21.328594Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "evidence_sha256": "838ef214b58de84fc1f3450b48c2ae9fc32f0048d17204b9144ee0ef2aae475b",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 8.796202,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.permission.2.90462812dfbc5f7e",
+      "observed_at": "2026-09-09T16:21:42.829664Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "evidence_sha256": "e2d06846928ab47e32a336431a05bf652e51253526ffcf4c395e67aa9242a699",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 6.834816,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.permission.1.46aa0bb0e3dbad17",
+      "observed_at": "2026-09-09T16:40:39.312283Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "evidence_sha256": "d666ec70f8688c26ba62a53b9a53716084ac4369688dac879c3918b963024d31",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 8.51712,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.permission.2.a74e7cf167643fb5",
+      "observed_at": "2026-09-09T16:37:13.743573Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "4b4220004cfdd8f7d31c6da83db9d85507dfa8c9f7f317673e05e61fefc6f4a4",
+      "evidence_sha256": "9eb6059370b2206221911e736ac21cd86cedbfa4226c468651edfe903150e83d",
+      "outcome": "passed",
+      "criteria": {
+        "completion": "passed",
+        "permission": "passed"
+      },
+      "duration_seconds": 6.993869,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.variant.1.17a90c6823d51c9d",
+      "observed_at": "2026-09-09T16:20:33.982671Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "evidence_sha256": "93c43d6eebdbcb94cb566aacce3425aa4201ffc65d37e82e235d16977be51a62",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 67.116076,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "baseline-v9.variant.2.aaba49e54866fcf9",
+      "observed_at": "2026-09-09T16:20:10.241513Z",
+      "source_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "evidence_sha256": "e186eb8e33e3b00513aec69c95a67eb8791f2395f420208d224610c95d94209e",
+      "outcome": "failed",
+      "criteria": {
+        "acquisition": "failed",
+        "analysis": "failed",
+        "completion": "passed"
+      },
+      "duration_seconds": 55.439087,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 0
+      }
+    },
+    {
+      "trial_id": "candidate-v9.variant.1.322cebb4ba888b42",
+      "observed_at": "2026-09-09T16:36:57.635489Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "evidence_sha256": "759db6a12fdbea764531399ec4b009d2521ada1259f36ea1176b2b2a20927d8c",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 176.739196,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 17
+      }
+    },
+    {
+      "trial_id": "candidate-v9.variant.2.c15fb8e490303ae2",
+      "observed_at": "2026-09-09T16:33:20.082387Z",
+      "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+      "input_sha256": "a3c400f45927660f9bb18eaadf71e1c4dbe1c0fed726119c4f13dcc013f0802c",
+      "evidence_sha256": "79c9ccc259c4b52a8b7bd24bf98b55621539f4b1864debd681a9e85ad7ad71f9",
+      "outcome": "passed",
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "duration_seconds": 184.848349,
+      "cost": {
+        "counter_scope": "source_gateway_only",
+        "provider_cost": null,
+        "provider_cost_unit": null,
+        "provider_tokens": null,
+        "tool_calls": 17
+      }
+    }
+  ],
+  "limits": [
+    "Complete leaderboard coverage and evidence-supported per-boss samples; not all topN logs analyzed.",
+    "Some answers use ambiguous Chinese wording for the opening window, clarified by positive post-pull times and surrounding explanation; wording limitation retained by reviewers.",
+    "Before/after use identical real HTTP harness and product permissions; older native suites are different historical conditions.",
+    "No claim of Candidate general business, production or recovery acceptance from this gate."
+  ]
+}
