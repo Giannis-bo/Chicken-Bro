@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+  "rootCause": "QQ returns official avatar URLs with http; HTTPS-only validation dropped them.",
+  "fix": "Upgrade only exact allowlisted QQ avatar hosts to HTTPS; reject untrusted hosts, userinfo and fragments.",
+  "regression": "new real-format regression failed before fix; all 471 backend tests passed after",
+  "candidateImage": {
+    "loaded": true,
+    "scheme": "https",
+    "host": "thirdqq.qlogo.cn",
+    "naturalWidth": 100
+  },
+  "productionImage": {
+    "loaded": true,
+    "scheme": "https",
+    "host": "thirdqq.qlogo.cn",
+    "naturalWidth": 100
+  },
+  "webBuild": "unchanged",
+  "oldAccountRefresh": "current production QQ account reauthorized successfully; profile now contains avatar",
+  "previousApiSource": "qq-7a893c383d09f1a3a46e2d5cea66309bf7a74cff"
+}

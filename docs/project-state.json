@@ -236,7 +236,12 @@
       "https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
       "https://www.chickenbro.cloud/api/v2/auth/qq/callback"
     ],
-    "manualUserAcceptance": "not_claimed"
+    "manualUserAcceptance": "not_claimed",
+    "avatarFix": {
+      "status": "live_verified",
+      "sourceCommit": "a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+      "evidence": "artifacts/verification/2026-09-09-qq-web/deployment/avatar-fix.json"
+    }
   },
   "incrementalWork": {
     "chatImages": {
