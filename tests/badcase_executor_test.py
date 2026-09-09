@@ -51,6 +51,54 @@ class ExecutorTest(unittest.TestCase):
         conn.execute.side_effect = execute
         return {'cases': cases}, release, results
 
+    def semantic_fixture(self):
+        identity = {'source_sha': 'a' * 40, 'baseline_sha': 'b' * 40,
+                    'build_sha256': 'c' * 64, 'config_sha256': 'd' * 64, 'diff_sha256': 'e' * 64}
+        cases = [{'case': name, 'runId': name + '-unique', 'answerSha256': name[0] * 64}
+                 for name in ('top10', 'top100')]
+        record = {**identity, 'batch_sha256': 'f' * 64, 'status': 'passed',
+                  'observed_at': remote.stamp(), 'reviewer': 'independent semantic reviewer',
+                  'cases': [{**case, 'criteria': {k: 'passed' for k in ('acquisition', 'analysis', 'completion')},
+                             'notes': 'Reviewed actual answer against actual ranking and cast receipts.'} for case in cases]}
+        return identity, cases, record
+
+    def test_live_semantic_review_requires_exact_runtime_runs_and_answers(self):
+        identity, cases, record = self.semantic_fixture()
+        self.assertEqual(remote.validate_semantic_review(record, identity, cases, 'f' * 64), remote.digest(record))
+        for field in ('source_sha', 'batch_sha256', 'build_sha256'):
+            bad = copy.deepcopy(record); bad[field] = 'wrong'
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                remote.validate_semantic_review(bad, identity, cases, 'f' * 64)
+        for field in ('runId', 'answerSha256'):
+            bad = copy.deepcopy(record); bad['cases'][0][field] = 'other'
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                remote.validate_semantic_review(bad, identity, cases, 'f' * 64)
+
+    def test_live_semantic_failure_missing_case_stale_or_empty_review_blocks(self):
+        identity, cases, record = self.semantic_fixture()
+        invalid = []
+        for key, value in (('status','failed'), ('observed_at','2000-01-01T00:00:00+00:00'), ('reviewer','')):
+            bad=copy.deepcopy(record);bad[key]=value;invalid.append(bad)
+        bad=copy.deepcopy(record);bad['cases'].pop();invalid.append(bad)
+        bad=copy.deepcopy(record);bad['cases'][0]['criteria']['analysis']='failed';invalid.append(bad)
+        bad=copy.deepcopy(record);bad['cases'][0]['notes']='';invalid.append(bad)
+        bad=copy.deepcopy(record);bad['cases'][1]=copy.deepcopy(bad['cases'][0]);invalid.append(bad)
+        for bad in invalid:
+            with self.subTest(record=bad), self.assertRaises(AssertionError):
+                remote.validate_semantic_review(bad, identity, cases, 'f' * 64)
+
+    def test_missing_live_semantic_review_is_bounded_failure(self):
+        identity, cases, _ = self.semantic_fixture()
+        budget = Mock(); budget.remaining.return_value = 500
+        with patch.object(remote, 'private_output') as request, \
+             patch.object(remote.os, 'open', side_effect=FileNotFoundError), \
+             patch.object(remote.time, 'monotonic', side_effect=[0, 241]), \
+             patch.object(remote.time, 'sleep') as sleep:
+            with self.assertRaisesRegex(AssertionError, 'semantic review missing'):
+                remote.await_semantic_review(identity, cases, 'f' * 64, budget)
+            request.assert_called_once()
+            sleep.assert_not_called()
+
     def test_all_nine_boss_rank_coverage_and_casts_pass(self):
         result, release, _ = self.fixture()
         checked = remote.validate_cases(result, release)

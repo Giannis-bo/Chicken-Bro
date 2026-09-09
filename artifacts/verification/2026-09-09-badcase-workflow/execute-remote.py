@@ -180,6 +180,55 @@ def validate_cases(result, release):
     return summaries
 
 
+def validate_semantic_review(record, identity, cases, batch_sha):
+    """Bind the independent review to the actual live answer bytes and runs."""
+    assert isinstance(record, dict) and record.get('status') == 'passed', 'live semantic review failed'
+    assert all(record.get(k) == v for k, v in identity.items()), 'semantic runtime differs'
+    assert record.get('batch_sha256') == batch_sha, 'semantic batch differs'
+    assert isinstance(record.get('reviewer'), str) and 0 < len(record['reviewer'].strip()) <= 500
+    try:
+        observed = datetime.fromisoformat(record['observed_at'])
+        assert observed.tzinfo is not None
+        age = (datetime.now(timezone.utc) - observed).total_seconds()
+        assert -30 <= age <= 600, 'semantic review stale'
+    except (KeyError, TypeError, ValueError):
+        raise AssertionError('semantic review timestamp invalid') from None
+    rows = record.get('cases')
+    assert isinstance(rows, list) and len(rows) == len(cases) == 2, 'semantic cases missing'
+    assert all(isinstance(r, dict) for r in rows)
+    assert {r.get('case') for r in rows} == {c['case'] for c in cases}, 'semantic cases differ'
+    for case in cases:
+        reviewed = next(r for r in rows if r['case'] == case['case'])
+        assert all(reviewed.get(k) == case[k] for k in ('runId', 'answerSha256')), 'semantic answer differs'
+        criteria = reviewed.get('criteria')
+        assert isinstance(criteria, dict) and all(criteria.get(k) == 'passed' for k in ('acquisition', 'analysis', 'completion')), 'semantic criterion failed'
+        assert isinstance(reviewed.get('notes'), str) and 0 < len(reviewed['notes'].strip()) <= 16000, 'semantic reasoning missing'
+    return digest(record)
+
+
+def await_semantic_review(identity, cases, batch_sha, budget):
+    # An orchestrating reviewer writes an atomic root-owned0600 record only after
+    # inspecting these actual live receipts. No record or a negative verdict is
+    # a release failure, traversing the same bounded recovery path.
+    private_output('semantic-review-request.json', {**identity, 'batch_sha256': batch_sha,
+                   'cases': cases, 'requested_at': stamp()})
+    end = time.monotonic() + min(240, budget.remaining())
+    while True:
+        try:
+            fd = os.open(ROOT / 'live-semantic-review.json', os.O_RDONLY | os.O_NOFOLLOW)
+        except FileNotFoundError:
+            assert time.monotonic() < end, 'live semantic review missing'
+            time.sleep(min(2, budget.remaining(), max(0.01, end - time.monotonic())))
+            continue
+        with os.fdopen(fd, 'rb') as handle:
+            info = os.fstat(handle.fileno())
+            assert info.st_uid == 0 and stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and stat.S_IMODE(info.st_mode) == 0o600
+            raw = handle.read(65537)
+        assert len(raw) <= 65536, 'semantic review oversized'
+        record = json.loads(raw)
+        return validate_semantic_review(record, identity, cases, batch_sha)
+
+
 def web_verify(manifest, budget):
     for name, expected in manifest['webFiles'].items():
         with urlopen(Request('https://www.chickenbro.cloud/' + name, headers={'Accept-Encoding': 'identity', 'Cache-Control': 'no-cache'}), timeout=budget.remaining(20)) as response:
@@ -242,6 +291,8 @@ def execute(envelope, mode, payload):
             checked_run('verify')
             stage = 'web_verify'
             count = web_verify(manifest, budget)
+            stage = 'semantic_review'
+            semantic_sha = await_semantic_review(identity, cases, envelope['batch_sha256'], budget)
             stage = 'observation'
             observation_start = time.monotonic()
             for _ in range(4):
@@ -253,7 +304,7 @@ def execute(envelope, mode, payload):
             result = {'batch_sha256': envelope['batch_sha256'], **identity, 'status': 'passed', 'observed_at': stamp(),
                       'checks': {key: True for key in ('real_chat_terminal', 'history_readback', 'affected_tools', 'owner_isolation', 'web_artifact_verified', 'drained_without_kill', 'api_worker_identity', 'observation_passed')},
                       'details': {'cases': cases, 'general': {k: v for k, v in general.items() if k != 'cases'},
-                                  'publicWebFiles': count, 'observationSeconds': round(time.monotonic() - observation_start, 2),
+                                  'semanticReviewSha256': semantic_sha, 'publicWebFiles': count, 'observationSeconds': round(time.monotonic() - observation_start, 2),
                                   'source': str(release.target), 'web': str(release.web)}}
             stage = 'evidence_write'
             private_output('live-evidence.json', result)

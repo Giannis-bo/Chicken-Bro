@@ -33,6 +33,11 @@ def answer():
     return transcript(item('item/started'), delta('answer'), item('item/completed', 'answer'))
 
 
+def replacement(old, new):
+    text = json.dumps({'replacements': [{'old': old, 'new': new}]}, ensure_ascii=False)
+    return transcript(item('item/started'), delta(text), item('item/completed', text))
+
+
 class TrackingInput(io.BytesIO):
     def close(self):
         self.written = self.getvalue()
@@ -66,13 +71,46 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_repair_patch_applies_original_positions_without_touching_other_text(self):
+        from server.app.chickenbro.codex_adapter import _apply_repair_patch
+        draft = 'prefix old-one middle old-two suffix'
+        patch_text = json.dumps({'replacements': [{'old': 'old-one', 'new': 'a much longer replacement'},
+                                                 {'old': 'old-two', 'new': 'short'}]})
+        self.assertEqual(_apply_repair_patch(draft, patch_text), 'prefix a much longer replacement middle short suffix')
+        self.assertEqual(_apply_repair_patch('A B', json.dumps({'replacements': [
+            {'old': 'A', 'new': 'B'}, {'old': 'B', 'new': 'C'}]})), 'B C')
+
+    def test_repair_patch_schema_ambiguity_overlap_and_size_fail_closed(self):
+        from server.app.chickenbro.codex_adapter import _apply_repair_patch
+        cases = [([], '{}'), ('abc', 'not json'), ('abc', '[]'), ('abc', '{"replacements":[]}'),
+                 ('abc', '{"replacements":[],"answer":"abc"}'),
+                 ('abc', '{"replacements":[],"replacements":[]}'),
+                 ('abc', '{"replacements":[{"old":"a","old":"b","new":"x"}]}'),
+                 ('abc', '{"replacements":[{"old":"a","new":"b","extra":1}]}'),
+                 ('abc', '{"replacements":[{"old":"","new":"b"}]}'),
+                 ('abc', '{"replacements":[{"old":"a","new":3}]}'),
+                 ('abc', '{"replacements":[{"old":"missing","new":"b"}]}'),
+                 ('aaa', '{"replacements":[{"old":"aa","new":"b"}]}'),
+                 ('abc', '{"replacements":[{"old":"ab","new":"x"},{"old":"bc","new":"y"}]}'),
+                 ('abc', '{"replacements":[{"old":"a","new":"x"},{"old":"a","new":"y"}]}'),
+                 ('abc', json.dumps({'replacements': [{'old': 'a', 'new': 'x'}] * 33})),
+                 ('abc', json.dumps({'replacements': [{'old': 'a', 'new': 'x' * 16001}]})),
+                 ('abc', ' ' * 64001 + '{}'),
+                 ('abc', '[' * 1200 + ']' * 1200),
+                 ('start' + 'x' * 262135, json.dumps({'replacements': [{'old': 'start', 'new': 'n' * 20}]})),
+                 ('a' * 262144, json.dumps({'replacements': [{'old': 'a' * 16000, 'new': 'x'}]}))]
+        for draft, patch_text in cases:
+            with self.subTest(patch_text=patch_text[:80]), self.assertRaises(CodexStreamError) as caught:
+                _apply_repair_patch(draft, patch_text)
+            self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+
     def test_invalid_draft_repaired_once_before_any_answer_delta(self):
         from server.app.chickenbro import codex_adapter as module
         class EvidenceGateway(Gateway):
             def answer_evidence(self, token):
                 return {'reports': [{'canonicalUrl': 'verified'}], 'groups': [], 'truncated': False}
         original = FakeProcess(transcript(item('item/started'), delta('BAD DRAFT'), item('item/completed', 'BAD DRAFT')))
-        repaired = FakeProcess(transcript(item('item/started'), delta('REPAIRED'), item('item/completed', 'REPAIRED')))
+        repaired = FakeProcess(replacement('BAD DRAFT', 'REPAIRED'))
         gateway, calls = EvidenceGateway(), []
         def popen(*args, **kwargs):
             calls.append(kwargs)
@@ -96,11 +134,28 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertIn('BAD DRAFT', repair_input)
         self.assertEqual(config['model_reasoning_effort'], 'low')
 
+    def test_whole_answer_is_revalidated_after_patch_and_only_validated_answer_leaves(self):
+        from server.app.chickenbro import codex_adapter as module
+        draft, corrected = 'keep prefix\nBAD\nkeep suffix', 'keep prefix\nGOOD\nkeep suffix'
+        processes = [FakeProcess(transcript(item('item/started'), delta(draft), item('item/completed', draft))),
+                     FakeProcess(replacement('BAD', 'GOOD'))]
+        seen = []
+        def validate(text, evidence):
+            seen.append(text)
+            return [] if text == corrected else ['INVALID_REPORT_REFERENCE']
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}), \
+             patch.object(module, '_answer_errors', side_effect=validate), patch.object(module, '_repair_context', return_value='{}'):
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=Gateway(),
+                popen=lambda *a, **k: processes.pop(0))
+            result = list(adapter.stream(prompt='q', timeout_seconds=480))
+        self.assertEqual(seen, [draft, corrected])
+        self.assertEqual(result, [{'type': 'delta', 'text': corrected}, {'type': 'completed', 'text': corrected}])
+
     def test_repair_failure_never_leaks_original_or_repaired_draft(self):
         from server.app.chickenbro import codex_adapter as module
         gateway = Gateway()
         gateway.answer_evidence = lambda token: {'reports': [{'id': 'evidence'}]}
-        processes = [FakeProcess(answer()), FakeProcess(answer())]
+        processes = [FakeProcess(answer()), FakeProcess(replacement('answer', 'corrected'))]
         emitted = []
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(module, '_answer_errors', return_value=['INVALID_REPORT_REFERENCE']), \
@@ -137,7 +192,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             with self.assertRaises(CodexStreamError) as caught:
                 adapter._repair_answer('q', 'bad', ['BAD'], {}, 480, [], {}, {})
         self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
-        process = FakeProcess(answer())
+        process = FakeProcess(replacement('bad', 'answer'))
         captured = []
         RealSession = module._RepairSession
         def session(child, deadline):
@@ -199,7 +254,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         bad = 'https://www.warcraftlogs.com/reports/jx不存在'
         good = '当前没有可核验的日志证据，不能确认这些结论。'
         processes = [FakeProcess(transcript(item('item/started'), delta(bad), item('item/completed', bad))),
-                     FakeProcess(transcript(item('item/started'), delta(good), item('item/completed', good)))]
+                     FakeProcess(replacement(bad, good))]
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {'CODEX_HOME': directory}):
             adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory, source_gateway=Gateway(),
                 popen=lambda *a, **k: processes.pop(0))
@@ -212,7 +267,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         gateway = Gateway()
         evidence = {'reports': [], 'groups': [], 'truncated': False, 'attemptedWcl': True}
         gateway.answer_evidence = lambda token: evidence
-        processes = [FakeProcess(answer()), FakeProcess(answer())]
+        processes = [FakeProcess(answer()), FakeProcess(replacement('answer', 'corrected'))]
         seen = []
         def validate(text, supplied):
             seen.append(supplied)

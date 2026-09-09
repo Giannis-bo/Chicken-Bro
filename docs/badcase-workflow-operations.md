@@ -165,3 +165,10 @@ python3 -m unittest discover -s tests -p badcase_workflow_test.py
 ```
 
 离线测试覆盖分页同时间戳、原文/摘要边界、游标失败恢复、锁和路径权限、保留期限、版本批准、缺失/过期/篡改证据、漂移延期、失败防重试、真实业务证明缺失/错身份以及执行器内容不进shell。生产扫描、真实模型回放、Candidate、正式发布与恢复验证另行记录，不能把离线测试作为线上完成证明。
+
+
+### 本批公网语义收尾门禁
+
+受审查的 `execute-remote.py` 在公网回放、通用业务和Web制品检查后，等待独立语义审查，最多240秒且共用1350秒正常发布预算；原1650秒总预算中的300秒恢复额度不变。编排者应异步启动发布，读取私有 `live-rankings.jsonl` 及实际工具回执，独立评审两条完整回答，不能等待发布进程结束后才开始评审。
+
+仅在实际评审后，将完整记录以原子写入方式保存到本批远端私有目录的 `live-semantic-review.json`（root所有、0600、普通文件、单链接）。记录绑定五项运行身份、`batch_sha256`、`observed_at`、`reviewer`，以及两条 `cases` 的 `case`、`runId`、`answerSha256`、`criteria`（acquisition/analysis/completion）和有证据的 `notes`。判定为failed时如实记录；缺失、过期、不匹配或负评都会触发原有回滚与基底业务恢复验证。通过记录的SHA进入最终live证据。程序验证身份和必备审查结果，不将这些字段的存在本身当作独立语义判断。
