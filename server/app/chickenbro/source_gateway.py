@@ -199,6 +199,12 @@ class ServerConfiguredSourceQuery:
         elif not verified and not limitations:
             limitations.append("The configured Warcraft Logs API did not return verifiable report evidence.")
 
+        if verified or source_status == 'partial':
+            limitations.insert(0,
+                "Casts count logged events, not manual button presses or GCD usage. "
+                "Triggers and secondary effects can produce casts. Equal timestamps do not prove "
+                "manual or triggered origin. Preserve counts; verify origin before recommending fewer casts.")
+
         result: dict[str, Any] = {
             "sourceKey": "warcraftlogs",
             "status": "verified" if verified else source_status,

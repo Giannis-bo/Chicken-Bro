@@ -13,6 +13,25 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_logged_cast_counts_are_preserved_without_manual_attribution(self):
+        for view in ('full', 'overview', 'events', 'statistics'):
+            with self.subTest(view=view):
+                rows = [{'type': 'cast', 'timestamp': 1234, 'abilityGameID': 90001},
+                        {'type': 'cast', 'timestamp': 1234, 'abilityGameID': 90002}]
+                service = ServerConfiguredSourceQuery(wcl_reader=lambda _: {
+                    'sourceStatus': 'verified', 'view': view, 'reportCode': 'AAAAAAAAAAAAAAAA',
+                    'fightId': 4, 'sourceId': 5, 'events': rows,
+                    'casts': {'entries': [{'name': 'Unseen ability', 'total': 36}]},
+                    'statistics': {'complete': True, 'eventCount': 2},
+                    'nextActions': ['coverage note'] * 3, 'blockers': ['upstream note'] * 4})
+                packet = service.query('warcraftlogs', 'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4&source=5')
+                self.assertTrue(any('not manual button presses' in note for note in packet['limitations']))
+                fact = packet['facts'][0]
+                if view in ('full', 'overview'):
+                    self.assertEqual(fact['casts']['entries'][0]['total'], 36)
+                if view in ('full', 'events'):
+                    self.assertEqual(fact['events'], rows)
+
     def test_compact_event_view_does_not_reintroduce_empty_tables(self):
         service = ServerConfiguredSourceQuery(wcl_reader=lambda _: {
             'sourceStatus':'verified', 'view':'events', 'reportCode':'AAAAAAAAAAAAAAAA', 'fightId':4,
