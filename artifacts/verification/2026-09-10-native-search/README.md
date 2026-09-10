@@ -1,6 +1,6 @@
 # Chat 原生搜索恢复
 
-状态：隔离检索验证通过；通用业务补验与发布正在推进。
+状态：源码已合入推送；隔离验证通过，线上语义检查失败，生产已回滚并验证恢复。
 
 用户在独立 Agent 查到资料后，要求重新处理搜索逻辑。修复 `c6b992ee8`，发布源码包含远端文档更新的 `031c1b2f4c5e1097b2be99997369fec1faef965b`。
 
@@ -25,3 +25,16 @@
 针对性后端 149 项通过。隔离 worktree 控制面 62/63：历史 runbook 引用的 cloud-codex-cleanup/report.json 未被 Git 跟踪；该文件存在于主 worktree，本次未修改该链接或覆盖其文件。
 
 完整原始输入/回答仅存七日私有证据包，继承最早保留时间。元数据和独立评审位于本机 `/Users/boyuan/.codex/badcase/chickenbro/native-search-20260910/`。未关闭 G8/G10 模拟问题，也未声称 G9 原始 DPS 对比已完成。
+
+
+## 线上失败与恢复
+
+2026-09-10 本批曾切换到 `/opt/chickenbro-releases/badcase-031c1b2f4c5e1097b2be99997369fec1faef965b`。第一条线上查询取得完整 9 种清单及两个品质数值；第二条把 Nature’s Fury（物品 243987）误标为“自然之愤”，无用户要求却只列高档副属性，并明确表示 12.1 S2 范围未核实。独立审查判定失败，不能用网页可读或部分数值正确替代完整验收。
+
+失败判词绑定五项运行身份及两条实际回答哈希，已在时限内提交，触发既定恢复。后端恢复为 `/opt/chickenbro-releases/custom-apl-c408a30e676c9884d27b7c4ea8cad39f8ac45a01`；恢复后的图片识别、真实 SimC 正 DPS/provenance、幂等、第二账号隔离均通过。Web 保持 `/var/www/chickenbro-web/releases/changelog-b5567b1065573cc048eea285bc748c09341a3c31`，13 个公网文件哈希核对通过。
+
+本次源码仍保留于 main，但不得原样重发失败的 `031c1b2f4c5e1097b2be99997369fec1faef965b`。需要新的通用修正及新证据。未修改业务反馈为已解决，未关闭任何 G8/G9/G10 报告。
+
+总模型调用预算 30/30 已用完（含此前 6 次及保守计入的无效启动）；三个 SimC 通用任务分别用于 Candidate、live、recovery。全部历史失败和最早私有保留时间保留，无预算重置。主 worktree 控制面 63/63，通过所需历史文件原已存在，本次未覆盖这些未跟踪文件。
+
+远端私有发布证据：`/var/lib/chickenbro-native-search-release-20260910/`；本机镜像与语义判词：`/Users/boyuan/.codex/badcase/chickenbro/native-search-20260910/`。自动化报告已更新为失败/恢复事实；修复授权仍有效，不等于发布通过。

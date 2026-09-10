@@ -65,3 +65,8 @@ API/Worker当前运行源码 `3f0c15d988fd33fd08dae8514f70ee483862c3c8`，7文�
 ## 自定义施法与术语检索发布（2026-09-10）
 
 应用源码 `c408a30e676c9884d27b7c4ea8cad39f8ac45a01` 已上线到 API/Worker 与 Web，目录前缀 `custom-apl-`。本批两个 `99-zzzzzz-custom-apl-c408a30e676c.conf` drop-in 加载 root/0600 `/etc/chickenbro-custom-apl-c408a30e676c.env`，仅覆盖 compiler 为 v6；原有环境和管理员/QQ 配置保留。自定义 APL、动作样本、Chat 先检索以及 scenarioVersion=4 的隔离和公网验证通过；外部来源没有提供当前套装原文时仍保留缺口。精确清单、私有恢复核验和同时回退 backend/Web/compiler 的空闲门禁入口见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。未升级引擎、迁移数据库或执行生产回切演练。
+
+
+## 原生搜索恢复尝试与回滚（2026-09-10）
+
+原生搜索恢复源码 `031c1b2f4c5e1097b2be99997369fec1faef965b` 线上第二条语义验收失败，已回滚并验证恢复。当前后端重新使用 `custom-apl-c408a30e676c9884d27b7c4ea8cad39f8ac45a01`；Web 保持 `changelog-b5567b1065573cc048eea285bc748c09341a3c31`。未改环境、引擎或数据库合同。失败源码不得原样重发；[失败与恢复记录](../artifacts/verification/2026-09-10-native-search/README.md)说明源码与生产状态的差异。
