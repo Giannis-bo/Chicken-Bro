@@ -47,6 +47,9 @@ class SpecializationSupportTest(unittest.TestCase):
             'WOW_SIMC_SUPPORTED_SPECS': configured,
             'WOW_SIMC_RUNTIME_REVISION': runtime,
             'WOW_SIMC_COMPILER_REVISION': 'chickenbro-simc-compiler-v4',
+            # This matrix tests declared capabilities, not the host's engine.
+            'WOW_SIMC_BIN': '/nonexistent/chickenbro-spec-fixture/simc',
+            'WOW_SIMC_VERSION_FILE': '/nonexistent/chickenbro-spec-fixture/version.json',
         })
 
     def test_all_non_healers_reach_compiler_with_real_simc_class_tokens(self):
