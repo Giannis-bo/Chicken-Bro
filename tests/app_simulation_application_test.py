@@ -1,7 +1,7 @@
 import json
 import math
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -513,6 +513,53 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
             validated_simulation_result_provenance(self.view()),
             self.provenance,
         )
+
+    def test_read_job_handles_completion_between_job_and_result_reads(self):
+        repository = Mock()
+        repository.get_job.side_effect = [
+            replace(self.job, status=SimulationJobStatus.RUNNING), self.job,
+        ]
+        repository.get_result.return_value = self.result
+        repository.get_snapshot.return_value = self.snapshot
+        repository.get_job_payload.return_value = None
+        repository.list_attempts.return_value = []
+        application = SimulationApplication(repository=repository, source_router=None,
+            readiness_validator=None, compiler=None, runtime_capabilities=None)
+        owner = Mock(user_id=self.job.user_id)
+        view = application.read_job(owner, self.job.id)
+        self.assertEqual(validated_simulation_result_provenance(view), self.provenance)
+        self.assertEqual(repository.get_job.call_count, 2)
+        repository.get_job.assert_called_with(self.job.user_id, self.job.id)
+
+    def test_completion_refresh_is_bounded_and_preserves_identity_validation(self):
+        pending = replace(self.job, status=SimulationJobStatus.RUNNING)
+        for refreshed in (None, pending,
+                replace(self.job, status=SimulationJobStatus.FAILED),
+                replace(self.job, user_id=UUID('00000000-0000-4000-8000-000000000199')),
+                replace(self.job, scenario_hash='d' * 64)):
+            with self.subTest(refreshed=refreshed):
+                repository = Mock()
+                repository.get_job.side_effect = [pending, refreshed]
+                repository.get_result.return_value = self.result
+                repository.list_attempts.return_value = []
+                application = SimulationApplication(repository=repository, source_router=None,
+                    readiness_validator=None, compiler=None, runtime_capabilities=None)
+                with self.assertRaisesRegex(SimulationApplicationError, 'SIMC_RESULT_INVALID'):
+                    application.read_job(Mock(user_id=self.job.user_id), self.job.id)
+                self.assertEqual(repository.get_job.call_count, 2)
+
+    def test_stable_completed_job_does_not_refresh_and_rejects_corrupt_metric(self):
+        repository = Mock()
+        repository.get_job.return_value = self.job
+        repository.get_result.return_value = replace(self.result, primary_metric_value=1.0)
+        repository.get_snapshot.return_value = self.snapshot
+        repository.get_job_payload.return_value = None
+        repository.list_attempts.return_value = []
+        application = SimulationApplication(repository=repository, source_router=None,
+            readiness_validator=None, compiler=None, runtime_capabilities=None)
+        with self.assertRaisesRegex(SimulationApplicationError, 'SIMC_RESULT_INVALID'):
+            application.read_job(Mock(user_id=self.job.user_id), self.job.id)
+        self.assertEqual(repository.get_job.call_count, 1)
 
     def test_terminal_status_and_result_presence_must_agree(self):
         self.assert_invalid(SimulationJobView(job=self.job, result=None))

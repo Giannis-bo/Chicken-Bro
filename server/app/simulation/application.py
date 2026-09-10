@@ -367,6 +367,16 @@ class SimulationApplication:
         attempts: tuple[SimulationAttempt, ...] = (),
     ) -> SimulationJobView:
         result = self._repository.get_result(principal.user_id, job.id)
+        if result is not None and job.status in (SimulationJobStatus.QUEUED, SimulationJobStatus.RUNNING):
+            # Separate reads can straddle the worker's atomic completion commit.
+            # Refresh once, owner-scoped; never accept inconsistent persisted data.
+            refreshed = self._repository.get_job(principal.user_id, job.id)
+            identity = ('id', 'user_id', 'snapshot_id', 'scenario_hash', 'compiler_revision', 'runtime_revision')
+            if (refreshed is None or refreshed.status is not SimulationJobStatus.SUCCEEDED
+                    or refreshed.user_id != principal.user_id
+                    or any(getattr(refreshed, key) != getattr(job, key) for key in identity)):
+                raise _invalid_result()
+            job = refreshed
         snapshot = self._repository.get_snapshot(principal.user_id, job.snapshot_id)
         return SimulationJobView(
             job=job,
