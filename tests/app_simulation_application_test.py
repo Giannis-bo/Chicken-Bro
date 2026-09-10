@@ -561,6 +561,22 @@ class PublicSimulationResultValidationTest(unittest.TestCase):
             application.read_job(Mock(user_id=self.job.user_id), self.job.id)
         self.assertEqual(repository.get_job.call_count, 1)
 
+    def test_list_jobs_handles_completion_without_losing_owned_result(self):
+        repository = Mock()
+        repository.list_jobs.return_value = [replace(self.job, status=SimulationJobStatus.RUNNING)]
+        repository.get_job.return_value = self.job
+        repository.get_result.return_value = self.result
+        repository.get_snapshot.return_value = self.snapshot
+        repository.get_job_payload.return_value = None
+        application = SimulationApplication(repository=repository, source_router=None,
+            readiness_validator=None, compiler=None, runtime_capabilities=None)
+        page = application.list_jobs(Mock(user_id=self.job.user_id), limit=1)
+        self.assertEqual(len(page.items), 1)
+        self.assertEqual(validated_simulation_result_provenance(page.items[0]), self.provenance)
+        self.assertIsNone(page.next_cursor)
+        repository.get_job.assert_called_once_with(self.job.user_id, self.job.id)
+        repository.list_jobs.assert_called_once_with(self.job.user_id, None, 2)
+
     def test_terminal_status_and_result_presence_must_agree(self):
         self.assert_invalid(SimulationJobView(job=self.job, result=None))
         self.assert_invalid(
