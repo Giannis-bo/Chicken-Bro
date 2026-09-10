@@ -127,7 +127,7 @@ def _observe_stream(method):
 
 def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dict[str, Any]:
     if not profile:
-        return {"web_search": "disabled"}
+        return {"web_search": "live"}
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", profile):
         raise CodexUnavailable()
     root = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
@@ -137,9 +137,9 @@ def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dic
         if len(raw) > 262144:
             raise ValueError("oversized profile")
         config = tomllib.loads(raw.decode("utf-8"))
-        # Native web search bypasses the authenticated per-generation source
-        # budget. Public pages must use research_public_web through the gateway.
-        config["web_search"] = "disabled"
+        # Public research uses native live retrieval. Gateway counters cover only
+        # gateway tools; they must not disable the native search capability.
+        config["web_search"] = "live"
         toolbox = config.get("mcp_servers", {}).get("chickenbro_toolbox")
         if isinstance(toolbox, dict):
             # The test service must execute the tools from its own release,
