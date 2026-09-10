@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：扫描、诊断、批准与条件发布闭环已落地，两条G6排行榜修复已正式发布；线上两题、Chat/SimC/owner及Web14文件验收通过。自动化00点执行成功、06点因额度失败；G7和另1条反馈待后续处理。[发布证据](../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json)。
+
 - [运营后台](plans/2026-09-09-admin-ops.md)：QQ唯一管理员、只读用户/Chat/SimC数据、北京时间趋势；已发布并完成真实本人权限、非管理员拒绝、业务和SQL对账。[证据](../artifacts/verification/2026-09-09-admin-ops/README.md)。
 
 - [SimC 场景实验](plans/2026-09-09-simc-scenario-experiments.md)：已合入推送并发布（`7ef8a5dfd`）；天赋节点/整套替换、同进度饰品候选、预检重跑和对照已通过隔离及公网真实模型验收。[发布证据](../artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md)。制造/特殊装备版本仍未全面覆盖。
@@ -19,7 +21,6 @@
 
 
 
-- [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：本地扫描、游标去重、私有问题包、批准与发布门禁已实现；已收集两条排行榜反馈，正式服/PTR和榜单工具通用修复的最终8项已验证；发布配额未达预留门槛，按用户收敛要求停止自动迭代，G6暂缓，生产未切换。
 
 ## 下一步
 

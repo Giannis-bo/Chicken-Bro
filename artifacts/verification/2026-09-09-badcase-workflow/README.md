@@ -1,10 +1,10 @@
 # Badcase 工作流与 WCL 排行榜修复
 
-状态（2026-09-10 10:23）：源码 `fe4c35f8…` 的最终8项Candidate已全部独立通过；保留V12完整24条旧结果及6条失败，不追认旧版整组通过。遵照用户「尽快闭环、不无限穷举」，V13全量方案在0模型时替代，仅复用旧有效证据并对6失败项+2真实发布入口各验一次。发布配额预检剩余71.54%，低于登记的95%预留门槛（WCL接口仍可用）；已停止自动迭代并将G6设为deferred，没有切换生产或创建最终发布批次，线上仍健康baseline `03275ee5…`。预计提供方11:03:35开启下一窗口，需重新核实，不自动续跑。见[最终8项与停止证据](final-acceptance-stop.json)。
+状态（2026-09-10 11:19）：两条 G6 排行榜反馈的修复已通过工作流正式发布，后端源码 `fe4c35f8…`，批次 `373d650b…`。复用已通过的最终8项Candidate；本次线上前十448.05秒、前百234.39秒完成并独立语义通过，真实图片Chat、云端SimC、owner/幂等/并发、14个Web文件及运行观察全部通过。G6有效状态为released，防重复发布生效；原反馈不可变，另有G7与1条待诊断反馈不在本批范围。见[正式发布证据](production-final-release.json)。
 
-授权：用户要求落地扫描/诊断/条件发布工作流，并用其修复发布两条当前未解决反馈。本批曾获直接发布授权；最新收敛要求在配额门禁不足时停止，因此G6暂缓，需明确继续后仅恢复发布步骤。6小时扫描保持ACTIVE，新组仍需人工批准。
+授权：用户明确“OK，继续发布。”后仅恢复发布步骤。供应方配额重置后原95%门槛通过；一次冻结因缺文本details被拒，补充既有证据引用后通过，没有修改运行代码或重跑Candidate。此前配额失败、全部历史试验及恢复记录保留。自动化ACTIVE，00点实际扫描成功、06点因额度失败，12点尚未观察；本次发布由当前任务按用户授权调用同一CLI完成，不能冒充定时发布成功。
 
-最新证据：[最终有限验收计划](final-acceptance-preregistration.json)、[最终绑定](final-acceptance-binding.json)、[最终验收与发布暂缓](final-acceptance-stop.json)。[自动化06点限额失败与人工补扫](automation-usage-recovery-v13.json)。[V12 配对失败及原因边界](candidate-v12-failure.json)。[V12 修稿设计与证据边界](runtime-design-v12.json)、[V12 源码绑定](source-binding-v12.json)。[V11 额外 Candidate 失败与诊断边界](candidate-v11-failure.json)、[V11 完整对照](generalization-v11-summary.json)、[V12 预注册](preregistration-v12.json)。[V10 正式失败、诊断边界及独立恢复](production-v10-failure-recovery.json)。[V10 完整对照](generalization-v10-summary.json)、[追加 Candidate](candidate-v10-summary.json)、[实际交付耗时](delivery-timing-v10-summary.json)及[防重复发布门禁](workflow-release-dedup-v10.json)。[V9 正式失败及恢复](production-v9-failure-recovery.json)、[V10 交付机制修复](delivery-design-v10.json)及[预注册](preregistration-v10.json)。[V9 完整 HTTP 对照](generalization-v9-summary.json)通过；[零点自动扫描](automation-scheduled-scan-v9.json)已实际执行，新增 0，不能据此声称既有反馈已解决。V8 的[模型层对照](generalization-v8-summary.json)通过，但[真实 HTTP 验收失败](candidate-v8-failure.json)，因此未发布。一次额外诊断重放未复现修稿错误，不替代失败结果。V9 修复已确认的批量响应超限整包丢失及索引/可见证据不一致，见[机制与测试](transport-design-v9.json)和[预注册](preregistration-v9.json)。两条 G6 继续验收，第三条 G7 待决策。下文为各阶段历史证据，早期通过不替代当前版本门禁。
+历史及验证证据：[最终有限验收计划](final-acceptance-preregistration.json)、[最终绑定](final-acceptance-binding.json)、[最终验收与发布暂缓](final-acceptance-stop.json)。[自动化06点限额失败与人工补扫](automation-usage-recovery-v13.json)。[V12 配对失败及原因边界](candidate-v12-failure.json)。[V12 修稿设计与证据边界](runtime-design-v12.json)、[V12 源码绑定](source-binding-v12.json)。[V11 额外 Candidate 失败与诊断边界](candidate-v11-failure.json)、[V11 完整对照](generalization-v11-summary.json)、[V12 预注册](preregistration-v12.json)。[V10 正式失败、诊断边界及独立恢复](production-v10-failure-recovery.json)。[V10 完整对照](generalization-v10-summary.json)、[追加 Candidate](candidate-v10-summary.json)、[实际交付耗时](delivery-timing-v10-summary.json)及[防重复发布门禁](workflow-release-dedup-v10.json)。[V9 正式失败及恢复](production-v9-failure-recovery.json)、[V10 交付机制修复](delivery-design-v10.json)及[预注册](preregistration-v10.json)。[V9 完整 HTTP 对照](generalization-v9-summary.json)通过；[零点自动扫描](automation-scheduled-scan-v9.json)已实际执行，新增 0，不能据此声称既有反馈已解决。V8 的[模型层对照](generalization-v8-summary.json)通过，但[真实 HTTP 验收失败](candidate-v8-failure.json)，因此未发布。一次额外诊断重放未复现修稿错误，不替代失败结果。V9 修复已确认的批量响应超限整包丢失及索引/可见证据不一致，见[机制与测试](transport-design-v9.json)和[预注册](preregistration-v9.json)。G6已发布；G7待决策，另1条证据不足反馈待诊断。下文为各阶段历史证据，早期通过不替代当前版本门禁。
 
 ## 已核验
 
@@ -18,7 +18,7 @@
 
 ## 发布门禁
 
-本地扫描/批准/冻结/发布状态与SHA证据验证，云端精确manifest/锁/排空/API+Worker切换和回滚执行器分别测试。候选完整业务、公网真实答案、版本/恢复及Web哈希尚待完成，不能仅据测试/工具取数成功标为已处理。
+本地扫描/批准/冻结/发布状态与SHA证据验证，云端精确manifest/锁/排空/API+Worker切换和回滚执行器分别测试。最终Candidate及实际生产业务已完成，见顶部当前发布记录；下文各轮未完成状态保留为历史。
 
 ## 固定标准的重复验证
 

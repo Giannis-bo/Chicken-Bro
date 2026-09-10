@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-09",
+  "updatedAt": "2026-09-10",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "in_progress",
   "targetProduct": {
@@ -276,6 +276,18 @@
       "modelEndToEndVerified": true,
       "releaseEvidence": "artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md",
       "userClosureAuthorized": true
+    },
+    "badcaseWorkflow": {
+      "status": "live_verified",
+      "sourceCommit": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+      "batchSha256": "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab",
+      "plan": "docs/plans/2026-09-08-badcase-workflow.md",
+      "evidence": "artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json",
+      "releasedGroup": "G6",
+      "remainingFeedbackOutsideScope": 2,
+      "scheduledScan00": "completed",
+      "scheduledScan06": "usage_limit_failed",
+      "userAcceptance": "not_claimed"
     }
   },
   "miniRetirement": {

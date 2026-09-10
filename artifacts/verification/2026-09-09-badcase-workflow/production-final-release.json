@@ -1,0 +1,198 @@
+{
+  "status": "released",
+  "finished_at": "2026-09-10T03:18:58.322606Z",
+  "batch_sha256": "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab",
+  "identity": {
+    "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+    "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+    "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556"
+  },
+  "checks": {
+    "real_chat_terminal": true,
+    "history_readback": true,
+    "affected_tools": true,
+    "owner_isolation": true,
+    "web_artifact_verified": true,
+    "drained_without_kill": true,
+    "api_worker_identity": true,
+    "observation_passed": true
+  },
+  "live_cases": {
+    "top10": {
+      "run_id": "4aaecc87-7f5b-4ec7-ba23-07b3e2cdd5b8",
+      "http_seconds": 448.05,
+      "tool_results": 78,
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "cb9284447aa4da6041caea84f30cbb5524302ffaffd009e221fb89f9fe69b283",
+      "answer_sha256": "02d8eb9e542cb52fed0977e120de8f56548c3df707d061545e8aeb6772d3a0c8"
+    },
+    "top100": {
+      "run_id": "4a01eaa7-c380-41ad-ab63-ddc0227b5b25",
+      "http_seconds": 234.39,
+      "tool_results": 33,
+      "criteria": {
+        "acquisition": "passed",
+        "analysis": "passed",
+        "completion": "passed"
+      },
+      "receipt_sha256": "daf3974cff6c19b26d3599a847f510a2f378b08110ac98a9bfbd269cb37b7f88",
+      "answer_sha256": "63565551bd80ea0848542abbfd44329bd78f76c35fdd49a9ca7f5b67b90b486b"
+    }
+  },
+  "general": {
+    "mode": "production",
+    "source": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "be095752-e950-4633-8466-b0b07d3c6a13",
+    "jobId": "6200c9d8-86b1-453d-af59-c7fef6395f20",
+    "dps": 159737.05110888733,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "web_files": 14,
+  "web_release": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+  "observation_seconds": 43.59,
+  "live_evidence_sha256": "dad64dd51bf27a505fbb0c6e72fb1001a3f8efa7ab4297ac72f4170cfaf52df4",
+  "semantic_review_sha256": "f427b9de97ead8c5e4767419c51680c02b019eb2efeb913eeec0805fdeb36c44",
+  "quota_admission": {
+    "observed_at": "2026-09-10T03:03:42.134161+00:00",
+    "decision": {
+      "admitted": true,
+      "codex_applicable_buckets": [
+        "codex"
+      ],
+      "codex_minimum_remaining_fraction": 0.2,
+      "codex_observed_buckets": [
+        "codex",
+        "codex_bengalfox"
+      ],
+      "codex_valid_windows": 1,
+      "errors": [],
+      "next_check_at": null,
+      "retry_after_seconds": null,
+      "wcl_available_fraction": 0.9997222222222222
+    },
+    "raw_sha256": "8a18ff6dc79a40e727cf342f72252df7c242a79387003da90816b011acbffd14"
+  },
+  "workflow": {
+    "batches": {
+      "201cd05a3a74bc0d94cf9105d57761edfd53b3e34921799bbf91ccc93d0b0052": {
+        "status": "failed"
+      },
+      "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab": {
+        "status": "released"
+      },
+      "398da44b4394cbeb42d1a93d46e877904fee39ae1651168e690af67791238287": {
+        "status": "failed"
+      },
+      "493f2c4b7f1fc2246c36d778d5e945e834f5f7ea4c75c1941fa97c09c4ab7dd6": {
+        "status": "failed"
+      }
+    },
+    "cursor": [
+      "2026-09-10T01:48:03.486667Z",
+      "535263a3-d3b5-4758-891d-fe96c84af763"
+    ],
+    "feedback_count": 4,
+    "groups": {
+      "G6": {
+        "decision": "approved",
+        "effective_status": "released",
+        "report_sha256": "8e759713200146b691c706ed088265f2854ef3ac9d257c986ae536d458c79696"
+      },
+      "G7": {
+        "decision": "pending",
+        "effective_status": "pending",
+        "report_sha256": "a7ca34540fec0ae3aa5338592aa8ed5e0674a246104ed89cf1234ac2b507355c"
+      }
+    },
+    "released_groups": {
+      "G6": {
+        "8e759713200146b691c706ed088265f2854ef3ac9d257c986ae536d458c79696": [
+          "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab"
+        ]
+      }
+    },
+    "releases": {
+      "201cd05a3a74bc0d94cf9105d57761edfd53b3e34921799bbf91ccc93d0b0052": {
+        "finished_at": "2026-09-09T18:00:59.716780Z",
+        "recovery": "executor evidence must be inspected; no blind retry",
+        "source_sha": "f9365be93cdf260a9a8d86cff8b7a7cdf83fc0d3",
+        "status": "failed"
+      },
+      "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab": {
+        "finished_at": "2026-09-10T03:18:58.322606Z",
+        "live_sha256": "899feb4a1b6b38af69d7b1dbf880a4da864687e8a649d8bafc79b77445a98f93",
+        "status": "released",
+        "user_acceptance": "not_claimed"
+      },
+      "398da44b4394cbeb42d1a93d46e877904fee39ae1651168e690af67791238287": {
+        "finished_at": "2026-09-09T11:48:24.125407Z",
+        "recovery": "executor evidence must be inspected; no blind retry",
+        "source_sha": "8c5ff320fc3feead7ce13bafc5c1201d2fbc61cf",
+        "status": "failed"
+      },
+      "493f2c4b7f1fc2246c36d778d5e945e834f5f7ea4c75c1941fa97c09c4ab7dd6": {
+        "finished_at": "2026-09-09T17:14:40.001410Z",
+        "recovery": "executor evidence must be inspected; no blind retry",
+        "source_sha": "0fd0d0c81e6c98b4ac6cde76a0ef9c8b66c8da26",
+        "status": "failed"
+      }
+    }
+  },
+  "candidate_reused": {
+    "new_trials_this_resume": 0,
+    "final_eight_passed": true,
+    "historical_failures_preserved": true
+  },
+  "resume_setup": {
+    "initial_freeze_rejected": "Missing textual details in scope/review/rollback records; no frozen batch or production operation. Added references to existing source review in separate evidence copies; original evidence preserved. No gate or runtime code change.",
+    "corrected_freeze_sha256": "6450e4360a3cac25a955d83834696e1bd4ff1de7930b8c99a4f9645e63908210"
+  },
+  "automation": {
+    "configured_active": true,
+    "scheduled_00": "completed",
+    "scheduled_06": "usage_limit_failed",
+    "scheduled_12": "not_yet_observed",
+    "production_release": "explicit_user_resumed_current_task_via_workflow_cli",
+    "new_groups_require_approval": true
+  },
+  "recovery": {
+    "executed_this_attempt": false,
+    "previous_backend_retained": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "previous_recovery_evidence_reused": true
+  },
+  "user_acceptance": "not_claimed",
+  "fresh_interactive_qq_login": "not_run",
+  "remaining_feedback": {
+    "outside_released_G6": 2,
+    "G7": "pending",
+    "ungrouped_evidence_insufficient": 1
+  },
+  "latest_scan": {
+    "scan_time": 1789010364.556917,
+    "mode": "reconciliation",
+    "scanned": 4,
+    "new": 0,
+    "page_full": false
+  }
+}
