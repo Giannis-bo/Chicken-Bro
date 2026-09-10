@@ -141,7 +141,8 @@
         "artifacts/verification/2026-09-09-badcase-g3/",
         "artifacts/verification/2026-09-09-badcase-g5/",
         "artifacts/verification/2026-09-09-badcase-inventory/",
-        "artifacts/releases/2026-09-09-badcase/"
+        "artifacts/releases/2026-09-09-badcase/",
+        "artifacts/verification/2026-09-10-badcase-g7/"
       ]
     },
     {

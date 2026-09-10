@@ -1,0 +1,1 @@
+{"observed_at": "2026-09-10T06:49:31.969129+00:00", "runtime_verified": true, "active_counts": {"chat": 0, "executions": 0, "simc": 0, "queue": 0}, "backend": "/opt/chickenbro-releases/badcase-f1f0f0a0d32c5682cae6493766b686f2aba824ac", "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f"}

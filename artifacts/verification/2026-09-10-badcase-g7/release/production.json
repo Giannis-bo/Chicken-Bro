@@ -1,0 +1,25 @@
+{
+  "status": "live_business_verified",
+  "sourceCommit": "f1f0f0a0d32c5682cae6493766b686f2aba824ac",
+  "observed_at": "2026-09-10T06:48:15.409374+00:00",
+  "run_id": "dbe1a36b-623b-46c1-8318-e80e0cfe834a",
+  "seconds": 172.36,
+  "checks": {
+    "terminal": true,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true,
+    "detached": true,
+    "originalContext": false,
+    "syntheticLiveRegression": true
+  },
+  "sessions_revoked": true,
+  "source_operations": 14,
+  "answer_sha256": "56dd3b15e32a5450891e272f1c32f396b17b292db14a537908ff29a72f1a4f56",
+  "raw_sha256": "678f7984e95f3cd3b8ebc607416866f876b7c58ae0a557080271ab858f9c1cbe",
+  "semantic_review": {
+    "status": "passed",
+    "notes": "Read full live answer and recorded tool results: actual matching boss/difficulty/spec top1/3 with report/cast comparison; bounds claims by talents/gear/mechanics; explicitly distinguishes cast records from button presses and does not infer bound macros from recurrent synchronization. No repeated Flame Shock or macro-splitting advice from unknown origin."
+  },
+  "user_acceptance": "not_claimed"
+}

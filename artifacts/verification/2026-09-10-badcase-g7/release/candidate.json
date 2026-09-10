@@ -1,0 +1,46 @@
+{
+  "source": "f1f0f0a0d32c5682cae6493766b686f2aba824ac",
+  "reviewed_at": "2026-09-10T06:43:42.018741+00:00",
+  "repetitions": [
+    {
+      "repeat": 1,
+      "seconds": 158.95,
+      "run_id": "00abbeab-c2fb-44dc-9ac0-7447db0dbaa9",
+      "answer_sha256": "ac1347d17a75bc409c2eee0d38e6dbd7097d9c8966020d72eb67ab9eccea92d8",
+      "raw_sha256": "989d7dec4dc224bc2c000bcefdde04d6f43ffed163aa42109026cf53b8d61128",
+      "source_operations": 10,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "semantic_review": "passed",
+      "notes": "Actual matching ranked reports and cast windows; rates and observations cited. States cast records are not input counts, no fewer-Flame-Shock or macro recommendations from unknown origin. Movement suggestions bounded by safety/mechanic uncertainty; no claimed guaranteed DPS gain."
+    },
+    {
+      "repeat": 2,
+      "seconds": 163.0,
+      "run_id": "e0ad5127-15b5-4e12-b9e2-27454ad9ef04",
+      "answer_sha256": "e3ad2fb6cac42fb5c0a27281ef8245b1d661d2d089238a8858d2db87bb3be7fe",
+      "raw_sha256": "366099bc6156ca2850fbaae6e1fc7a7ad7c504ae027f38e70678744d7696b6f3",
+      "source_operations": 12,
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "semantic_review": "passed",
+      "notes": "Actual matching ranked reports and cast windows; rates and observations cited. States cast records are not input counts, no fewer-Flame-Shock or macro recommendations from unknown origin. Movement suggestions bounded by safety/mechanic uncertainty; no claimed guaranteed DPS gain."
+    }
+  ],
+  "passed": true,
+  "reused_evidence": "Eight before/eight first-candidate short fixtures and deterministic permissions keep original source identities. Last prompt-only refinement addresses recurrent synchronization; two real whole-problem repeats test that affected behavior. No claim the old short fixtures were rerun on final prompt."
+}

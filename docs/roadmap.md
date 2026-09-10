@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- G7 日志施法归因修复已上线（`f1f0f0a0d`）：不把日志频次或同步事件直接当作按键习惯；两次完整Candidate及公网高分对照验收通过，保留失败与适用边界。[记录](../artifacts/verification/2026-09-10-badcase-g7/release/README.md)。
+
 - [WCL 工具效率优化](plans/2026-09-10-wcl-tool-efficiency.md)：按需视图、单轮去重和有界窗口统计已合入推送并发布（`f95f6bbe2`）；隔离图片/Chat/SimC、隔离及公网 WCL 与账号隔离通过，Web 14 文件一致。复用 667 项后端与 63 项控制面测试，按用户要求停止扩样本。[发布证据](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
 
 - [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：扫描、诊断、批准与条件发布闭环已落地，两条G6排行榜修复已正式发布；线上两题、Chat/SimC/owner及Web14文件验收通过。自动化00点执行成功、06点因额度失败；G7和另1条反馈待后续处理。[发布证据](../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json)。

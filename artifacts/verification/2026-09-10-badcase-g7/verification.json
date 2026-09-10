@@ -1,0 +1,50 @@
+{
+  "observed_at": "2026-09-10T06:18:08.471167+00:00",
+  "group": "G7",
+  "status": "lookup_covered_analysis_caveat",
+  "runtime_source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+  "preregistration_sha256": "d4ecaa093d75d13295f009bee4a8303ffa3beaa61974b603170e8158a5b0fe5f",
+  "trials": [
+    {
+      "sample": "g7-followup",
+      "run_id": "84684294-dd0e-40c3-b138-4331006eac29",
+      "terminal": "completed",
+      "seconds": 82.492595,
+      "source_calls": 3,
+      "input_matches": true,
+      "profile_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "receipt_capture_error": null,
+      "simc_jobs_created": 0,
+      "cleanup_completed": true,
+      "receipt_sha256": "05c421a9f3d57d2a33b4d2f0fd631efcb9441c97fb53cf828113e1f2bbcf2951",
+      "answer_sha256": "0b5753a54cdba2183578a98c500c6afe8e77f20786edc0851c7060404cfec92a"
+    },
+    {
+      "sample": "g7-initial",
+      "run_id": "31a3b689-b8eb-4379-a4f7-befa4c8a7d7a",
+      "terminal": "completed",
+      "seconds": 128.339222,
+      "source_calls": 10,
+      "input_matches": true,
+      "profile_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+      "receipt_capture_error": null,
+      "simc_jobs_created": 0,
+      "cleanup_completed": true,
+      "receipt_sha256": "f0cfda5b9a30a3c93821cecf47f1c9aa7f549fd08ebb1702c5b28c5b3cd4ed21",
+      "answer_sha256": "e63a3d5b37c3f6ac9a31b0933b89c828a45acf5f020bebe2a41b60336fcc9edc"
+    }
+  ],
+  "review": {
+    "ranking_discovery": "passed",
+    "same_encounter_difficulty_spec": "passed",
+    "ranked_report_casts_observed": "passed",
+    "key_timestamp_and_cast_rate_checks": "passed",
+    "manual_vs_triggered_flame_shock_attribution": "unverified; several cast events share exact timestamp with other spells, so count is not proof of manual button presses",
+    "historical_failure_tool_trace": "missing",
+    "repeated_stability": "not_tested",
+    "generalization": "not_newly_claimed"
+  },
+  "code_changed": false,
+  "production_deployed": false,
+  "original_feedback_changed": false
+}

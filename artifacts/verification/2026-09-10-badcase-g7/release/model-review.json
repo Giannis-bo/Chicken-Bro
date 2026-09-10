@@ -1,0 +1,172 @@
+{
+  "reviewed_at": "2026-09-10T06:33:02.250010+00:00",
+  "records": [
+    {
+      "sample": "holdout",
+      "repeat": 1,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 10.281,
+      "answer_sha256": "5149e7e6263bda075f0d9187abd21cf7a27a928ee09c73610eb034c5c5a7ae44",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "holdout",
+      "repeat": 2,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 11.173,
+      "answer_sha256": "20e019ca43e2be648ed21db988601d5716a244c12b8a42db024219d13129c6d4",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "normal",
+      "repeat": 1,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 11.52,
+      "answer_sha256": "9d64a0cab50f0353c5094b5c68244625d7b59fbab70bfe8f1eb5d4cc72ab3c6d",
+      "semantic_verdict": "passed",
+      "notes": "Correct 5 and 10 per minute, no blame."
+    },
+    {
+      "sample": "normal",
+      "repeat": 2,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 8.717,
+      "answer_sha256": "7004c70adb4d2ade7da98aa599598ea60d33fc44ec920abed68d2700e2fabd30",
+      "semantic_verdict": "passed",
+      "notes": "Correct 5 and 10 per minute, no blame."
+    },
+    {
+      "sample": "original",
+      "repeat": 1,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 12.851,
+      "answer_sha256": "c08958cf3ac1a569aef7b8be1e5b992281371e7605aad61dfcc7367f2809deb4",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "original",
+      "repeat": 2,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 13.206,
+      "answer_sha256": "774efec59d497bffc4c8e9f0e3f0b5e7738287edb714a5f5670798ee078f5272",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "variant",
+      "repeat": 1,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 10.026,
+      "answer_sha256": "e83f8b274555ef21b7928c20fb87873f4e95a63f3399b17d748ca03cd1e2b8e0",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "variant",
+      "repeat": 2,
+      "phase": "before",
+      "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "seconds": 9.556,
+      "answer_sha256": "9f80879d120221b8d6a7844796cbdb45a0bdf11028e15427957850f559d49ad0",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "holdout",
+      "repeat": 1,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 7.449,
+      "answer_sha256": "fefcc5d6f025f4ffb8f0180ac55ca2babb5d231ab5feec2eb417c494d2525bf5",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "holdout",
+      "repeat": 2,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 8.188,
+      "answer_sha256": "d3c5436901c00745b88f06056030620e823553a9ed302fcaeb716da869856908",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "normal",
+      "repeat": 1,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 8.033,
+      "answer_sha256": "4545042f4e4ade521e81648e16234daed2fedfb716134348e729cebee41d32b9",
+      "semantic_verdict": "passed",
+      "notes": "Correct 5 and 10 per minute, no blame."
+    },
+    {
+      "sample": "normal",
+      "repeat": 2,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 6.912,
+      "answer_sha256": "f76ab110fc0404e4dfa13ac6f4d2e61cb1c02075aa238ba9758ea3919af45999",
+      "semantic_verdict": "passed",
+      "notes": "Correct 5 and 10 per minute, no blame."
+    },
+    {
+      "sample": "original",
+      "repeat": 1,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 12.232,
+      "answer_sha256": "355c88e068335e24197844125d8936e6e19a250e8f02e680e34f2ac76e771877",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "original",
+      "repeat": 2,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 12.368,
+      "answer_sha256": "b2544c0a6fc41b6ec3021f7622572e670429380d79d252473f3ceed44022078d",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "variant",
+      "repeat": 1,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 10.744,
+      "answer_sha256": "141200a18c02bac8ce71689154472a3faed82a244853aeefc20b1aabba3ca8bc",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    },
+    {
+      "sample": "variant",
+      "repeat": 2,
+      "phase": "after",
+      "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+      "seconds": 7.706,
+      "answer_sha256": "40bc09b139966c66b99beefa6926ec533ac6c83d0e64f1bd680a626b5a0b01f9",
+      "semantic_verdict": "passed",
+      "notes": "Read full answer: refuses manual/GCD/trigger inference from counts/coincidence and preserves records; normal arithmetic remains 5/10 per minute."
+    }
+  ],
+  "before_passed": 8,
+  "after_passed": 8,
+  "interpretation": "Both phases pass these bounded fixtures. No measured accuracy improvement or population stability claim. Full original-context smoke separately required.",
+  "private_raw_hashes": {
+    "before": "b9809346566518aa9c24225e7096fbd378feeb75e1c9b5eb63da6a145123ecb0",
+    "after": "749e14dfa2657cbab0585253401ba4736ebc6a05f9e0225e95d2e42998f1664e"
+  }
+}

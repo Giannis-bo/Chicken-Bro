@@ -1,0 +1,14 @@
+[
+  {
+    "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+    "repetitions": 2,
+    "unissued_and_revoked_refused": true,
+    "source_invocations": 0
+  },
+  {
+    "source": "/opt/chickenbro-releases/badcase-658d7b872144643b379918d6e5ecab2961f488e7",
+    "repetitions": 2,
+    "unissued_and_revoked_refused": true,
+    "source_invocations": 0
+  }
+]
