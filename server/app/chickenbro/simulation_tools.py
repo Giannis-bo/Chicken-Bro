@@ -157,6 +157,11 @@ def _job_packet(view: SimulationJobView) -> dict:
         if isinstance(proof,dict) and proof.get("status") == "verified" and proof.get("profileSha256") == view.result.profile_sha256:
             result["effectiveConfig"] = {"status":"verified", "profileSha256":view.result.profile_sha256,
                                          "checked":["talents","equipmentItemIds","overriddenItemLevels"]}
+            if 'overriddenEnchantIds' in proof.get('checked', []) and isinstance(proof.get('overriddenEnchants'), dict):
+                result['effectiveConfig'].update(
+                    checked=["talents", "equipmentItemIds", "overriddenItemLevels", "overriddenEnchantIds"],
+                    overriddenEnchants=deepcopy(proof['overriddenEnchants']),
+                    enchantEvidenceScope='engine_reported_input_identity')
         evidence = view.result.result.get("actionEvidence")
         if isinstance(evidence, dict) and evidence.get("profileSha256") == view.result.profile_sha256:
             result["actionEvidence"] = deepcopy(evidence)

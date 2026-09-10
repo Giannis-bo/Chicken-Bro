@@ -1,4 +1,5 @@
 import copy
+import json
 import unittest
 from dataclasses import replace
 from server.app.simulation.effective_config import verify_effective_config
@@ -17,6 +18,42 @@ class EffectiveConfigTest(unittest.TestCase):
         proof=verify_effective_config(self.compiled,self.report)
         self.assertEqual(proof['profileSha256'],self.compiled.profile_sha256)
         self.assertEqual(proof['status'],'verified')
+
+    def test_changed_enchant_cannot_pass_without_engine_gear_evidence(self):
+        scenario = copy.deepcopy(self.compiled.scenario)
+        scenario['equipmentOverrides']['trinket1']['enchant'] = 123
+        compiled = replace(self.compiled, scenario=scenario)
+        with self.assertRaisesRegex(ValueError, 'SIMC_EFFECTIVE_CONFIG_MISMATCH'):
+            verify_effective_config(compiled, self.report)
+
+    def test_engine_enchant_identity_is_bound_to_actor_slot_and_requested_change(self):
+        scenario = copy.deepcopy(self.compiled.scenario)
+        scenario['equipmentOverrides']['trinket1']['enchant'] = 123
+        compiled = replace(self.compiled, scenario=scenario)
+        def payload(encoded, name=None):
+            return json.dumps({'sim': {'players': [{'name': name or compiled.actor_name,
+                'gear': {'trinket1': {'encoded_item': encoded}}}]}})
+        proof = verify_effective_config(compiled, self.report, payload('sample,id=9999,enchant_id=123'))
+        self.assertEqual(proof['overriddenEnchants'], {'trinket1': 123})
+        self.assertIn('overriddenEnchantIds', proof['checked'])
+        self.assertEqual(proof['enchantEvidenceScope'], 'engine_reported_input_identity')
+        for encoded in ('sample,id=9999', 'sample,id=9999,enchant_id=124',
+                        'sample,id=9999,enchant_id=123,enchant_id=124',
+                        'sample,id=1000,enchant_id=123', 'sample,id=9999,enchant_id=abc',
+                        'sample,id=9999,enchant_id=123,enchant=other'):
+            with self.subTest(encoded=encoded), self.assertRaises(ValueError):
+                verify_effective_config(compiled, self.report, payload(encoded))
+        with self.assertRaises(ValueError):
+            verify_effective_config(compiled, self.report, payload('sample,id=9999,enchant_id=123', 'OtherActor'))
+
+    def test_explicit_enchant_removal_is_checked_when_raw_report_is_available(self):
+        def payload(encoded):
+            return json.dumps({'sim': {'players': [{'name': self.compiled.actor_name,
+                'gear': {'trinket1': {'encoded_item': encoded}}}]}})
+        proof = verify_effective_config(self.compiled, self.report, payload('sample,id=9999'))
+        self.assertEqual(proof['overriddenEnchants'], {'trinket1': None})
+        with self.assertRaises(ValueError):
+            verify_effective_config(self.compiled, self.report, payload('sample,id=9999,enchant_id=123'))
     def test_rejects_wrong_item_level_missing_gear_or_talents(self):
         for kind in ('item','level','gear','talents','missing'):
             with self.subTest(kind=kind),self.assertRaises(ValueError):

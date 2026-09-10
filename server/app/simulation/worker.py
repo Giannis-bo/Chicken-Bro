@@ -316,7 +316,7 @@ class SimulationWorker:
             effective_config = None
             if compiled.compiler_revision in {"chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}:
                 try:
-                    effective_config = verify_effective_config(compiled, metric.report)
+                    effective_config = verify_effective_config(compiled, metric.report, execution.report_json)
                 except ValueError as error:
                     raise SimulationWorkerError("SIMC_EFFECTIVE_CONFIG_MISMATCH") from error
         except SimulationWorkerError as error:

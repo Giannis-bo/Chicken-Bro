@@ -83,6 +83,23 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.assertEqual(denied["errorCode"], "SIMULATION_NOT_FOUND")
         self.assertEqual(len(self.queue.calls), 2)
 
+    def test_result_exposes_only_profile_bound_enchant_input_proof(self):
+        packet = self.submit(self.prepare()['snapshotId'])
+        result = self.complete(packet)
+        proof = {'status': 'verified', 'profileSha256': result.profile_sha256,
+                 'checked': ['talents', 'equipmentItemIds', 'overriddenItemLevels', 'overriddenEnchantIds'],
+                 'overriddenEnchants': {'finger1': 123}, 'privatePath': '/private/report'}
+        for profile_hash, expected in ((result.profile_sha256, True), ('b' * 64, False)):
+            proof['profileSha256'] = profile_hash
+            self.repository.save_result(replace(result, result={**result.result, 'effectiveConfig': proof}))
+            read = self.gateway.execute(self.token, 'get', {'jobId': packet['jobId']})['result']
+            if expected:
+                self.assertEqual(read['effectiveConfig']['overriddenEnchants'], {'finger1': 123})
+                self.assertEqual(read['effectiveConfig']['enchantEvidenceScope'], 'engine_reported_input_identity')
+                self.assertNotIn('privatePath', read['effectiveConfig'])
+            else:
+                self.assertNotIn('effectiveConfig', read)
+
     def test_custom_rotation_preview_submit_reuse_and_owner_isolation(self):
         caps = replace(self.application._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v6")
         self.application._runtime_capabilities = caps
