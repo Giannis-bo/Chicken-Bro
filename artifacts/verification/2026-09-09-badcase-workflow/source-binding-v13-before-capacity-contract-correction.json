@@ -1,0 +1,16 @@
+{
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "fixed_at": "2026-09-10T01:46:56.884073+00:00",
+  "runtime_unchanged_from_v12": true,
+  "private_conditions_sha256": "086b70b500085fcc286a69ee493e1164fb1151e76cf9890b2594c1ae71117e11",
+  "public_conditions_sha256": "04e67998c12d96ebb914265c97c1875acdcae2d907ec1717d8eeb5ffcbb463c3",
+  "preregistration_sha256": "93da00920a6cca2b05e6cef171fb6d7bdb88380dca668aee84bafd1797debcc7",
+  "extra_registration_sha256": "c3404bf7cc2ec0ff780364bebda426daeaf8d1621a740f664048f6bac0c40115",
+  "runtime_agent_rules_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+  "source_review_v12_sha256": "4ad9554ce43e55bc90272329bf9d3b832b50b32ca639ecfb605ba04858330cc7",
+  "status": "frozen before any V13 model trials; all V13 business outcomes pending"
+}

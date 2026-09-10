@@ -1,0 +1,169 @@
+{
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "observed_at": "2026-09-10T02:22:51.580363+00:00",
+  "status": "candidate_verified_release_deferred",
+  "reason": "User required bounded final closure and stop on insufficient quota. Production quota available but below preregistered reserve; no automatic retry or V14.",
+  "final_candidate": {
+    "passed": 8,
+    "planned": 8,
+    "trials": [
+      {
+        "id": "recheck-variant-2",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 148.153235,
+        "source_calls": 14,
+        "receipt_sha256": "dc1b858a19a5ffed96e566670e117b2ad00353e383a2f4917a06e5f115602463"
+      },
+      {
+        "id": "recheck-normal-2",
+        "criteria": {
+          "normal": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 13.758649,
+        "source_calls": 0,
+        "receipt_sha256": "6fcbfbf61f506de63a567e0b65b0bd55856d47e7c634fac4091cc2d17da2bc17"
+      },
+      {
+        "id": "recheck-permission-2",
+        "criteria": {
+          "permission": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 19.830825,
+        "source_calls": 0,
+        "receipt_sha256": "b95917beab4f5ba3a5c574b1111387a41b6faf3cd857123981dea79781c1da4b"
+      },
+      {
+        "id": "recheck-holdout-2",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 142.208837,
+        "source_calls": 13,
+        "receipt_sha256": "4921a9c5fc7efa8386d6731e33533f9bf4a47d0668f53bcea25a79858b168d47"
+      },
+      {
+        "id": "recheck-normal-1",
+        "criteria": {
+          "normal": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 12.928468,
+        "source_calls": 0,
+        "receipt_sha256": "02d4090d931fc689d1031b7b5e54360daee92213afe9fd3fce461bcff52887e1"
+      },
+      {
+        "id": "recheck-permission-1",
+        "criteria": {
+          "permission": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 7.858572,
+        "source_calls": 0,
+        "receipt_sha256": "dbd7a5e20476cddb90e32c1ceff87ab44a3a3322768a95aa20225e14575dbd62"
+      },
+      {
+        "id": "synthetic-top10",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 445.36464,
+        "source_calls": 74,
+        "receipt_sha256": "a11e49d24f84b3688f5c3760dccbf273f7208d552b5f6e26d1e723a113dc31ef"
+      },
+      {
+        "id": "synthetic-top100",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        },
+        "execution_seconds": 346.569254,
+        "source_calls": 37,
+        "receipt_sha256": "dcd21e7358004064646d5ded76498cf602b095e6485aef1107c32eeff1646f46"
+      }
+    ],
+    "historical_v12_failures_preserved": 6,
+    "does_not_claim_v12_12of12_or_stable_2of2": true,
+    "review_sha256": "503813a3ec87edd2109c5ff5b7ce2ece5eafda3c95d0e7c6aa646bad4bed7c96",
+    "plan_sha256": "13f6475de7f793d2e307ce202d26c727eef7c5d35c8b8dea6f4d4915d9f2d973",
+    "binding_sha256": "b20b1365b3b2607bd254700c2af9d1a9eefc81ae17bcbdc6fb08a5e538721750",
+    "generalization_mode": "final_continuation",
+    "generalization_sha256": "968ae60ee87de1a6c330d7f72fe3440f39c014397021df4df1b858eb8e3846ea"
+  },
+  "production_admission": {
+    "admitted": false,
+    "errors": [
+      "wcl_capacity_low"
+    ],
+    "wcl": {
+      "limitPerHour": 3600,
+      "pointsResetIn": 2653,
+      "pointsSpentThisHour": 1024.61
+    },
+    "remaining_fraction": 0.7153861111111112,
+    "required_remaining_fraction": 0.95,
+    "provider_endpoint_available": true,
+    "codex_capacity_passed": true,
+    "provider_next_check_at": "2026-09-10T03:03:35.297768+00:00",
+    "next_check_beijing": "2026-09-10 11:03:35 +08:00",
+    "raw_sha256": "0200fc757c8d1a9cc96e59bdde6b169f13add33104bc45243b5b758989d2f5bc"
+  },
+  "production": {
+    "cutover_performed": false,
+    "live_trials": 0,
+    "general_smoke": "not_run",
+    "new_rollback": "not_run_no_cutover",
+    "baseline_check": {
+      "observed_at": "2026-09-10T02:21:05.924385+00:00",
+      "backend": "/opt/chickenbro-releases/admin-ops-03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+      "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+      "units": {
+        "chickenbro-api": "active",
+        "chickenbro-worker": "active"
+      },
+      "readiness": "ready",
+      "production_cutover_performed": false,
+      "new_rollback_performed": false
+    },
+    "baseline_check_sha256": "8c5f135e8a87f5cf6d2a9d99fbc7d0d8b3b2fe93342da7a291eeb625fca8999a"
+  },
+  "workflow": {
+    "G6": "deferred_under_user_stop_instruction",
+    "G7": "pending",
+    "raw_feedback_count": 4,
+    "latest_scan_new": 1,
+    "latest_new_feedback_diagnosis": "not_run_evidence_insufficient_not_added_to_this_scope",
+    "released_groups": 0,
+    "automatic_new_iteration": "stopped",
+    "V13_full24": "superseded_before_model_start",
+    "V14": "not_created",
+    "no_release_batch_frozen_for_final": true
+  },
+  "local_checks": {
+    "unchanged_server_backend_tests": 643,
+    "independent_grounding_adapter_tests": 76,
+    "local_cli_targeted_tests": 36,
+    "cli_review_sha256": "ca8337f65f49124464cb8176d6a04e1c62b4783e1d1ea19350716c2b194cfe7a",
+    "final_runner_review_sha256": "432329e64803ac97c281df94a4fbb1edfb0713141e428ea4d1546fa0f3b6fd01"
+  },
+  "setup_boundary": {
+    "initial_launcher_import_failure_before_any_model": true,
+    "trial_retries": 0,
+    "record_sha256": "c5e979fd7c562ca83692887a5798b4cd6798434aee1ef9037dcb65283c0c1897"
+  },
+  "minimum_next_action": "After explicit continuation, recheck production quota and retained evidence freshness, then only workflow freeze/release plus exact live top10/top100 and required general/owner/Web checks. Reuse passed eight Candidate outcomes on unchanged source; do not rerun baseline or expand samples."
+}

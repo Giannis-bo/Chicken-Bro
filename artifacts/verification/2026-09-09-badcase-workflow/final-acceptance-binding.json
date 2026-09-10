@@ -1,0 +1,18 @@
+{
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "plan_sha256": "13f6475de7f793d2e307ce202d26c727eef7c5d35c8b8dea6f4d4915d9f2d973",
+  "model_config_sha256": "bc2156aaa8d95b70ba99d6274c3c3ff2da5c0d191c09d2867d23bce8ed91ca30",
+  "prompt_sha256": "7fe06a288eaf31ef3ae57585b1ccb8cb5a8bce304ad20dce20827e8fb7a937f2",
+  "runner_sha256": "c7b7d41373a6d642af6f5bcbffca90eba71fcf2813b490115089ddc4a0d8749f",
+  "observer_sha256": "3714249596446223672e53ed8bbef2e8e0c23f6756919a6632b5530d92efba24",
+  "conditions_sha256": "aec349134bd7804e0e860a3cb48279adcdd9259330c3ffed40effd7582db4c0c",
+  "conditions_file_sha256": "85e793c123745c793a530c06903f09c93b508a1f2be7afd68d9c752a446179db",
+  "source_file_hashes_sha256": "d68f61502e381acc273717ee2857729586fa2917d75def6f4840f9ba77ee6c85",
+  "fixed_at": "2026-09-10T02:02:04.929701+00:00",
+  "samples_sha256": "6a39fc7be98714ed81fa823e88c2076ee2e2a2515bbdac1639236a658b776f41",
+  "runtime_unchanged": true
+}

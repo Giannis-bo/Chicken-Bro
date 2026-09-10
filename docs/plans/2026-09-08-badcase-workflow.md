@@ -151,3 +151,6 @@ G5 最终本地与隔离真实模型回归通过：444项后端、62项控制面
 - Task 3m（V12配对失败）：Candidate12次有6次completed待独立语义审查，variant第2次、holdout第2次及normal/permission各2次均 `CODEX_OUTPUT_INVALID`，不能通过整组门禁。安全worker日志确认这6次stream_failed；未保留可证明所有云端失败共同原因的证据，历史独立评审遇到usage-limit不作共同根因。01:41 UTC后续只读云端账号查询为0%used/no spend block，仅代表该时间点。额外4次/生产未启动、无新回滚，当前仍baseline032，V12原始轨迹与设计成功记录均保留。同不可变fe4源码的V13将固定新留出与Codex/WCL联合95%阶段准入，无runtime改动；G6和Task3b/4/5保持未完成。见 [V12失败证据](../../artifacts/verification/2026-09-09-badcase-workflow/candidate-v12-failure.json)。
 
 - Task 3n（V12最终判定与自动化核验）：独立逐次语义确认Candidate最终6/12满足全标准，其余6次失败保留；CLI泛化构建为unverified，整组仍失败，不能由部分通过发布。另独立read_thread确认00点任务completed、06点任务因usage limit失败；本地TOML仍ACTIVE，未来12点尚未观察。随后人工补扫scan_time=1789004700.826834、新增0/扫描0，不追认06点自动扫描成功。V12云端六次失败的共同原因仍未确立。见 [自动化失败与补扫](../../artifacts/verification/2026-09-09-badcase-workflow/automation-usage-recovery-v13.json)。
+
+
+- 最终收敛（用户新要求）：停止扩样本和全套重跑；V13未启动即替代，不建立V14。复用未变fe4源码的643测试、独立源审、V12基线12与成功6；原失败6及所有回执保留。唯一最终8次（失败6各一次+exact top10/top100各一次）全部独立通过，新增本地CLI `final_continuation` 明确核验历史/本次矩阵，36针对测试通过。发布配额预检为71.54%，低于本轮95%预留要求，WCL接口仍可用；按要求停止，G6 deferred，最终发布批次尚未冻结，生产未切换、无新回滚，基线服务ready。后续仅在明确继续且配额/证据仍有效后完成workflow发布、live两题与general/owner/Web检查，不重跑已过8项。最终扫描又收集1条证据不足反馈，未扩入本轮；G7仍pending。见[最终证据](../../artifacts/verification/2026-09-09-badcase-workflow/final-acceptance-stop.json)。
