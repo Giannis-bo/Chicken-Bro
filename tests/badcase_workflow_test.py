@@ -512,4 +512,85 @@ class WorkflowTests(unittest.TestCase):
                 with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
 
 
+
+class FinalContinuationTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name); self.counter = 0
+        self.identity = {k:('a'*40 if k.endswith('_sha') else 'b'*64) for k in w.IDENTITY}
+        self.identity['baseline_sha'] = 'c'*40
+        self.batch = {**self.identity, 'groups':{'G6':'d'*64}}
+        self.plan = {'kind':'one_final_acceptance_with_evidence_reuse','fixed_at':'2026-09-10T01:00:00Z',
+                     'source_sha':self.identity['source_sha'],'baseline_sha':self.identity['baseline_sha'],
+                     'config_sha256':self.identity['config_sha256'],'model_config_sha256':'e'*64,
+                     'observer_sha256':'f'*64,'runtime_changes':False,'maximum_new_candidate_trials':8,
+                     'user_authorized_scope':'One final acceptance, preserve failures.',
+                     'budgets':{'chat_seconds':480,'wcl_seconds':360,'repair_seconds':60,'repair_attempts':1,'repair_tools':False},
+                     'planned_candidate_queue':[], 'reused_evidence':[], 'validity_matrix':[]}
+        self.history=[]; self.trials={}
+        for arm in ('before','after'):
+            for i in range(12):
+                sid=f's{i//2}'; repeat=i%2+1
+                criteria={'completion':'passed','analysis':'passed' if arm=='after' and i<6 else 'failed'}
+                raw=self.raw(arm,sid); ref=self.save(raw)
+                row={'arm':arm,'sample_id':sid,'repeat':repeat,'receipt_sha256':ref['sha256'],'historical_criteria':criteria}
+                if arm=='before' or i<6:self.plan['reused_evidence'].append(row)
+                if arm=='after':self.plan['validity_matrix'].append(row)
+                self.history.append({'arm':arm,'sample_id':sid,'repeat':repeat,'receipt':ref,'criteria':criteria})
+                if arm=='after' and i>=6:
+                    key=f'recheck-{i}';self.plan['planned_candidate_queue'].append({'id':key,'kind':'v12_failed_trial_recheck','sample_id':sid,'original_repeat':repeat,'historical_receipt_sha256':ref['sha256'],'input_sha256':raw['input_sha256'],'attempts':1})
+        for name in ('top10','top100'):
+            self.plan['planned_candidate_queue'].append({'id':'synthetic-'+name,'kind':'exact_production_synthetic','case':name,'input_sha256':'1'*64,'attempts':1})
+        self.plan_ref=self.save(self.plan)
+        self.binding={'plan_sha256':self.plan_ref['sha256'],'fixed_at':'2026-09-10T01:01:00Z',
+                      'source_sha':self.identity['source_sha'],'config_sha256':self.identity['config_sha256'],
+                      'model_config_sha256':'e'*64,'prompt_sha256':'2'*64,'runner_sha256':'3'*64,'observer_sha256':'f'*64,
+                      'conditions_sha256':w.digest(self.conditions()),'source_file_hashes_sha256':w.digest({'runtime.py':'4'*64})}
+        for item in self.plan['planned_candidate_queue']:
+            raw=self.raw('after',item.get('sample_id','synthetic'));raw.update(final_case_id=item['id'],input_sha256=item['input_sha256'],observed_at='2026-09-10T01:02:00Z')
+            ref=self.save(raw); criteria={'analysis':'passed','completion':'passed'} if item['kind']=='v12_failed_trial_recheck' else {'acquisition':'passed','analysis':'passed','completion':'passed'}
+            self.trials[item['id']]={'receipt':ref,'assessment':{'receipt_sha256':ref['sha256'],'criteria':criteria,'notes':'Independent observed answer and source assessment.'}}
+        self.record={**self.identity,'mode':'final_continuation','observed_at':'2026-09-10T02:00:00Z',
+                     'continuation':{'plan':self.plan_ref,'binding':self.save(self.binding),'historical':self.history,'trials':self.trials},
+                     'groups':{'G6':{'mechanism':'general mechanism','root_cause_evidence':'observed original errors','applicable_scope':'WCL research','excluded_boundaries':'No owner change','anti_case_specialization':{'status':'passed','findings':[],'reviewed_diff_sha256':self.identity['diff_sha256'],'reviewed_surfaces':['code','prompts','config','data_mappings'],'review_notes':'Independent review.'}}}}
+    def conditions(self):
+        return {'config_sha256':self.identity['config_sha256'],'model_config_sha256':'e'*64,'timeout_seconds':480,'wcl_reader_budget_seconds':360,'repair_budget_seconds':60,'repair_attempts':1,'repair_tools_enabled':False,'allow_simulation':True}
+    def raw(self,arm,sid):
+        self.counter+=1
+        return {'runId':f'00000000-0000-0000-0000-{self.counter:012d}','conversationId':f'10000000-0000-0000-0000-{self.counter:012d}',
+                'source_sha':self.identity['source_sha'] if arm=='after' else self.identity['baseline_sha'],'input_sha256':w.digest(sid),'model_config_sha256':'e'*64,
+                'prompt_sha256':'2'*64,'runner_sha256':'3'*64,'observer_sha256':'f'*64,'source_file_hashes':{'runtime.py':'4'*64},
+                'conditions':self.conditions(),'conditions_sha256':w.digest(self.conditions()),'observed_at':'2026-09-10T00:00:00Z','duration_seconds':20,
+                'terminal':'completed','answers':['actual answer'],'transport':'actual_http_worker_tool_recorder','actual_history_matches_fixed_fixture':True,
+                'actual_profile_identity':{'model_config_sha256':'e'*64,'allow_simulation':True},'actual_application_prompt_sha256':'5'*64,
+                'actual_input_identity':{'application_prompt_sha256':'5'*64,'timeout_seconds':480},'cleanup_completed':True,'simc_jobs_created':0,'calls':[],'all_tool_results':[],'cost':{'tool_calls':0,'provider_tokens':None,'provider_cost':None,'provider_cost_unit':None}}
+    def save(self,value):
+        p=self.root/(str(len(list(self.root.iterdir())))+'.json');p.write_bytes(w.canonical(value));return {'path':str(p),'sha256':w.file_sha(p)}
+    def test_preserves_historical_failure_and_accepts_complete_final_snapshot(self):
+        before=copy.deepcopy(self.history);w.validate_generalization(self.record,self.batch);self.assertEqual(before,self.history)
+    def test_incomplete_or_failed_new_trial_rejected(self):
+        for mutation in ('missing','failed','pending'):
+            record=copy.deepcopy(self.record);trials=record['continuation']['trials'];key=next(iter(trials))
+            if mutation=='missing':trials.pop(key)
+            else:trials[key]['assessment']['criteria']['completion']='failed' if mutation=='failed' else 'unavailable'
+            with self.subTest(mutation=mutation),self.assertRaises(w.WorkflowError):w.validate_generalization(record,self.batch)
+    def test_raw_mutation_and_history_criteria_rewrite_rejected(self):
+        for mutation in ('raw','history'):
+            record=copy.deepcopy(self.record)
+            if mutation=='history':record['continuation']['historical'][-1]['criteria']['analysis']='passed'
+            else:
+                ref=record['continuation']['trials'][next(iter(self.trials))]['receipt'];Path(ref['path']).write_text('{}')
+            with self.subTest(mutation=mutation),self.assertRaises(w.WorkflowError):w.validate_generalization(record,self.batch)
+    def test_wrong_binding_duplicate_run_budget_capture_rejected(self):
+        for mutation in ('source','run','budget','capture','input','profile'):
+            record=copy.deepcopy(self.record);entry=record['continuation']['trials'][next(iter(self.trials))];raw=json.loads(Path(entry['receipt']['path']).read_text())
+            if mutation=='source':raw['source_sha']='0'*40
+            if mutation=='run':raw['runId']=json.loads(Path(self.history[0]['receipt']['path']).read_text())['runId']
+            if mutation=='budget':raw['duration_seconds']=481
+            if mutation=='capture':raw['receipt_capture_error']='missing'
+            if mutation=='input':raw['input_sha256']='0'*64
+            if mutation=='profile':raw['actual_profile_identity']['model_config_sha256']='0'*64
+            entry['receipt']=self.save(raw);entry['assessment']['receipt_sha256']=entry['receipt']['sha256']
+            with self.subTest(mutation=mutation),self.assertRaises(w.WorkflowError):w.validate_generalization(record,self.batch)
+
 if __name__ == '__main__': unittest.main()

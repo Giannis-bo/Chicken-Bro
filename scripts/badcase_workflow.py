@@ -102,8 +102,162 @@ def number(value):
     return type(value) in (int, float) and math.isfinite(value) and value >= 0
 
 
+def _continuation_file(ref):
+    require(isinstance(ref, dict), 'continuation evidence reference missing')
+    path = Path(ref.get('path', ''))
+    require(path.is_absolute() and path.is_file() and not path.is_symlink()
+            and path.stat().st_size <= 32_000_000, 'continuation evidence file invalid')
+    data = path.read_bytes()
+    require(hashlib.sha256(data).hexdigest() == valid_sha(ref.get('sha256')), 'continuation receipt SHA differs')
+    value = json.loads(data)
+    require(isinstance(value, dict), 'continuation evidence object missing')
+    return value
+
+
+def _validate_final_continuation(record, batch):
+    """An explicit prospective final snapshot; historical failures remain failures."""
+    c = record.get('continuation', {})
+    plan = _continuation_file(c.get('plan'))
+    binding = _continuation_file(c.get('binding'))
+    require(plan.get('kind') == 'one_final_acceptance_with_evidence_reuse'
+            and plan.get('runtime_changes') is False and nonempty(plan.get('user_authorized_scope')),
+            'continuation authorization missing')
+    require(binding.get('plan_sha256') == c['plan']['sha256'], 'continuation plan binding differs')
+    fixed = timestamp(plan.get('fixed_at'))
+    bound = timestamp(binding.get('fixed_at'))
+    require(fixed <= bound <= timestamp(record.get('observed_at')), 'continuation binding time invalid')
+    require(all(plan.get(k) == batch[k] for k in ('source_sha', 'baseline_sha', 'config_sha256')),
+            'continuation unchanged source or configuration differs')
+    require(all(binding.get(k) == plan[k] for k in ('source_sha', 'config_sha256', 'model_config_sha256')),
+            'continuation execution binding differs')
+    require(plan.get('budgets') == {'chat_seconds':480, 'wcl_seconds':360, 'repair_seconds':60,
+                                   'repair_attempts':1, 'repair_tools':False}, 'continuation budget changed')
+    for key in ('model_config_sha256', 'prompt_sha256', 'runner_sha256', 'observer_sha256',
+                'conditions_sha256', 'source_file_hashes_sha256'):
+        valid_sha(binding.get(key))
+    require(binding['observer_sha256'] == plan.get('observer_sha256'), 'continuation observer changed')
+    proofs = record.get('groups', {})
+    require(set(proofs) == set(batch['groups']), 'continuation group coverage differs')
+    for proof in proofs.values():
+        require(all(nonempty(proof.get(k)) for k in ('mechanism','root_cause_evidence','applicable_scope','excluded_boundaries')),
+                'continuation mechanism missing')
+        audit = proof.get('anti_case_specialization', {})
+        require(audit.get('status') == 'passed' and audit.get('findings') == []
+                and audit.get('reviewed_diff_sha256') == batch['diff_sha256']
+                and set(audit.get('reviewed_surfaces', [])) == {'code','prompts','config','data_mappings'}
+                and nonempty(audit.get('review_notes')), 'continuation specialization audit failed')
+    expected_history = {}
+    for item in [*plan.get('reused_evidence', []), *plan.get('validity_matrix', [])]:
+        key = (item['arm'], item['sample_id'], item['repeat'])
+        value = (valid_sha(item.get('receipt_sha256')), item.get('historical_criteria'))
+        require(key not in expected_history or expected_history[key] == value, 'continuation conflicting history')
+        expected_history[key] = value
+    require(len(expected_history) == 24 and sum(k[0] == 'before' for k in expected_history) == 12
+            and sum(k[0] == 'after' for k in expected_history) == 12, 'continuation complete historical cohort missing')
+    history = c.get('historical', [])
+    require(isinstance(history, list) and len(history) == 24, 'continuation historical raw receipts missing')
+    seen_keys, receipts, runs, conversations = set(), set(), set(), set()
+
+    def raw_receipt(ref, source, *, passed):
+        raw = _continuation_file(ref)
+        require(ref['sha256'] not in receipts, 'continuation duplicate raw receipt')
+        receipts.add(ref['sha256'])
+        for field, used in (('runId', runs), ('conversationId', conversations)):
+            value = raw.get(field)
+            require(isinstance(value,str) and re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', value) and value not in used,
+                    'continuation duplicate or missing execution identity')
+            used.add(value)
+        require(raw.get('source_sha') == source and raw.get('model_config_sha256') == plan['model_config_sha256'],
+                'continuation raw source or model differs')
+        conditions = raw.get('conditions', {})
+        require(digest(conditions) == valid_sha(raw.get('conditions_sha256'))
+                and conditions.get('config_sha256') == plan['config_sha256']
+                and conditions.get('model_config_sha256') == plan['model_config_sha256'],
+                'continuation raw configuration differs')
+        require(all(conditions.get(k) == v for k,v in {'timeout_seconds':480,'wcl_reader_budget_seconds':360,
+                    'repair_budget_seconds':60,'repair_attempts':1,'repair_tools_enabled':False,'allow_simulation':True}.items()),
+                'continuation raw permission or budget differs')
+        require(raw.get('transport') == 'actual_http_worker_tool_recorder'
+                and not raw.get('receipt_capture_error') and raw.get('cleanup_completed') is True,
+                'continuation capture or cleanup incomplete')
+        require(raw.get('actual_history_matches_fixed_fixture') is True
+                and raw.get('actual_profile_identity') == {'model_config_sha256':plan['model_config_sha256'],'allow_simulation':True},
+                'continuation actual history or profile differs')
+        prompt = valid_sha(raw.get('actual_application_prompt_sha256'))
+        require(raw.get('actual_input_identity', {}).get('application_prompt_sha256') == prompt
+                and raw['actual_input_identity'].get('timeout_seconds') == 480,
+                'continuation application prompt capture differs')
+        require(isinstance(raw.get('calls'),list) and isinstance(raw.get('all_tool_results'),list)
+                and type(raw.get('simc_jobs_created')) is int and raw['simc_jobs_created'] == 0,
+                'continuation tool or permission capture missing')
+        cost = raw.get('cost', {})
+        require(type(cost.get('tool_calls')) is int and cost['tool_calls'] == len(raw['calls'])
+                and all(k in cost for k in ('provider_tokens','provider_cost','provider_cost_unit')),
+                'continuation measured cost missing')
+        require(number(raw.get('duration_seconds')), 'continuation execution duration missing')
+        if passed:
+            require(raw.get('terminal') == 'completed' and 0 < raw['duration_seconds'] <= 480
+                    and isinstance(raw.get('answers'),list) and any(nonempty(a) for a in raw['answers']),
+                    'continuation passing verdict contradicts terminal or budget')
+        return raw
+
+    by_receipt, successful, failed = {}, set(), set()
+    for item in history:
+        key = (item.get('arm'), item.get('sample_id'), item.get('repeat'))
+        require(key in expected_history and key not in seen_keys, 'continuation history assignment differs')
+        seen_keys.add(key)
+        sha, criteria = expected_history[key]
+        require(item.get('receipt', {}).get('sha256') == sha and item.get('criteria') == criteria
+                and isinstance(criteria,dict) and criteria and set(criteria.values()) <= {'passed','failed','unavailable'},
+                'continuation historical verdict changed')
+        success = all(v == 'passed' for v in criteria.values())
+        raw = raw_receipt(item['receipt'], batch['baseline_sha'] if key[0] == 'before' else batch['source_sha'],
+                          passed=criteria.get('completion') == 'passed')
+        require(timestamp(raw.get('observed_at')) < fixed, 'continuation history is not historical')
+        by_receipt[sha] = (raw, criteria, key)
+        if key[0] == 'after': (successful if success else failed).add(sha)
+    require(len(successful) == len(failed) == 6, 'continuation six successes and six preserved failures required')
+    queue = plan.get('planned_candidate_queue', [])
+    require(plan.get('maximum_new_candidate_trials') == 8 and isinstance(queue,list) and len(queue) == 8,
+            'continuation final queue differs')
+    ids = [x.get('id') for x in queue]
+    trials = c.get('trials', {})
+    require(len(set(ids)) == 8 and isinstance(trials,dict) and set(trials) == set(ids),
+            'continuation pending or omitted final trial')
+    replaced, synthetic = set(), set()
+    for item in queue:
+        require(item.get('attempts') == 1, 'continuation trial retry not allowed')
+        entry = trials[item['id']]
+        assessment = entry.get('assessment', {})
+        if item.get('kind') == 'v12_failed_trial_recheck':
+            old = item.get('historical_receipt_sha256')
+            require(old in failed and old not in replaced, 'continuation failed trial replacement differs')
+            old_raw, criteria, old_key = by_receipt[old]
+            require(old_key == ('after',item.get('sample_id'),item.get('original_repeat'))
+                    and old_raw.get('input_sha256') == item.get('input_sha256'), 'continuation recheck input changed')
+            replaced.add(old); criterion_ids = set(criteria)
+        else:
+            require(item.get('kind') == 'exact_production_synthetic' and item.get('case') in ('top10','top100')
+                    and item['case'] not in synthetic, 'continuation synthetic scope differs')
+            synthetic.add(item['case']); criterion_ids = {'acquisition','analysis','completion'}
+        require(assessment.get('receipt_sha256') == entry.get('receipt', {}).get('sha256')
+                and assessment.get('criteria') == {k:'passed' for k in criterion_ids}
+                and nonempty(assessment.get('notes')), 'continuation final assessment failed or missing')
+        raw = raw_receipt(entry['receipt'], batch['source_sha'], passed=True)
+        require(raw.get('final_case_id') == item['id'] and raw.get('input_sha256') == item.get('input_sha256'),
+                'continuation final raw input differs')
+        require(bound <= timestamp(raw.get('observed_at')) <= timestamp(record['observed_at']),
+                'continuation trial predates fixed execution binding')
+        require(all(raw.get(k) == binding[k] for k in ('prompt_sha256','runner_sha256','observer_sha256','conditions_sha256'))
+                and digest(raw.get('source_file_hashes')) == binding['source_file_hashes_sha256'],
+                'continuation final runtime or runner binding differs')
+    require(replaced == failed and synthetic == {'top10','top100'}, 'continuation final coverage incomplete')
+
+
 def validate_generalization(record, batch):
     """Validate registered assignments and measured paired outcomes, not a pass checkbox."""
+    if record.get("mode") == "final_continuation":
+        return _validate_final_continuation(record, batch)
     proofs = record.get('groups', {})
     require(isinstance(proofs, dict) and set(proofs) == set(batch['groups']), 'generalization unverified: group coverage differs')
     categories = {'original', 'variant', 'independent_holdout', 'normal', 'permission'}
