@@ -54,6 +54,7 @@ class _RunDiagnostics:
         self.repair_validation_codes = None
         self.repair_phase = None
         self.repair_code = None
+        self.native_web_counts = {}
 
     def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None):
         try:
@@ -121,6 +122,15 @@ def _observe_stream(method):
             _diagnostic('stream_failed', code=_diagnostic_error(error))
             raise
         finally:
+            try:
+                diagnostic = _DIAGNOSTICS.get()
+                if diagnostic.run_id and diagnostic.native_web_counts:
+                    # One bounded metadata record, visible with the production warning threshold.
+                    # Completed events prove invocation, not successful retrieval or answer quality.
+                    _LOG.warning('codex_native_web_summary %s', json.dumps({
+                        'run_id': diagnostic.run_id, 'completed_events': diagnostic.native_web_counts}, sort_keys=True))
+            except Exception:
+                pass
             _DIAGNOSTICS.reset(token)
     return observed
 
@@ -321,6 +331,23 @@ def _repair_profile(profile_config):
     return config
 
 
+class _ResearchSession(CodexStdioSession):
+    def _item_event(self, method, params):
+        result = super()._item_event(method, params)
+        try:
+            item = params.get('item', {})
+            diagnostic = _DIAGNOSTICS.get()
+            if method == 'item/completed' and item.get('type') == 'webSearch' and diagnostic is not None:
+                action = item.get('action')
+                kind = action.get('type') if isinstance(action, dict) else None
+                kind = kind if isinstance(kind, str) and kind in ('search', 'openPage', 'findInPage') else 'other'
+                counts = diagnostic.native_web_counts
+                counts[kind] = min(10000, counts.get(kind, 0) + 1)
+        except Exception:
+            pass
+        return result
+
+
 class _RepairSession(CodexStdioSession):
     def _item_event(self, method, params):
         item = params.get('item')
@@ -472,7 +499,7 @@ class NativeCodexChatAdapter:
             raise CodexUnavailable() from None
 
         process_finished = False
-        session = CodexStdioSession(process, deadline)
+        session = _ResearchSession(process, deadline)
         try:
             terminal = None
             draft_events = []

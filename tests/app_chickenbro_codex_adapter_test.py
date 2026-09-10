@@ -123,6 +123,23 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             self.assertEqual(caught.exception.code,'CODEX_OUTPUT_INVALID')
         self.assertEqual(len(calls),1)
 
+    def test_native_web_receipts_are_run_bound_content_free_and_do_not_change_answer(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        secret = 'PRIVATE-QUERY-URL-CONTENT'
+        events = [note('item/completed', threadId='thread', turnId='turn',
+                  item={'id': str(i), 'type': 'webSearch', 'action': {'type': action, 'query': secret}, 'text': secret})
+                  for i, action in enumerate(('search', 'openPage', 'findInPage', secret))]
+        process = FakeProcess(transcript(*events, item('item/started'), delta('answer'), item('item/completed', 'answer')))
+        run_id = '12345678-1234-1234-1234-123456789abc'
+        with tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'warning') as log:
+            adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: process)
+            output = list(adapter.stream(prompt=secret, timeout_seconds=20, tool_context=SimpleNamespace(run_id=run_id)))
+        self.assertEqual(output[-1], {'type': 'completed', 'text': 'answer'})
+        receipts = [json.loads(c.args[1]) for c in log.call_args_list if c.args[0] == 'codex_native_web_summary %s']
+        self.assertEqual(receipts, [{'run_id': run_id, 'completed_events': {'search': 1, 'openPage': 1, 'findInPage': 1, 'other': 1}}])
+        self.assertNotIn(secret, str(log.call_args_list))
+
     def test_internal_diagnostics_are_bounded_allowlisted_and_never_log_content(self):
         from server.app.chickenbro import codex_adapter as module
         secret = 'PRIVATE-PROMPT-PATCH-EXCEPTION'
