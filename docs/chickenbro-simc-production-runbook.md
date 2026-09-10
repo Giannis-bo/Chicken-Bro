@@ -53,3 +53,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 ## 运营后台发布（2026-09-09）
 
 `/admin` 已发布并绑定经用户确认的真实 QQ 内部账号。权限配置 `/etc/chickenbro-admin-ops-03275ee5ce67.env` 由本批 API/Worker drop-in 同时加载，只有一个 `WOW_ADMIN_USER_ID`，不可用QQ数字、昵称或固定测试账号代替；空配置拒绝所有访问。后续部署须保留该配置及管理员路由，并检查本人200、普通账号403与匿名401。后端运行源码03275ee5c、最终Web源码8fba1535f；清单、业务证据、并行任务边界和精确恢复入口见[发布记录](../artifacts/verification/2026-09-09-admin-ops/README.md)。
+
+## WCL 工具效率发布（2026-09-10）
+
+当前后端增量源码 `f95f6bbe234a2da8a67ca86466e96c6c29c6b794`，API/Worker 位于 `/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794`。本次仅替换五个 WCL/MCP/证据文件，无新 migration、依赖、运行配置或 Web 变动；Web 继续使用 `admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f`。隔离与公网业务检查、精确清单及空闲门禁恢复入口见[发布记录](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。旧后端完整保留，私有恢复快照已校验；没有执行生产回切演练。

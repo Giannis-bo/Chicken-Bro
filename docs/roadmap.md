@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- [WCL 工具效率优化](plans/2026-09-10-wcl-tool-efficiency.md)：按需视图、单轮去重和有界窗口统计已合入推送并发布（`f95f6bbe2`）；隔离图片/Chat/SimC、隔离及公网 WCL 与账号隔离通过，Web 14 文件一致。复用 667 项后端与 63 项控制面测试，按用户要求停止扩样本。[发布证据](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
+
 - [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：扫描、诊断、批准与条件发布闭环已落地，两条G6排行榜修复已正式发布；线上两题、Chat/SimC/owner及Web14文件验收通过。自动化00点执行成功、06点因额度失败；G7和另1条反馈待后续处理。[发布证据](../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json)。
 
 - [运营后台](plans/2026-09-09-admin-ops.md)：QQ唯一管理员、只读用户/Chat/SimC数据、北京时间趋势；已发布并完成真实本人权限、非管理员拒绝、业务和SQL对账。[证据](../artifacts/verification/2026-09-09-admin-ops/README.md)。
@@ -19,14 +21,12 @@
 
 ## 正在推进
 
-- [WCL 工具效率优化](plans/2026-09-10-wcl-tool-efficiency.md)：第一批实现与专项验证已完成，667 项后端测试及两道隔离真实模型对照通过；未合入或发布。基线文档保留分类已修正，控制面 63 项通过，发布清单已准备。
-
-
+本轮已完成；新任务按用户授权推进。
 
 
 ## 下一步
 
-本轮小程序清理已发布并完成自动业务验证；后续新功能按用户新授权推进。详见[本轮发布记录](../artifacts/verification/2026-09-09-mini-retirement/release/README.md)。
+本轮 WCL 工具效率优化已发布并完成自动业务验证；后续新功能按用户新授权推进。详见[本轮发布记录](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
 
 ## 暂缓与待决策
 

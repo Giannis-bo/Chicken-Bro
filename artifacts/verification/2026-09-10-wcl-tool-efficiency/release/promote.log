@@ -1,0 +1,1 @@
+{"action": "promote", "sourceCommit": "f95f6bbe234a2da8a67ca86466e96c6c29c6b794", "backend": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794", "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f", "businessSmoke": "required"}

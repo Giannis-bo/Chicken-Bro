@@ -290,16 +290,16 @@
       "userAcceptance": "not_claimed"
     },
     "wclToolEfficiency": {
-      "status": "local_and_isolated_model_verified",
+      "status": "live_verified",
       "implementationAuthorized": true,
-      "productionCutoverAuthorized": false,
+      "productionCutoverAuthorized": true,
       "plan": "docs/plans/2026-09-10-wcl-tool-efficiency.md",
       "scope": [
         "wcl_response_views",
         "run_local_read_deduplication",
         "bounded_window_statistics"
       ],
-      "productionDeployed": false,
+      "productionDeployed": true,
       "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/README.md",
       "backendTestsPassed": 667,
       "controlTests": {
@@ -308,7 +308,14 @@
         "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/control-tests-closure.log"
       },
       "modelComparisons": 2,
-      "releasePreparation": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release-preparation.json"
+      "releasePreparation": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release-preparation.json",
+      "sourceCommit": "f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "candidateVerified": true,
+      "liveBusinessVerified": true,
+      "userClosureAuthorized": true,
+      "userAcceptance": "not_claimed",
+      "releaseEvidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md",
+      "rollback": "retained_source_and_private_configuration_validated_no_switchback_drill"
     }
   },
   "miniRetirement": {

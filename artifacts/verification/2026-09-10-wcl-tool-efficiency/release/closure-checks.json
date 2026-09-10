@@ -1,0 +1,10 @@
+{
+  "jsonSyntax": "passed",
+  "operatorPythonSyntax": "passed",
+  "releaseEvidenceAndPlanLinks": "passed",
+  "fiveRuntimeHashesMatchFrozenCommitAndCurrentSource": "passed",
+  "gitDiffCheck": "passed",
+  "reusedBackendTests": 667,
+  "reusedControlTests": 63,
+  "newModelSamplesBeyondReleaseSmoke": 0
+}

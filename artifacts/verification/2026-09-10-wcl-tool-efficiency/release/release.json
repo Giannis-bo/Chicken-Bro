@@ -1,0 +1,32 @@
+{
+  "status": "live_verified",
+  "sourceCommit": "f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+  "authorization": "用户明确要求：是的，提交、合入、发布。",
+  "runtimeFiles": {
+    "server/app/chickenbro/wcl_source.py": "a9f894f8ed12c76a5845216672d22abe8a305e2edf9d55eecf906e3cea32be9c",
+    "server/app/chickenbro/wcl_statistics.py": "5d8df42ee5276b4e0188f91046c3b31439027b6b9f9a2b25aa833ba599c75a78",
+    "server/app/chickenbro/source_gateway.py": "38cb1a79ac19246c3c9aa6a67b6b23b5f10da65546d4720a5d4a0faac290d9c0",
+    "server/app/chickenbro/answer_grounding.py": "e415ebad2c6eb5d6f5cac17a768726c4f7b35658560ac892d06343480948db88",
+    "server/chickenbro_native_mcp.py": "cc76cd667c6ae253854285c0322186fa02ee0fd7d6ab913b1ad72705c02f1f57"
+  },
+  "backend": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+  "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+  "candidateEvidence": "candidate.json",
+  "productionEvidence": "production.json",
+  "publicWebEvidence": "public-web.json",
+  "runtimeEvidence": "runtime-final.json",
+  "reusedTests": {
+    "backend": 667,
+    "control": 63
+  },
+  "rollback": {
+    "retainedBackend": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "privateManifest": "/var/tmp/chickenbro-wcl-release-20260910/manifest.json",
+    "privateRecoverySnapshot": "/var/tmp/chickenbro-wcl-release-20260910/badcase-recovery.json",
+    "snapshotValidated": true,
+    "switchbackDrill": false
+  },
+  "manualQqLogin": "not_repeated",
+  "manualUserAcceptance": "not_claimed",
+  "stopCondition": "Required scoped Candidate/live checks passed; no extra model samples."
+}

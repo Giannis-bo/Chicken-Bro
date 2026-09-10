@@ -1,0 +1,55 @@
+{
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "wclHttpSseTerminal": true,
+    "wclStatisticsTool": true,
+    "wclExpectedNineWaste": true,
+    "wclInterpretationBoundary": true,
+    "wclOwnerIsolation": true
+  },
+  "wclRunId": "64f4f502-2243-474e-a9ec-ca7c9590cef2",
+  "wclSeconds": 24.157,
+  "wclAnswer": "该角色（source=12）在战斗内 **2:13–2:33 共浪费 9 点圣能**。[WCL 报告](https://www.warcraftlogs.com/reports/ZgdALDkX48af26KN#fight=8&source=12)\n\n- 统计窗口：报告相对毫秒 `[2712438, 2732438)`，包含起点、不含终点；资源数据完整，无缺失值。\n- 这 9 点是**资源溢出统计**，不能直接换算成少打几次技能或损失多少有效治疗；是否损失有效治疗，需要结合当时的治疗需求与可行施法判断。",
+  "wclStatistics": [
+    {
+      "casts": [],
+      "endTime": 2732438,
+      "healing": null,
+      "complete": true,
+      "dataType": "Resources",
+      "sourceId": 12,
+      "pagesRead": 1,
+      "resources": [
+        {
+          "waste": 9,
+          "resourceType": 9,
+          "missingValues": 0
+        },
+        {
+          "waste": 0,
+          "resourceType": 0,
+          "missingValues": 0
+        }
+      ],
+      "startTime": 2712438,
+      "eventCount": 22,
+      "missingValues": 0,
+      "metricsComplete": true,
+      "observedThrough": 2732438,
+      "nextPageTimestamp": null,
+      "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+    }
+  ],
+  "wclTools": [
+    {
+      "operation": "source.warcraftlogs",
+      "state": "completed"
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}
