@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- 自定义施法 APL 与玩家术语先检索：`c408a30e6` 已合入推送并发布；隔离与公网真实相反顺序、Chat 先检索、第二账号隔离及 Web 13 文件核对通过。见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。
+
 - [Chat 有界研究](plans/2026-09-10-bounded-research.md)：Top10、查询/实验预算及网页统一计量已提交推送并发布（`3f0c15d98`）；隔离图片/SimC/WCL、公网拒答/榜单/网页及Web14文件核验通过。[发布记录](../artifacts/verification/2026-09-10-bounded-research/release/README.md)。
 
 - G7 日志施法归因修复已上线（`f1f0f0a0d`）：不把日志频次或同步事件直接当作按键习惯；两次完整Candidate及公网高分对照验收通过，保留失败与适用边界。[记录](../artifacts/verification/2026-09-10-badcase-g7/release/README.md)。
@@ -25,7 +27,6 @@
 
 ## 正在推进
 
-- 自定义施法 APL 与玩家术语先检索：用户于 2026-09-10 授权实现；已完成实现及定向/隔离验证；用户已授权提交、合入、发布，正在发布。见[验证记录](../artifacts/verification/2026-09-10-custom-apl/README.md)。
 
 
 

@@ -1,0 +1,77 @@
+{
+  "mode": "candidate",
+  "source": "/opt/chickenbro-releases/custom-apl-c408a30e676c9884d27b7c4ea8cad39f8ac45a01",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "realCustomAplQueueWorkerResult": true,
+    "actualOppositeCastOrders": true,
+    "simcIdempotencyAndIsolation": true,
+    "effectiveConfig": true,
+    "chatResearchFirst": true,
+    "chatSseHistoryAndIsolation": true
+  },
+  "jobs": [
+    {
+      "id": "4fe8deee-11e5-48b8-8c62-412fc0beadec",
+      "order": "stormkeeper:ascendance",
+      "dps": 213328.69462329842,
+      "profileSha256": "81900d489563d63cbb8ac811d77da998d64202d461d7c77109073386ac5b63f2",
+      "observedActions": [
+        {
+          "name": "stormkeeper",
+          "time": 0.0,
+          "spellId": 191634
+        },
+        {
+          "name": "ascendance",
+          "time": 1.239,
+          "spellId": 1219480
+        }
+      ],
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da"
+    },
+    {
+      "id": "8b56b71f-26f7-4275-8230-a2cde2df2a11",
+      "order": "ascendance:stormkeeper",
+      "dps": 211927.23355851922,
+      "profileSha256": "484db4dfa2e312c23819a6e3a504c54635026e5044b91fe96cc859973ffaf74e",
+      "observedActions": [
+        {
+          "name": "ascendance",
+          "time": 0.0,
+          "spellId": 1219480
+        },
+        {
+          "name": "stormkeeper",
+          "time": 1.238,
+          "spellId": 191634
+        }
+      ],
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da"
+    }
+  ],
+  "chatRunId": "ea2ff9c4-fe30-4eb1-87b8-8cea948c90fa",
+  "chatAnswer": "**这轮没查到足以确认“神器”指代和四件套联动的当前资料，不能给你定论。**\n\n- **版本**：暴雪官网确认正式服已进入《至暗之夜》，但该页面没有明确当前补丁号或套装效果。[来源](https://worldofwarcraft.blizzard.com/zh-cn/)\n- **“神器”**：未取得当前元素萨语境的可靠说明，暂不能确认它指哪项技能或装备。\n- **四件套与升腾**：未读到当前套装原文，因此无法确认触发条件、持续时间及具体联动。\n\n后续资料读取失败，研究工具也已提示预算耗尽，本轮只能停在上述已核实范围。你可以贴出讨论原句和四件套说明，我据此继续核对。",
+  "chatTools": [
+    {
+      "operation": "source.public_web",
+      "state": "completed"
+    },
+    {
+      "operation": "source.public_web",
+      "state": "completed"
+    },
+    {
+      "operation": "source.public_web",
+      "state": "completed"
+    },
+    {
+      "operation": "source.public_web",
+      "state": "completed"
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

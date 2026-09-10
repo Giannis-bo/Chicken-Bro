@@ -1,0 +1,1 @@
+{"action": "verify", "sourceCommit": "c408a30e676c9884d27b7c4ea8cad39f8ac45a01", "backend": "/opt/chickenbro-releases/custom-apl-c408a30e676c9884d27b7c4ea8cad39f8ac45a01", "web": "/var/www/chickenbro-web/releases/custom-apl-c408a30e676c9884d27b7c4ea8cad39f8ac45a01", "businessSmoke": "required", "compiler": "chickenbro-simc-compiler-v6"}

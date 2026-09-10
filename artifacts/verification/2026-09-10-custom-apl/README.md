@@ -1,6 +1,6 @@
 # 自定义施法与玩家术语检索
 
-2026-09-10。用户授权实现两项修复；源码未提交，未推送或发布。生产仍使用 compiler v5。本目录 source-manifest.json 绑定本轮文件，不能将其 baseCommit 当作包含改动的提交。
+2026-09-10。用户已明确授权提交、合入、发布；源码 `c408a30e676c9884d27b7c4ea8cad39f8ac45a01` 已上线，见[发布记录](release/README.md)。以下为实施阶段验证；source-manifest.json 是提交前快照，其 baseCommit 不包含本轮改动。
 
 ## 实现
 
@@ -21,8 +21,8 @@
 - 最终原题复测：46.82 秒、3 次检索，先查资料、提出风暴守护者候选，再追问版本和角色/已有任务，未宣称不支持自定义施法、未捏造模拟结果。外部来源本次没有提供有效套装/技能正文，不能宣称已成功解析当前四件套效果。最终结果保存在云端隔离目录 `/tmp/chickenbro-custom-apl-20260910/candidate.json`；初轮为 candidate-first.json。
 - 隔离 Chat 还核对了历史、幂等、断开后继续、账号并发限制与第二账号访问拒绝。测试会话归档，临时 sessions 撤销；临时服务在无活动任务时停止。QQ 只验证授权 URL，不宣称新一次真实扫码登录。
 
-## 发布前仍需
+## 发布配置
 
-用户明确授权发布；API/Worker 同时加载本轮源码并设置 `WOW_SIMC_COMPILER_REVISION=chickenbro-simc-compiler-v6`；绑定 Web 新产物、保留精确回退配置，空闲门禁切换后做公网 Chat/SimC 验证。没有升级 SimC 引擎、安装依赖、改生产数据库或重放旧迁移。
+用户已明确授权并完成发布；API/Worker 同时加载本轮源码并设置 `WOW_SIMC_COMPILER_REVISION=chickenbro-simc-compiler-v6`；Web 新产物、精确回退配置、空闲门禁切换与公网 Chat/SimC 验证见发布记录。没有升级 SimC 引擎、安装依赖、改生产数据库或重放旧迁移。
 
 APL 语义参照 [SimulationCraft ActionLists](https://github.com/simulationcraft/simc/wiki/ActionLists)，并核对云端当前 source archive；优先级不等于施放时间。

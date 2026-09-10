@@ -61,3 +61,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 ## Chat 有界研究（2026-09-10）
 
 API/Worker当前运行源码 `3f0c15d988fd33fd08dae8514f70ee483862c3c8`，7文件增量启用Top10及来源预算、关闭绕过预算的原生网页搜索。无环境配置、迁移、依赖或Web变更；Web仍为admin-ops-web-8fba1535f。隔离及公网业务和Web哈希已核对，恢复快照保留但未回切演练。[本批发布与回退步骤](../artifacts/verification/2026-09-10-bounded-research/release/README.md)。
+
+## 自定义施法与术语检索发布（2026-09-10）
+
+应用源码 `c408a30e676c9884d27b7c4ea8cad39f8ac45a01` 已上线到 API/Worker 与 Web，目录前缀 `custom-apl-`。本批两个 `99-zzzzzz-custom-apl-c408a30e676c.conf` drop-in 加载 root/0600 `/etc/chickenbro-custom-apl-c408a30e676c.env`，仅覆盖 compiler 为 v6；原有环境和管理员/QQ 配置保留。自定义 APL、动作样本、Chat 先检索以及 scenarioVersion=4 的隔离和公网验证通过；外部来源没有提供当前套装原文时仍保留缺口。精确清单、私有恢复核验和同时回退 backend/Web/compiler 的空闲门禁入口见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。未升级引擎、迁移数据库或执行生产回切演练。

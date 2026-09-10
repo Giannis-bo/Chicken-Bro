@@ -331,6 +331,21 @@
       "manualPostReleaseAcceptance": "not_claimed",
       "persistentCrossTurnBudget": false,
       "productionRollbackDrill": "not_run"
+    },
+    "customApl": {
+      "status": "live_verified",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "sourceCommit": "c408a30e676c9884d27b7c4ea8cad39f8ac45a01",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "webScenarioVersion": 4,
+      "evidence": "artifacts/verification/2026-09-10-custom-apl/release/README.md",
+      "candidateBusinessVerified": true,
+      "productionBusinessVerified": true,
+      "publicWebFilesVerified": 13,
+      "manualPostReleaseAcceptance": "not_claimed",
+      "productionRollbackDrill": "not_run",
+      "terminologyResearch": "research-first verified; external sources did not establish current set effects in this smoke"
     }
   },
   "miniRetirement": {
