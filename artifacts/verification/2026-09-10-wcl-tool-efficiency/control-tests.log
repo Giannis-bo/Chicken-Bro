@@ -79,9 +79,9 @@
 test at tests/project-state.test.js:115:1
 ✖ every local link in retained Markdown resolves to another retained path (6.227916ms)
   AssertionError [ERR_ASSERTION]: docs/roadmap.md -> ../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json
-  
+
   'delete' !== 'keep'
-  
+
       at TestContext.<anonymous> (/Users/boyuan/Documents/wow_mini_program/tests/project-state.test.js:139:14)
       at Test.runInAsyncScope (node:async_hooks:214:14)
       at Test.run (node:internal/test_runner/test:1062:25)

@@ -40,11 +40,17 @@
     "model-baseline-casts.json": "fb78528ace02c998858297c5f8b5b0336aba6d1b6fede04fe661f9d1ad4d7a82",
     "backend-tests.log": "4155a05e5fde5d4b09a5797715f9d8cc46adf2d3603d7ab892898fbc90e485bb",
     "README.md": "535ef586da40de798beddecb16796baa3e96e86fc8c1c88bd61428b03b1696a4",
-    "control-tests.log": "ae14db6d0c13fd1e981e8bad580da9e7c8655f2ceaf2011d69f673962bc1a665",
+    "control-tests.log": "37afcf0a66b6a79c410add0cf4bceccf6523a56880874e513d50d25be0878ed5",
     "source-probe.json": "4a25dedd074cfd46a4200a65400def4b47e450232a2c85dd197bf42499e655f6",
     "model-candidate-resources.json": "431e5aa3c2c0e3876d867311a28855dcbc1e43f8f68c9b27b7d9ef160bdba4ed",
     "model-baseline-resources.json": "a5701c1f96187018d77227b5aad7b24c1cbec17321721581bd19558d89ecd945",
     "model-candidate-resources-missing-proxy.json": "54fca0badc49b2d5558105aeb646b5712acf612cd0fe893be369286fd521ff37",
     "source-probe-final.json": "10f86a74b85da25241dce55823ba513caddfdb8157d41cb911f2d62033f2e249"
+  },
+  "evidenceFormatting": {
+    "control-tests.log": {
+      "originalSha256": "ae14db6d0c13fd1e981e8bad580da9e7c8655f2ceaf2011d69f673962bc1a665",
+      "change": "Trailing spaces on two blank diagnostic lines removed; diagnostic text unchanged."
+    }
   }
 }
