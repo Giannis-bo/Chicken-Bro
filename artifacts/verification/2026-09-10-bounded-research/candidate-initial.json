@@ -1,0 +1,221 @@
+{
+  "mode": "candidate",
+  "source": "/var/tmp/chickenbro-bounded-592eb65ab121",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true
+  },
+  "cases": [
+    {
+      "case": "top100",
+      "runId": "98e4379d-0920-4085-b351-33c36de8ad69",
+      "conversationId": "8ca36606-b445-5213-80e5-786d26a5d319",
+      "seconds": 12.25,
+      "answer": "Top100 逐个查询超出单次研究上限，最多能查 10 名不同玩家。\n\n可以缩小为当前全球野德大秘境 Top10，逐个核对装备和天赋，汇总这些样本的共性。要按这个范围查吗？",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "top11",
+      "runId": "26b3f026-8c08-4877-941e-4ff97dcd8417",
+      "conversationId": "ec3ca42a-2b3d-50d4-bc51-f55325f30f69",
+      "seconds": 12.19,
+      "answer": "单次研究最多查询 10 名玩家，全球大秘境野德前 11 名的完整范围无法执行。要缩小为全球前 10 名，查询他们的装备与天赋吗？",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "groups",
+      "runId": "d991114b-42f6-4b4d-a646-d3feb35fec4f",
+      "conversationId": "c5dec3ba-7b2b-500c-bcaf-b5ef567371e8",
+      "seconds": 9.9,
+      "answer": "这个范围共 4 组（美服／欧服 × 野德／平衡德），超过单次研究最多 3 组的上限，虽然总人数 8 名未超限。\n\n建议先比较美服和欧服的野德，每区取 2 名，共 4 名。先按这个范围查吗？",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "exhaustive",
+      "runId": "484b36f0-b00b-49da-9169-26bee0ef38b0",
+      "conversationId": "a6583c69-2315-51fe-ae1d-fc26557d7b37",
+      "seconds": 12.11,
+      "answer": "所有合法天赋与装备组合的穷举超出研究范围，不能逐个模拟并找出全局最优。\n\n可以缩小为：针对你的野德和一个战斗场景，比较当前配置与少量明确候选，最多跑 4 个模拟任务，找出这些候选中表现最好的配置。你是否接受这个范围？接受的话，发角色链接，并说明单体还是多目标。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "continuation",
+      "runId": "d95b3f65-6887-4d5a-b5b6-6cf8d1ec30a1",
+      "conversationId": "daa419f1-dd5c-5263-9434-e8701501e5fe",
+      "seconds": 9.89,
+      "answer": "这次研究已用满 10 名玩家的采样额度，不能再分批查第 11—20 名或扩展到 100 名。可以继续基于已有 10 名样本，整理野德装备、天赋的共同点和差异，无需重复查询玩家资料。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "normal_concept",
+      "runId": "d8094072-4e88-4a62-927a-655fe11120dc",
+      "conversationId": "a08e9aac-4798-501a-a332-66aa399d272e",
+      "seconds": 14.34,
+      "answer": "这四种副属性，分别影响爆发效果、行动速度、专精特色和攻防能力：\n\n- **暴击**：提高伤害或治疗触发暴击的概率，让这一次效果更强。部分专精还有暴击触发的额外机制。\n- **急速**：通常让施法、引导和自动攻击更快，缩短公共冷却，让你更快接上下一个技能；也会加快许多持续伤害、持续治疗的跳动，以及部分资源的恢复。**不是所有技能冷却都会缩短。**\n- **精通**：强化当前专精独有的效果，例如增强某类伤害、治疗或防御能力。**不同专精的精通作用不同**，具体看法术书里的“精通”说明。\n- **全能**：提高造成的伤害和治疗，同时降低受到的伤害，是直接的攻防加成；减伤幅度通常是增伤、增疗幅度的一半。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    },
+    {
+      "case": "normal_live",
+      "runId": "d688bb84-1b7e-4b77-b8a1-75d408b51168",
+      "conversationId": "4fdffe2d-d442-56d9-930d-9cd1503edd88",
+      "seconds": 25.35,
+      "answer": "截至 2026 年 9 月 10 日，Raider.IO 当前赛季（`season-mn-2`）全球野德大秘境榜前两名：\n\n| 排名 | 名字 | 服务器 | 分数 |\n|---|---|---|---:|\n| 1 | Skollcat | 美服 · area-52 | 3923.19 |\n| 2 | 樣兒 | 国服 · burning-blade | 3917.94 |\n\n来源：[Raider.IO 当前赛季全球野德榜单](https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=druid&spec=feral&page=0)。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": [
+        {
+          "operation": "source.raiderio_rankings",
+          "state": "completed",
+          "result": {
+            "facts": [
+              {
+                "rank": 1,
+                "score": 3923.19,
+                "character": {
+                  "url": "https://raider.io/characters/us/area-52/Skollcat",
+                  "name": "Skollcat",
+                  "path": "/characters/us/area-52/Skollcat",
+                  "spec": "feral",
+                  "level": 90,
+                  "realm": "area-52",
+                  "region": "us",
+                  "specId": 103,
+                  "className": "druid"
+                }
+              },
+              {
+                "rank": 2,
+                "score": 3917.94,
+                "character": {
+                  "url": "https://raider.io/characters/cn/burning-blade/%E6%A8%A3%E5%85%92",
+                  "name": "樣兒",
+                  "path": "/characters/cn/burning-blade/樣兒",
+                  "spec": "feral",
+                  "level": 90,
+                  "realm": "burning-blade",
+                  "region": "cn",
+                  "specId": 103,
+                  "className": "druid"
+                }
+              }
+            ],
+            "status": "source_reference",
+            "evidence": [
+              {
+                "id": "raiderio:season:season-mn-2",
+                "fetchedAt": "2026-09-10T07:07:46.213455+00:00",
+                "sourceUrl": "https://raider.io/api/v1/mythic-plus/affixes?region=us&locale=en",
+                "sourceName": "Raider.IO",
+                "sourceStatus": "fetched"
+              },
+              {
+                "id": "raiderio:rankings:season-mn-2:world:druid:feral:0",
+                "season": "season-mn-2",
+                "fetchedAt": "2026-09-10T07:07:47.847430+00:00",
+                "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=druid&spec=feral&page=0",
+                "sourceName": "Raider.IO",
+                "sourceStatus": "fetched"
+              }
+            ],
+            "sourceKey": "raiderio",
+            "pagination": {
+              "page": 0,
+              "limit": 2,
+              "offset": 0,
+              "nextPage": 0,
+              "returned": 2,
+              "nextOffset": 2,
+              "upstreamCount": 100
+            },
+            "limitations": [],
+            "nextActions": [],
+            "evidenceRefs": [
+              "raiderio:season:season-mn-2",
+              "raiderio:rankings:season-mn-2:world:druid:feral:0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case": "normal_web",
+      "runId": "476ffe68-f30e-410d-a6d5-c3c661e8174b",
+      "conversationId": "071cb8c1-ac5a-5a84-9dbf-0f23b099e710",
+      "seconds": 18.75,
+      "answer": "这页返回了 403，未能读取正文；以下是一般说明：WCL 的 **pins（筛选标记）**用于按技能、角色、目标或事件条件筛选、突出显示日志，方便定位和对比特定战斗事件。\n\n你指定的页面：[WCL Pins 官方说明](https://www.warcraftlogs.com/help/pins)。未访问其他页面。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": []
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true
+}

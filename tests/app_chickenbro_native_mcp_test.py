@@ -104,10 +104,10 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         arguments = {"target": "https://example.com/guide", "start": 6000, "match": "Overcharge"}
         observations = []
         packet = {"status": "partial", "reasonCode": "JS_SHELL", "facts": [], "evidence": [], "evidenceRefs": []}
-        with patch.object(module, "build_public_web_research_tool_result", return_value=packet) as read:
+        with patch.object(module, "query_source_gateway", return_value=packet) as read:
             module.handle_rpc_request({"id": 1, "method": "tools/call", "params": {
                 "name": "research_public_web", "arguments": arguments}}, observation_writer=observations.append)
-        read.assert_called_once_with(arguments)
+        read.assert_called_once_with("public_web", arguments["target"], options={"start":6000, "match":"Overcharge"})
         self.assertGreaterEqual(observations[0]["elapsedMs"], 0)
         self.assertEqual(observations[0]["reasonCode"], "JS_SHELL")
         self.assertEqual(observations[0]["factCount"], 0)

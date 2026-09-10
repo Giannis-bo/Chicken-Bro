@@ -1,0 +1,110 @@
+{
+  "mode": "candidate",
+  "source": "/var/tmp/chickenbro-bounded-4b52f975c57d",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true
+  },
+  "cases": [
+    {
+      "case": "normal_web",
+      "runId": "1e5cb3cf-d088-42ed-ad81-33eec14c85ac",
+      "conversationId": "3dd8017a-4c9d-5c06-9429-00d9af39e859",
+      "seconds": 16.61,
+      "answer": "这页未能读取成功，因此暂时无法依据原文解释 pins 的用途；按你的要求，没有查询其他页面。你可以贴出页面正文，我再用中文简短概括。\n\n页面链接：[WCL Pins 说明](https://www.warcraftlogs.com/help/pins)。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": [
+        {
+          "operation": "source.public_web",
+          "state": "completed",
+          "result": {
+            "facts": [],
+            "status": "partial",
+            "evidence": [],
+            "sourceKey": "public_web_research",
+            "reasonCode": "READ_ERROR",
+            "limitations": [
+              "The selected page could not be read within the public web safety limits."
+            ],
+            "nextActions": [
+              "Select another public HTTPS source."
+            ],
+            "evidenceRefs": []
+          }
+        }
+      ]
+    },
+    {
+      "case": "normal_web_accessible",
+      "runId": "b9ba3e85-e9f6-452c-a200-66c23cba4b79",
+      "conversationId": "9caae93b-5f7b-50eb-af1f-6d4d009c6fc6",
+      "seconds": 18.51,
+      "answer": "SimulationCraft（SimC）是研究《魔兽世界》战斗机制的模拟工具，以 C++ 编写，通过事件驱动的多人战斗模拟来计算团队伤害，辅助选择装备和天赋。官网首页还说明：展示的示例配置结果不代表职业排名。\n\n来源：[SimulationCraft 官网首页](https://www.simulationcraft.org/)",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "tool_results": [
+        {
+          "operation": "source.public_web",
+          "state": "completed",
+          "result": {
+            "facts": [
+              {
+                "end": 1760,
+                "start": 0,
+                "title": "SimulationCraft - Welcome",
+                "summary": "Home Downloads Documentation Report a bug Help us SimulationCraft is a tool to explore combat mechanics in the popular MMO RPG World of Warcraft. It is a multi-player event-driven simulator written in C++ that models raid damage. Welcome Increasing class synergy and the prevalence of proc-based combat modifiers have eroded the accuracy of traditional calculators that rely upon closed-form approximations to model very complex mechanics. The goal of this simulator is to close the accuracy gap while maintaining a performance level high enough to calculate aid gear and talent selection. The primary purpose of this site is to host some sample profiles at various gear points and patch levels. SimulationCraft is not a tool meant to be used to compare different classes. These sample profiles are provided in a single view for convenience but do not represent any sort of ranking. It is important that information flow in both directions. After examining the reports, players may detect inconsistencies with their experiences in-game. In addition, inefficiencies (talents, gear, gems, enchants) may be found in the supplied profiles. Please take the time to open an issue. We are continuously looking for new profiles, both at the normal and heroic levels. If you need help on running SimulationCraft, developing custom actions lists, or have other questions, please see our extensive documentation or check out our Github project page. Wondering what may have changed since the last time reports were updated? Check here! Raid Results Patch 12.0.1 Pre-Raid Pre-Raid ~214 ilevel Patchwerk-style MID1 (The Dreamrift & The Voidspire & March on Quel'Danas) ~290 ilevel Patchwerk-style MID2 (The Venomous Abyss & The Tidebound Grotto) ~337 ilevel Patchwerk-style",
+                "nextStart": null,
+                "truncated": false,
+                "sourceHost": "www.simulationcraft.org",
+                "totalChars": 1760,
+                "sourceScope": "public_community_web"
+              }
+            ],
+            "status": "source_reference",
+            "evidence": [
+              {
+                "id": "public-web:www-simulationcraft-org-page",
+                "title": "SimulationCraft - Welcome",
+                "checkedAt": "2026-09-10T07:10:07.694361+00:00",
+                "sourceUrl": "https://www.simulationcraft.org/",
+                "sourceName": "www.simulationcraft.org",
+                "sourceScope": "public_community_web"
+              }
+            ],
+            "sourceKey": "public_web_research",
+            "limitations": [
+              "Public community pages are source-scoped snapshots. Their data window and metrics must be stated with the conclusion; they do not by themselves establish a universal balance or personal-performance verdict."
+            ],
+            "nextActions": [],
+            "evidenceRefs": [
+              "public-web:www-simulationcraft-org-page"
+            ],
+            "allowedNumbers": [
+              "12.0",
+              "214",
+              "290",
+              "337"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true
+}

@@ -576,6 +576,16 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertNotIn(str(principal.user_id), str(captured['env']))
         self.assertEqual(gateway.revoked, 'simulation-capability')
 
+    def test_chat_profile_disables_unmetered_native_web_search(self):
+        from server.app.chickenbro.codex_adapter import _load_profile
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            profile = Path(directory, "test.config.toml")
+            profile.write_text('model="gpt-6-astra"\nweb_search="live"\n', encoding='utf-8')
+            for selected in (None, "test"):
+                with self.subTest(profile=selected):
+                    self.assertEqual(_load_profile(selected).get("web_search"), "disabled")
+            self.assertIn('web_search="live"', profile.read_text())
+
     def test_profile_uses_current_release_toolbox_and_bounded_batch_timeout(self):
         from server.app.chickenbro.codex_adapter import _load_profile
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):

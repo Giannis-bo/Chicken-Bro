@@ -49,13 +49,13 @@ class RankingsTests(unittest.TestCase):
     def test_full_page_counts_anonymous_without_replacement_or_extra_fetch(self):
         from server.app.chickenbro import wcl_rankings as w
         rows=[row(str(i)) for i in range(100)]
-        rows[47]={**rows[47],'server':None,'report':{'code':'a:QwErTyUiOpAsDfGh','fightID':17}}
+        rows[7]={**rows[7],'server':None,'report':{'code':'a:QwErTyUiOpAsDfGh','fightID':17}}
         data={'worldData':{'encounter':{'id':3470,'name':'Boss','zone':ZONE,'characterRankings':{'page':1,'hasMorePages':True,'rankings':rows}}}}
         with patch.object(w,'_graphql',return_value=data) as fetch:
-            r=self.query({'encounterId':3470,'difficulty':4,'className':'Druid','specName':'Feral','partition':1,'limit':100})
+            r=self.query({'encounterId':3470,'difficulty':4,'className':'Druid','specName':'Feral','partition':1,'limit':10})
         self.assertEqual(r['status'],'source_reference');fetch.assert_called_once()
-        self.assertEqual([x['rank'] for x in r['rankings']],list(range(1,101)))
-        self.assertEqual(r['pagination']['returned'],100);self.assertEqual(r['pagination']['namedReturned'],99)
+        self.assertEqual([x['rank'] for x in r['rankings']],list(range(1,11)))
+        self.assertEqual(r['pagination']['returned'],10);self.assertEqual(r['pagination']['namedReturned'],9)
         self.assertEqual(r['pagination']['anonymousReturned'],1);self.assertEqual(r['pagination']['skippedInvalid'],0)
 
     def test_anonymous_server_presence_matches_official_omission_shape(self):
@@ -132,3 +132,13 @@ class RankingsTests(unittest.TestCase):
             gateway.revoke(token)
             with self.assertRaises(SourceGatewayUnauthorized):gateway.query(token,'warcraftlogs_rankings','rankings')
         self.assertEqual(api.call_count,1)
+
+class RankingLimitTest(unittest.TestCase):
+    def test_oversized_ranking_refused_before_network(self):
+        from server.app.chickenbro.wcl_rankings import query_wcl_rankings
+        from server.app.simulation.sources import InvalidSourceLink
+        with patch('server.app.chickenbro.wcl_rankings._graphql') as fetch:
+            for limit in (11,100):
+                with self.assertRaises(InvalidSourceLink):
+                    query_wcl_rankings({'encounterId':3470,'difficulty':4,'className':'Druid','specName':'Feral','partition':1,'limit':limit})
+        fetch.assert_not_called()

@@ -1,0 +1,8 @@
+{
+  "server/app/chickenbro/agent/AGENTS.md": "e05d2fa8d7e4afd6e4af0f26f84d18da6ac0d2dc56c4d45770e13b977643f9ff",
+  "server/app/chickenbro/codex_adapter.py": "a0831e5ecc2957020f939429207a8ae857258c83ea1762aea40d9805fa3f2141",
+  "server/app/chickenbro/source_gateway.py": "3a8babf763d1987a1f8cbdf6ac3b7a00f64d3c4fa14004412cb1a0bd09322bd8",
+  "server/app/chickenbro/wcl_rankings.py": "b4e482f00ee8e9035b19abbd0fb9a4d8409db2db135115b2c6dbb838d6431c5d",
+  "server/chickenbro_native_mcp.py": "cc76cd667c6ae253854285c0322186fa02ee0fd7d6ab913b1ad72705c02f1f57",
+  "server/chickenbro_public_web_research.py": "60bc7b92a773934661237304a819eaecb89977caf4ce674e7c66d54c5a4732ea"
+}

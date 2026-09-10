@@ -1,0 +1,25 @@
+{
+  "authorization": "用户已审阅验证报告并明确要求：可以，我看了，提交发布吧。",
+  "scope": [
+    "server/app/chickenbro/research_budget.py",
+    "server/app/chickenbro/source_gateway.py",
+    "server/app/chickenbro/codex_adapter.py",
+    "server/app/chickenbro/agent/AGENTS.md",
+    "server/app/chickenbro/wcl_rankings.py",
+    "server/chickenbro_native_mcp.py",
+    "server/chickenbro_public_web_research.py"
+  ],
+  "sourceSnapshot": "4b52f975c57d6ae2465407673a7f31da1e1a160932c4b87e8618178c9e3831be",
+  "limits": {
+    "candidateModelGenerationsMax": 2,
+    "candidateSimcJobsMax": 1,
+    "productionModelGenerationsMax": 3,
+    "failureRetriesMax": 1
+  },
+  "excluded": [
+    "new dependencies",
+    "data deletion",
+    "database provisioning",
+    "frontend changes"
+  ]
+}

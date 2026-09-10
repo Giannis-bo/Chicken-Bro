@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "bounded-research",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "User-approved bounded player research and resource admission with local verification.",
+      "paths": ["docs/plans/2026-09-10-bounded-research.md", "tests/app_research_budget_test.py"],
+      "prefixes": ["artifacts/verification/2026-09-10-bounded-research/"]
+    },
+    {
       "id": "wcl-tool-efficiency",
       "disposition": "keep",
       "category": "target-verification",

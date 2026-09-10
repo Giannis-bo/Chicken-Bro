@@ -67,7 +67,7 @@ class ChickenbroSourceGatewayTest(unittest.TestCase):
         original = copy.deepcopy(raw)
         gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
         token = gateway.issue_capability()
-        result = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        result = gateway.query(token, 'warcraftlogs_batch', 'reports', {'queries':[{'target':f'https://www.warcraftlogs.com/reports/{c*16}?fight=1&source=2'} for c in 'ABC']})
         self.assertLessEqual(len(json.dumps(result, ensure_ascii=False).encode()), 180000)
         self.assertEqual(result['status'], 'partial')
         self.assertEqual(result['results'][:2], members[:2])
@@ -86,7 +86,7 @@ class ChickenbroSourceGatewayTest(unittest.TestCase):
             {'status': 'verified', 'facts': [{'value': 2}]},
             {'status': 'partial', 'facts': [{'value': 3}], 'limitations': ['Partial source coverage.']} ]}
         gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
-        result = gateway.query(gateway.issue_capability(), 'warcraftlogs_batch', 'reports')
+        result = gateway.query(gateway.issue_capability(), 'warcraftlogs_batch', 'reports', {'queries':[{'target':f'https://www.warcraftlogs.com/reports/{c*16}?fight=1&source=2'} for c in 'ABC']})
         self.assertLessEqual(len(json.dumps(result, ensure_ascii=False).encode()), 180000)
         self.assertTrue(result['results'][0]['transportOmitted'])
         self.assertEqual(result['results'][1:], raw['results'][1:])
@@ -222,20 +222,20 @@ class ChickenbroSourceGatewayTest(unittest.TestCase):
         target = "https://raider.io/cn/characters/cn/silver-hand/Giannis"
         profile = gateway.query(token, "raiderio", target)
         self.assertEqual(profile["facts"][0]["gear"]["neck"]["gems_detail"][0]["name"], "16 Mastery & 7 Crit")
-        ranking = gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement"})
+        ranking = gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement", "limit":9})
         self.assertEqual(ranking["options"]["spec"], "enhancement")
         batch = gateway.query(token, "raiderio_batch", "characters", {"targets": [target]})
         self.assertEqual(batch["facts"][0]["targets"], [target])
         gateway.revoke(token)
         with self.assertRaises(SourceGatewayUnauthorized):
-            gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement"})
+            gateway.query(token, "raiderio_rankings", "rankings", {"className": "shaman", "spec": "enhancement", "limit":9})
 
     def test_research_dispatch_rejects_unrecognized_targets_and_options(self):
         from server.app.simulation.sources import InvalidSourceLink
         service = ServerConfiguredSourceQuery(raiderio_research=object())
         for provider, target, options in [
             ("raiderio_batch", "characters", {"targets": [], "extra": "forbidden"}),
-            ("raiderio_rankings", "https://localhost", {"className": "shaman", "spec": "enhancement"}),
+            ("raiderio_rankings", "https://localhost", {"className": "shaman", "spec": "enhancement", "limit":9}),
             ("raiderio", "https://raider.io/characters/us/area-52/Test", {"extra": 1}),
         ]:
             with self.subTest(provider=provider), self.assertRaises(InvalidSourceLink):
@@ -290,7 +290,7 @@ class BoundedSourceResultIndependentReviewTest(unittest.TestCase):
                'results': [self.member(code * 16, '文' * 70000) for code in 'ABC']}
         gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
         token = gateway.issue_capability()
-        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports', {'queries':[{'target':f'https://www.warcraftlogs.com/reports/{c*16}?fight=1&source=2'} for c in 'ABC']})
         self.assertEqual(bounded['transportProjection']['retainedMembers'], 0)
         self.assertEqual(bounded['transportProjection']['omittedMembers'], 3)
         self.assertTrue(all(r['transportOmitted'] and not r['facts'] for r in bounded['results']))
@@ -305,7 +305,7 @@ class BoundedSourceResultIndependentReviewTest(unittest.TestCase):
                'results': [self.member()]}
         gateway = ChickenbroSourceGateway(query_service=lambda *_: raw)
         token = gateway.issue_capability()
-        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports')
+        bounded = gateway.query(token, 'warcraftlogs_batch', 'reports', {'queries':[{'target':f'https://www.warcraftlogs.com/reports/{c*16}?fight=1&source=2'} for c in 'ABC']})
         self.assertTrue(bounded['transportOmitted'])
         self.assertNotIn('results', bounded)
         self.assertEqual(gateway.answer_evidence(token)['references'], [])

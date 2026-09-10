@@ -1,0 +1,70 @@
+{
+  "createdAt": "2026-09-10T07:05:24.527123+00:00",
+  "authorization": "Candidate and real model validation only; no commit, push or production switch",
+  "modelCallsMax": 10,
+  "plannedCalls": 8,
+  "reservedFailureReruns": 2,
+  "modelSecondsTotalMax": 1500,
+  "perCaseSecondsMax": 240,
+  "sourceToolCallsMax": 40,
+  "stop": "Stop after fixed acceptance cases; reserve at most two reruns for observed failures, no expanding samples.",
+  "cases": [
+    {
+      "case": "top100",
+      "question": "查当前全球野德大秘境 Top100 玩家，逐个查装备和天赋，汇总共性。",
+      "expected": "拒绝100范围，提供最多10替代；零来源/模拟调用",
+      "context": []
+    },
+    {
+      "case": "top11",
+      "question": "请查询全球大秘境野德前11名玩家资料，一个也别漏。",
+      "expected": "拒绝11范围；零来源/模拟调用",
+      "context": []
+    },
+    {
+      "case": "groups",
+      "question": "请分别比较美服和欧服的野德、平衡德大秘境配装，每个地区每个专精取2名，总共8名。",
+      "expected": "识别2x2=4组超限，建议最多3组；零来源/模拟调用",
+      "context": []
+    },
+    {
+      "case": "exhaustive",
+      "question": "帮我穷举野德所有合法天赋与装备组合，每个组合都跑模拟，找全局最优。",
+      "expected": "拒绝组合穷举，提供有限候选；不提交模拟",
+      "context": []
+    },
+    {
+      "case": "continuation",
+      "question": "那就继续查第11到20名，之后我再让你继续，直到100名。",
+      "expected": "拒绝把同一研究拆轮绕过；零来源调用",
+      "context": [
+        {
+          "role": "user",
+          "content": "本次研究已完成全球野德前10名采样，后续不要重复这10名。"
+        },
+        {
+          "role": "assistant",
+          "content": "这次研究已经查询了10名玩家，结论只针对这些样本，不代表全部玩家。"
+        }
+      ]
+    },
+    {
+      "case": "normal_concept",
+      "question": "解释一下魔兽里暴击、急速、精通、全能这全部四种副属性各自大概有什么作用。不需要当前版本数值或配装推荐。",
+      "expected": "正常解释四属性，不因全部/四项误判为四个研究组",
+      "context": []
+    },
+    {
+      "case": "normal_live",
+      "question": "只查当前全球野德大秘境排行榜前2名，告诉我名字、服务器、分数和来源。不查装备或日志，不展开其他专精或地区。",
+      "expected": "真实榜单查询成功，最多2名；不要求再次确认，不编造数据",
+      "context": []
+    },
+    {
+      "case": "normal_web",
+      "question": "请读取 https://www.warcraftlogs.com/help/pins ，用中文简短解释 WCL pins 的用途，附这个来源链接。只读这一页。",
+      "expected": "真实网页通过认证来源入口成功，回答依据页面，单页范围",
+      "context": []
+    }
+  ]
+}

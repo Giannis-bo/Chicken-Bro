@@ -10,6 +10,7 @@ import copy
 import json
 from threading import RLock
 from server.app.chickenbro.answer_grounding import collect_evidence
+from server.app.chickenbro.research_budget import ResearchBudget
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta, timezone
@@ -101,9 +102,14 @@ class ServerConfiguredSourceQuery:
         self._raiderio = raiderio_research if raiderio_research is not None else RaiderIOResearch()
         self._wcl_reader = wcl_reader or build_wcl_log_evidence
 
-    def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None, *, web_state=None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
         options = options or {}
+        if normalized_provider == 'public_web':
+            if set(options) - {'start', 'match'}:
+                raise InvalidSourceLink()
+            from server.chickenbro_public_web_research import build_public_web_research_tool_result
+            return build_public_web_research_tool_result({'target': target, **options}, state=web_state)
         if normalized_provider == 'warcraftlogs_batch':
             from server.app.chickenbro.wcl_source import normalize_wcl_report_url
             queries = options.get('queries')
@@ -281,6 +287,8 @@ class ChickenbroSourceGateway:
         self._ttl = timedelta(seconds=max(60, min(900, int(capability_ttl_seconds))))
         self._capabilities: dict[str, datetime] = {}
         self._answer_evidence: dict[str, dict] = {}
+        self._budgets = {}
+        self._web_states = {}
         self._lock = RLock()
 
     def issue_capability(self) -> str:
@@ -291,12 +299,17 @@ class ChickenbroSourceGateway:
                 raise SourceGatewayUnauthorized("source gateway capacity reached")
             token = secrets.token_urlsafe(32)
             self._capabilities[token] = now + self._ttl
+            self._budgets[token] = ResearchBudget()
+            from server.chickenbro_public_web_research import PublicWebState
+            self._web_states[token] = PublicWebState()
             return token
 
     def revoke(self, token: str) -> None:
         with self._lock:
             self._capabilities.pop(str(token or ""), None)
             self._answer_evidence.pop(str(token or ""), None)
+            self._budgets.pop(str(token or ""), None)
+            self._web_states.pop(str(token or ""), None)
 
     def query(self, token: str, provider: str, target: str, options: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         with self._lock:
@@ -307,7 +320,13 @@ class ChickenbroSourceGateway:
             if str(provider).lower().startswith('warcraftlogs'):
                 index = self._answer_evidence.setdefault(token, {"reports": [], "groups": [], "truncated": False})
                 index['attemptedWcl'] = True
-        if hasattr(self._query_service, "query"):
+            error, receipt = self._budgets[token].reserve(str(provider).strip().lower(), target, options)
+            if error:
+                return error
+            web_state = self._web_states[token]
+        if str(provider).strip().lower() == 'public_web' and isinstance(self._query_service, ServerConfiguredSourceQuery):
+            result = self._query_service.query(provider, target, options, web_state=web_state)
+        elif hasattr(self._query_service, "query"):
             result = self._query_service.query(provider, target, options=options) if options else self._query_service.query(provider, target)
         else:
             result = self._query_service(provider, target)
@@ -316,6 +335,7 @@ class ChickenbroSourceGateway:
         with self._lock:
             self._prune(self._aware_now())
             if self._valid(token, self._aware_now()) and isinstance(result, Mapping):
+                self._budgets[token].observe(receipt, result)
                 self._answer_evidence[token] = collect_evidence(self._answer_evidence.get(token), result)
         return result if isinstance(result, Mapping) else {
             "sourceKey": str(provider or "source"),
@@ -349,6 +369,8 @@ class ChickenbroSourceGateway:
             if expires_at <= now:
                 self._capabilities.pop(token, None)
                 self._answer_evidence.pop(token, None)
+                self._budgets.pop(token, None)
+                self._web_states.pop(token, None)
 
 
 __all__ = (

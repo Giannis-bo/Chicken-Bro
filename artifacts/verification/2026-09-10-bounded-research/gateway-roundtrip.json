@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "transport": "real MCP source client and WorkerToolServer loopback HTTP",
+  "upstream": "counted fixture; no external requests",
+  "upstreamCalls": 16,
+  "checks": [
+    "ten admitted",
+    "eleventh blocked before upstream",
+    "cross-provider budget shared",
+    "independent capability admitted",
+    "sixth web page blocked",
+    "revoked capability HTTP 401"
+  ]
+}

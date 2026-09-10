@@ -42,7 +42,7 @@ def query_wcl_rankings(options):
     if not isinstance(options,dict) or set(options)-_ALLOWED:raise InvalidSourceLink()
     region=options.get('region','world')
     if region not in _REGIONS:raise InvalidSourceLink()
-    page=_integer(options,'page',1,20,1);offset=_integer(options,'offset',0,99,0);limit=_integer(options,'limit',1,100,10)
+    page=_integer(options,'page',1,20,1);offset=_integer(options,'offset',0,99,0);limit=_integer(options,'limit',1,10,10)
     eid=_integer(options,'encounterId',1,1000000) if 'encounterId' in options else None
     zid=_integer(options,'zoneId',1,10000) if 'zoneId' in options else None
     if eid is None and set(options)-{'zoneId'}:raise InvalidSourceLink()

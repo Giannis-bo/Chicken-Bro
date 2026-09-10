@@ -1,0 +1,42 @@
+{
+  "status": "local_automated_verified",
+  "baseCommit": "4a46c286c62e028205b04864de18ee987e1201f0",
+  "sourceState": "uncommitted working tree; scoped hashes identify tested implementation",
+  "sourceSha256": {
+    "server/app/chickenbro/research_budget.py": "9d0d306c314f7fba9cdbbeffa2fe8519eb16d742d05623c38c129a4a66716c65",
+    "server/app/chickenbro/source_gateway.py": "bc05b6350669b0a2f83e002b7df14ca91ddd3ec245097b3f41d13d655cb49538",
+    "server/app/chickenbro/wcl_rankings.py": "793ffd424c74a500f9cb84fef1da3c961c7d44b5b39b4d64c80ec25aa0dcbe1b",
+    "server/app/chickenbro/agent/AGENTS.md": "3385ea8ad784806bacbc9ce9b50204e4ec6d9db840551e8a8295298d092de5f3",
+    "server/chickenbro_native_mcp.py": "baa1ff1b3d40b639b9d5a46162d12445659b8cc8c3722dde6600bd6696492366",
+    "server/chickenbro_public_web_research.py": "f95904593a78d8972af5f571c94d7bc170b5b67fd5523612c720c57912ea705d",
+    "tests/app_research_budget_test.py": "55992d596fc3455aeba067fb0dfd82d9ba41ba3ee43966478612f0a90e158a47",
+    "tests/app_chickenbro_source_gateway_test.py": "a68e63ce35da1893989d68422746ce88ada069d654868a2d82e952c9e6240a99",
+    "tests/app_wcl_rankings_test.py": "9adbd866ed304a30b614853a697380845bd6ba0474f6e88730e98c964475b35d",
+    "tests/app_chickenbro_native_mcp_test.py": "0c9f9b065bb66d501c9eb2b83d559ca6ab1b3c021dd4b3f5e1dc862ad6ad6b9d",
+    "package.json": "b09eb2485eedd4d5b015f1d179e02dedcc32301c4a3e33f738d52018d79a5d00",
+    "docs/plans/2026-09-10-bounded-research.md": "4ae5042f1a378386a86c4327059ad1b8e260bad81992d92bfd55250139d31f49",
+    "docs/plans/README.md": "76f6974c490c50142c1603a99b805e3d0b68bc94c2e7caa619fb6b20f1462d17",
+    "docs/roadmap.md": "6ec4716876a0d9876ae946387c1d65d799611801bf0226a419d12e532daea502",
+    "docs/refactor/chickenbro-simc-disposition-rules.json": "7a8e6082dd5c45c9b6dcdb54568af5393551bf5987c6172476b663c984a7a833"
+  },
+  "backend": {
+    "passed": 691,
+    "command": "PATH=/tmp/chickenbro-merge-check-venv-20260907/bin:$PATH npm run test:backend"
+  },
+  "control": {
+    "passed": 63,
+    "command": "npm run test:control"
+  },
+  "newBudgetTests": 23,
+  "notVerified": [
+    "candidate",
+    "real_model_refusal_and_false_positive_behavior",
+    "cross_turn_hard_budget",
+    "production",
+    "latency_or_cost_improvement"
+  ],
+  "notes": [
+    "Initial system Python run failed on missing FastAPI; reused existing environment without installing dependencies.",
+    "Other-task badcase documentation and existing untracked artifacts were not edited."
+  ]
+}

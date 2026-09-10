@@ -191,7 +191,7 @@ WCL_BATCH_TOOL_DEFINITION['inputSchema']['properties']['queries']['items']['prop
 WCL_RANKINGS_TOOL_NAME = 'query_warcraftlogs_rankings'
 WCL_RANKINGS_TOOL_DEFINITION = {
     'name':WCL_RANKINGS_TOOL_NAME,
-    'description':'Discover Warcraft Logs raid zones/partitions/encounters with empty arguments or zoneId. Then query an encounter DPS/HPS leaderboard with explicit difficulty, className (Druid), specName (Feral), partition and optional region (world default). Use this API for top raid players, not public ranking webpages. Catalog partitions distinguish live and PTR. Up to 100 ranks per page; limit defaults 10; continue nextPage/nextOffset. Ranking entries give report/fight and player identity, not rotation analysis; follow with report/events tools and disclose coverage.',
+    'description':'Discover Warcraft Logs raid zones/partitions/encounters with empty arguments or zoneId. Then query an encounter DPS/HPS leaderboard with explicit difficulty, className (Druid), specName (Feral), partition and optional region (world default). Use this API for top raid players, not public ranking webpages. Catalog partitions distinguish live and PTR. At most 10 player samples total per research across pages and providers, and at most 3 groups. Decline Top100/full enumeration; pagination never resets the budget. Ranking entries give report/fight and player identity, not rotation analysis; follow with report/events tools and disclose coverage.',
     'inputSchema':{'type':'object','additionalProperties':False,'properties':{
         'zoneId':{'type':'integer','minimum':1,'maximum':10000},
         'encounterId':{'type':'integer','minimum':1,'maximum':1000000},
@@ -201,7 +201,7 @@ WCL_RANKINGS_TOOL_DEFINITION = {
         'metric':{'type':'string','enum':['dps','hps','bossdps']},
         'region':{'type':'string','enum':['world','us','eu','kr','tw','cn']},
         'page':{'type':'integer','minimum':1,'maximum':20},'offset':{'type':'integer','minimum':0,'maximum':99},
-        'limit':{'type':'integer','minimum':1,'maximum':100}}},
+        'limit':{'type':'integer','minimum':1,'maximum':10}}},
     'annotations':{'readOnlyHint':True},
 }
 TOOL_DEFINITIONS = [
@@ -453,7 +453,7 @@ def handle_rpc_request(request, *, observation_writer=None):
                     result = query_source_gateway("raiderio", target)
                 else:
                     try:
-                        result = build_public_web_research_tool_result(arguments)
+                        result = query_source_gateway("public_web", target, options={k:v for k,v in arguments.items() if k != "target"})
                     except Exception:
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
         elif tool_name in SIMULATION_OPERATIONS:

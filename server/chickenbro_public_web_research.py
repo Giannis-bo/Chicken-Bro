@@ -47,6 +47,21 @@ _PUBLIC_WEB_LOCK = RLock()
 _PUBLIC_WEB_CACHE = {}
 _PUBLIC_WEB_INFLIGHT = set()
 _PUBLIC_WEB_REQUEST_TIMES = deque()
+
+class PublicWebState:
+    """Cache and rate admission owned by one authenticated research generation."""
+    def __init__(self):
+        self.lock = RLock()
+        self.cache = {}
+        self.inflight = set()
+        self.times = deque()
+
+_DEFAULT_STATE = PublicWebState()
+_DEFAULT_STATE.lock = _PUBLIC_WEB_LOCK
+_DEFAULT_STATE.cache = _PUBLIC_WEB_CACHE
+_DEFAULT_STATE.inflight = _PUBLIC_WEB_INFLIGHT
+_DEFAULT_STATE.times = _PUBLIC_WEB_REQUEST_TIMES
+
 _TAG_PATTERN = re.compile(r"<[^>]+>")
 _SCRIPT_STYLE_PATTERN = re.compile(r"<(?:script|style)[^>]*>.*?</(?:script|style)>", re.IGNORECASE | re.DOTALL)
 _BLOCK_BOUNDARY_PATTERN = re.compile(r"</(?:article|div|h[1-6]|li|p|section|td|th|tr|br)\s*>", re.IGNORECASE)
@@ -387,31 +402,31 @@ def reset_public_web_research_state():
         _PUBLIC_WEB_REQUEST_TIMES.clear()
 
 
-def _cached_or_permitted_request(cache_key, now):
-    with _PUBLIC_WEB_LOCK:
-        cached = _PUBLIC_WEB_CACHE.get(cache_key)
+def _cached_or_permitted_request(cache_key, now, state=_DEFAULT_STATE):
+    with state.lock:
+        cached = state.cache.get(cache_key)
         if cached and cached[0] > now:
             return "cached", deepcopy(cached[1])
         if cached:
-            _PUBLIC_WEB_CACHE.pop(cache_key, None)
-        if cache_key in _PUBLIC_WEB_INFLIGHT:
+            state.cache.pop(cache_key, None)
+        if cache_key in state.inflight:
             return "inflight", None
-        while _PUBLIC_WEB_REQUEST_TIMES and _PUBLIC_WEB_REQUEST_TIMES[0] <= now - PUBLIC_WEB_RATE_WINDOW_SECONDS:
-            _PUBLIC_WEB_REQUEST_TIMES.popleft()
-        if len(_PUBLIC_WEB_REQUEST_TIMES) >= PUBLIC_WEB_MAX_REQUESTS_PER_WINDOW:
+        while state.times and state.times[0] <= now - PUBLIC_WEB_RATE_WINDOW_SECONDS:
+            state.times.popleft()
+        if len(state.times) >= PUBLIC_WEB_MAX_REQUESTS_PER_WINDOW:
             return "rate_limited", None
-        _PUBLIC_WEB_INFLIGHT.add(cache_key)
-        _PUBLIC_WEB_REQUEST_TIMES.append(now)
+        state.inflight.add(cache_key)
+        state.times.append(now)
         return "permitted", None
 
 
-def _finish_request(cache_key, now, result):
-    with _PUBLIC_WEB_LOCK:
-        _PUBLIC_WEB_INFLIGHT.discard(cache_key)
+def _finish_request(cache_key, now, result, state=_DEFAULT_STATE):
+    with state.lock:
+        state.inflight.discard(cache_key)
         if result.get("status") == "source_reference":
-            while len(_PUBLIC_WEB_CACHE) >= PUBLIC_WEB_MAX_CACHE_ENTRIES:
-                _PUBLIC_WEB_CACHE.pop(next(iter(_PUBLIC_WEB_CACHE)))
-            _PUBLIC_WEB_CACHE[cache_key] = (now + PUBLIC_WEB_CACHE_TTL_SECONDS, deepcopy(result))
+            while len(state.cache) >= PUBLIC_WEB_MAX_CACHE_ENTRIES:
+                state.cache.pop(next(iter(state.cache)))
+            state.cache[cache_key] = (now + PUBLIC_WEB_CACHE_TTL_SECONDS, deepcopy(result))
 
 
 def _partial_result(limitation, reason_code="NO_CONTENT", next_actions=None, **metadata):
@@ -501,12 +516,14 @@ def _search_hits(searcher, query):
 def build_public_web_research_tool_result(
     intent,
     *,
+    state=None,
     searcher=_default_searcher,
     fetcher=_read_url,
     clock=monotonic,
     checked_at_factory=lambda: datetime.now(timezone.utc).isoformat(),
 ):
     """Read a small public-web snapshot for a Codex-selected target."""
+    state = state if state is not None else _DEFAULT_STATE
     request = intent if isinstance(intent, dict) else {}
     target = _text(request.get("target") or request.get("query"))
     parsed_target = urlparse(target)
@@ -528,7 +545,7 @@ def build_public_web_research_tool_result(
     match = match.strip()
     now = float(clock())
     cache_key = (target.casefold(), start, match.casefold())
-    admission, cached = _cached_or_permitted_request(cache_key, now)
+    admission, cached = _cached_or_permitted_request(cache_key, now, state)
     if admission == "cached":
         return cached
     if admission == "inflight":
@@ -542,7 +559,7 @@ def build_public_web_research_tool_result(
         hits, search_error = _search_hits(searcher, target)
     if not hits:
         result = _partial_result(search_error or "Public web search returned no safe HTTPS result pages for this research query.", "SEARCH_FAILED" if search_error else "NO_RESULTS", ["Try a narrower query or provide a specific public HTTPS page."])
-        _finish_request(cache_key, now, result)
+        _finish_request(cache_key, now, result, state)
         return result
 
     facts = []
@@ -645,5 +662,5 @@ def build_public_web_research_tool_result(
             ],
             "nextActions": [],
         }
-    _finish_request(cache_key, now, result)
+    _finish_request(cache_key, now, result, state)
     return result

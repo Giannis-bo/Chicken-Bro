@@ -1,0 +1,26 @@
+FF
+======================================================================
+FAIL: test_chat_profile_disables_unmetered_native_web_search (tests.app_chickenbro_codex_adapter_test.ChickenbroCodexAdapterTest.test_chat_profile_disables_unmetered_native_web_search) (profile=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_chickenbro_codex_adapter_test.py", line 586, in test_chat_profile_disables_unmetered_native_web_search
+    self.assertEqual(_load_profile(selected).get("web_search"), "disabled")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 'disabled'
+
+======================================================================
+FAIL: test_chat_profile_disables_unmetered_native_web_search (tests.app_chickenbro_codex_adapter_test.ChickenbroCodexAdapterTest.test_chat_profile_disables_unmetered_native_web_search) (profile='test')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/boyuan/Documents/wow_mini_program/tests/app_chickenbro_codex_adapter_test.py", line 586, in test_chat_profile_disables_unmetered_native_web_search
+    self.assertEqual(_load_profile(selected).get("web_search"), "disabled")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'live' != 'disabled'
+- live
++ disabled
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+FAILED (failures=2)

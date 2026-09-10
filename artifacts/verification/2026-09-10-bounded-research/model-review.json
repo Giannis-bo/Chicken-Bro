@@ -1,0 +1,124 @@
+{
+  "status": "targeted_isolated_model_validation_complete_pending_user_review",
+  "at": "2026-09-10T07:12:34.973289+00:00",
+  "baseCommit": "d9e8bc7249806a24588db9cef424f496d6d1dd8b",
+  "sourceState": "uncommitted; no push or production deployment",
+  "sourceSha256": {
+    "docs/plans/README.md": "3e75f3080a5c99fc9e8f81a62cc3685a507ae2d82c1d826169cf64dde843fc67",
+    "docs/refactor/chickenbro-simc-disposition-rules.json": "5e2f3661d78497c1129066930b0bbd88f13214cbeb27df9f6c017e07b0a7cb55",
+    "docs/roadmap.md": "dc5290dae1ed08414dc4ce6ce7477b168f93db3cfed4268119651a1da30e07a4",
+    "package.json": "b09eb2485eedd4d5b015f1d179e02dedcc32301c4a3e33f738d52018d79a5d00",
+    "server/app/chickenbro/agent/AGENTS.md": "b66812bb2f5fd2ed98d0951663b108ede8ec2fa6fecc9cdd2926f346dc818969",
+    "server/app/chickenbro/codex_adapter.py": "65f960313c1283bce41b179c583e3932b38610377bbb8fd526cd7d7f38c57361",
+    "server/app/chickenbro/source_gateway.py": "7735e5e7ce215347fb5770ac8a24605269cf59cdf0ee5565910abaec045dddbe",
+    "server/app/chickenbro/wcl_rankings.py": "793ffd424c74a500f9cb84fef1da3c961c7d44b5b39b4d64c80ec25aa0dcbe1b",
+    "server/chickenbro_native_mcp.py": "baa1ff1b3d40b639b9d5a46162d12445659b8cc8c3722dde6600bd6696492366",
+    "server/chickenbro_public_web_research.py": "f95904593a78d8972af5f571c94d7bc170b5b67fd5523612c720c57912ea705d",
+    "tests/app_chickenbro_codex_adapter_test.py": "8f550f549eb9c6d97c8e4fd89316287db4d84a7727ea86bc96b3f8f40ced2bdc",
+    "tests/app_chickenbro_native_mcp_test.py": "0c9f9b065bb66d501c9eb2b83d559ca6ab1b3c021dd4b3f5e1dc862ad6ad6b9d",
+    "tests/app_chickenbro_source_gateway_test.py": "cc4594f1bcb4512303877884180f6daaec61dd3a036b02e1146b30910fcf4ec2",
+    "tests/app_wcl_rankings_test.py": "9adbd866ed304a30b614853a697380845bd6ba0474f6e88730e98c964475b35d",
+    "server/app/chickenbro/research_budget.py": "9d0d306c314f7fba9cdbbeffa2fe8519eb16d742d05623c38c129a4a66716c65",
+    "tests/app_research_budget_test.py": "55992d596fc3455aeba067fb0dfd82d9ba41ba3ee43966478612f0a90e158a47",
+    "docs/plans/2026-09-10-bounded-research.md": "52bf4684f39d2212fe1a2ce4bbed5190a1c7da24522a7b78a60b161b79181bde"
+  },
+  "initialSourceIdentity": "592eb65ab121709e46ca32bc404ab7027ddef660126298831b4dafbba7b84c52",
+  "finalSourceIdentity": "4b52f975c57d6ae2465407673a7f31da1e1a160932c4b87e8618178c9e3831be",
+  "backendTestsPassed": 693,
+  "controlTestsPassed": 63,
+  "modelGenerations": 10,
+  "caseSecondsTotal": 149.9,
+  "recordedSourceToolCalls": 3,
+  "reviews": [
+    {
+      "case": "top100",
+      "evidence": "candidate-initial.json",
+      "seconds": 12.25,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Compared full answer against preregistered expected scope."
+    },
+    {
+      "case": "top11",
+      "evidence": "candidate-initial.json",
+      "seconds": 12.19,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Compared full answer against preregistered expected scope."
+    },
+    {
+      "case": "groups",
+      "evidence": "candidate-initial.json",
+      "seconds": 9.9,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Compared full answer against preregistered expected scope."
+    },
+    {
+      "case": "exhaustive",
+      "evidence": "candidate-initial.json",
+      "seconds": 12.11,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Compared full answer against preregistered expected scope."
+    },
+    {
+      "case": "continuation",
+      "evidence": "candidate-initial.json",
+      "seconds": 9.89,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Seeded prior conversation claims ten samples; checks model continuity only, not persisted cross-turn server accounting."
+    },
+    {
+      "case": "normal_concept",
+      "evidence": "candidate-initial.json",
+      "seconds": 14.34,
+      "outcome": "passed",
+      "serviceToolCalls": 0,
+      "notes": "Compared full answer against preregistered expected scope."
+    },
+    {
+      "case": "normal_live",
+      "evidence": "candidate-initial.json",
+      "seconds": 25.35,
+      "outcome": "passed",
+      "serviceToolCalls": 1,
+      "notes": "Two returned RIO facts match the two names, realms and scores in answer."
+    },
+    {
+      "case": "normal_web",
+      "evidence": "candidate-initial.json",
+      "seconds": 18.75,
+      "outcome": "not_accepted_unmetered_web_path",
+      "serviceToolCalls": 0,
+      "notes": "Model reported HTTP 403 without any source gateway receipt. Runtime profile permitted native web; actual native fetch is not independently audited here."
+    },
+    {
+      "case": "normal_web",
+      "evidence": "candidate-final.json",
+      "seconds": 16.61,
+      "outcome": "passed_failure_disclosure",
+      "serviceToolCalls": 1,
+      "notes": "Same WCL URL returns READ_ERROR via authenticated public_web, answer states unread and does not claim verified page content."
+    },
+    {
+      "case": "normal_web_accessible",
+      "evidence": "candidate-final.json",
+      "seconds": 18.51,
+      "outcome": "passed",
+      "serviceToolCalls": 1,
+      "notes": "Official SimC page returns one source_reference fact; answer accurately summarizes it; no simulation requested or submitted."
+    }
+  ],
+  "evidenceReuse": "First seven cases ran on initial snapshot; final delta disables native web and directs public research to metered tool. Final two cases plus 53 adapter tests and full 693 backend tests validate that delta. First seven were not rerun on final snapshot.",
+  "notVerified": [
+    "production business smoke or deployment",
+    "human QQ login",
+    "new image or real SimC job acceptance in this task",
+    "persistent cross-turn hard budget",
+    "latency or cost improvement vs baseline",
+    "large sample reliability",
+    "full Candidate release/recovery acceptance"
+  ]
+}

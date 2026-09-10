@@ -1,0 +1,14 @@
+[
+  {
+    "case": "normal_web",
+    "question": "请读取 https://www.warcraftlogs.com/help/pins ，用中文简短解释 WCL pins 的用途，附这个来源链接。只读这一页。",
+    "expected": "真实网页通过认证来源入口成功，回答依据页面，单页范围",
+    "context": []
+  },
+  {
+    "case": "normal_web_accessible",
+    "question": "请读取 https://www.simulationcraft.org/ ，简短说明 SimulationCraft 是什么。只读这个页面，附来源，不用运行模拟。",
+    "expected": "单页通过服务端网页工具读取，正常回答；不提交模拟",
+    "context": []
+  }
+]

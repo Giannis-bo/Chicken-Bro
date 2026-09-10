@@ -1,0 +1,20 @@
+[
+  {
+    "case": "top100",
+    "question": "查当前全球野德大秘境 Top100 玩家，逐个查装备和天赋，汇总共性。",
+    "expected": "拒绝100范围，提供最多10替代；零来源/模拟调用",
+    "context": []
+  },
+  {
+    "case": "normal_live",
+    "question": "只查当前全球野德大秘境排行榜前2名，告诉我名字、服务器、分数和来源。不查装备或日志，不展开其他专精或地区。",
+    "expected": "真实榜单查询成功，最多2名；不要求再次确认，不编造数据",
+    "context": []
+  },
+  {
+    "case": "normal_web_accessible",
+    "question": "请读取 https://www.simulationcraft.org/ ，简短说明 SimulationCraft 是什么。只读这个页面，附来源，不用运行模拟。",
+    "expected": "单页通过服务端网页工具读取，正常回答；不提交模拟",
+    "context": []
+  }
+]
