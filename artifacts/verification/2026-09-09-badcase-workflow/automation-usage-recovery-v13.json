@@ -1,0 +1,50 @@
+{
+  "observed_at": "2026-09-10T01:47:14.984344+00:00",
+  "verification": "Independent read_thread for target task plus local automation TOML; no task resumption or schedule mutation",
+  "automation_id": "badcase",
+  "task_id": "01a080fe-af7a-7b32-a00f-740e2decff4b",
+  "task_title": "设计 badcase 自动验证工作流",
+  "configured_status": "ACTIVE",
+  "configuration_sha256": "f5a7e6d22023a55f4c5467b3806e363c756d0b6157cf8f74cabc707df98df460",
+  "timezone": "Asia/Shanghai",
+  "schedule_hours": [
+    0,
+    6,
+    12,
+    18
+  ],
+  "observed_turns": [
+    {
+      "scheduled_slot": "2026-09-10 00:00 Asia/Shanghai",
+      "turn_id": "01a086e6-9345-7240-bf3b-dc665f799f9a",
+      "status": "completed",
+      "started_unix": 1788969653,
+      "completed_unix": 1788969677,
+      "business_evidence": "automation-scheduled-scan-v9.json"
+    },
+    {
+      "scheduled_slot": "2026-09-10 06:00 Asia/Shanghai",
+      "turn_id": "01a08830-2f6b-7d70-8f6e-4c3346074983",
+      "status": "failed",
+      "started_unix": 1788991254,
+      "completed_unix": 1788991256,
+      "error_category": "usage_limit",
+      "scan_success": false
+    }
+  ],
+  "manual_recovery_scan": {
+    "scan_time_unix": 1789004700.826834,
+    "new": 0,
+    "scanned": 0,
+    "verified_by": "root actual CLI scan receipt",
+    "trigger": "manual catch-up",
+    "does_not_reclassify_0600_failure": true
+  },
+  "next_1200_slot": "not_observed",
+  "boundaries": [
+    "ACTIVE proves configuration remains enabled, not successful future execution.",
+    "06:00 usage-limit failure remains failed; manual catch-up does not erase it.",
+    "00:00 completed turn is bound separately to saved scan evidence.",
+    "This local automation failure does not prove the cause of all six V12 cloud failures."
+  ]
+}

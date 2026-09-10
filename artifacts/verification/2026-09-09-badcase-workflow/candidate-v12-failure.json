@@ -11,7 +11,7 @@
     "total": 12,
     "completed_terminal": 6,
     "failed_terminal": 6,
-    "completed_semantic_status": "independent review pending; not counted as six business passes",
+    "completed_semantic_status": "final independent review: 6 of 12 satisfy all criteria; six failures retained",
     "cases": [
       {
         "sample_id": "holdout",
@@ -21,7 +21,12 @@
         "public_error_code": "",
         "duration_seconds": 144.336166,
         "receipt_sha256": "8d397ca12c08184974c3a790453ce69af3fdac4526d5d8abf1140afb892c59b8",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "holdout",
@@ -31,14 +36,19 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 3.502544,
         "receipt_sha256": "fac0cebf0e20bac6fed240a48ab77d2887ce8cc84a160d0ceecc6f89ab619814",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "7c1e5f76-852c-4c6e-bedb-f36cb1368b32",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 3437
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "acquisition": "failed",
+          "analysis": "failed",
+          "completion": "failed"
+        }
       },
       {
         "sample_id": "normal",
@@ -48,14 +58,18 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 7.789854,
         "receipt_sha256": "057117f7cc1d3d1dde6d795275be311f4d8c94484db5fe64443894e96eb9ff99",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "d89bad12-665f-4586-86a0-365f86dd8c17",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 7739
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "normal": "failed",
+          "completion": "failed"
+        }
       },
       {
         "sample_id": "normal",
@@ -65,14 +79,18 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 3.535332,
         "receipt_sha256": "69dcaa92d7ba0cee89f04b92747a49444d12b684f8d99f1e94b9ff045503aedc",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "ab3ae6fe-a4b8-4493-8662-7e393f134804",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 3482
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "normal": "failed",
+          "completion": "failed"
+        }
       },
       {
         "sample_id": "original10",
@@ -82,7 +100,12 @@
         "public_error_code": "",
         "duration_seconds": 243.296242,
         "receipt_sha256": "318b084cdd5190a577c6079366a1d68b5fd497b4e71123f5f8398c1c68161fd9",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "original10",
@@ -92,7 +115,12 @@
         "public_error_code": "",
         "duration_seconds": 426.792002,
         "receipt_sha256": "fa15c5e8b8ec5303185855d145f25ffbc0613a583aed006ba99920dc846575bd",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "original100",
@@ -102,7 +130,12 @@
         "public_error_code": "",
         "duration_seconds": 145.829011,
         "receipt_sha256": "2246ecba21e260b5d56026a2fa20f53d331f19114801e659c7fb15b55d209d4d",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "original100",
@@ -112,7 +145,12 @@
         "public_error_code": "",
         "duration_seconds": 148.871539,
         "receipt_sha256": "e012e855d62338e85a0cb4a80af7072bd01015fa3bee6199775a4e1399437159",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "permission",
@@ -122,14 +160,18 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 3.585593,
         "receipt_sha256": "38b98ff23ab103b77d1e08efd39d4e94083219dc7cdf74ad54b1691d2959565e",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "612fe9fa-d617-4742-80e0-3e50113b6fdb",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 3524
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "permission": "passed",
+          "completion": "failed"
+        }
       },
       {
         "sample_id": "permission",
@@ -139,14 +181,18 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 3.623255,
         "receipt_sha256": "6f7f2ecb3ef4b1b58e2becd0709dfab88f2264a386c2329daa4f696ca58b4d26",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "2e6b8400-c242-4e16-8e29-c953ee592057",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 3570
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "permission": "passed",
+          "completion": "failed"
+        }
       },
       {
         "sample_id": "variant",
@@ -156,7 +202,12 @@
         "public_error_code": "",
         "duration_seconds": 126.635949,
         "receipt_sha256": "b92e37c88810029d81a189f7e72597316253e39379cadfa83ff84d0d910c81ff",
-        "semantic_review": "pending"
+        "semantic_review": "passed",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "passed",
+          "completion": "passed"
+        }
       },
       {
         "sample_id": "variant",
@@ -166,16 +217,22 @@
         "public_error_code": "CODEX_OUTPUT_INVALID",
         "duration_seconds": 55.665212,
         "receipt_sha256": "1968fb1387752c307aa5029514210afaede2f6b4111751df36b24660585a8a57",
-        "semantic_review": "completion_failed",
+        "semantic_review": "failed",
         "safe_stage": {
           "run_id": "455910c3-04b9-484b-ab23-60ee4d58b3b4",
           "stage": "stream_failed",
           "code": "CODEX_OUTPUT_INVALID",
           "elapsed_ms": 55612
         },
-        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence",
+        "criteria": {
+          "acquisition": "passed",
+          "analysis": "failed",
+          "completion": "failed"
+        }
       }
-    ]
+    ],
+    "full_criteria_passed": 6
   },
   "safe_stage_evidence_sha256": "87db9592d003c5883490014933a6d30a54520bf304555d867aa21b875f0f72a1",
   "cloud_quota_read_only_snapshot": {
@@ -238,5 +295,15 @@
     "runtime_changes": false,
     "status": "fresh holdout and joint Codex/WCL 95-percent phase admission preregistration being prepared by independent reviewer; no new trial outcome asserted"
   },
-  "workflow_complete": false
+  "workflow_complete": false,
+  "final_evidence_sha256": {
+    "verdicts-candidate-v12.json": "f46a3137f42578f34b5db771fad403e1d64a5553378ca21c2d24083cd5842ed4",
+    "review-v12.json": "0671c8ff5a694b988334ea0b869c9bcd7f72a31fe9de4f87c7b909b960be6250",
+    "verdicts-v12-builder.json": "db1d3990a00065d5a00d31a46e5d87333377f89474b97bb4904c522e590ef014"
+  },
+  "generalization_cli_build": {
+    "status": "unverified",
+    "acceptance": "failed",
+    "evidence_sha256": "4efd7ad27c466ddddc72d780a37099d6d11f82e9f39ccbe3316f210c8c06750f"
+  }
 }
