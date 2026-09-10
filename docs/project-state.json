@@ -353,8 +353,26 @@
       "plan": "docs/plans/2026-09-10-bounded-research.md",
       "evidence": "artifacts/verification/2026-09-10-native-search/README.md",
       "scope": "native_search_tool_capability",
-      "answerQualityBacklog": "open",
+      "answerQualityBacklog": "finite_catalogue_G11_live_verified_other_simulation_backlog_open",
       "originalBadcaseClosure": false,
+      "manualUserAcceptance": "not_claimed"
+    },
+    "catalogueAnswerQuality": {
+      "status": "live_verified",
+      "sourceCommit": "6c2b36b2ef7ba0a42d6adfb30f69eac9bed6029b",
+      "batchSha256": "e3269f3535a07595b3413204fc97c74bb35c2f61fcd4b7578be91152dca5a4c2",
+      "evidence": "artifacts/verification/2026-09-10-native-search/quality-README.md",
+      "scope": "G11_finite_catalogue_identity_coverage_version",
+      "pairedBeforePassed": 8,
+      "pairedAfterPassed": 10,
+      "pairedTrialsPerPhase": 10,
+      "livePassed": 2,
+      "remainingGroups": [
+        "G8",
+        "G9",
+        "G10"
+      ],
+      "allManufacturingQualitiesVerified": false,
       "manualUserAcceptance": "not_claimed"
     }
   },
