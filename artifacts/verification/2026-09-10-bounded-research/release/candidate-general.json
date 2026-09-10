@@ -1,0 +1,67 @@
+{
+  "mode": "candidate",
+  "source": "/var/tmp/chickenbro-bounded-4b52f975c57d",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "trueVision": true,
+    "detachedGeneration": true,
+    "accountConcurrency": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true,
+    "realSimcQueueWorkerResult": true,
+    "simcProvenance": true,
+    "simcIdempotencyAndIsolation": true,
+    "wclHttpSseTerminal": true,
+    "wclStatisticsTool": true,
+    "wclExpectedNineWaste": true,
+    "wclInterpretationBoundary": true,
+    "wclOwnerIsolation": true
+  },
+  "chatRunId": "7887a67b-8535-437b-a6d0-ec350642b4d0",
+  "jobId": "6001a128-5953-4beb-9d28-41b20277ad14",
+  "dps": 160051.89543430787,
+  "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "wclRunId": "4b0668e5-bbd8-4621-86db-6ff4f807e37a",
+  "wclSeconds": 37.923,
+  "wclAnswer": "该角色（source=12）在第 8 场战斗 **2:13–2:33 共浪费 9 点圣能**。[日志来源](https://www.warcraftlogs.com/reports/ZgdALDkX48af26KN#fight=8&source=12)\n\n统计对应报告时间 `[2712438, 2732438)` 毫秒，包含起点、不含终点；窗口数据完整，无缺失值。\n\n这 9 点是**资源溢出统计**，不能据此认定损失了有效治疗，也不能直接换算为少放了几次治疗技能；是否损失有效治疗还取决于当时的治疗需求与可行施法选择。",
+  "wclStatistics": [
+    {
+      "casts": [],
+      "endTime": 2732438,
+      "healing": null,
+      "complete": true,
+      "dataType": "Resources",
+      "sourceId": 12,
+      "pagesRead": 1,
+      "resources": [
+        {
+          "waste": 9,
+          "resourceType": 9,
+          "missingValues": 0
+        },
+        {
+          "waste": 0,
+          "resourceType": 0,
+          "missingValues": 0
+        }
+      ],
+      "startTime": 2712438,
+      "eventCount": 22,
+      "missingValues": 0,
+      "metricsComplete": true,
+      "observedThrough": 2732438,
+      "nextPageTimestamp": null,
+      "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+    }
+  ],
+  "wclTools": [
+    {
+      "operation": "source.warcraftlogs",
+      "state": "completed"
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

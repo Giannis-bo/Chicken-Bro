@@ -1,0 +1,1 @@
+{"action": "preflight", "sourceCommit": "3f0c15d988fd33fd08dae8514f70ee483862c3c8", "backend": "/opt/chickenbro-releases/badcase-f1f0f0a0d32c5682cae6493766b686f2aba824ac", "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f", "businessSmoke": "required"}

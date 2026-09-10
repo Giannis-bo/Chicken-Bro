@@ -1,0 +1,26 @@
+{
+  "status": "live_verified",
+  "sourceCommit": "3f0c15d988fd33fd08dae8514f70ee483862c3c8",
+  "backend": "/opt/chickenbro-releases/badcase-3f0c15d988fd33fd08dae8514f70ee483862c3c8",
+  "web": "/var/www/chickenbro-web/releases/admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+  "backendFiles": 859,
+  "overlayFiles": 7,
+  "webFiles": 14,
+  "checks": {
+    "candidateImageChatSimcWcl": true,
+    "productionOversizedRefusalNoSourceCalls": true,
+    "productionTwoPlayerRanking": true,
+    "productionMeteredWeb": true,
+    "productionOwnerIsolationAndIdempotency": true,
+    "publicWebHashes": true,
+    "apiWorkerRuntimeAndConfiguration": true,
+    "privateRecoverySnapshot": true
+  },
+  "tests": {
+    "backend": 693,
+    "control": 63
+  },
+  "sourceAcceptance": "user reviewed pre-release validation and authorized release",
+  "manualPostReleaseAcceptance": "not_claimed",
+  "rollbackDrill": "not_run"
+}

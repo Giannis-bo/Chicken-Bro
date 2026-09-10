@@ -316,6 +316,21 @@
       "userAcceptance": "not_claimed",
       "releaseEvidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md",
       "rollback": "retained_source_and_private_configuration_validated_no_switchback_drill"
+    },
+    "boundedResearch": {
+      "status": "live_verified",
+      "plan": "docs/plans/2026-09-10-bounded-research.md",
+      "sourceCommit": "3f0c15d988fd33fd08dae8514f70ee483862c3c8",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "productionDeployed": true,
+      "backendTestsPassed": 693,
+      "controlTestsPassed": 63,
+      "evidence": "artifacts/verification/2026-09-10-bounded-research/release/README.md",
+      "preReleaseReportAccepted": true,
+      "manualPostReleaseAcceptance": "not_claimed",
+      "persistentCrossTurnBudget": false,
+      "productionRollbackDrill": "not_run"
     }
   },
   "miniRetirement": {

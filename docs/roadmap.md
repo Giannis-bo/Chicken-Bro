@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- [Chat 有界研究](plans/2026-09-10-bounded-research.md)：Top10、查询/实验预算及网页统一计量已提交推送并发布（`3f0c15d98`）；隔离图片/SimC/WCL、公网拒答/榜单/网页及Web14文件核验通过。[发布记录](../artifacts/verification/2026-09-10-bounded-research/release/README.md)。
+
 - G7 日志施法归因修复已上线（`f1f0f0a0d`）：不把日志频次或同步事件直接当作按键习惯；两次完整Candidate及公网高分对照验收通过，保留失败与适用边界。[记录](../artifacts/verification/2026-09-10-badcase-g7/release/README.md)。
 
 - [WCL 工具效率优化](plans/2026-09-10-wcl-tool-efficiency.md)：按需视图、单轮去重和有界窗口统计已合入推送并发布（`f95f6bbe2`）；隔离图片/Chat/SimC、隔离及公网 WCL 与账号隔离通过，Web 14 文件一致。复用 667 项后端与 63 项控制面测试，按用户要求停止扩样本。[发布证据](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
@@ -23,12 +25,11 @@
 
 ## 正在推进
 
-- [Chat 有界研究](plans/2026-09-10-bounded-research.md)：Top10 与查询/实验预算已完成本地及针对性隔离模型验证；补齐原生网页搜索绕过预算的入口，用户已确认并授权提交发布，发布检查中。
 
 
 ## 下一步
 
-本轮 WCL 工具效率优化已发布并完成自动业务验证；后续新功能按用户新授权推进。详见[本轮发布记录](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
+当前已授权的 Chat 有界研究已发布；后续新功能按用户新授权推进。
 
 ## 暂缓与待决策
 

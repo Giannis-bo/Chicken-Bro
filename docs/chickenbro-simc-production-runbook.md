@@ -57,3 +57,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 ## WCL 工具效率发布（2026-09-10）
 
 当前后端增量源码 `f95f6bbe234a2da8a67ca86466e96c6c29c6b794`，API/Worker 位于 `/opt/chickenbro-releases/badcase-f95f6bbe234a2da8a67ca86466e96c6c29c6b794`。本次仅替换五个 WCL/MCP/证据文件，无新 migration、依赖、运行配置或 Web 变动；Web 继续使用 `admin-ops-web-8fba1535f226c5dd6eebbcd3980fc2ca52c4075f`。隔离与公网业务检查、精确清单及空闲门禁恢复入口见[发布记录](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。旧后端完整保留，私有恢复快照已校验；没有执行生产回切演练。
+
+## Chat 有界研究（2026-09-10）
+
+API/Worker当前运行源码 `3f0c15d988fd33fd08dae8514f70ee483862c3c8`，7文件增量启用Top10及来源预算、关闭绕过预算的原生网页搜索。无环境配置、迁移、依赖或Web变更；Web仍为admin-ops-web-8fba1535f。隔离及公网业务和Web哈希已核对，恢复快照保留但未回切演练。[本批发布与回退步骤](../artifacts/verification/2026-09-10-bounded-research/release/README.md)。

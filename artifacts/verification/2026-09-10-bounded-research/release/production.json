@@ -1,0 +1,181 @@
+{
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-3f0c15d988fd33fd08dae8514f70ee483862c3c8",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true
+  },
+  "cases": [
+    {
+      "case": "top100",
+      "runId": "7d08eeaf-2132-4205-b352-9317247b1933",
+      "conversationId": "9fdfdde7-2d62-50dd-ba63-99e50ca61e94",
+      "seconds": 9.91,
+      "answer": "Top100 逐个查装备和天赋超出单次研究范围，最多支持 10 名玩家。\n\n可以缩小为**当前全球野德大秘境 Top10**，逐个核对装备与天赋，汇总这 10 人的共同选择和差异。按这个范围查吗？",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": false,
+        "syntheticLiveRegression": true
+      },
+      "tool_results": []
+    },
+    {
+      "case": "normal_live",
+      "runId": "50bd269b-323b-4711-a9b2-efc404a53a8e",
+      "conversationId": "a6be97ac-a2a0-59d8-bd77-8bb940d354b6",
+      "seconds": 23.04,
+      "answer": "当前全球野德大秘境榜前两名（赛季 `season-mn-2`，查询时间：2026年9月10日）：\n\n| 排名 | 名字 | 服务器 | 分数 |\n|---|---|---|---:|\n| 1 | Skollcat | 美服 area-52 | 3923.19 |\n| 2 | 樣兒 | 国服 burning-blade | 3917.97 |\n\n来源：[Raider.IO 全球野德排行榜数据](https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=druid&spec=feral&page=0)。",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": false,
+        "syntheticLiveRegression": true
+      },
+      "tool_results": [
+        {
+          "operation": "source.raiderio_rankings",
+          "state": "completed",
+          "result": {
+            "facts": [
+              {
+                "rank": 1,
+                "score": 3923.19,
+                "character": {
+                  "url": "https://raider.io/characters/us/area-52/Skollcat",
+                  "name": "Skollcat",
+                  "path": "/characters/us/area-52/Skollcat",
+                  "spec": "feral",
+                  "level": 90,
+                  "realm": "area-52",
+                  "region": "us",
+                  "specId": 103,
+                  "className": "druid"
+                }
+              },
+              {
+                "rank": 2,
+                "score": 3917.97,
+                "character": {
+                  "url": "https://raider.io/characters/cn/burning-blade/%E6%A8%A3%E5%85%92",
+                  "name": "樣兒",
+                  "path": "/characters/cn/burning-blade/樣兒",
+                  "spec": "feral",
+                  "level": 90,
+                  "realm": "burning-blade",
+                  "region": "cn",
+                  "specId": 103,
+                  "className": "druid"
+                }
+              }
+            ],
+            "status": "source_reference",
+            "evidence": [
+              {
+                "id": "raiderio:season:season-mn-2",
+                "fetchedAt": "2026-09-10T07:19:52.129280+00:00",
+                "sourceUrl": "https://raider.io/api/v1/mythic-plus/affixes?region=us&locale=en",
+                "sourceName": "Raider.IO",
+                "sourceStatus": "fetched"
+              },
+              {
+                "id": "raiderio:rankings:season-mn-2:world:druid:feral:0",
+                "season": "season-mn-2",
+                "fetchedAt": "2026-09-10T07:19:53.500063+00:00",
+                "sourceUrl": "https://raider.io/api/mythic-plus/rankings/specs?region=world&season=season-mn-2&class=druid&spec=feral&page=0",
+                "sourceName": "Raider.IO",
+                "sourceStatus": "fetched"
+              }
+            ],
+            "sourceKey": "raiderio",
+            "pagination": {
+              "page": 0,
+              "limit": 2,
+              "offset": 0,
+              "nextPage": 0,
+              "returned": 2,
+              "nextOffset": 2,
+              "upstreamCount": 100
+            },
+            "limitations": [],
+            "nextActions": [],
+            "evidenceRefs": [
+              "raiderio:season:season-mn-2",
+              "raiderio:rankings:season-mn-2:world:druid:feral:0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case": "normal_web_accessible",
+      "runId": "550c0ed4-d5f5-4fb6-b4be-2c8c8049eeab",
+      "conversationId": "7235bff5-b88e-5e0f-a1d7-6aaee373c300",
+      "seconds": 20.68,
+      "answer": "SimulationCraft（SimC）是用于研究《魔兽世界》战斗机制的模拟工具，以 C++ 编写，通过多人、事件驱动的战斗模拟来计算团队伤害，辅助选择装备和天赋。首页明确说明：展示的示例配置结果不代表职业排名。\n\n来源：[SimulationCraft 官网首页](https://www.simulationcraft.org/)",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": false,
+        "syntheticLiveRegression": true
+      },
+      "tool_results": [
+        {
+          "operation": "source.public_web",
+          "state": "completed",
+          "result": {
+            "facts": [
+              {
+                "end": 1760,
+                "start": 0,
+                "title": "SimulationCraft - Welcome",
+                "summary": "Home Downloads Documentation Report a bug Help us SimulationCraft is a tool to explore combat mechanics in the popular MMO RPG World of Warcraft. It is a multi-player event-driven simulator written in C++ that models raid damage. Welcome Increasing class synergy and the prevalence of proc-based combat modifiers have eroded the accuracy of traditional calculators that rely upon closed-form approximations to model very complex mechanics. The goal of this simulator is to close the accuracy gap while maintaining a performance level high enough to calculate aid gear and talent selection. The primary purpose of this site is to host some sample profiles at various gear points and patch levels. SimulationCraft is not a tool meant to be used to compare different classes. These sample profiles are provided in a single view for convenience but do not represent any sort of ranking. It is important that information flow in both directions. After examining the reports, players may detect inconsistencies with their experiences in-game. In addition, inefficiencies (talents, gear, gems, enchants) may be found in the supplied profiles. Please take the time to open an issue. We are continuously looking for new profiles, both at the normal and heroic levels. If you need help on running SimulationCraft, developing custom actions lists, or have other questions, please see our extensive documentation or check out our Github project page. Wondering what may have changed since the last time reports were updated? Check here! Raid Results Patch 12.0.1 Pre-Raid Pre-Raid ~214 ilevel Patchwerk-style MID1 (The Dreamrift & The Voidspire & March on Quel'Danas) ~290 ilevel Patchwerk-style MID2 (The Venomous Abyss & The Tidebound Grotto) ~337 ilevel Patchwerk-style",
+                "nextStart": null,
+                "truncated": false,
+                "sourceHost": "www.simulationcraft.org",
+                "totalChars": 1760,
+                "sourceScope": "public_community_web"
+              }
+            ],
+            "status": "source_reference",
+            "evidence": [
+              {
+                "id": "public-web:www-simulationcraft-org-page",
+                "title": "SimulationCraft - Welcome",
+                "checkedAt": "2026-09-10T07:20:14.797415+00:00",
+                "sourceUrl": "https://www.simulationcraft.org/",
+                "sourceName": "www.simulationcraft.org",
+                "sourceScope": "public_community_web"
+              }
+            ],
+            "sourceKey": "public_web_research",
+            "limitations": [
+              "Public community pages are source-scoped snapshots. Their data window and metrics must be stated with the conclusion; they do not by themselves establish a universal balance or personal-performance verdict."
+            ],
+            "nextActions": [],
+            "evidenceRefs": [
+              "public-web:www-simulationcraft-org-page"
+            ],
+            "allowedNumbers": [
+              "12.0",
+              "214",
+              "290",
+              "337"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true
+}
