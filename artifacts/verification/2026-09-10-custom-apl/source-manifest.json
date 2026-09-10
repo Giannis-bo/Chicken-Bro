@@ -1,0 +1,25 @@
+{
+  "baseCommit": "dca3fce00242704dae9585cc5bfa8024961f1cc6",
+  "status": "uncommitted_local_source",
+  "files": {
+    "docs/chickenbro-simc-architecture.md": "47eda03dce3d452f5fed39aee4997fee4a23cc2e8756a9490ee01d60ec4f964f",
+    "docs/roadmap.md": "618b434233866385851a0b5164d2b7f0cdeba94159f65977f41b39a258a2c06e",
+    "package.json": "665d550fec7430d838eedcc64da0151186ff91a02f4d4714ecd5f182b3a0c34d",
+    "packages/api-client/src/simc.test.ts": "dfe53189e7e01b2022ba1dd5e826704fb0363a1eebb00d4c9c6ae4524130eabd",
+    "packages/api-client/src/simc.ts": "11137618d0c798b4ee2a642862cf9432dc5a0f88aecd2fdb49d51f1ebc89342b",
+    "packages/domain/src/simc-workbench.test.ts": "7b6299fa2e28c04237e8dd978b4a66ecdc044c59966993a7480d42a7f0413d4a",
+    "packages/domain/src/simc-workbench.ts": "9b1b8363f9b414714c06f278ccc3ff694d02aa618347039c53c30bb5393cad1b",
+    "server/app/api/routes/simc.py": "e3306bd86bc210cb7b54fd71e505fff72f24e63a16de7dae71c2c48bdd078803",
+    "server/app/chickenbro/agent/AGENTS.md": "6ca9f196b710a0a0d5373559241955ef0b57e8c71c019def6a48eb2e29c3007f",
+    "server/app/chickenbro/simulation_tools.py": "f4fd4fffa0457f3067784ddf6c75004b8708ded9cd423abe86b83b2bfaf85234",
+    "server/app/simulation/action_lists.py": "91975b611211b0a7504ffdf6121c032c69a474b57e0b4fdd6af683027bbafe3d",
+    "server/app/simulation/compiler.py": "02195e35c1542bb0b6796136f0964640686435f9d865befec099acdd423e4136",
+    "server/app/simulation/experiments.py": "c842cf9b4d6c9f23d7ded2cbf17d7c93ad8c263ed437688c9f4d4df33aade36e",
+    "server/app/simulation/readiness.py": "b35fa08379230ec9c1f9464d116d28f4d8033125da86dc2239eb12679b3136c2",
+    "server/app/simulation/worker.py": "29f87a9993fc371eb81edc28f7eded1a12e42db7feaf10b732275de49975e365",
+    "server/chickenbro_native_mcp.py": "2515397e88962668828e65caa35635c17c5d32e9f86e351ca4ab862efba2cff5",
+    "tests/app_chickenbro_simulation_tools_test.py": "1d1106b578bd7f620d553d67034812763170104eeebb65051df4dc383e8f3068",
+    "tests/app_simc_workbench_api_test.py": "83649ff1c73cba0203afd5fc8ceb81ed7b6260ef16966a3b74e2d07db51c56f2",
+    "tests/app_simulation_action_lists_test.py": "3e1c60ea2d45c1af1a98e05a95e91bc5a39baff76f364cac55d996b76fd3057f"
+  }
+}

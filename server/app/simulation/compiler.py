@@ -1,4 +1,5 @@
 from copy import deepcopy
+from server.app.simulation.action_lists import normalize_action_lists, compile_action_lists
 import hashlib
 import math
 import re
@@ -43,7 +44,7 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
     allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides", "equipmentOverrides",
-               "varyCombatLength", "targetError", "raidBuffs", "bloodlust", "talentOverrides"}
+               "varyCombatLength", "targetError", "raidBuffs", "bloodlust", "talentOverrides", "actionLists"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
     fight_style = scenario.get("fightStyle", "Patchwerk")
@@ -114,6 +115,11 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
             normalized["talentOverrides"] = normalize_talent_override(scenario["talentOverrides"])
         except TalentEditError as error:
             raise SimcCompileError(error.code) from error
+    if "actionLists" in scenario:
+        try:
+            normalized["actionLists"] = normalize_action_lists(scenario["actionLists"])
+        except ValueError as error:
+            raise SimcCompileError("ACTION_LISTS_INVALID") from error
     return normalized
 
 
@@ -154,7 +160,7 @@ class SimcProfileCompiler:
         region = self._token(character.get("region"), "region", "MISSING_REGION")
         realm = self._server_token(character.get("realm"))
         if self._capabilities.compiler_revision not in {
-            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"
+            "chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"
         }:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if (
@@ -163,9 +169,9 @@ class SimcProfileCompiler:
         ):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         if ({"varyCombatLength", "targetError", "raidBuffs", "bloodlust"}.intersection(normalized_scenario)
-                and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"}):
+                and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}):
             raise SimcCompileError("COMPILER_UNAVAILABLE")
-        if "equipmentOverrides" in normalized_scenario and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5"}:
+        if "equipmentOverrides" in normalized_scenario and self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}:
             raise SimcCompileError("COMPILER_UNAVAILABLE")
         equipment_overrides = normalized_scenario.get("equipmentOverrides", {})
         gear = {**gear, **equipment_overrides}
@@ -184,7 +190,7 @@ class SimcProfileCompiler:
         ]
         talent_edit = None
         if "talentOverrides" in normalized_scenario:
-            if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v5":
+            if self._capabilities.compiler_revision not in {"chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}:
                 raise SimcCompileError("COMPILER_UNAVAILABLE")
             try:
                 talent_edit = edit_talents(talents, character, self._capabilities.runtime_revision,
@@ -296,6 +302,10 @@ class SimcProfileCompiler:
         for key, option in (("raidBuffs", "optimal_raid"), ("bloodlust", "override.bloodlust")):
             if key in normalized_scenario:
                 lines.append(f"{option}={int(normalized_scenario[key])}")
+        if "actionLists" in normalized_scenario:
+            if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v6":
+                raise SimcCompileError("COMPILER_UNAVAILABLE")
+            lines.extend(compile_action_lists(normalized_scenario["actionLists"]))
         profile = "\n".join(lines) + "\n"
         if len(profile) > 24000:
             raise SimcCompileError("PROFILE_TOO_LARGE")

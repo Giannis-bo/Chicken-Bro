@@ -306,8 +306,15 @@ class SimulationWorker:
             if execution.runtime_revision != job.runtime_revision:
                 raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
             metric = self._result_parser.parse(execution, expected_actor=compiled.actor_name)
+            action_evidence = None
+            if compiled.compiler_revision == "chickenbro-simc-compiler-v6":
+                from server.app.simulation.action_lists import extract_action_evidence
+                try:
+                    action_evidence = extract_action_evidence(execution.report_json, compiled.actor_name, compiled.profile_sha256)
+                except ValueError as error:
+                    raise SimulationWorkerError("SIMC_ACTION_EVIDENCE_MISSING") from error
             effective_config = None
-            if compiled.compiler_revision == "chickenbro-simc-compiler-v5":
+            if compiled.compiler_revision in {"chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}:
                 try:
                     effective_config = verify_effective_config(compiled, metric.report)
                 except ValueError as error:
@@ -352,6 +359,7 @@ class SimulationWorker:
             user_id=job.user_id,
             profile_sha256=compiled.profile_sha256,
             result={
+                **({"actionEvidence": action_evidence} if action_evidence is not None else {}),
                 "metricName": metric.name,
                 "metricValue": metric.value,
                 **({"effectiveConfig": effective_config} if effective_config is not None else {}),
@@ -429,6 +437,7 @@ class SimulationWorker:
                 ("chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v4"),
                 ("chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"),
                 *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v5") for i in range(1, 5)),
+                *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v6") for i in range(1, 6)),
             }
             and job.runtime_revision == self._runtime_capabilities.runtime_revision
         ):

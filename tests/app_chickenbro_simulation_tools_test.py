@@ -83,6 +83,26 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.assertEqual(denied["errorCode"], "SIMULATION_NOT_FOUND")
         self.assertEqual(len(self.queue.calls), 2)
 
+    def test_custom_rotation_preview_submit_reuse_and_owner_isolation(self):
+        caps = replace(self.application._runtime_capabilities, compiler_revision="chickenbro-simc-compiler-v6")
+        self.application._runtime_capabilities = caps
+        self.application._compiler = application_fixtures.SimcProfileCompiler(capabilities=caps)
+        baseline = self.submit(self.prepare()["snapshotId"], {"maxTime":60})
+        args = {"baseJobId":baseline["jobId"], "scenario":{"actionLists":{"default":["stormkeeper", "lightning_bolt"]}}}
+        preview = self.gateway.execute(self.token, "preview", args)
+        self.assertEqual(preview['status'], 'ready')
+        self.assertEqual(len(self.queue.calls), 1)
+        variant = self.gateway.execute(self.token, "submit", args)
+        self.assertEqual(variant['status'], 'queued')
+        self.assertEqual(variant['scenarioHash'], preview['scenarioHash'])
+        self.assertEqual(variant['scenario']['maxTime'], 60)
+        self.assertEqual(variant['gear'], baseline['gear'])
+        self.assertEqual(variant['talents'], baseline['talents'])
+        self.assertEqual(self.gateway.execute(self.token, 'submit', args)['jobId'], variant['jobId'])
+        other_token = self.gateway.issue_capability(replace(self.context, principal=self.other, run_id=uuid4()))
+        self.assertEqual(self.gateway.execute(other_token, 'preview', args)['errorCode'], 'SIMULATION_NOT_FOUND')
+        self.assertEqual(len(self.queue.calls), 2)
+
     def test_base_job_requires_owned_source_and_recorded_scenario(self):
         base = self.submit(self.prepare()["snapshotId"])
         self.queue.calls.clear()

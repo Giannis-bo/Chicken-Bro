@@ -157,6 +157,9 @@ def _job_packet(view: SimulationJobView) -> dict:
         if isinstance(proof,dict) and proof.get("status") == "verified" and proof.get("profileSha256") == view.result.profile_sha256:
             result["effectiveConfig"] = {"status":"verified", "profileSha256":view.result.profile_sha256,
                                          "checked":["talents","equipmentItemIds","overriddenItemLevels"]}
+        evidence = view.result.result.get("actionEvidence")
+        if isinstance(evidence, dict) and evidence.get("profileSha256") == view.result.profile_sha256:
+            result["actionEvidence"] = deepcopy(evidence)
         for key in ("metricError", "metricErrorPct"):
             value = view.result.result.get(key)
             if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
@@ -361,7 +364,7 @@ class SimulationToolGateway:
                                        changes=changes, profileSha256=compiled.profile_sha256, scenarioHash=compiled.scenario_hash,
                                        compilerRevision=compiled.compiler_revision, runtimeRevision=compiled.runtime_revision,
                                        facts=["Configuration compiled without enqueueing a simulation."],
-                                       limitations=["Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
+                                       limitations=["Custom APL syntax checks are not engine execution or proof of the intended order. Inspect result actionEvidence.sample after running.", "Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
                     digest = scenario_hash(scenario)
                     key = hashlib.sha256(f"{run.context.run_id}:{snapshot_id}:{digest}".encode()).hexdigest()
                     if run.submissions.get(key) is not None:

@@ -17,6 +17,7 @@ export interface SimulationScenario {
   bloodlust?: boolean
   equipmentOverrides?: Readonly<Record<string, { itemId: number; itemLevel: number; bonusIds: readonly number[]; gems: readonly number[]; enchant: number | null }>>
   talentOverrides?: { string: string } | { nodes: readonly { nodeId: number; entryId: number; rank: number }[] }
+  actionLists?: Readonly<Record<string, readonly string[]>>
   gemOverrides?: Readonly<Record<string, readonly number[]>>
 }
 
@@ -73,13 +74,26 @@ export function isSimulationCharacter(v: unknown): v is SimulationCharacter {
     && maybe(v['level'], n => num(n, 1000) && Number.isInteger(n))
 }
 export function isSimulationScenario(v: unknown): v is SimulationScenario {
-  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides'].includes(k))) return false
+  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides', 'actionLists'].includes(k))) return false
   if ('fightStyle' in v && !['Patchwerk', 'HecticAddCleave', 'LightMovement', 'HeavyMovement'].includes(String(v['fightStyle']))) return false
   for (const [key, min, max] of [['desiredTargets', 1, 20], ['iterations', 1, 10000], ['maxTime', 30, 600]] as const) {
     if (key in v && !(num(v[key], max) && Number.isInteger(v[key]) && v[key] >= min)) return false
   }
   for (const [key, max] of [['varyCombatLength', .5], ['targetError', 5]] as const) if (key in v && !num(v[key], max)) return false
   for (const key of ['raidBuffs', 'bloodlust']) if (key in v && typeof v[key] !== 'boolean') return false
+  if ('actionLists' in v) {
+    const apl = v['actionLists']
+    if (!obj(apl) || !('default' in apl) || Object.keys(apl).length > 16) return false
+    let count = 0; let size = 0
+    for (const [name, actions] of Object.entries(apl)) {
+      if (name.trim() !== name || !/^[a-z][a-z0-9_]{0,63}$/.test(name) || !Array.isArray(actions) || !actions.length) return false
+      for (const action of actions) {
+        if (typeof action !== 'string' || action.trim() !== action || action.length > 1024 || !/^[a-z][a-z0-9_]*(?:,[a-zA-Z0-9_.,=<>!&|+*%():?@^~-]+)?$/.test(action)) return false
+        count++; size += action.length
+      }
+    }
+    if (count > 256 || size > 16000) return false
+  }
   if ('talentOverrides' in v) {
     const talent = v['talentOverrides']
     if (!obj(talent)) return false

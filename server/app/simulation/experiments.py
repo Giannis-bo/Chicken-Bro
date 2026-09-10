@@ -4,7 +4,7 @@ from math import isfinite
 from server.app.simulation.compiler import normalize_scenario
 from server.app.simulation.application import SimulationApplicationError, validated_simulation_result_provenance
 
-_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides'}
+_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists'}
 
 def merge_scenario(base, patch):
     if not isinstance(patch, dict):
@@ -47,7 +47,7 @@ def compare_jobs(baseline, variant):
     controls=lambda s:{k:v for k,v in s.items() if k not in _VARIANT_FIELDS}
     if controls(baseline.scenario)!=controls(variant.scenario): fail('SIMC_COMPARISON_CONTROLS_MISMATCH')
     if baseline.result.primary_metric_name != variant.result.primary_metric_name: fail('SIMC_COMPARISON_METRIC_MISMATCH')
-    if a.compiler_revision == 'chickenbro-simc-compiler-v5':
+    if a.compiler_revision in {'chickenbro-simc-compiler-v5', 'chickenbro-simc-compiler-v6'}:
         for view in (baseline,variant):
             proof=view.result.result.get('effectiveConfig', {})
             if proof.get('status')!='verified' or proof.get('profileSha256')!=view.result.profile_sha256:

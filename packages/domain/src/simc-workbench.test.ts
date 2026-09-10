@@ -9,6 +9,12 @@ const report: SimulationReport = {
   buffs:[{name:'Bloodlust',uptime:13}],resources:[],attributes:[],gear:[],
 }
 describe('SimC workbench guards', () => {
+  it('accepts custom rotations and rejects malformed or injected lists', () => {
+    expect(isSimulationScenario({ actionLists: { default: ['strict_sequence,name=burst:stormkeeper:ascendance', 'lightning_bolt'] } })).toBe(true)
+    for (const actionLists of [{}, { cooldowns: ['ascendance'] }, { default: ['lightning_bolt\ninput=/etc/passwd'] }, { default: Array(257).fill('lightning_bolt') }]) {
+      expect(isSimulationScenario({ actionLists })).toBe(false)
+    }
+  })
   it('validates talent variants without accepting ambiguous or injected edits', () => {
     const node = { nodeId: 80999, entryId: 1234, rank: 1 }
     expect(isSimulationScenario({ talentOverrides: { nodes: [node] } })).toBe(true)

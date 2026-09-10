@@ -1,0 +1,66 @@
+{
+  "engine": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "compiler": "chickenbro-simc-compiler-v6",
+  "fixture": "Archived public Fusionbolt 2026-09-09, not user acceptance or current character recommendation",
+  "scenario": {
+    "desiredTargets": 1,
+    "maxTime": 60,
+    "iterations": 100,
+    "varyCombatLength": 0
+  },
+  "cases": [
+    {
+      "order": [
+        "stormkeeper",
+        "ascendance"
+      ],
+      "times": [
+        0,
+        1.207
+      ],
+      "dps": 205930.80548233743,
+      "error": 2500.557918539225,
+      "profileSha256": "1d6caf3a216051974282c1b100c9e155a766ed7c8ad3d28a4f80a82aee3ca352"
+    },
+    {
+      "order": [
+        "ascendance",
+        "stormkeeper"
+      ],
+      "times": [
+        0,
+        1.206
+      ],
+      "dps": 209433.25954173092,
+      "error": 2773.3200178627385,
+      "profileSha256": "073c72fb3610b531c1ba7ebdc6f014a8d361312b2e9b86d53decbc7191b326a0"
+    }
+  ],
+  "effectiveEquipmentAndTalents": "verified_both",
+  "assessment": "within_combined_reported_error; mechanism validation only",
+  "strictSequenceProbe": "JSON only exposed strict_sequence wrapper; rejected as evidence of internal spell timing",
+  "remoteEvidence": "/tmp/chickenbro-custom-apl-20260910/cloud-apl-results.json",
+  "finalSourceRerun": {
+    "sameProfileHashes": true,
+    "ordersVerified": true,
+    "cases": [
+      {
+        "times": [
+          0,
+          1.205
+        ],
+        "dps": 205487.17127708194,
+        "error": 2851.027759294683
+      },
+      {
+        "times": [
+          0,
+          1.206
+        ],
+        "dps": 204741.1711214163,
+        "error": 2782.9103790395097
+      }
+    ],
+    "assessment": "within_combined_reported_error"
+  }
+}
