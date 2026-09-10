@@ -346,6 +346,16 @@
       "manualPostReleaseAcceptance": "not_claimed",
       "productionRollbackDrill": "not_run",
       "terminologyResearch": "research-first verified; external sources did not establish current set effects in this smoke"
+    },
+    "nativeSearch": {
+      "status": "live_verified",
+      "sourceCommit": "1c7caa15984240fcd3ad1ca03495953c9aa6dfc9",
+      "plan": "docs/plans/2026-09-10-bounded-research.md",
+      "evidence": "artifacts/verification/2026-09-10-native-search/README.md",
+      "scope": "native_search_tool_capability",
+      "answerQualityBacklog": "open",
+      "originalBadcaseClosure": false,
+      "manualUserAcceptance": "not_claimed"
     }
   },
   "miniRetirement": {

@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- Chat 原生实时搜索已恢复上线（`1c7caa159`）：隔离和线上均验证真实搜索、页面读取与资料取得，图片/SimC/权限及 Web 核验通过。[记录](../artifacts/verification/2026-09-10-native-search/README.md#本轮线上结果)。
+
 - 自定义施法 APL 与玩家术语先检索：`c408a30e6` 已合入推送并发布；隔离与公网真实相反顺序、Chat 先检索、第二账号隔离及 Web 13 文件核对通过。见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。
 
 - [Chat 有界研究](plans/2026-09-10-bounded-research.md)：Top10、查询/实验预算及网页统一计量已提交推送并发布（`3f0c15d98`）；隔离图片/SimC/WCL、公网拒答/榜单/网页及Web14文件核验通过。[发布记录](../artifacts/verification/2026-09-10-bounded-research/release/README.md)。
@@ -27,7 +29,7 @@
 
 ## 正在推进
 
-- 恢复 Chat 原生实时搜索：源码已合入，隔离检索通过；线上一条名称/版本核验失败，已回滚，生产仍为旧逻辑。见[有界研究调整](plans/2026-09-10-bounded-research.md)。
+- Chat 资料回答的名称、覆盖范围和版本稳定性问题独立保留；原生搜索工具已恢复，不将工具通过等同这些问题已解决。
 
 
 
