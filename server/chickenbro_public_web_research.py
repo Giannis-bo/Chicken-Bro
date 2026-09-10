@@ -8,6 +8,7 @@ bodies nor search result pages after a request completes.
 """
 
 from collections import deque
+import base64
 from copy import deepcopy
 from datetime import datetime, timezone
 from html import unescape
@@ -21,6 +22,7 @@ import ssl
 from threading import Event, RLock, Thread, Timer
 from time import monotonic
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
+from urllib.request import getproxies_environment, proxy_bypass_environment
 
 
 PUBLIC_WEB_SOURCE_KEY = "public_web_research"
@@ -78,6 +80,43 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         self._pinned_address = pinned_address
 
     def connect(self):
+        proxies = getproxies_environment()
+        proxy_url = proxies.get("https")
+        if proxy_url and not proxy_bypass_environment(self.host, proxies):
+            # Configuration is server-owned. The proxy does not resolve the
+            # user-selected destination: CONNECT retains its validated IP.
+            try:
+                proxy = urlparse(proxy_url)
+                proxy_port = proxy.port or 80
+                if (proxy.scheme != "http" or not proxy.hostname
+                        or proxy.path not in ("", "/") or proxy.query or proxy.fragment):
+                    raise ValueError()
+            except ValueError:
+                raise ValueError("unsupported HTTPS proxy configuration") from None
+            deadline = monotonic() + self.timeout
+            proxy_address = proxy.hostname
+            try:
+                ipaddress.ip_address(proxy_address)
+            except ValueError:
+                resolved = _run_until_deadline(
+                    lambda: socket.getaddrinfo(proxy.hostname, proxy_port, type=socket.SOCK_STREAM),
+                    deadline,
+                )
+                proxy_address = resolved[0][4][0]
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise TimeoutError("public web overall deadline exceeded")
+            headers = {}
+            if proxy.username is not None:
+                credentials = unquote(proxy.username) + ":" + unquote(proxy.password or "")
+                headers["Proxy-Authorization"] = "Basic " + base64.b64encode(credentials.encode()).decode("ascii")
+            self.set_tunnel(self._pinned_address, self.port, headers=headers)
+            self.sock = socket.create_connection(
+                (proxy_address, proxy_port), remaining, self.source_address
+            )
+            self._tunnel()
+            self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+            return
         self.sock = socket.create_connection(
             (self._pinned_address, self.port), self.timeout, self.source_address
         )

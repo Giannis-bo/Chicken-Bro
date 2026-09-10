@@ -1,3 +1,5 @@
+import io
+import os
 import unittest
 from threading import Event
 from time import monotonic, sleep
@@ -161,6 +163,63 @@ class ChickenbroPublicWebResearchTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 public_web._read_url(URL)
         connection.assert_not_called()
+
+    def test_configured_proxy_tunnels_to_pinned_ip_and_keeps_origin_tls(self):
+        class Wire:
+            def __init__(self):
+                self.sent = b""
+            def sendall(self, data):
+                self.sent += data
+            def makefile(self, *args):
+                return io.BytesIO(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            def close(self):
+                pass
+
+        wire = Wire()
+        connections = []
+        tls_hosts = []
+        def connect(address, *args, **kwargs):
+            connections.append(address)
+            return wire
+        class TLS:
+            def wrap_socket(self, sock, *, server_hostname):
+                tls_hosts.append(server_hostname)
+                return sock
+        with patch.dict(os.environ, {"HTTPS_PROXY": "http://127.0.0.1:7890"}, clear=True), \
+             patch.object(public_web.socket, "create_connection", side_effect=connect), \
+             patch.object(public_web.ssl, "create_default_context", return_value=TLS()):
+            connection = public_web._PinnedHTTPSConnection("guide.example", "93.184.216.34", timeout=5)
+            connection.connect()
+        self.assertEqual([("127.0.0.1", 7890)], connections)
+        self.assertIn(b"CONNECT 93.184.216.34:443 HTTP/", wire.sent)
+        self.assertNotIn(b"CONNECT guide.example", wire.sent)
+        self.assertEqual(["guide.example"], tls_hosts)
+
+    def test_invalid_proxy_configuration_fails_closed_without_direct_connection(self):
+        with patch.dict(os.environ, {"HTTPS_PROXY": "socks5://secret:password@127.0.0.1:7890"}, clear=True), \
+             patch.object(public_web.socket, "create_connection") as connect, \
+             patch.object(public_web.ssl, "create_default_context"):
+            with self.assertRaisesRegex(ValueError, "unsupported.*proxy"):
+                public_web._PinnedHTTPSConnection("guide.example", "93.184.216.34", timeout=5).connect()
+        connect.assert_not_called()
+
+    def test_no_proxy_preserves_direct_pinned_connection(self):
+        connections = []
+        class TLS:
+            def wrap_socket(self, sock, *, server_hostname):
+                self.host = server_hostname
+                return sock
+        tls = TLS()
+        def connect(address, *args, **kwargs):
+            connections.append(address)
+            return object()
+        for environment in ({}, {"HTTPS_PROXY": "http://127.0.0.1:7890", "NO_PROXY": ".example"}):
+            with patch.dict(os.environ, environment, clear=True), \
+                 patch.object(public_web.socket, "create_connection", side_effect=connect), \
+                 patch.object(public_web.ssl, "create_default_context", return_value=tls):
+                public_web._PinnedHTTPSConnection("guide.example", "93.184.216.34", timeout=5).connect()
+        self.assertEqual([("93.184.216.34", 443)] * 2, connections)
+        self.assertEqual("guide.example", tls.host)
 
     def test_default_reader_rejects_non_public_and_multicast_dns(self):
         for address in ("100.64.0.1", "224.0.0.1"):
