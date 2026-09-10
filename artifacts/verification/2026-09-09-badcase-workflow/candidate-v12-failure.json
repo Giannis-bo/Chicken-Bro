@@ -1,0 +1,242 @@
+{
+  "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+  "build_sha256": "b756097f99d964f29bfc77ed7a2907dea63ea6372311e397215f099027a0cc28",
+  "config_sha256": "018755f218dfee09df1dbef422988bbb3d6e5ce6e5a2100dd3bbf7c22b0763a9",
+  "diff_sha256": "ed3eb04e17e2c58934601f815a7a698be7abadb77b06bef592514f6482075556",
+  "observed_at": "2026-09-10T01:44:43.502464+00:00",
+  "status": "failed",
+  "phase": "paired_actual_http",
+  "candidate": {
+    "total": 12,
+    "completed_terminal": 6,
+    "failed_terminal": 6,
+    "completed_semantic_status": "independent review pending; not counted as six business passes",
+    "cases": [
+      {
+        "sample_id": "holdout",
+        "repeat": 1,
+        "runId": "587452c5-6665-4f33-9e47-f6d4eaba6039",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 144.336166,
+        "receipt_sha256": "8d397ca12c08184974c3a790453ce69af3fdac4526d5d8abf1140afb892c59b8",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "holdout",
+        "repeat": 2,
+        "runId": "7c1e5f76-852c-4c6e-bedb-f36cb1368b32",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 3.502544,
+        "receipt_sha256": "fac0cebf0e20bac6fed240a48ab77d2887ce8cc84a160d0ceecc6f89ab619814",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "7c1e5f76-852c-4c6e-bedb-f36cb1368b32",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 3437
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      },
+      {
+        "sample_id": "normal",
+        "repeat": 1,
+        "runId": "d89bad12-665f-4586-86a0-365f86dd8c17",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 7.789854,
+        "receipt_sha256": "057117f7cc1d3d1dde6d795275be311f4d8c94484db5fe64443894e96eb9ff99",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "d89bad12-665f-4586-86a0-365f86dd8c17",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 7739
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      },
+      {
+        "sample_id": "normal",
+        "repeat": 2,
+        "runId": "ab3ae6fe-a4b8-4493-8662-7e393f134804",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 3.535332,
+        "receipt_sha256": "69dcaa92d7ba0cee89f04b92747a49444d12b684f8d99f1e94b9ff045503aedc",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "ab3ae6fe-a4b8-4493-8662-7e393f134804",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 3482
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      },
+      {
+        "sample_id": "original10",
+        "repeat": 1,
+        "runId": "ec8290bd-3fb7-4796-81b9-71a600ba2f39",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 243.296242,
+        "receipt_sha256": "318b084cdd5190a577c6079366a1d68b5fd497b4e71123f5f8398c1c68161fd9",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "original10",
+        "repeat": 2,
+        "runId": "a385b692-2542-48ad-ac44-66510fe1a239",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 426.792002,
+        "receipt_sha256": "fa15c5e8b8ec5303185855d145f25ffbc0613a583aed006ba99920dc846575bd",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "original100",
+        "repeat": 1,
+        "runId": "2a8f418b-5f85-4c20-ae35-af6429b5341a",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 145.829011,
+        "receipt_sha256": "2246ecba21e260b5d56026a2fa20f53d331f19114801e659c7fb15b55d209d4d",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "original100",
+        "repeat": 2,
+        "runId": "4fdb4e39-763d-42bc-8ce7-ef40bb660055",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 148.871539,
+        "receipt_sha256": "e012e855d62338e85a0cb4a80af7072bd01015fa3bee6199775a4e1399437159",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "permission",
+        "repeat": 1,
+        "runId": "612fe9fa-d617-4742-80e0-3e50113b6fdb",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 3.585593,
+        "receipt_sha256": "38b98ff23ab103b77d1e08efd39d4e94083219dc7cdf74ad54b1691d2959565e",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "612fe9fa-d617-4742-80e0-3e50113b6fdb",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 3524
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      },
+      {
+        "sample_id": "permission",
+        "repeat": 2,
+        "runId": "2e6b8400-c242-4e16-8e29-c953ee592057",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 3.623255,
+        "receipt_sha256": "6f7f2ecb3ef4b1b58e2becd0709dfab88f2264a386c2329daa4f696ca58b4d26",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "2e6b8400-c242-4e16-8e29-c953ee592057",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 3570
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      },
+      {
+        "sample_id": "variant",
+        "repeat": 1,
+        "runId": "62b8b967-e227-4c56-b8c2-0764b7e1d80c",
+        "terminal": "completed",
+        "public_error_code": "",
+        "duration_seconds": 126.635949,
+        "receipt_sha256": "b92e37c88810029d81a189f7e72597316253e39379cadfa83ff84d0d910c81ff",
+        "semantic_review": "pending"
+      },
+      {
+        "sample_id": "variant",
+        "repeat": 2,
+        "runId": "455910c3-04b9-484b-ab23-60ee4d58b3b4",
+        "terminal": "failed",
+        "public_error_code": "CODEX_OUTPUT_INVALID",
+        "duration_seconds": 55.665212,
+        "receipt_sha256": "1968fb1387752c307aa5029514210afaede2f6b4111751df36b24660585a8a57",
+        "semantic_review": "completion_failed",
+        "safe_stage": {
+          "run_id": "455910c3-04b9-484b-ab23-60ee4d58b3b4",
+          "stage": "stream_failed",
+          "code": "CODEX_OUTPUT_INVALID",
+          "elapsed_ms": 55612
+        },
+        "validation_observation": "none reported in retained observer by root; WARNING-only stage log cannot itself prove validation absence"
+      }
+    ]
+  },
+  "safe_stage_evidence_sha256": "87db9592d003c5883490014933a6d30a54520bf304555d867aa21b875f0f72a1",
+  "cloud_quota_read_only_snapshot": {
+    "observed_at": "2026-09-10T01:41:42.533102+00:00",
+    "model_started": false,
+    "chat_created": false,
+    "scope": "production worker existing configured account; account/rateLimits/read only",
+    "status": "queried",
+    "rateLimits": {
+      "primary": {
+        "usedPercent": 0,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789609177
+      },
+      "secondary": null,
+      "spendControlReached": false
+    },
+    "rateLimitsByLimitId": {
+      "codex": {
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789609177
+        },
+        "secondary": null,
+        "spendControlReached": false
+      },
+      "codex_bengalfox": {
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 300,
+          "resetsAt": 1789022503
+        },
+        "secondary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789609303
+        },
+        "spendControlReached": false
+      }
+    }
+  },
+  "cloud_quota_evidence_sha256": "a4a5f2b809a5aa823d47fb696f4b3dbc333ccd082efba6c956bcc8d4921260ea",
+  "causal_limits": [
+    "Six actual cloud runs failed CODEX_OUTPUT_INVALID with stream_failed stage; exact shared cause is not established.",
+    "A separate historical reviewer reported an explicit usage-limit error; this does not establish the cause of all six cloud failures.",
+    "The later read-only account snapshot reports 0 percent used and no spend-control block; this cannot retrospectively establish account availability during failed runs.",
+    "Missing validation observer evidence is not proof of a specific provider error."
+  ],
+  "extra_candidate_four": "not_started",
+  "production": {
+    "switched": false,
+    "new_rollback": false,
+    "baseline_sha": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b"
+  },
+  "history": "All V12 trial receipts and earlier failures retained unchanged. Design-only repair success does not offset paired failures.",
+  "next_version": {
+    "version": "V13",
+    "source_sha": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "runtime_changes": false,
+    "status": "fresh holdout and joint Codex/WCL 95-percent phase admission preregistration being prepared by independent reviewer; no new trial outcome asserted"
+  },
+  "workflow_complete": false
+}
