@@ -1,0 +1,56 @@
+{
+  "baseCommit": "0455d26bf690c7ca699b4721d6aabefa53d0c5d4",
+  "runtimeFiles": {
+    "server/app/chickenbro/wcl_source.py": "a9f894f8ed12c76a5845216672d22abe8a305e2edf9d55eecf906e3cea32be9c",
+    "server/app/chickenbro/wcl_statistics.py": "5d8df42ee5276b4e0188f91046c3b31439027b6b9f9a2b25aa833ba599c75a78",
+    "server/app/chickenbro/source_gateway.py": "38cb1a79ac19246c3c9aa6a67b6b23b5f10da65546d4720a5d4a0faac290d9c0",
+    "server/app/chickenbro/answer_grounding.py": "e415ebad2c6eb5d6f5cac17a768726c4f7b35658560ac892d06343480948db88",
+    "server/chickenbro_native_mcp.py": "cc76cd667c6ae253854285c0322186fa02ee0fd7d6ab913b1ad72705c02f1f57"
+  },
+  "liveBaselineMatchesLocalBase": {
+    "server/app/chickenbro/wcl_source.py": true,
+    "server/app/chickenbro/wcl_statistics.py": true,
+    "server/app/chickenbro/source_gateway.py": true,
+    "server/app/chickenbro/answer_grounding.py": true,
+    "server/chickenbro_native_mcp.py": true
+  },
+  "liveIdentity": {
+    "productionPath": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "services": {
+      "chickenbro-api.service": {
+        "pid": "3409398",
+        "cwd": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd"
+      },
+      "chickenbro-worker.service": {
+        "pid": "3409359",
+        "cwd": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd"
+      }
+    },
+    "files": {
+      "server/app/chickenbro/wcl_source.py": "3b1541d5f9b22da9a7071858f707b493608b759d8f7dc654427b14cb25927808",
+      "server/app/chickenbro/wcl_statistics.py": null,
+      "server/app/chickenbro/source_gateway.py": "91dda42a5e3ef24be06373f98b5e0dd37433168d45677760e06fccf33a0a806c",
+      "server/app/chickenbro/answer_grounding.py": "bc877e4e9654b0b4ad67e7c7a390da97c23a175c565411478b2305b5de44d512",
+      "server/chickenbro_native_mcp.py": "c9dcb6a30decbab9971214804004ac2b95f3e4c922c9460328e76bf6a23d9cb3"
+    }
+  },
+  "verificationReused": {
+    "backend": 667,
+    "realModelPairs": 2,
+    "identity": "identity.json"
+  },
+  "freshControlTests": {
+    "passed": 63,
+    "failed": 0,
+    "evidence": "control-tests-closure.log"
+  },
+  "scope": "Five backend/tool files only; no Web artifact change, migration, config, dependencies or SimC engine update.",
+  "productionCutoverAuthorized": false,
+  "releaseSteps": [
+    "After explicit release authorization, synchronize the known repository and check base drift without history rewrite.",
+    "Validate exact source in isolated Candidate using existing checks; reuse unchanged source/model evidence.",
+    "Drain in-flight work, preserve current backend/Web and exact systemd settings, atomically switch API/Worker to the same source.",
+    "Check one real WCL statistics Chat terminal plus owner isolation and unchanged Web identity; stop when these pass. Roll back to retained source if this acceptance fails."
+  ],
+  "rollback": "Retain the productionPath and service configuration in pre-release-live-identity.json; no database rollback or deletion."
+}

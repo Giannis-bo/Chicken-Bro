@@ -9,6 +9,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FormalChickenbroNativeMcpTest(unittest.TestCase):
+    def test_report_and_batch_advertise_bounded_statistics_views(self):
+        module = importlib.import_module('server.chickenbro_native_mcp')
+        definitions = {t['name']:t for t in module.handle_rpc_request({'id':1,'method':'tools/list'})['result']['tools']}
+        report = definitions['query_warcraftlogs_report']['inputSchema']['properties']['options']['properties']
+        self.assertIn('view', report)
+        self.assertEqual(report['view']['enum'], ['full','overview','events','statistics'])
+        self.assertEqual(report['maxPages']['maximum'], 5)
+        batch = definitions['query_warcraftlogs_batch']['inputSchema']['properties']['queries']['items']['properties']['options']['properties']
+        self.assertEqual(batch['view'], report['view'])
+
     def test_oversized_tool_result_returns_valid_bounded_partial_instead_of_breaking_stdio(self):
         native_mcp = importlib.import_module('server.chickenbro_native_mcp')
         result = native_mcp._tool_text({'sourceKey':'warcraftlogs','status':'verified',

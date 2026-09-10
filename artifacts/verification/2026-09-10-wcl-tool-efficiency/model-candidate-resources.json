@@ -1,0 +1,52 @@
+{
+  "mode": "candidate",
+  "case": "resources",
+  "seconds": 24.482,
+  "error": null,
+  "answer": "该角色在战斗内 **2:13–2:33 共浪费 9 点圣能**。统计对应报告时间 `[2712438, 2732438)` 毫秒，仅包含 source=12；窗口数据完整，无缺失资源数值。[日志来源](https://www.warcraftlogs.com/reports/ZgdALDkX48af26KN#fight=8&source=12)\n\n这属于**资源溢出统计**，不能据此认定损失了有效治疗，也不能直接折算为少打了几次治疗技能；判断治疗损失还需要该窗口的实际治疗需求及可行替代施法证据。",
+  "tools": [
+    {
+      "operation": "source.warcraftlogs",
+      "options": {
+        "view": "statistics",
+        "dataType": "Resources",
+        "startTime": 2712438,
+        "endTime": 2732438,
+        "maxPages": 5
+      },
+      "status": "verified",
+      "seconds": 2.822,
+      "bytes": 2052,
+      "statistics": [
+        {
+          "startTime": 2712438,
+          "endTime": 2732438,
+          "observedThrough": 2732438,
+          "dataType": "Resources",
+          "sourceId": 12,
+          "complete": true,
+          "metricsComplete": true,
+          "nextPageTimestamp": null,
+          "pagesRead": 1,
+          "eventCount": 22,
+          "casts": [],
+          "healing": null,
+          "resources": [
+            {
+              "resourceType": 9,
+              "waste": 9,
+              "missingValues": 0
+            },
+            {
+              "resourceType": 0,
+              "waste": 0,
+              "missingValues": 0
+            }
+          ],
+          "missingValues": 0,
+          "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+        }
+      ]
+    }
+  ]
+}

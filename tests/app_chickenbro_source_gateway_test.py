@@ -13,6 +13,28 @@ from server.app.chickenbro.source_gateway import (
 
 
 class ChickenbroSourceGatewayTest(unittest.TestCase):
+    def test_compact_event_view_does_not_reintroduce_empty_tables(self):
+        service = ServerConfiguredSourceQuery(wcl_reader=lambda _: {
+            'sourceStatus':'verified', 'view':'events', 'reportCode':'AAAAAAAAAAAAAAAA', 'fightId':4,
+            'sourceId':5, 'events':[{'type':'cast','timestamp':10}], 'eventPage':{'complete':False,'nextPageTimestamp':20}})
+        packet = service.query('warcraftlogs', 'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4&source=5', {'view':'events'})
+        self.assertNotIn('casts', packet['facts'][0])
+        self.assertNotIn('players', packet['facts'][0])
+        self.assertEqual(packet['facts'][0]['eventPage']['nextPageTimestamp'], 20)
+
+    def test_partial_statistics_remain_visible_with_their_incomplete_scope(self):
+        stats = {'startTime':100,'endTime':300,'observedThrough':200,'complete':False,'eventCount':2,'nextPageTimestamp':200}
+        service = ServerConfiguredSourceQuery(wcl_reader=lambda _: {
+            'sourceStatus':'partial', 'view':'statistics', 'reportCode':'AAAAAAAAAAAAAAAA','fightId':4,'sourceId':5,
+            'statistics':stats, 'evidenceRefs':['wcl.statistics'], 'queryScope':'window_statistics'})
+        gateway = ChickenbroSourceGateway(query_service=service)
+        token = gateway.issue_capability()
+        packet = gateway.query(token, 'warcraftlogs','https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4&source=5',
+                               {'view':'statistics','startTime':100,'endTime':300})
+        self.assertTrue(packet['facts'], 'observed subtotals must survive a later page failure')
+        self.assertEqual(packet['facts'][0]['statistics'], stats)
+        self.assertIn('statistics', json.dumps(gateway.answer_evidence(token)))
+
     def test_oversized_batch_preserves_whole_members_and_indexes_only_delivered_evidence(self):
         from server.app.chickenbro.answer_grounding import validate_answer
         members = []

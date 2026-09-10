@@ -21,6 +21,140 @@ class FakeResponse:
 
 
 class ChickenbroWclSourceTest(unittest.TestCase):
+    def test_statistics_deadline_bounds_the_upstream_request(self):
+        from server.app.chickenbro import wcl_source as w
+        marker = w._STATISTICS_DEADLINE.set(10.25)
+        try:
+            with patch.object(w,'monotonic',return_value=10), patch.object(w,'_oauth_token',return_value='token'), patch.object(w,'urlopen',return_value=FakeResponse({'data':{}})) as opened:
+                w._graphql('query')
+                self.assertEqual(opened.call_args.kwargs['timeout'], 0.25)
+            with patch.object(w,'monotonic',return_value=11), patch.object(w,'urlopen') as opened:
+                with self.assertRaises(RuntimeError):
+                    w._graphql('query')
+                opened.assert_not_called()
+        finally:
+            w._STATISTICS_DEADLINE.reset(marker)
+
+    def test_window_statistics_follow_pages_and_keep_half_open_scope(self):
+        pages = [
+            {'data':[{'type':'cast','timestamp':100,'sourceID':5,'abilityGameID':7},
+                     {'type':'heal','timestamp':150,'sourceID':5,'amount':80,'overheal':20},
+                     {'type':'energize','timestamp':200,'sourceID':5,'resourceChangeType':9,'waste':2}], 'nextPageTimestamp':200},
+            {'data':[{'type':'energize','timestamp':200,'sourceID':5,'resourceChangeType':9,'waste':2},
+                     {'type':'heal','timestamp':250,'sourceID':5,'amount':20,'overheal':80},
+                     {'type':'heal','timestamp':260,'sourceID':6,'amount':999,'overheal':0},
+                     {'type':'cast','timestamp':300,'sourceID':5,'abilityGameID':7}], 'nextPageTimestamp':None}]
+        result, calls = self._statistics(pages)
+        self.assertEqual(result['sourceStatus'], 'verified')
+        self.assertTrue(result['statistics']['complete'])
+        self.assertEqual(result['statistics']['eventCount'], 4)
+        self.assertEqual(result['statistics']['casts'], [{'abilityId':7, 'count':1}])
+        self.assertEqual(result['statistics']['healing']['effective'], 100)
+        self.assertEqual(result['statistics']['healing']['overheal'], 100)
+        self.assertEqual(result['statistics']['resources'], [{'resourceType':9,'waste':2,'missingValues':0}])
+        self.assertEqual(calls[1]['startTime'], 200)
+        self.assertNotIn('events', result)
+
+    def test_statistics_page_budget_and_missing_values_never_claim_complete(self):
+        result, calls = self._statistics([{'data':[
+            {'type':'heal','timestamp':150,'sourceID':5,'amount':80}], 'nextPageTimestamp':200}], maxPages=1)
+        self.assertFalse(result['statistics']['complete'])
+        self.assertFalse(result['statistics']['metricsComplete'])
+        self.assertEqual(result['statistics']['healing']['missingValues'], 1)
+        self.assertEqual(result['statistics']['nextPageTimestamp'], 200)
+        self.assertEqual(len(calls), 1)
+
+    def test_statistics_later_failure_preserves_only_observed_subtotal(self):
+        result, _ = self._statistics([
+            {'data':[{'type':'cast','timestamp':150,'sourceID':5,'abilityGameID':7}], 'nextPageTimestamp':200},
+            RuntimeError('upstream unavailable')])
+        self.assertEqual(result['sourceStatus'], 'partial')
+        self.assertFalse(result['statistics']['complete'])
+        self.assertEqual(result['statistics']['eventCount'], 1)
+
+    def test_statistics_refuse_window_outside_the_selected_fight(self):
+        result, _ = self._statistics([{'data':[], 'nextPageTimestamp':None}], startTime=0, endTime=20)
+        self.assertNotEqual(result['sourceStatus'], 'verified')
+        self.assertFalse(result['statistics']['complete'])
+        self.assertIn('fight', ' '.join(result['blockers']))
+
+    def test_statistics_invalid_cursor_and_truncated_fields_stop_without_false_totals(self):
+        for page in [
+            {'data':[{'type':'cast','timestamp':150,'sourceID':5,'abilityGameID':7}], 'nextPageTimestamp':100},
+            {'data':[{'type':'cast','timestamp':150,'sourceID':5,'abilityGameID':7,'detail':'x'*2001}], 'nextPageTimestamp':None},
+        ]:
+            with self.subTest(page=page):
+                result, calls = self._statistics([page])
+                self.assertFalse(result['statistics']['complete'])
+                self.assertEqual(result['statistics']['eventCount'], 0)
+                self.assertEqual(len(calls), 1)
+
+    def test_statistics_preserve_identical_simultaneous_casts(self):
+        row = {'type':'cast','timestamp':150,'sourceID':5,'abilityGameID':7}
+        result, _ = self._statistics([{'data':[row,dict(row)], 'nextPageTimestamp':None}])
+        self.assertEqual(result['statistics']['casts'], [{'abilityId':7,'count':2}])
+
+    def test_statistics_bound_distinct_groups_and_disclose_omission(self):
+        events = [{'type':'cast','timestamp':150,'sourceID':5,'abilityGameID':i+1} for i in range(140)]
+        result, _ = self._statistics([{'data':events,'nextPageTimestamp':None}])
+        self.assertLessEqual(len(result['statistics']['casts']), 128)
+        self.assertFalse(result['statistics']['metricsComplete'])
+        self.assertGreater(result['statistics']['missingValues'], 0)
+
+    def test_overview_rejects_window_filters_instead_of_returning_whole_fight_silently(self):
+        from server.app.chickenbro.wcl_source import validate_wcl_options
+        with self.assertRaises(ValueError):
+            validate_wcl_options({'view':'overview','startTime':10,'endTime':20})
+
+    def _statistics(self, pages, **options):
+        calls = []
+        def fetch(_query, variables):
+            calls.append(variables)
+            page = pages[len(calls)-1]
+            if isinstance(page, Exception):
+                raise page
+            return {'reportData':{'report':{'title':'Synthetic', 'fights':[{'id':4,'startTime':100,'endTime':300}], 'events':page}}}
+        with patch('server.app.chickenbro.wcl_source.warcraftlogs_credentials_state', return_value={'configured':True,'mode':'v2_oauth','api':'v2'}), patch(
+            'server.app.chickenbro.wcl_source._graphql', side_effect=fetch):
+            try:
+                result = build_wcl_log_evidence({'wclUrl':'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4&source=5',
+                    'options':{'view':'statistics','startTime':100,'endTime':300, **options}})
+            except ValueError as error:
+                self.fail(f'window statistics are not supported: {error}')
+        return result, calls
+
+    def test_event_view_omits_heavy_tables_but_preserves_scope_and_cursor(self):
+        report = {'title':'Example', 'fights':[{'id':4,'startTime':100,'endTime':900}],
+                  'events':{'data':[{'type':'cast','timestamp':150,'sourceID':5}], 'nextPageTimestamp':200}}
+        with patch('server.app.chickenbro.wcl_source.warcraftlogs_credentials_state', return_value={'configured':True,'mode':'v2_oauth','api':'v2'}), patch(
+            'server.app.chickenbro.wcl_source._graphql', return_value={'reportData':{'report':report}}) as fetch:
+            try:
+                result = build_wcl_log_evidence({'wclUrl':'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4&source=5',
+                                               'options':{'view':'events'}})
+            except ValueError as error:
+                self.fail(f'event view is not supported: {error}')
+        self.assertEqual(result['sourceStatus'], 'verified')
+        self.assertEqual(result['eventPage']['nextPageTimestamp'], 200)
+        self.assertEqual(result['sourceId'], '5')
+        self.assertNotIn('casts', result)
+        self.assertNotIn('players', result)
+        self.assertNotIn('playerDetails', fetch.call_args.args[0])
+        self.assertNotIn('table(', fetch.call_args.args[0])
+
+    def test_overview_does_not_fetch_events_or_claim_event_completion(self):
+        report = {'fights':[{'id':4}], 'casts':{'data':{'entries':[{'name':'Spell','total':2}]}}}
+        with patch('server.app.chickenbro.wcl_source.warcraftlogs_credentials_state', return_value={'configured':True,'mode':'v2_oauth','api':'v2'}), patch(
+            'server.app.chickenbro.wcl_source._graphql', return_value={'reportData':{'report':report}}) as fetch:
+            try:
+                result = build_wcl_log_evidence({'wclUrl':'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=4', 'options':{'view':'overview'}})
+            except ValueError as error:
+                self.fail(f'overview is not supported: {error}')
+        self.assertEqual(result['casts']['entries'][0]['total'], 2)
+        self.assertNotIn('events(', fetch.call_args.args[0])
+        self.assertNotIn('events', result)
+        self.assertNotIn('eventPage', result)
+        self.assertNotIn('wcl.events', result['evidenceRefs'])
+
     def test_graphql_oauth_and_fetch_share_exact_remaining_deadline(self):
         from server.app.chickenbro import wcl_source as w
         now=[0.0]

@@ -1,0 +1,22 @@
+{
+  "mode": "baseline",
+  "case": "casts",
+  "seconds": 31.117,
+  "error": null,
+  "answer": "Fusionbolt（source=5）在战斗开始后 **10–30 秒**的施法统计：\n\n| 技能 ID | 施法次数 |\n|---|---:|\n| 51505 | 1 |\n| 57994 | 1 |\n| 61882 | 2 |\n| 32182 | 1 |\n| 114050 | 1 |\n| 188443 | 2 |\n| 191634 | 1 |\n| 443454 | 1 |\n| 470057 | 1 |\n| 1236616 | 1 |\n| 1293316 | 1 |\n| **合计** | **13** |\n\n来源范围：[报告 LPZNxhXGgdmDH6Cq，fight=2，source=5](https://www.warcraftlogs.com/reports/LPZNxhXGgdmDH6Cq#fight=2&source=5)，报告相对时间 **2178308–2198308 ms**。该窗口事件已完整返回，无后续分页；仅统计 `cast`，不计 4 条 `begincast`，未使用全场汇总。",
+  "tools": [
+    {
+      "operation": "source.warcraftlogs",
+      "options": {
+        "dataType": "Casts",
+        "startTime": 2178308,
+        "endTime": 2198308,
+        "limit": 200
+      },
+      "status": "verified",
+      "seconds": 3.743,
+      "bytes": 32101,
+      "statistics": []
+    }
+  ]
+}

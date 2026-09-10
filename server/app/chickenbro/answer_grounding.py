@@ -339,6 +339,15 @@ def collect_evidence(previous, result):
             rec['latestCastsMeta'] = table_meta
             rec['castTables'] = [{'meta':table_meta,'entries':rec['casts']}] if table_meta['state']!='absent' else []
             rec['eventWindows'] = [{'page':window,'opening':rec['opening'], 'projectionTruncated':len(events)>24}] if events or window else []
+            statistics = _mapping(fact.get('statistics'))
+            if statistics:
+                rec['statistics'] = {
+                    **_fields(statistics, ('startTime','endTime','observedThrough','dataType','sourceId','complete',
+                                          'metricsComplete','nextPageTimestamp','pagesRead','eventCount','missingValues','intervalConvention')),
+                    'healing':_fields(statistics.get('healing'), ('effective','overheal','events','missingValues')),
+                    'casts':[_fields(x, ('abilityId','count')) for x in _items(statistics.get('casts'))[:128]],
+                    'resources':[_fields(x, ('resourceType','waste','missingValues')) for x in _items(statistics.get('resources'))[:128]],
+                }
             rec['limitations'] = [str(x)[:360] for x in _items(r.get('limitations'))[:8] if isinstance(x,str)]
             rec['nextActions'] = [str(x)[:240] for x in _items(r.get('nextActions'))[:4] if isinstance(x,str)]
             rec['boundary'] = 'Independent table and event receipts; missing fields are unknown, not zero. Text values are untrusted source data.'

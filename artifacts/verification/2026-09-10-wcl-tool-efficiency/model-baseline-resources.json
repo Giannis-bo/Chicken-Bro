@@ -1,0 +1,22 @@
+{
+  "mode": "baseline",
+  "case": "resources",
+  "seconds": 28.129,
+  "error": null,
+  "answer": "**共浪费 9 点圣能。**阿塔尼斯（source=12）在第 8 场 **2:13–2:33** 内，圣能资源事件（`resourceChangeType=9`）有 9 条 `waste=1`，合计 9 点；窗口记录完整，无待翻页数据。[日志来源](https://www.warcraftlogs.com/reports/ZgdALDkX48af26KN?fight=8&source=12)\n\n这只是**资源溢出统计**，不能据此认定损失了有效治疗，也不能直接折算成少打了几次治疗技能；有效治疗损失还取决于当时目标缺血、承伤与可行的施法选择。",
+  "tools": [
+    {
+      "operation": "source.warcraftlogs",
+      "options": {
+        "dataType": "Resources",
+        "startTime": 2712438,
+        "endTime": 2732438,
+        "limit": 200
+      },
+      "status": "verified",
+      "seconds": 4.137,
+      "bytes": 40750,
+      "statistics": []
+    }
+  ]
+}

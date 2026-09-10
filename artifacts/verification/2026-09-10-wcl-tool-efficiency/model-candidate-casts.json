@@ -1,0 +1,86 @@
+{
+  "mode": "candidate",
+  "case": "casts",
+  "seconds": 27.512,
+  "error": null,
+  "answer": "| 技能 ID | 施法次数 |\n|---|---:|\n| 32182 | 1 |\n| 51505 | 1 |\n| 57994 | 1 |\n| 61882 | 2 |\n| 114050 | 1 |\n| 188443 | 2 |\n| 191634 | 1 |\n| 443454 | 1 |\n| 470057 | 1 |\n| 1236616 | 1 |\n| 1293316 | 1 |\n| **合计** | **13** |\n\n来源范围：[该报告 fight=2、source=5](https://www.warcraftlogs.com/reports/LPZNxhXGgdmDH6Cq#fight=2&source=5)，仅该角色的 Casts，战斗相对时间 **[10秒, 30秒)**，即报告相对毫秒 **[2178308, 2198308)**。窗口统计完整，包含起点、不含终点。",
+  "tools": [
+    {
+      "operation": "source.warcraftlogs",
+      "options": {
+        "view": "statistics",
+        "dataType": "Casts",
+        "startTime": 2178308,
+        "endTime": 2198308,
+        "maxPages": 5
+      },
+      "status": "verified",
+      "seconds": 3.349,
+      "bytes": 2312,
+      "statistics": [
+        {
+          "startTime": 2178308,
+          "endTime": 2198308,
+          "observedThrough": 2198308,
+          "dataType": "Casts",
+          "sourceId": 5,
+          "complete": true,
+          "metricsComplete": true,
+          "nextPageTimestamp": null,
+          "pagesRead": 1,
+          "eventCount": 17,
+          "casts": [
+            {
+              "abilityId": 32182,
+              "count": 1
+            },
+            {
+              "abilityId": 51505,
+              "count": 1
+            },
+            {
+              "abilityId": 57994,
+              "count": 1
+            },
+            {
+              "abilityId": 61882,
+              "count": 2
+            },
+            {
+              "abilityId": 114050,
+              "count": 1
+            },
+            {
+              "abilityId": 188443,
+              "count": 2
+            },
+            {
+              "abilityId": 191634,
+              "count": 1
+            },
+            {
+              "abilityId": 443454,
+              "count": 1
+            },
+            {
+              "abilityId": 470057,
+              "count": 1
+            },
+            {
+              "abilityId": 1236616,
+              "count": 1
+            },
+            {
+              "abilityId": 1293316,
+              "count": 1
+            }
+          ],
+          "healing": null,
+          "resources": [],
+          "missingValues": 0,
+          "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+        }
+      ]
+    }
+  ]
+}

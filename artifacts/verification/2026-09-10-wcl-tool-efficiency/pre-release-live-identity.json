@@ -1,0 +1,20 @@
+{
+  "productionPath": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+  "services": {
+    "chickenbro-api.service": {
+      "pid": "3409398",
+      "cwd": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd"
+    },
+    "chickenbro-worker.service": {
+      "pid": "3409359",
+      "cwd": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd"
+    }
+  },
+  "files": {
+    "server/app/chickenbro/wcl_source.py": "3b1541d5f9b22da9a7071858f707b493608b759d8f7dc654427b14cb25927808",
+    "server/app/chickenbro/wcl_statistics.py": null,
+    "server/app/chickenbro/source_gateway.py": "91dda42a5e3ef24be06373f98b5e0dd37433168d45677760e06fccf33a0a806c",
+    "server/app/chickenbro/answer_grounding.py": "bc877e4e9654b0b4ad67e7c7a390da97c23a175c565411478b2305b5de44d512",
+    "server/chickenbro_native_mcp.py": "c9dcb6a30decbab9971214804004ac2b95f3e4c922c9460328e76bf6a23d9cb3"
+  }
+}

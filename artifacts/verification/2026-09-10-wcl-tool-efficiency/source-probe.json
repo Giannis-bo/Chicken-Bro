@@ -1,0 +1,280 @@
+{
+  "results": [
+    {
+      "case": "healing",
+      "view": "full",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 4.338,
+      "bytes": 27598,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Healing",
+        "startTime": 133000,
+        "endTime": 153000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "healing",
+      "view": "events",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.912,
+      "bytes": 2344,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Healing",
+        "startTime": 133000,
+        "endTime": 153000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "healing",
+      "view": "statistics",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.88,
+      "bytes": 2104,
+      "coverage": null,
+      "statistics": {
+        "startTime": 133000,
+        "endTime": 153000,
+        "observedThrough": 153000,
+        "dataType": "Healing",
+        "sourceId": 12,
+        "complete": true,
+        "metricsComplete": true,
+        "nextPageTimestamp": null,
+        "pagesRead": 1,
+        "eventCount": 0,
+        "casts": [],
+        "healing": null,
+        "resources": [],
+        "missingValues": 0,
+        "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+      },
+      "limitations": [
+        "Use only the returned actor and event filter. Healing excludes absorbs and other actors/pets. Missing event kinds do not prove absence outside this filter. Resource waste is not lost effective healing.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "healing",
+      "duplicateUpstreamCalls": 0,
+      "sameEvents": true
+    },
+    {
+      "case": "healing",
+      "referenceComplete": true,
+      "reference": {
+        "eventCount": 0,
+        "effective": 0,
+        "overheal": 0
+      },
+      "countMatches": true
+    },
+    {
+      "case": "resources",
+      "view": "full",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 2.01,
+      "bytes": 27600,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Resources",
+        "startTime": 133000,
+        "endTime": 153000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "resources",
+      "view": "events",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.759,
+      "bytes": 2346,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Resources",
+        "startTime": 133000,
+        "endTime": 153000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "resources",
+      "view": "statistics",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.89,
+      "bytes": 2106,
+      "coverage": null,
+      "statistics": {
+        "startTime": 133000,
+        "endTime": 153000,
+        "observedThrough": 153000,
+        "dataType": "Resources",
+        "sourceId": 12,
+        "complete": true,
+        "metricsComplete": true,
+        "nextPageTimestamp": null,
+        "pagesRead": 1,
+        "eventCount": 0,
+        "casts": [],
+        "healing": null,
+        "resources": [],
+        "missingValues": 0,
+        "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+      },
+      "limitations": [
+        "Use only the returned actor and event filter. Healing excludes absorbs and other actors/pets. Missing event kinds do not prove absence outside this filter. Resource waste is not lost effective healing.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "resources",
+      "duplicateUpstreamCalls": 0,
+      "sameEvents": true
+    },
+    {
+      "case": "resources",
+      "referenceComplete": true,
+      "reference": {
+        "eventCount": 0,
+        "waste": 0
+      },
+      "countMatches": true
+    },
+    {
+      "case": "heldout_casts",
+      "view": "full",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 2.784,
+      "bytes": 25890,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Casts",
+        "startTime": 10000,
+        "endTime": 30000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "heldout_casts",
+      "view": "events",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.981,
+      "bytes": 2328,
+      "coverage": {
+        "limit": 1000,
+        "count": 0,
+        "dataType": "Casts",
+        "startTime": 10000,
+        "endTime": 30000,
+        "fieldsTruncated": false,
+        "nextPageTimestamp": null,
+        "complete": true,
+        "scope": "event sample only; tables are aggregated independently over the selected filters"
+      },
+      "statistics": null,
+      "limitations": [
+        "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "heldout_casts",
+      "view": "statistics",
+      "status": "verified",
+      "upstreamCalls": 1,
+      "seconds": 0.923,
+      "bytes": 2086,
+      "coverage": null,
+      "statistics": {
+        "startTime": 10000,
+        "endTime": 30000,
+        "observedThrough": 30000,
+        "dataType": "Casts",
+        "sourceId": 5,
+        "complete": true,
+        "metricsComplete": true,
+        "nextPageTimestamp": null,
+        "pagesRead": 1,
+        "eventCount": 0,
+        "casts": [],
+        "healing": null,
+        "resources": [],
+        "missingValues": 0,
+        "intervalConvention": "[startTime,endTime); source actor only; known-value subtotals"
+      },
+      "limitations": [
+        "Use only the returned actor and event filter. Healing excludes absorbs and other actors/pets. Missing event kinds do not prove absence outside this filter. Resource waste is not lost effective healing.",
+        "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
+      ]
+    },
+    {
+      "case": "heldout_casts",
+      "duplicateUpstreamCalls": 0,
+      "sameEvents": true
+    },
+    {
+      "case": "heldout_casts",
+      "referenceComplete": true,
+      "reference": {
+        "eventCount": 0
+      },
+      "countMatches": true
+    }
+  ]
+}

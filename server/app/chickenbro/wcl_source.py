@@ -71,17 +71,46 @@ query WowMiniProgramEvents($code: String!, $fightIds: [Int], $sourceId: Int,
   }}
 }
 """
+WCL_EVENT_VIEW_QUERY = """
+query ChickenbroEventView($code: String!, $fightIds: [Int], $sourceId: Int,
+  $dataType: EventDataType, $startTime: Float, $endTime: Float, $limit: Int) {
+  reportData { report(code: $code) {
+    title startTime endTime
+    fights { id name difficulty kill startTime endTime }
+    masterData { gameVersion logVersion }
+    events(fightIDs: $fightIds, sourceID: $sourceId, dataType: $dataType,
+      startTime: $startTime, endTime: $endTime, limit: $limit, includeResources: true) {
+      data nextPageTimestamp
+    }
+  }}
+}
+"""
+WCL_OVERVIEW_QUERY = """
+query ChickenbroOverview($code: String!, $fightIds: [Int], $sourceId: Int) {
+  reportData { report(code: $code) {
+    title startTime endTime
+    fights { id name difficulty kill startTime endTime }
+    masterData { gameVersion logVersion actors { id name type subType } }
+    playerDetails(fightIDs: $fightIds, includeCombatantInfo: true)
+    casts: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: Casts)
+    damage: table(fightIDs: $fightIds, sourceID: $sourceId, dataType: DamageDone)
+  }}
+}
+"""
 _RUN_READER = ContextVar('wcl_run_reader', default=None)
+_STATISTICS_DEADLINE = ContextVar('wcl_statistics_deadline', default=None)
 
 
 class WclRunReader:
-    """Reuse fight-scoped context within one run; never reuse event windows.
+    """Reuse verified identical requests and fight context within one run.
 
     No global/user-crossing cache. Context expires after 60s for live logs and
     is capped at 16 scopes / 4 MiB. Upstream partial/error responses are not cached.
     """
     def __init__(self):
         self.contexts = {}
+        self.results = {}
+        self.pending = {}
         self.lock = threading.RLock()
         self.started = monotonic()
 
@@ -89,10 +118,35 @@ class WclRunReader:
         if monotonic()-self.started >= 360:
             return {'sourceStatus':'partial','blockers':['Research time budget exhausted. Finish with verified evidence and explicit gaps; do not request more pages.'],
                 'nextActions':['Write the answer now using only evidence already obtained.']}
+        from concurrent.futures import Future
+        key = json.dumps({'url': normalize_wcl_report_url(request.get('wclUrl', '')),
+                          'options': validate_wcl_options(request.get('options'))}, sort_keys=True)
+        with self.lock:
+            self.results = {k:v for k,v in self.results.items() if monotonic()-v[0] < 60}
+            if key in self.results:
+                return deepcopy(self.results[key][1])
+            pending = self.pending.get(key)
+            owner = pending is None
+            if owner:
+                pending = self.pending[key] = Future()
+        if not owner:
+            return deepcopy(pending.result(timeout=max(0.01, 360-(monotonic()-self.started))))
         token = _RUN_READER.set(self)
         try:
-            return build_wcl_log_evidence(request)
+            result = build_wcl_log_evidence(request)
+            if result.get('sourceStatus') == 'verified':
+                size = len(json.dumps(result, ensure_ascii=False).encode())
+                with self.lock:
+                    if len(self.results) < 16 and sum(v[2] for v in self.results.values())+size <= 4194304:
+                        self.results[key] = (monotonic(), deepcopy(result), size)
+            pending.set_result(deepcopy(result))
+            return deepcopy(result)
+        except BaseException as error:
+            pending.set_exception(error)
+            raise
         finally:
+            with self.lock:
+                self.pending.pop(key, None)
             _RUN_READER.reset(token)
 
     def query(self, query, variables):
@@ -159,6 +213,9 @@ def _graphql(
     timeout_seconds: Any = None,
 ) -> Mapping[str, Any]:
     request_timeout = _timeout_seconds(timeout_seconds)
+    statistics_deadline = _STATISTICS_DEADLINE.get()
+    if statistics_deadline is not None:
+        request_timeout = min(request_timeout, statistics_deadline - monotonic())
     started_at = monotonic()
     if timeout_seconds is not None:
         try:
@@ -328,9 +385,17 @@ WCL_EVENT_TYPES = {"All", "Buffs", "Casts", "CombatantInfo", "DamageDone", "Dama
 def validate_wcl_options(options: Any) -> dict[str, Any]:
     if options is None:
         return {}
-    if not isinstance(options, Mapping) or set(options) - {"dataType", "startTime", "endTime", "limit"}:
+    if not isinstance(options, Mapping) or set(options) - {"dataType", "startTime", "endTime", "limit", "view", "maxPages"}:
         raise InvalidSourceLink("invalid WCL event options")
     result = dict(options)
+    if result.get('view', 'full') not in ('full', 'overview', 'events', 'statistics'):
+        raise InvalidSourceLink('invalid WCL view')
+    if 'maxPages' in result and (result.get('view') != 'statistics' or type(result['maxPages']) is not int or not 1 <= result['maxPages'] <= 5):
+        raise InvalidSourceLink('maxPages requires statistics view and must be 1-5')
+    if result.get('view') == 'statistics' and not {'startTime','endTime'} <= result.keys():
+        raise InvalidSourceLink('statistics require an explicit startTime/endTime window')
+    if result.get('view') == 'overview' and {'startTime','endTime','dataType'} & result.keys():
+        raise InvalidSourceLink('overview is whole-fight only; use events/statistics for window filters')
     if "dataType" in result and (not isinstance(result["dataType"], str) or result["dataType"] not in WCL_EVENT_TYPES):
         raise InvalidSourceLink("invalid WCL event type")
     for key in ("startTime", "endTime", "limit"):
@@ -393,6 +458,12 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         "sourceId": int(reference["sourceId"]) if reference.get("sourceId", "").isdigit() else None,
         "dataType": options.get("dataType", "All"), "startTime": options.get("startTime"),
         "endTime": options.get("endTime"), "limit": options.get("limit", 300)}
+    view = options.get('view', 'full')
+    if not discovery and view == 'events':
+        query = WCL_EVENT_VIEW_QUERY
+    elif not discovery and view == 'overview':
+        query = WCL_OVERVIEW_QUERY
+        variables = {k:variables[k] for k in ('code', 'fightIds', 'sourceId')}
     reader = _RUN_READER.get()
     data = reader.query(query, variables) if reader else _graphql(query, variables)
     field_errors = data.get("_fieldErrors", [])
@@ -423,7 +494,7 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
     players = [_bounded_json({k: v for k, v in p.items() if k in player_keys}, truncated=context_truncated) for p in players[:40]]
     event_truncated = [False]
     event_rows = [_bounded_json(e, truncated=event_truncated) for e in events if isinstance(e, Mapping)] if isinstance(events, list) else []
-    return {
+    result = {
         "schemaRevision": "wcl-log-evidence-v1",
         "status": "ready",
         "sourceStatus": "partial" if field_errors else "verified",
@@ -470,11 +541,27 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
             "Choose follow-up queries as needed. Filter an actor with source= in the URL; options.dataType selects events. Set options.startTime to nextPageTimestamp to continue, preserving other filters. Times are report-relative milliseconds. Tables and player details cover the fight independently of event pagination.",
         ],
     }
+    if view == 'events' and not discovery:
+        for key in ('actors', 'actorsTruncated', 'fights', 'fightsTruncated', 'players', 'playersTruncated', 'casts', 'damage'):
+            result.pop(key, None)
+        result['nextActions'] = ['Event-only response. Continue from nextPageTimestamp with the same endTime/dataType/source. '
+                                 'Use overview for whole-fight tables/gear; omitted tables are unknown, not zero.']
+    if view == 'overview':
+        for key in ('events', 'eventPage', 'eventSummary'):
+            result.pop(key, None)
+        result['evidenceRefs'] = ['wcl.report', 'wcl.fight']
+        if not discovery:
+            result['nextActions'] = ['Whole-fight tables/gear only; no events were requested. '
+                                     'Use events for a sequence or statistics for an explicit actor/time window.']
+    result['view'] = view
+    return result
 
 
 def build_wcl_log_evidence(request_data: Mapping[str, Any] | None) -> dict[str, Any]:
     options = validate_wcl_options((request_data or {}).get("options"))
     reference = _extract_reference(request_data)
+    if options.get('view') == 'statistics' and (not reference.get('sourceId','').isdigit() or not reference.get('fightId','').isdigit()):
+        raise InvalidSourceLink('statistics require explicit fight and source IDs')
     credential_state = warcraftlogs_credentials_state()
     if not reference["reportCode"]:
         return {
@@ -525,6 +612,13 @@ def build_wcl_log_evidence(request_data: Mapping[str, Any] | None) -> dict[str, 
             "nextActions": ["Configure WCL v2 OAuth client credentials for report event queries."],
         }
     try:
+        if options.get('view') == 'statistics':
+            from server.app.chickenbro.wcl_statistics import summarize_window
+            token = _STATISTICS_DEADLINE.set(monotonic() + 20)
+            try:
+                return summarize_window(reference, options, credential_state, _fetch_v2_evidence)
+            finally:
+                _STATISTICS_DEADLINE.reset(token)
         return _fetch_v2_evidence(reference, credential_state, options)
     except Exception as error:
         return {

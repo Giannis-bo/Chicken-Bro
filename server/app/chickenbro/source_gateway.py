@@ -171,7 +171,7 @@ class ServerConfiguredSourceQuery:
             _text(value, 160)
             for value in (evidence.get("evidenceRefs") or [])
             if _text(value, 160)
-        ] if verified else []
+        ] if verified or (source_status == 'partial' and evidence.get('statistics', {}).get('observedThrough', 0) > evidence.get('statistics', {}).get('startTime', 0)) else []
         reference_id = ":".join(("wcl", report_code or "unknown", fight_id or "selected"))
         source_evidence = {
             "id": reference_id,
@@ -192,11 +192,11 @@ class ServerConfiguredSourceQuery:
             clean = _text(value, 360)
             if clean and clean not in limitations:
                 limitations.append(clean)
-        if verified:
+        if verified and evidence.get('view', 'full') == 'full':
             limitations.append(
                 "Tables are scoped by fight/source filters. Event samples have their own coverage metadata; select relevant data and follow-up queries for the user's question."
             )
-        elif not limitations:
+        elif not verified and not limitations:
             limitations.append("The configured Warcraft Logs API did not return verifiable report evidence.")
 
         result: dict[str, Any] = {
@@ -212,7 +212,9 @@ class ServerConfiguredSourceQuery:
                 if _text(value, 360)
             ][:4],
         }
-        if verified or (source_status == "partial" and evidence.get("fights")):
+        statistics = evidence.get('statistics') or {}
+        observed_statistics = statistics.get('observedThrough', 0) > statistics.get('startTime', 0)
+        if verified or (source_status == "partial" and (evidence.get("fights") or observed_statistics)):
             result["facts"] = [{
                 "queryMode": "server_configured_warcraftlogs_api",
                 "queryScope": evidence.get("queryScope", "scoped_analysis"),
@@ -244,6 +246,18 @@ class ServerConfiguredSourceQuery:
                 "events": evidence.get("events", []),
                 "summary": "Returned fields only; consult queryScope, eventPage and limitations before drawing conclusions.",
             }]
+            view = evidence.get('view', 'full')
+            fact = result['facts'][0]
+            if view != 'full':
+                fact['view'] = view
+            if view in ('events', 'statistics') and evidence.get('queryScope') != 'report_discovery':
+                for key in ('actors','actorsTruncated','fights','fightsTruncated','players','playersTruncated','casts','damage'):
+                    fact.pop(key, None)
+            if view in ('overview', 'statistics'):
+                for key in ('events','eventPage','eventSummary'):
+                    fact.pop(key, None)
+            if view == 'statistics':
+                fact['statistics'] = statistics
         return result
 
 

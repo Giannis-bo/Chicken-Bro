@@ -288,6 +288,27 @@
       "scheduledScan00": "completed",
       "scheduledScan06": "usage_limit_failed",
       "userAcceptance": "not_claimed"
+    },
+    "wclToolEfficiency": {
+      "status": "local_and_isolated_model_verified",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": false,
+      "plan": "docs/plans/2026-09-10-wcl-tool-efficiency.md",
+      "scope": [
+        "wcl_response_views",
+        "run_local_read_deduplication",
+        "bounded_window_statistics"
+      ],
+      "productionDeployed": false,
+      "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/README.md",
+      "backendTestsPassed": 667,
+      "controlTests": {
+        "passed": 63,
+        "failed": 0,
+        "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/control-tests-closure.log"
+      },
+      "modelComparisons": 2,
+      "releasePreparation": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release-preparation.json"
     }
   },
   "miniRetirement": {

@@ -1,0 +1,50 @@
+{
+  "baseCommit": "0455d26bf690c7ca699b4721d6aabefa53d0c5d4",
+  "branch": "codex/wcl-tool-efficiency",
+  "committed": false,
+  "productionChanged": false,
+  "cloudCandidateMatchesLocal": true,
+  "cloud": {
+    "productionPath": "/opt/chickenbro-releases/badcase-fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+    "candidateFiles": {
+      "server/app/chickenbro/wcl_source.py": "a9f894f8ed12c76a5845216672d22abe8a305e2edf9d55eecf906e3cea32be9c",
+      "server/app/chickenbro/wcl_statistics.py": "5d8df42ee5276b4e0188f91046c3b31439027b6b9f9a2b25aa833ba599c75a78",
+      "server/app/chickenbro/source_gateway.py": "38cb1a79ac19246c3c9aa6a67b6b23b5f10da65546d4720a5d4a0faac290d9c0",
+      "server/app/chickenbro/answer_grounding.py": "e415ebad2c6eb5d6f5cac17a768726c4f7b35658560ac892d06343480948db88",
+      "server/chickenbro_native_mcp.py": "cc76cd667c6ae253854285c0322186fa02ee0fd7d6ab913b1ad72705c02f1f57"
+    }
+  },
+  "files": {
+    "docs/plans/README.md": "262805f0a7669d945980b6df0c6ccfb315d57a2d3e0d5de773f32f55cc548a5c",
+    "docs/project-state.json": "73aec2cfe830502d1f84bb5a3fc6e981c2f7ba0d9745c9411102c97802fbff88",
+    "docs/refactor/chickenbro-simc-disposition-rules.json": "63a19b3cce3b6c0590a5c8703af78d16c7b7d12667654ac63ff797c7766a020c",
+    "docs/roadmap.md": "f884192a819e0c5d83464f2a910ca8ed75cfbb11eba3dd83a5f00a3c64851656",
+    "server/app/chickenbro/answer_grounding.py": "e415ebad2c6eb5d6f5cac17a768726c4f7b35658560ac892d06343480948db88",
+    "server/app/chickenbro/source_gateway.py": "38cb1a79ac19246c3c9aa6a67b6b23b5f10da65546d4720a5d4a0faac290d9c0",
+    "server/app/chickenbro/wcl_source.py": "a9f894f8ed12c76a5845216672d22abe8a305e2edf9d55eecf906e3cea32be9c",
+    "server/chickenbro_native_mcp.py": "cc76cd667c6ae253854285c0322186fa02ee0fd7d6ab913b1ad72705c02f1f57",
+    "tests/app_chickenbro_native_mcp_test.py": "a11865d7b0e50af6e56fb11355b6229c985445d23d4808abe379b5b0866bee0a",
+    "tests/app_chickenbro_source_gateway_test.py": "1965d23f3e62680fbc490e9977362cdadef4efe96b50c9cfda7890fe2c12ceae",
+    "tests/app_chickenbro_wcl_source_test.py": "983c38e558b807bb0c7238164552b59a0ac88016e1738b5a24d83635fa7dd4fb",
+    "tests/app_wcl_run_reader_test.py": "ce66383515df1e398b74d8872ed7436948e023e3ae980d90342257a102e8a966",
+    "server/app/chickenbro/wcl_statistics.py": "5d8df42ee5276b4e0188f91046c3b31439027b6b9f9a2b25aa833ba599c75a78",
+    "docs/plans/2026-09-10-wcl-tool-efficiency.md": "41f6f38081ffc067595b7598da434937ebf6013f73da81726591297d24d10a5c"
+  },
+  "evidenceFiles": {
+    "source_probe.py": "dcca9748084eea4b59161626de7db11dbe604e91f90d8683be0e94f964554541",
+    "cloud-identity.json": "3887491d6a7e95167db17bf6adbaab98fb72e6f4a0bd431ec6921ab9df741ff0",
+    "source-probe-scoped.json": "144433724b6b771953bb63125c00f1d8557ae6bba5e8eb4e0ac79bbcc4b66310",
+    "model_probe.py": "ebf388c00974b61edb8291c3443929356daad7641c84f8f704e8caee2718a87b",
+    "model-candidate-casts.json": "b28357adc812e9bb729ef5fb049176cc8d33dd5cad89aed461c5f96541a65425",
+    "model-baseline-resources-missing-proxy.json": "98f4a7d659aa71a10ea9a8b64b329f7ef14a1ab6becf45adeffd21cbbbe83b2e",
+    "model-baseline-casts.json": "fb78528ace02c998858297c5f8b5b0336aba6d1b6fede04fe661f9d1ad4d7a82",
+    "backend-tests.log": "4155a05e5fde5d4b09a5797715f9d8cc46adf2d3603d7ab892898fbc90e485bb",
+    "README.md": "535ef586da40de798beddecb16796baa3e96e86fc8c1c88bd61428b03b1696a4",
+    "control-tests.log": "ae14db6d0c13fd1e981e8bad580da9e7c8655f2ceaf2011d69f673962bc1a665",
+    "source-probe.json": "4a25dedd074cfd46a4200a65400def4b47e450232a2c85dd197bf42499e655f6",
+    "model-candidate-resources.json": "431e5aa3c2c0e3876d867311a28855dcbc1e43f8f68c9b27b7d9ef160bdba4ed",
+    "model-baseline-resources.json": "a5701c1f96187018d77227b5aad7b24c1cbec17321721581bd19558d89ecd945",
+    "model-candidate-resources-missing-proxy.json": "54fca0badc49b2d5558105aeb646b5712acf612cd0fe893be369286fd521ff37",
+    "source-probe-final.json": "10f86a74b85da25241dce55823ba513caddfdb8157d41cb911f2d62033f2e249"
+  }
+}

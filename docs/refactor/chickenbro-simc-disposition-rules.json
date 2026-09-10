@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "wcl-tool-efficiency",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized WCL response views, run-local query reuse and bounded window statistics.",
+      "paths": ["docs/plans/2026-09-10-wcl-tool-efficiency.md"],
+      "prefixes": ["artifacts/verification/2026-09-10-wcl-tool-efficiency/"]
+    },
+    {
       "id": "admin-analytics",
       "disposition": "keep",
       "category": "target-product-code",
@@ -123,6 +132,9 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "User-authorized badcase investigation and isolated regression evidence.",
+      "paths": [
+        "artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json"
+      ],
       "prefixes": [
         "artifacts/verification/2026-09-09-badcase-g1/",
         "artifacts/verification/2026-09-09-badcase-g2/",
