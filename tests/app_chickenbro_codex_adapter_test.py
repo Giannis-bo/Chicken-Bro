@@ -79,6 +79,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
                  ([dict(id=1, error=dict(message=secret))], 'rpc_error'),
                  (transcript(status='failed'), 'turn_failed'),
                  (transcript(), 'final_missing'),
+                 (transcript(note('error', threadId='other', turnId='turn', willRetry=False)), 'protocol_invalid'),
                  (transcript(note('error', threadId='thread', turnId='turn', willRetry=False,
                                   error=dict(message=secret))), 'upstream_error')]
         for events, expected in cases:

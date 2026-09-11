@@ -160,8 +160,9 @@ class CodexStdioSession:
         if message.get("method") == "error":
             params = message.get("params")
             if (not isinstance(params, dict) or self.thread_id is None or self.turn_id is None
-                    or params.get("threadId") != self.thread_id or params.get("turnId") != self.turn_id
-                    or params.get("willRetry") is not True):
+                    or params.get("threadId") != self.thread_id or params.get("turnId") != self.turn_id):
+                raise invalid()
+            if params.get("willRetry") is not True:
                 raise invalid('upstream_error')
 
     def request(self, identity, method, params):
