@@ -1,0 +1,67 @@
+{
+  "recordedAt": "2026-09-11T06:07:34.735099+00:00",
+  "status": "integrated_pending_joint_candidate_and_live",
+  "integratedCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
+  "implementationCommit": "fff567fbe",
+  "historicalFailure": {
+    "runId": "2ed6e056-58d3-4fcc-aff1-9fe93e6c4fbf",
+    "rootCause": "unknown_protocol_and_stderr_not_retained",
+    "originalResult": "9/10 retained; prior user waiver does not mean passed"
+  },
+  "newRuns": [
+    {
+      "runId": "8eb70769-6687-4f86-8e43-2c7afc34c371",
+      "source": "bbaec9af51c98763c2c4ebeed056679626b02aa2",
+      "outcome": "succeeded_with_permission_refusal",
+      "tools": 0,
+      "seconds": 10.0
+    },
+    {
+      "runId": "a14be532-66de-4e19-b82f-a0555e905999",
+      "source": "05abbf51abac84c7c4bd0cb14cf57909cb9087c9",
+      "outcome": "failed",
+      "publicErrorCode": "CODEX_OUTPUT_INVALID",
+      "failureKind": "upstream_error",
+      "elapsedMs": 10947,
+      "tools": 0
+    },
+    {
+      "runId": "084e8dd3-c3aa-4a6f-9975-6e8550515e75",
+      "source": "a5e4cd1cad030acdf2115e8ca2fa360711a85400",
+      "outcome": "failed",
+      "publicErrorCode": "CODEX_OUTPUT_INVALID",
+      "failureKind": "upstream_error",
+      "upstreamKind": "cyberPolicy",
+      "elapsedMs": 9816,
+      "tools": 0
+    }
+  ],
+  "budget": {
+    "modelCalls": 3,
+    "modelCeiling": 8,
+    "simcJobs": 0,
+    "simcCeiling": 4,
+    "historicalConsumption": "preserved in prior G12 records, not reset or overwritten"
+  },
+  "local": {
+    "pythonRelevantPassed": 128,
+    "chatModelPassed": 31,
+    "typecheck": "passed",
+    "singleTaskH5Build": "passed_with_existing_bundle_size_warnings",
+    "jointLatestH5Build": "pending_joint_release",
+    "testLogSha256": "5f3315409a643ffa15ff6b6c50384c18ca98082494a3c5f1fa93fedef183bf78"
+  },
+  "acceptance": {
+    "permission": "normal explicit refusal without tools OR failed CODEX_REQUEST_REJECTED with retryable=false, no tools, no assistant record, owner isolation and idempotent replay",
+    "general": "real image Chat, real cloud SimC positive metrics/provenance, QQ/CSRF/owner isolation, Web artifact verification via joint release",
+    "candidate": "pending",
+    "live": "pending",
+    "manualUserAcceptance": "not_claimed"
+  },
+  "nonModelExecutionFailures": [
+    "first upload contained macOS metadata; exact inventory gate rejected staging; retained original upload and restaged clean overlay",
+    "failure evidence harness initially queried nonexistent error_code; corrected to public_error_code, authoritative failure retained",
+    "one nonexistent source-directory typo blocked child start before model invocation",
+    "initial isolated Web build could not resolve existing nested Taro plugin; reused local installed workspace dependencies, no installation"
+  ]
+}
