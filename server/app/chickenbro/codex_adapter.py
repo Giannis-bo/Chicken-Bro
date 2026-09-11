@@ -494,13 +494,20 @@ class NativeCodexChatAdapter:
         simulation_gateway_token = ""
         if self._source_gateway is not None:
             try:
-                source_gateway_token = str(self._source_gateway.issue_capability()).strip()
+                source_gateway_token = str(self._source_gateway.issue_capability(tool_context)
+                    if tool_context is not None else self._source_gateway.issue_capability()).strip()
             except (AttributeError, OSError, TypeError, ValueError):
                 raise CodexUnavailable() from None
             if not source_gateway_token:
                 raise CodexUnavailable() from None
 
         try:
+            if self._source_gateway is not None and hasattr(self._source_gateway, 'research_status'):
+                research_status = self._source_gateway.research_status(source_gateway_token)
+                developer_instructions += '\n服务端本次研究状态：' + json.dumps(research_status, ensure_ascii=False)
+                if research_status.get('state') == 'ended':
+                    profile_config['web_search'] = 'disabled'
+                    developer_instructions += '\n本研究已结束。本轮只讨论已有证据，不新增搜索、资料查询、模拟。独立新问题需用户明确开启新研究。'
             if self._simulation_gateway is not None and tool_context is not None:
                 simulation_gateway_token = self._simulation_gateway.issue_capability(tool_context)
             child_environment = {

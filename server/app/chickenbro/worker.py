@@ -92,6 +92,8 @@ def start_chat_workers(settings, connection_factory, stop):
     host.start()
     capabilities = SimcRuntimeCapabilities.from_env()
     def factory(claim, connect):
+        from server.app.chickenbro.research_lifecycle import PostgresResearchBudget
+        research = PostgresResearchBudget(connect, claim['user_id'], claim['run_id'])
         recorder = ToolRecorder(connect,claim['run_id'])
         simulation = SimulationApplication(repository=PostgresSimulationRepository(connect),
             source_router=CharacterSourceRouter(HttpxSourceGateway()),
@@ -99,8 +101,8 @@ def start_chat_workers(settings, connection_factory, stop):
             compiler=SimcProfileCompiler(capabilities=capabilities),runtime_capabilities=capabilities)
         return NativeCodexChatAdapter(
             source_gateway=host.register(ChickenbroSourceGateway(
-                query_service=ServerConfiguredSourceQuery(wcl_reader=WclRunReader())),recorder,'source'),
-            simulation_gateway=host.register(SimulationToolGateway(simulation),recorder,'simc'),
+                query_service=ServerConfiguredSourceQuery(wcl_reader=WclRunReader()), research_budget=research),recorder,'source'),
+            simulation_gateway=host.register(SimulationToolGateway(simulation, research_budget=research),recorder,'simc'),
             source_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/source-query',
             simulation_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/simc-tool')
 

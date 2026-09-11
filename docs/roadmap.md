@@ -2,6 +2,9 @@
 
 ## 已完成
 
+- G8 顺序原题、G9 两条预算解释已在已上线源码回放通过；仅完成该有限原题范围，不冒称新五类模型矩阵或新生产发布。[回放记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
+- G11 有限附魔清单名称、覆盖与版本整理已通过前后对照及线上验收（`6c2b36b2e`）；全制造品质仍未全面覆盖。[证据](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
+
 - 当前装备完整名称查询修复已正式发布（运行树同`af244e22b`，发布标识`60028b833`）；修正验收脚本后，线上武器/饰品两题、通用业务、账号隔离、Web13文件及运行观察通过，G13已released。[记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/release-rerun/README.md)。
 
 - 戒指附魔对照与任务完成读取竞争修复已发布（`95569fc01`）；按用户授权暂缓一条无工具调用、无回答的模型失败，保留实际9/10结果。隔离及线上两条真实对照、通用业务与Web核验通过。[发布记录](../artifacts/verification/2026-09-11-g12-final-window/release/README.md)。
@@ -16,7 +19,7 @@
 
 - [WCL 工具效率优化](plans/2026-09-10-wcl-tool-efficiency.md)：按需视图、单轮去重和有界窗口统计已合入推送并发布（`f95f6bbe2`）；隔离图片/Chat/SimC、隔离及公网 WCL 与账号隔离通过，Web 14 文件一致。复用 667 项后端与 63 项控制面测试，按用户要求停止扩样本。[发布证据](../artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md)。
 
-- [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：扫描、诊断、批准与条件发布闭环已落地，两条G6排行榜修复已正式发布；线上两题、Chat/SimC/owner及Web14文件验收通过。自动化00点执行成功、06点因额度失败；G7和另1条反馈待后续处理。[发布证据](../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json)。
+- [Badcase 复盘](plans/2026-09-08-badcase-workflow.md)：扫描、诊断、批准与条件发布闭环已落地，两条G6排行榜修复已正式发布；线上两题、Chat/SimC/owner及Web14文件验收通过。自动化00点执行成功、06点因额度失败；该记录中的G7待办后来已发布，其他反馈按当前分级状态追踪。[发布证据](../artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json)。
 
 - [运营后台](plans/2026-09-09-admin-ops.md)：QQ唯一管理员、只读用户/Chat/SimC数据、北京时间趋势；已发布并完成真实本人权限、非管理员拒绝、业务和SQL对账。[证据](../artifacts/verification/2026-09-09-admin-ops/README.md)。
 
@@ -37,23 +40,16 @@
 
 ## 正在推进
 
-- G12 剩余单条原生模型输出失败按用户授权暂缓，不重跑。G10 已按明示升级档位完成有界对照，停止扩样。
-
-- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；G10 三组声明条件对照已完成，原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
-
-- Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G10 已复用现有工具完成声明条件组合对照。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
-
-
-
+- 用户已于 2026-09-11 授权将六项剩余问题分别推进至可交付状态。原生模型异常、G10 原题自动俗称检索及其他泛化缺口按独立任务的实际证据更新；原失败与历史消耗保留，不因父 Goal 完成而关闭。见[当前分级状态](plans/2026-09-11-remaining-issues-status.md)。
 
 ## 下一步
 
-当前已授权的 Chat 有界研究已发布；后续新功能按用户新授权推进。
+各任务先核对既有工具与引擎能力，在各自有限预算内验证；实现并行、合入与发布串行。文档按已取得证据增量同步，只有文档变更不重部署。
 
 ## 暂缓与待决策
 
 - 暂缓新增新闻、装备库、天赋库、旧模拟器及插件 `/simc` 文本导入。
-- COS 历史匿名写入调查、日志及版本恢复能力见[历史安全记录](../artifacts/security/2026-09-08-cos-write-hardening/report.md)。
+- COS 七图及清单源站/CDN完整性、本地Git重建八文件已验证；历史匿名写入仍未知，目标账号配置与供应商能力确认受阻，审计启用待决策。工单未发送，未执行独立灾备或云端恢复；新增费用/迁移未授权。[本轮证据](../artifacts/security/2026-09-11-cos-audit-recovery/README.md)；[历史记录](../artifacts/security/2026-09-08-cos-write-hardening/report.md)保留。
 
 [架构](chickenbro-simc-architecture.md) · [验证矩阵](verification-matrix.md) · [生产 Runbook](chickenbro-simc-production-runbook.md) · [计划白名单](plans/README.md)
 
