@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from server.app.chickenbro.stream import CodexStreamError
-from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images
+from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images, FAILURE_KINDS
 from server.codex_worker import (
     DEFAULT_CODEX_BIN,
     DEFAULT_JOBS_DIR,
@@ -56,7 +56,7 @@ class _RunDiagnostics:
         self.repair_code = None
         self.native_web_counts = {}
 
-    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None):
+    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None, failure_site=None, failure_kind=None):
         try:
             if not self.run_id or stage not in _DIAGNOSTIC_STAGES or stage in self.seen:
                 return
@@ -69,6 +69,10 @@ class _RunDiagnostics:
                 data['repair_elapsed_ms'] = max(0,min(86400000,int((now-self.repair_started)*1000)))
             if code is not None:data['code'] = code if isinstance(code,str) and code in _DIAGNOSTIC_CODES else 'UNEXPECTED'
             if isinstance(phase,str) and phase in _DIAGNOSTIC_PHASES:data['phase'] = phase
+            if isinstance(failure_site, str) and re.fullmatch(r'codex_(?:stdio|adapter)\.py:[1-9][0-9]{0,5}', failure_site):
+                data['failure_site'] = failure_site
+            if isinstance(failure_kind, str) and failure_kind in FAILURE_KINDS:
+                data['failure_kind'] = failure_kind
             if isinstance(validation_codes, (list, tuple)):
                 codes = sorted({c for c in validation_codes if isinstance(c,str) and c in _VALIDATION_CODES})
                 data['validation_codes'] = codes
@@ -111,6 +115,31 @@ def _diagnostic_error(error):
     return 'UNEXPECTED'
 
 
+def _diagnostic_failure_site(error):
+    """Bounded code locations only; never format exception text, frames or locals."""
+    try:
+        allowed = {str(Path(__file__).with_name(name)): name
+                   for name in ('codex_adapter.py', 'codex_stdio.py')}
+        site = None
+        seen = set()
+        for _ in range(4):
+            if error is None or id(error) in seen:
+                break
+            seen.add(id(error))
+            frame = error.__traceback__
+            for _ in range(32):
+                if frame is None:
+                    break
+                name = allowed.get(frame.tb_frame.f_code.co_filename)
+                if name and 0 < frame.tb_lineno < 1000000:
+                    site = f'{name}:{frame.tb_lineno}'
+                frame = frame.tb_next
+            error = error.__cause__ or error.__context__
+        return site
+    except Exception:
+        return None
+
+
 def _observe_stream(method):
     @wraps(method)
     def observed(self, **kwargs):
@@ -119,7 +148,9 @@ def _observe_stream(method):
         try:
             yield from method(self, **kwargs)
         except Exception as error:
-            _diagnostic('stream_failed', code=_diagnostic_error(error))
+            _diagnostic('stream_failed', code=_diagnostic_error(error),
+                        failure_site=_diagnostic_failure_site(error),
+                        failure_kind=getattr(error, 'failure_kind', None))
             raise
         finally:
             try:

@@ -16,8 +16,14 @@ _BODY_METHODS = {"item/started", "item/completed", "item/agentMessage/delta", "i
 _APPROVAL_METHODS = {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}
 
 
-def invalid():
-    return CodexStreamError("CODEX_OUTPUT_INVALID")
+FAILURE_KINDS = frozenset(('protocol_invalid', 'transport_eof', 'rpc_error',
+    'upstream_error', 'turn_failed', 'final_missing'))
+
+
+def invalid(kind='protocol_invalid'):
+    error = CodexStreamError("CODEX_OUTPUT_INVALID")
+    error.failure_kind = kind if kind in FAILURE_KINDS else 'protocol_invalid'
+    return error
 
 
 def validate_images(images):
@@ -66,7 +72,7 @@ def read_messages(process, deadline, max_line_bytes=_MAX_LINE_BYTES):
                     # Only in-memory test streams lack a file descriptor on the Linux runtime.
                     chunk = source.read(65536)
                 if not chunk:
-                    raise invalid()
+                    raise invalid('transport_eof')
                 buffered += chunk
                 if len(buffered) > max_line_bytes:
                     raise invalid()
@@ -156,15 +162,17 @@ class CodexStdioSession:
             if (not isinstance(params, dict) or self.thread_id is None or self.turn_id is None
                     or params.get("threadId") != self.thread_id or params.get("turnId") != self.turn_id
                     or params.get("willRetry") is not True):
-                raise invalid()
+                raise invalid('upstream_error')
 
     def request(self, identity, method, params):
         self.send({"id": identity, "method": method, "params": params})
         for message in self.messages:
             self._check_request(message)
             if "id" in message:
-                if type(message["id"]) is not int or message["id"] != identity or "error" in message:
+                if type(message["id"]) is not int or message["id"] != identity:
                     raise invalid()
+                if "error" in message:
+                    raise invalid('rpc_error')
                 result = message.get("result")
                 if not isinstance(result, dict):
                     raise invalid()
@@ -211,9 +219,12 @@ class CodexStdioSession:
                     raise invalid()
                 if method == "turn/completed":
                     turn = params.get("turn", {})
-                    if (turn.get("id") != self.turn_id or turn.get("status") != "completed"
-                            or turn.get("error") is not None or not self.final_text):
+                    if turn.get("id") != self.turn_id:
                         raise invalid()
+                    if turn.get("status") != "completed" or turn.get("error") is not None:
+                        raise invalid('turn_failed')
+                    if not self.final_text:
+                        raise invalid('final_missing')
                     yield {"type": "completed", "text": self.final_text}
                     return
                 if params.get("turnId") != self.turn_id:
