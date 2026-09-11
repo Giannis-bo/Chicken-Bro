@@ -1,0 +1,163 @@
+{
+  "case": "original-after",
+  "passed": true,
+  "runId": "4c66d0f8-17c9-4ab0-aba3-bbfd73fd5f50",
+  "privateSha256": "e8d755a8c49a2b77471a58611fb4d7f5c136fa72e62ffc55279fca0a96415eaf",
+  "nativeWeb": {
+    "completed_events": {
+      "search": 6
+    },
+    "run_id": "4c66d0f8-17c9-4ab0-aba3-bbfd73fd5f50"
+  },
+  "operations": [
+    {
+      "operation": "simc.list",
+      "status": "ready",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.options",
+      "status": "partial",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.get",
+      "status": "succeeded",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.preview",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID"
+    },
+    {
+      "operation": "simc.preview",
+      "status": "blocked",
+      "errorCode": "SCENARIO_INVALID"
+    },
+    {
+      "operation": "simc.preview",
+      "status": "ready",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.preview",
+      "status": "ready",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.submit",
+      "status": "queued",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.submit",
+      "status": "queued",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.get",
+      "status": "succeeded",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.get",
+      "status": "succeeded",
+      "errorCode": null
+    },
+    {
+      "operation": "simc.compare",
+      "status": "ready",
+      "errorCode": null
+    }
+  ],
+  "checks": {
+    "terminal": true,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true,
+    "detached": true,
+    "originalContext": true,
+    "syntheticLiveRegression": false,
+    "autonomousNicknameIds": true,
+    "declaredSeasonLevels": true,
+    "actualSameSnapshotSimulationAndComparison": true,
+    "mechanismUncertaintyInAnswer": true,
+    "noUserMachineIdRequest": true
+  },
+  "comparison": {
+    "delta": 4001.8112519300485,
+    "changes": {
+      "equipmentOverrides": {
+        "after": {
+          "trinket1": {
+            "gems": [],
+            "itemId": 250214,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 321
+          },
+          "trinket2": {
+            "gems": [],
+            "itemId": 273796,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 321
+          }
+        },
+        "before": {
+          "trinket1": {
+            "gems": [],
+            "itemId": 249343,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 289
+          },
+          "trinket2": {
+            "gems": [],
+            "itemId": 250144,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 289
+          }
+        }
+      }
+    },
+    "variant": 162882.02162970035,
+    "baseline": 158880.2103777703,
+    "controls": {
+      "maxTime": 300,
+      "bloodlust": true,
+      "raidBuffs": true,
+      "fightStyle": "Patchwerk",
+      "iterations": 10000,
+      "desiredTargets": 1
+    },
+    "deltaPct": 2.518760040923235,
+    "assessment": "higher",
+    "metricName": "dps",
+    "limitations": [
+      "Reported error bounds are summed conservatively; this is not a paired statistical significance test.",
+      "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+    ],
+    "variantJobId": "c4885259-2fb8-41d6-9c3a-812b02dd2c2f",
+    "baselineJobId": "da5276c8-8a99-4ff8-95d5-c1e6ca8bbb7f",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "engineDiagnostics": {
+      "variant": [],
+      "baseline": [
+        "implementation_not_yet_verified"
+      ]
+    },
+    "combinedErrorBound": 169.70036340154144
+  },
+  "models": 1,
+  "simc": 2,
+  "sources": 6,
+  "limitations": [
+    "First two previews rejected SCENARIO_INVALID; no simulation charged by those previews. Later previews succeeded; failed receipts retained.",
+    "Representative unsocketed and unenchanted level-scaled variants, not owned gear or recovered bonus versions.",
+    "One original-prompt success, not a measured general success rate.",
+    "Native summary records six search completions; no separate page-open completion receipt. Identity is cross-checked against acceptance-only external mapping."
+  ]
+}
