@@ -22,6 +22,11 @@ def project_evidence(rows):
                     players.append(retained)
                 if not players and not fact.get('healing'):continue
                 item={k:fact[k] for k in ('reportCode','fightId','sourceId','view','fight','gameVersion','logVersion','queryScope','healing','casts') if k in fact}
+                if isinstance(item.get('healing'),dict):
+                    h=dict(item['healing'])
+                    h['entries']=[{k:r[k] for k in ('guid','id','name','total','overheal','hitCount','tickCount','critHitCount','critTickCount','composite') if k in r} for r in h.get('entries',[]) if isinstance(r,dict)]
+                    h['historicalDetail']='Compact spell totals/counts; nested hit distributions and subentries omitted. Reuse totals; query exact evidence only if that detail changes the answer.'
+                    item['healing']=h
                 item.update(players=players,origin={'runId':str(run_id),'callId':str(call_id),'checkedAt':str(checked_at)},
                             evidence=member.get('evidence',[])[:2])
                 flags=[False];item=_bounded_json(item,truncated=flags)

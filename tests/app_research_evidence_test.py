@@ -1,3 +1,4 @@
+from server.app.chickenbro.research_evidence import project_evidence
 import unittest,json
 class EvidenceTest(unittest.TestCase):
     def test_projection_recovers_actor_stats_without_event_dump(self):
@@ -10,3 +11,15 @@ class EvidenceTest(unittest.TestCase):
         from server.app.chickenbro.research_evidence import project_evidence
         out=project_evidence([('r','c',{'status':'blocked','facts':[{'reportCode':'A','players':[{'secret':'bad'}]}]},'today')])
         self.assertEqual(out['facts'],[])
+
+    def test_three_healing_tables_preserve_three_prior_stat_records(self):
+        rows=[]
+        for i in range(3):
+            fact={'reportCode':'A','fightId':1,'sourceId':i+1,'view':'healing','healing':{'complete':True,'totals':{'raw':100,'effective':60},'entries':[{'guid':j,'name':'Spell','total':100,'hitdetails':[{'type':'Crit','total':100,'extra':'x'*200}]*8,'subentries':[{'total':100,'extra':'x'*200}]*16} for j in range(30)]}}
+            rows.append(('r','c',{'status':'verified','facts':[fact]},'now'))
+        for i in range(3):
+            rows.append(('r','c',{'status':'verified','facts':[{'reportCode':'A','fightId':1,'sourceId':i+1,'view':'overview','players':[{'id':i+1,'combatantInfo':{'stats':{'Crit':622+i}}}]}]},'before'))
+        result=project_evidence(rows)
+        self.assertEqual(len(result['facts']),6)
+        self.assertEqual(sum(bool(f['players']) for f in result['facts']),3)
+        self.assertNotIn('hitdetails',result['facts'][0]['healing']['entries'][0])
