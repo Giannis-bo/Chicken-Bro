@@ -1,0 +1,18 @@
+{
+  "observedAt": "2026-09-11T05:58:58.145244+00:00",
+  "backendSource": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "webSource": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "engineCommit": "f50a2121bf894570146507496f3e113bff68e445",
+  "binarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "sourceArchiveSha256": "3fbb569ba2847b45522dd0e938468e17200990e042afc5ed5f99de33ecfd23e2",
+  "sourceFiles": {
+    "engine/player/player.hpp": "bd90cc5a6b0bd0183a807d84d13f96ae8c6cf3b18e8cccba74364d4a916a082c",
+    "engine/player/unique_gear_midnight.cpp": "937dd78158eb22fd436f83a40e35c92c6baabd4137626719487c8967ff3b6ef7",
+    "engine/item/item.cpp": "1b666c3cd5080a98c4d6fe38a999d4ffad39ec26fab738ef8bf2a7e3bf2ad8a9"
+  },
+  "scope": "read-only installed-source audit; not a new simulation or deployment",
+  "newModelCalls": 0,
+  "newSimcExecutions": 0,
+  "originalPrivateArchiveSha256": "747600e10b8f72b870eeca7e172a87391c37b297299f3552412c416d8bc0bb3f",
+  "originalArchiveContainsRawLogs": false
+}
