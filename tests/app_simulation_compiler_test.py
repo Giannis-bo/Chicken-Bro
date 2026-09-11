@@ -34,6 +34,33 @@ class SimulationCompilerTest(unittest.TestCase):
         )
         self.capabilities = capabilities
 
+    def test_bounded_stat_experiment_reuses_engine_bonus_options(self):
+        compiler=SimcProfileCompiler(capabilities=replace(self.capabilities,compiler_revision='chickenbro-simc-compiler-v6'))
+        base=compiler.compile(self.snapshot,{'food':'disabled','maxTime':20})
+        changed=compiler.compile(self.snapshot,{'food':'disabled','maxTime':20,'statBonuses':{'intellect':50,'crit':72}})
+        self.assertIn('enchant_intellect=50\n',changed.profile)
+        self.assertIn('enchant_crit_rating=72\n',changed.profile)
+        self.assertEqual(changed.profile.replace('enchant_intellect=50\n','').replace('enchant_crit_rating=72\n',''),base.profile)
+        for bonuses in ({}, {'unknown':1}, {'crit':True}, {'crit':-1}, {'intellect':1001}, {'crit':1.5}):
+            with self.subTest(bonuses=bonuses),self.assertRaises(SimcCompileError):
+                normalize_scenario({'statBonuses':bonuses})
+        with self.assertRaises(SimcCompileError):normalize_scenario({'maxTime':19})
+
+    def test_food_override_is_bounded_and_changes_only_requested_profile(self):
+        compiler = SimcProfileCompiler(capabilities=replace(self.capabilities,
+            compiler_revision="chickenbro-simc-compiler-v6"))
+        base = compiler.compile(self.snapshot, {})
+        for token in ('hearty_silvermoon_parade', 'disabled'):
+            changed = compiler.compile(self.snapshot, {'food': token})
+            self.assertIn('food=' + token + '\n', changed.profile)
+            self.assertEqual(changed.profile.replace('food=' + token + '\n', ''), base.profile)
+            self.assertNotEqual(changed.scenario_hash, base.scenario_hash)
+        for invalid in ('', 'food\ninput=x', 'x,y', 'a' * 81, 1, None):
+            with self.subTest(invalid=invalid), self.assertRaises(SimcCompileError):
+                normalize_scenario({'food': invalid})
+        with self.assertRaises(SimcCompileError):
+            SimcProfileCompiler(capabilities=self.capabilities).compile(self.snapshot, {'food': 'disabled'})
+
     def test_equipment_override_compiles_exact_item_without_mutating_source(self):
         compiler = SimcProfileCompiler(capabilities=replace(self.capabilities,
             compiler_revision="chickenbro-simc-compiler-v4"))
@@ -117,7 +144,7 @@ class SimulationCompilerTest(unittest.TestCase):
         self.assertEqual(error.exception.code, "COMPILER_UNAVAILABLE")
 
     def test_new_scenario_fields_are_strict_and_bounded(self):
-        invalid = [{"maxTime": value} for value in (None, True, "300", 300.0, 29, 601)]
+        invalid = [{"maxTime": value} for value in (None, True, "300", 300.0, 19, 601)]
         invalid += [{"gemOverrides": value} for value in (
             None, [], {"ring1": [1]}, {"neck": []}, {"neck": [True]},
             {"neck": ["1"]}, {"neck": [0]}, {"neck": [-1]}, {"neck": [1.0]},

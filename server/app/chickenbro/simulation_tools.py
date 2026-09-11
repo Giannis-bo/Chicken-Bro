@@ -21,6 +21,7 @@ from server.app.simulation.application import (
     SimulationApplicationError,
     SimulationJobView,
     validated_simulation_result_provenance,
+    public_simulation_report,
 )
 from server.app.simulation.compiler import SimcCompileError, normalize_scenario, scenario_hash
 from server.app.simulation.domain import SimulationJob, SourceReadiness, SourceSnapshot
@@ -162,6 +163,14 @@ def _job_packet(view: SimulationJobView) -> dict:
                     checked=["talents", "equipmentItemIds", "overriddenItemLevels", "overriddenEnchantIds"],
                     overriddenEnchants=deepcopy(proof['overriddenEnchants']),
                     enchantEvidenceScope='engine_reported_input_identity')
+        if isinstance(proof, dict) and 'foodInputIdentity' in proof.get('checked', []) and 'effectiveConfig' in result:
+            result['effectiveConfig']['checked'].append('foodInputIdentity')
+            result['effectiveConfig']['food'] = proof['food']
+            result['effectiveConfig']['foodEvidenceScope'] = 'engine_reported_input_identity'
+        report = public_simulation_report(view)
+        if report is not None:
+            result['buffedAttributes'] = deepcopy(report['attributes'])
+            result['attributeEvidenceScope'] = 'engine_reported_raid_buffed_snapshot_not_a_boss_phase'
         evidence = view.result.result.get("actionEvidence")
         if isinstance(evidence, dict) and evidence.get("profileSha256") == view.result.profile_sha256:
             result["actionEvidence"] = deepcopy(evidence)

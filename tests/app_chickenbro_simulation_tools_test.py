@@ -83,6 +83,20 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.assertEqual(denied["errorCode"], "SIMULATION_NOT_FOUND")
         self.assertEqual(len(self.queue.calls), 2)
 
+    def test_job_reuses_validated_report_attributes_for_food_effect_checks(self):
+        from tests.app_simulation_report_test import report_fixture
+        from server.app.simulation.report import normalize_simc_report
+        packet=self.submit(self.prepare()['snapshotId']);result=self.complete(packet)
+        raw=report_fixture();raw['sim']['players'][0]['collected_data']['dps']['mean']=result.primary_metric_value
+        report=normalize_simc_report(json.dumps(raw),expected_actor='Stormsample')
+        self.repository.save_result(replace(result,result={**result.result,'report':report}))
+        read=self.gateway.execute(self.token,'get',{'jobId':packet['jobId']})['result']
+        self.assertEqual(read['buffedAttributes'],report['attributes'])
+        self.assertNotIn('stdout',read)
+        report['metric']['value']+=1
+        self.repository.save_result(replace(result,result={**result.result,'report':report}))
+        self.assertEqual(self.gateway.execute(self.token,'get',{'jobId':packet['jobId']})['errorCode'],'SIMC_RESULT_INVALID')
+
     def test_result_exposes_only_profile_bound_enchant_input_proof(self):
         packet = self.submit(self.prepare()['snapshotId'])
         result = self.complete(packet)
@@ -328,6 +342,29 @@ class SimulationExperimentTest(unittest.TestCase):
         self.assertEqual(preview['gear']['trinket1'],item)
         self.assertEqual(len(self.queue.calls),1)
         self.assertNotIn('profile',preview)
+
+    def test_food_change_preserves_owned_base_and_uses_existing_comparison(self):
+        caps=replace(self.application._runtime_capabilities, compiler_revision='chickenbro-simc-compiler-v6')
+        self.application._runtime_capabilities=caps
+        self.application._compiler=application_fixtures.SimcProfileCompiler(capabilities=caps)
+        a=self.submit(self.prepare()['snapshotId'], {'food':'hearty_silvermoon_parade'})
+        args={'baseJobId':a['jobId'], 'scenario':{'food':'disabled'}}
+        b=self.gateway.execute(self.token,'submit',args)
+        self.assertEqual(b['status'],'queued',b)
+        self.assertEqual(b['scenario']['food'],'disabled')
+        self.assertEqual(self.gateway.execute(self.token,'get',{'jobId':a['jobId']})['scenario']['food'],'hearty_silvermoon_parade')
+        other=self.gateway.issue_capability(replace(self.context,principal=self.other,run_id=uuid4()))
+        self.assertEqual(self.gateway.execute(other,'submit',args)['status'],'blocked')
+        for packet in (a,b):
+            result=self.complete(packet)
+            proof={'status':'verified','profileSha256':result.profile_sha256,
+                   'checked':['foodInputIdentity'],'food':packet['scenario']['food']}
+            self.repository.save_result(replace(result,result={**result.result,'effectiveConfig':proof}))
+            actual=self.gateway.execute(self.token,'get',{'jobId':packet['jobId']})
+            self.assertEqual(actual['result']['effectiveConfig']['food'],packet['scenario']['food'])
+        result=self.gateway.execute(self.token,'compare',{'baselineJobId':a['jobId'],'variantJobId':b['jobId']})
+        self.assertIn('comparison',result,result)
+        self.assertIn('food',result['comparison']['changes'])
 
     def test_compare_requires_matching_controls_and_owned_completed_results(self):
         a=self.submit(self.prepare()['snapshotId']);self.complete(a)

@@ -139,7 +139,7 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
   const snapshotCurrent = snapshot && sourceUrl.trim() === resolvedSource
   const actor = snapshotCurrent ? snapshot.character : null
   const scenarioValid = validNumber(targets, 1, 20, true) && validNumber(iterations, 1, 10000, true)
-    && validNumber(maxTime, 30, 600, true) && validNumber(variation, 0, 50) && validNumber(targetError, 0, 5)
+    && validNumber(maxTime, 20, 600, true) && validNumber(variation, 0, 50) && validNumber(targetError, 0, 5)
   const sourceReady = snapshotCurrent && snapshot.readiness === 'READY_FOR_SIMC'
   const canSubmit = Boolean(sourceReady && scenarioValid && !resolving && state.phase !== 'submitting' && state.phase !== 'signed_out' && runtime?.status === 'available')
   const filteredJobs = state.jobs.filter((job) => filter === 'all' || job.status === filter)
@@ -200,7 +200,7 @@ export default function WebSimcView({ auth, themeId = 'horde' }: WebSimcViewProp
                 {Object.entries(simcFightStyles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select></label>
               <label data-simc-label="" className={styles['field']}><span>目标数</span><input data-simc-input="" name="desiredTargets" type="number" min="1" max="20" step="1" value={targets} onChange={(event) => setTargets(event.target.value)} /><small>1–20 个目标</small></label>
-              <label data-simc-label="" className={styles['field']}><span>战斗时长（秒）</span><input data-simc-input="" name="maxTime" type="number" min="30" max="600" value={maxTime} onChange={(event) => setMaxTime(event.target.value)} /><small>30–600 秒</small></label>
+              <label data-simc-label="" className={styles['field']}><span>战斗时长（秒）</span><input data-simc-input="" name="maxTime" type="number" min="20" max="600" value={maxTime} onChange={(event) => setMaxTime(event.target.value)} /><small>20–600 秒</small></label>
               <label data-simc-label="" className={styles['field']}><span>时长浮动（± %）</span><input data-simc-input="" name="varyCombatLength" type="number" min="0" max="50" value={variation} onChange={(event) => setVariation(event.target.value)} /><small>0–50%，让每次战斗长度略有变化</small></label>
             </div>
           </section>

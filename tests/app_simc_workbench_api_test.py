@@ -139,7 +139,7 @@ class WorkbenchApiTest(unittest.TestCase):
         self.assertEqual(response.status_code,202)
         job=next(iter(self.repository.jobs.values()))
         view=SimulationJobView(job=job,result=None,attempts=(),snapshot=self.repository.get_snapshot(job.user_id,job.snapshot_id),
-             scenario={'iterations':300,'talentOverrides':{'string':'A'*30},'equipmentOverrides':{},'actionLists':{'default':['lightning_bolt']}})
+             scenario={'iterations':300,'talentOverrides':{'string':'A'*30},'equipmentOverrides':{},'actionLists':{'default':['lightning_bolt']},'food':'disabled','statBonuses':{'crit':72},'maxTime':20})
         self.assertNotIn('talentOverrides',_job_summary(view,True,1)['scenario'])
         self.assertNotIn('equipmentOverrides',_job_summary(view,True,1)['scenario'])
         self.assertNotIn('talentOverrides',_job_summary(view,True,2)['scenario'])
@@ -147,3 +147,8 @@ class WorkbenchApiTest(unittest.TestCase):
         self.assertIn('talentOverrides',_job_summary(view,True,3)['scenario'])
         self.assertNotIn('actionLists',_job_summary(view,True,3)['scenario'])
         self.assertIn('actionLists',_job_summary(view,True,4)['scenario'])
+        self.assertNotIn('food',_job_summary(view,True,4)['scenario'])
+        self.assertEqual(_job_summary(view,True,5)['scenario']['food'], 'disabled')
+        self.assertNotIn('statBonuses',_job_summary(view,True,4)['scenario'])
+        self.assertNotIn('maxTime',_job_summary(view,True,4)['scenario'])
+        self.assertEqual(_job_summary(view,True,5)['scenario']['maxTime'],20)

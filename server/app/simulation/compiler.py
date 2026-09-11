@@ -44,7 +44,7 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
     if not isinstance(scenario, Mapping):
         raise SimcCompileError("SCENARIO_INVALID")
     allowed = {"fightStyle", "desiredTargets", "iterations", "maxTime", "gemOverrides", "equipmentOverrides",
-               "varyCombatLength", "targetError", "raidBuffs", "bloodlust", "talentOverrides", "actionLists"}
+               "varyCombatLength", "targetError", "raidBuffs", "bloodlust", "talentOverrides", "actionLists", "food", "statBonuses"}
     if any(key not in allowed for key in scenario):
         raise SimcCompileError("SCENARIO_INVALID")
     fight_style = scenario.get("fightStyle", "Patchwerk")
@@ -72,9 +72,21 @@ def normalize_scenario(scenario: Mapping[str, object]) -> dict[str, object]:
             if type(scenario[key]) is not bool:
                 raise SimcCompileError("SCENARIO_INVALID")
             normalized[key] = scenario[key]
+    if "statBonuses" in scenario:
+        bonuses = scenario["statBonuses"]
+        if (not isinstance(bonuses, Mapping) or not bonuses
+                or any(k not in {"strength", "agility", "intellect", "crit", "haste", "mastery", "versatility"}
+                       or type(v) is not int or not 0 <= v <= 1000 for k, v in bonuses.items())):
+            raise SimcCompileError("SCENARIO_INVALID")
+        normalized["statBonuses"] = dict(bonuses)
+    if "food" in scenario:
+        food = scenario["food"]
+        if not isinstance(food, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,79}", food):
+            raise SimcCompileError("SCENARIO_INVALID")
+        normalized["food"] = food
     if "maxTime" in scenario:
         max_time = scenario["maxTime"]
-        if type(max_time) is not int or not 30 <= max_time <= 600:
+        if type(max_time) is not int or not 20 <= max_time <= 600:
             raise SimcCompileError("SCENARIO_INVALID")
         normalized["maxTime"] = max_time
     if "gemOverrides" in scenario:
@@ -302,6 +314,16 @@ class SimcProfileCompiler:
         for key, option in (("raidBuffs", "optimal_raid"), ("bloodlust", "override.bloodlust")):
             if key in normalized_scenario:
                 lines.append(f"{option}={int(normalized_scenario[key])}")
+        if "statBonuses" in normalized_scenario:
+            if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v6":
+                raise SimcCompileError("COMPILER_UNAVAILABLE")
+            for stat, amount in sorted(normalized_scenario["statBonuses"].items()):
+                option = stat if stat in {"strength", "agility", "intellect"} else stat + "_rating"
+                lines.append(f"enchant_{option}={amount}")
+        if "food" in normalized_scenario:
+            if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v6":
+                raise SimcCompileError("COMPILER_UNAVAILABLE")
+            lines.append("food=" + normalized_scenario["food"])
         if "actionLists" in normalized_scenario:
             if self._capabilities.compiler_revision != "chickenbro-simc-compiler-v6":
                 raise SimcCompileError("COMPILER_UNAVAILABLE")

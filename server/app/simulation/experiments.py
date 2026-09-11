@@ -4,7 +4,7 @@ from math import isfinite
 from server.app.simulation.compiler import normalize_scenario
 from server.app.simulation.application import SimulationApplicationError, validated_simulation_result_provenance
 
-_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists'}
+_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses'}
 
 def merge_scenario(base, patch):
     if not isinstance(patch, dict):

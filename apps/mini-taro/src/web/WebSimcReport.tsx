@@ -5,6 +5,8 @@ import { simcAttributeValue, simcDate, simcFightStyles, simcLabel, simcMetricNam
 import { simcReportName, simcNameStatus } from '../features/simc/simc-terms'
 import styles from './WebSimc.module.scss'
 
+const bonusLabels: Record<string, string> = { strength:'力量', agility:'敏捷', intellect:'智力', crit:'暴击等级', haste:'急速等级', mastery:'精通等级', versatility:'全能等级' }
+
 interface Props {
   job: SimulationJobDetail
   onBack: () => void
@@ -93,6 +95,8 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
       <div><dt>战斗时长</dt><dd>{scenario.maxTime == null ? '未记录' : `${scenario.maxTime} 秒`}</dd></div>
       <div><dt>时长浮动</dt><dd>{scenario.varyCombatLength == null ? '未记录' : `± ${simcNumber(scenario.varyCombatLength * 100)}%`}</dd></div>
       <div><dt>目标误差</dt><dd>{scenario.targetError == null ? '未记录' : scenario.targetError === 0 ? '按迭代上限' : `${scenario.targetError}%`}</dd></div>
+      {scenario.food != null ? <div><dt>食物</dt><dd>{scenario.food === 'disabled' ? '关闭' : scenario.food.replaceAll('_', ' ')}</dd></div> : null}
+      {scenario.statBonuses ? <div><dt>假设增加属性</dt><dd>{Object.entries(scenario.statBonuses).map(([stat, value]) => `${bonusLabels[stat] ?? stat} +${value}`).join('、')}</dd></div> : null}
       <div><dt>团队增益</dt><dd>{scenario.raidBuffs == null ? '未记录' : scenario.raidBuffs ? '开启' : '关闭'}</dd></div>
       <div><dt>嗜血 / 英勇</dt><dd>{scenario.bloodlust == null ? '未记录' : scenario.bloodlust ? '开启' : '关闭'}</dd></div>
     </dl> : <p className={styles['missing']}>该历史任务未记录完整模拟配置。</p>}</section>

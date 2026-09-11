@@ -207,6 +207,15 @@ describe('Web SimC workbench', () => {
     expect(container.textContent).toContain('并非全队总伤害')
   })
 
+  it('shows explicit hypothetical stats and disabled food on a short experiment', async () => {
+    api.getJob.mockResolvedValue(success({ ...job, scenario: { ...scenario, maxTime:20, food:'disabled', statBonuses:{crit:72} } }))
+    await openReport()
+    expect(container.textContent).toContain('假设增加属性')
+    expect(container.textContent).toContain('暴击等级 +72')
+    expect(container.textContent).toContain('食物关闭')
+    expect(container.textContent).toContain('20 秒')
+  })
+
   it('shows real report sections, uncertainty and task engine without fabricated missing data', async () => {
     await openReport()
     for (const copy of ['125,432.6', '54.2', '技能贡献', '闪电箭', '增益覆盖', '13.3%',

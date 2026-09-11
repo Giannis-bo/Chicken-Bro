@@ -12,6 +12,8 @@ export interface SimulationScenario {
   iterations?: number
   maxTime?: number
   varyCombatLength?: number
+  statBonuses?: Readonly<Partial<Record<'strength' | 'agility' | 'intellect' | 'crit' | 'haste' | 'mastery' | 'versatility', number>>>
+  food?: string
   targetError?: number
   raidBuffs?: boolean
   bloodlust?: boolean
@@ -74,13 +76,18 @@ export function isSimulationCharacter(v: unknown): v is SimulationCharacter {
     && maybe(v['level'], n => num(n, 1000) && Number.isInteger(n))
 }
 export function isSimulationScenario(v: unknown): v is SimulationScenario {
-  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides', 'actionLists'].includes(k))) return false
+  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses'].includes(k))) return false
   if ('fightStyle' in v && !['Patchwerk', 'HecticAddCleave', 'LightMovement', 'HeavyMovement'].includes(String(v['fightStyle']))) return false
-  for (const [key, min, max] of [['desiredTargets', 1, 20], ['iterations', 1, 10000], ['maxTime', 30, 600]] as const) {
+  for (const [key, min, max] of [['desiredTargets', 1, 20], ['iterations', 1, 10000], ['maxTime', 20, 600]] as const) {
     if (key in v && !(num(v[key], max) && Number.isInteger(v[key]) && v[key] >= min)) return false
   }
   for (const [key, max] of [['varyCombatLength', .5], ['targetError', 5]] as const) if (key in v && !num(v[key], max)) return false
   for (const key of ['raidBuffs', 'bloodlust']) if (key in v && typeof v[key] !== 'boolean') return false
+  if ('statBonuses' in v) {
+    const bonuses = v['statBonuses']
+    if (!obj(bonuses) || !Object.keys(bonuses).length || Object.entries(bonuses).some(([key, amount]) => !['strength', 'agility', 'intellect', 'crit', 'haste', 'mastery', 'versatility'].includes(key) || !num(amount, 1000) || !Number.isInteger(amount))) return false
+  }
+  if ('food' in v && (typeof v['food'] !== 'string' || !/^[a-z][a-z0-9_]{0,79}$/.test(v['food']))) return false
   if ('actionLists' in v) {
     const apl = v['actionLists']
     if (!obj(apl) || !('default' in apl) || Object.keys(apl).length > 16) return false

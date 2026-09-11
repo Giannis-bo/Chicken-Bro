@@ -32,6 +32,16 @@ def verify_effective_config(compiled, report, raw_report=None):
         except TalentEditError: fail()
     proof = {'status':'verified','profileSha256':compiled.profile_sha256,
              'checked':['talents','equipmentItemIds','overriddenItemLevels']}
+    if 'food' in compiled.scenario:
+        from server.app.simulation.report import select_report_actor, MAX_REPORT_BYTES
+        if not isinstance(raw_report, (str, bytes)) or len(raw_report) > MAX_REPORT_BYTES: fail()
+        try:
+            actor = select_report_actor(json.loads(raw_report)['sim']['players'], compiled.actor_name)
+            if actor.get('food') != compiled.scenario['food']: fail()
+        except (KeyError, TypeError, AttributeError, ValueError, RecursionError):
+            fail()
+        proof['checked'].append('foodInputIdentity')
+        proof['food'] = actor['food']
     overrides = compiled.scenario.get('equipmentOverrides', {})
     if not overrides:
         return proof

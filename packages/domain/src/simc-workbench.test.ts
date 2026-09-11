@@ -9,6 +9,16 @@ const report: SimulationReport = {
   buffs:[{name:'Bloodlust',uptime:13}],resources:[],attributes:[],gear:[],
 }
 describe('SimC workbench guards', () => {
+  it('validates short bounded attribute experiments', () => {
+    expect(isSimulationScenario({maxTime:20,food:'disabled',statBonuses:{intellect:50,crit:72}})).toBe(true)
+    for (const statBonuses of [{}, {bad:1}, {crit:-1}, {crit:1001}, {crit:1.5}, {crit:true}]) expect(isSimulationScenario({statBonuses})).toBe(false)
+    expect(isSimulationScenario({maxTime:19})).toBe(false)
+  })
+  it('accepts bounded food settings and rejects injected directives', () => {
+    expect(isSimulationScenario({food: 'hearty_silvermoon_parade'})).toBe(true)
+    expect(isSimulationScenario({food: 'disabled'})).toBe(true)
+    for (const food of ['', 'x\ninput=file', 'x,y', 1, null]) expect(isSimulationScenario({food})).toBe(false)
+  })
   it('accepts custom rotations and rejects malformed or injected lists', () => {
     expect(isSimulationScenario({ actionLists: { default: ['strict_sequence,name=burst:stormkeeper:ascendance', 'lightning_bolt'] } })).toBe(true)
     for (const actionLists of [{}, { cooldowns: ['ascendance'] }, { default: ['lightning_bolt\ninput=/etc/passwd'] }, { default: Array(257).fill('lightning_bolt') }]) {

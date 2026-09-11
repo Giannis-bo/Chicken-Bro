@@ -14,6 +14,17 @@ class EffectiveConfigTest(unittest.TestCase):
         talents=next(line.split('=',1)[1] for line in self.compiled.profile.splitlines() if line.startswith('talents='))
         self.report={'actor':{'talents':talents},'gear':[{'slot':slot,'itemId':item['itemId'],'itemLevel':285 if slot=='trinket1' else item['itemLevel']}
                       for slot,item in {**f.snapshot.snapshot['gear'],**self.compiled.scenario['equipmentOverrides']}.items()]}
+    def test_food_identity_requires_matching_engine_actor_evidence(self):
+        compiled = replace(self.compiled, scenario={'food': 'hearty_silvermoon_parade'})
+        def raw(food, name=None):
+            return json.dumps({'sim': {'players': [{'name': name or compiled.actor_name, 'food': food}]}})
+        proof = verify_effective_config(compiled, self.report, raw('hearty_silvermoon_parade'))
+        self.assertEqual(proof['food'], 'hearty_silvermoon_parade')
+        self.assertIn('foodInputIdentity', proof['checked'])
+        for payload in (None, raw('disabled'), raw('hearty_silvermoon_parade', 'OtherActor')):
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                verify_effective_config(compiled, self.report, payload)
+
     def test_accepts_report_matching_effective_equipment_and_talents(self):
         proof=verify_effective_config(self.compiled,self.report)
         self.assertEqual(proof['profileSha256'],self.compiled.profile_sha256)
