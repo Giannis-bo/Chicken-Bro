@@ -8,6 +8,25 @@ from uuid import uuid4
 from server.app.chickenbro.durable import ChatLeaseLost
 
 
+def source_request_hashes(operation, arguments):
+    def digest(value):return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+    raw=digest(arguments)
+    if operation != 'source.warcraftlogs' or set(arguments)-{'provider','target','options'}:return raw,raw
+    try:
+        from server.app.chickenbro.wcl_source import normalize_wcl_report_url,validate_wcl_options
+        from server.app.simulation.sources import parse_character_source_url
+        parsed=parse_character_source_url(normalize_wcl_report_url(arguments['target']))
+        options=validate_wcl_options(arguments.get('options'))
+        if options.get('view') not in ('overview','healing'):return raw,raw
+        target='https://www.warcraftlogs.com/reports/'+parsed.report_code
+        params=[]
+        if parsed.fight_id:params.append('fight='+str(parsed.fight_id))
+        if parsed.actor_id:params.append('source='+str(parsed.actor_id))
+        if params:target+='?'+'&'.join(params)
+        return raw,digest({'provider':'warcraftlogs','target':target,'options':options})
+    except (ValueError,TypeError,KeyError,AttributeError):return raw,raw
+
+
 class ToolRecorder:
     def __init__(self, guarded_connection, run_id):
         self.connect = guarded_connection
@@ -15,7 +34,7 @@ class ToolRecorder:
 
     def execute(self, operation, arguments, invoke, admit_reuse=None):
         call_id = uuid4()
-        digest = hashlib.sha256(json.dumps(arguments,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        raw_digest,digest = source_request_hashes(operation,arguments)
         reused = None
         with self.connect() as conn:
             with conn.cursor() as cur:
@@ -28,12 +47,12 @@ class ToolRecorder:
                         JOIN chat.agent_runs prior ON prior.id=t.run_id
                         JOIN chat.agent_runs current ON current.id=%s AND current.user_id=prior.user_id
                             AND current.conversation_id=prior.conversation_id
-                        WHERE t.operation=%s AND t.request_hash=%s AND t.state='completed'
+                        WHERE t.operation=%s AND t.request_hash IN (%s,%s) AND t.state='completed'
                             AND t.started_at>now()-interval '6 hours'
                             AND t.result_json->>'status'='verified'
                             AND t.result_json @? '$.facts[*].fight ? (@.kill == true)'
                             AND NOT (t.result_json ? 'reuse')
-                        ORDER BY t.started_at DESC LIMIT 1""",(self.run_id,operation,digest))
+                        ORDER BY t.started_at DESC LIMIT 1""",(self.run_id,operation,raw_digest,digest))
                     row=cur.fetchone()
                     if row:
                         reused=row[1]

@@ -22,4 +22,4 @@ class EvidenceTest(unittest.TestCase):
         result=project_evidence(rows)
         self.assertEqual(len(result['facts']),6)
         self.assertEqual(sum(bool(f['players']) for f in result['facts']),3)
-        self.assertNotIn('hitdetails',result['facts'][0]['healing']['entries'][0])
+        self.assertNotIn('hitdetails',next(f for f in result['facts'] if f.get('healing'))['healing']['entries'][0])

@@ -5,7 +5,11 @@ from server.app.chickenbro.wcl_source import _bounded_json
 
 def project_evidence(rows):
     facts=[];seen=set();truncated=False
-    for run_id,call_id,result,checked_at in rows:
+    def has_stats(row):
+        result=row[2]
+        return any(isinstance(f,dict) and any(isinstance(p,dict) and isinstance(p.get('combatantInfo'),dict) for p in f.get('players',[])) for member in result.get('results',[result]) if isinstance(member,dict) for f in member.get('facts',[]))
+    # Stable within each category: newest metadata first, then healing summaries.
+    for run_id,call_id,result,checked_at in sorted(rows,key=lambda row:not has_stats(row)):
         for member in result.get('results',[result]):
             if not isinstance(member,dict) or member.get('status')!='verified':continue
             for fact in member.get('facts',[]):
@@ -21,7 +25,7 @@ def project_evidence(rows):
                     retained['combatantInfo']['gear']=[{k:g[k] for k in ('id','name','slot','itemLevel','bonusIDs','gems','permanentEnchant','permanentEnchantName','setID') if k in g} for g in info.get('gear',[])[:20] if isinstance(g,dict)]
                     players.append(retained)
                 if not players and not fact.get('healing'):continue
-                item={k:fact[k] for k in ('reportCode','fightId','sourceId','view','fight','gameVersion','logVersion','queryScope','healing','casts') if k in fact}
+                item={k:fact[k] for k in ('reportCode','fightId','sourceId','view','fight','gameVersion','logVersion','queryScope','healing') if k in fact}
                 if isinstance(item.get('healing'),dict):
                     h=dict(item['healing'])
                     h['entries']=[{k:r[k] for k in ('guid','id','name','total','overheal','hitCount','tickCount','critHitCount','critTickCount','composite') if k in r} for r in h.get('entries',[]) if isinstance(r,dict)]

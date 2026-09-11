@@ -181,6 +181,9 @@ class ResearchPostgresTest(unittest.TestCase):
         with self.connect() as conn:conn.execute("INSERT INTO chat.executions(run_id,user_id,stage) VALUES (%s,%s,'succeeded')",(new,self.owner))
         reused=ToolRecorder(self.connect,new).execute('source.warcraftlogs',body,lambda:self.fail('cache hit reached upstream'))
         self.assertEqual(reused['reuse']['runId'],str(old))
+        alternate={**body,'target':body['target'].replace('www.','cn.').replace('?fight=','#fight=')+'&type=healing'}
+        reused_variant=ToolRecorder(self.connect,new).execute('source.warcraftlogs',alternate,lambda:self.fail('equivalent URL reached upstream'))
+        self.assertEqual(reused_variant['reuse']['runId'],str(old))
         evidence=self.repo.research_evidence(self.owner,self.conversation)
         self.assertEqual(evidence['facts'][0]['players'][0]['combatantInfo']['stats']['Crit']['min'],622)
         self.assertEqual(self.repo.research_evidence(uuid4(),self.conversation)['facts'],[])
