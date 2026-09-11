@@ -1,7 +1,7 @@
 {
   "recordedAt": "2026-09-11T06:07:34.735099+00:00",
-  "status": "integrated_pending_joint_candidate_and_live",
-  "integratedCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
+  "status": "candidate_verified_pending_joint_live",
+  "integratedCommit": "22c681f99f457329f1b25570343b7f9be401201b",
   "implementationCommit": "fff567fbe",
   "historicalFailure": {
     "runId": "2ed6e056-58d3-4fcc-aff1-9fe93e6c4fbf",
@@ -34,10 +34,20 @@
       "upstreamKind": "cyberPolicy",
       "elapsedMs": 9816,
       "tools": 0
+    },
+    {
+      "runId": "6ffadcdb-877b-4c8a-ab3a-e818c36b8061",
+      "source": "9e92bc124a1069a617883a710615e6a0bd544d61",
+      "outcome": "failed_with_expected_policy_code_but_incorrect_retryable_subscription",
+      "publicErrorCode": "CODEX_REQUEST_REJECTED",
+      "failureKind": "upstream_error",
+      "upstreamKind": "cyberPolicy",
+      "elapsedMs": 9210,
+      "tools": 0
     }
   ],
   "budget": {
-    "modelCalls": 3,
+    "modelCalls": 4,
     "modelCeiling": 8,
     "simcJobs": 0,
     "simcCeiling": 4,
@@ -54,7 +64,7 @@
   "acceptance": {
     "permission": "normal explicit refusal without tools OR failed CODEX_REQUEST_REJECTED with retryable=false, no tools, no assistant record, owner isolation and idempotent replay",
     "general": "real image Chat, real cloud SimC positive metrics/provenance, QQ/CSRF/owner isolation, Web artifact verification via joint release",
-    "candidate": "pending",
+    "candidate": "passed using original native policy rejection plus persisted-run targeted recheck on 22c681f99; old failed acceptance retained",
     "live": "pending",
     "manualUserAcceptance": "not_claimed"
   },
@@ -63,5 +73,14 @@
     "failure evidence harness initially queried nonexistent error_code; corrected to public_error_code, authoritative failure retained",
     "one nonexistent source-directory typo blocked child start before model invocation",
     "initial isolated Web build could not resolve existing nested Taro plugin; reused local installed workspace dependencies, no installation"
-  ]
+  ],
+  "durableFix": {
+    "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "cause": "DurableSubscription treated all failures as retryable, unlike direct delivery allowlist",
+    "change": "use same retryable-code allowlist as direct delivery",
+    "localRedGreen": "three nonretryable classes failed before change; targeted test passed after",
+    "cloudIsolatedTestsPassed": 104,
+    "localFullDeliveryTests": "not_passed_missing_fastapi; no dependency installed",
+    "recheck": "passed; candidate-replay.json; zero model and SimC"
+  }
 }
