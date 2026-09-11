@@ -78,3 +78,11 @@ API/Worker当前运行源码 `3f0c15d988fd33fd08dae8514f70ee483862c3c8`，7文�
 ## 原生搜索工具能力上线（2026-09-10 21:08）
 
 当前后端为 `badcase-1c7caa15984240fcd3ad1ca03495953c9aa6dfc9`，Web 保持 `changelog-b5567b1065573cc048eea285bc748c09341a3c31`。按新范围工具验收与通用业务通过，原生事件摘要可按 run ID 从 Worker 日志核对；事件完成不代表资料正确。旧 c408a30e6 与本批私有恢复材料保留，未发生本轮回滚。当前发布清单与固定执行器位于 root/0700 `/var/lib/chickenbro-native-search-tool-20260910/`，恢复需在空闲门禁下按本批 deploy.py/manifest.json rollback 并重新验证业务。历史失败仍保留。见[线上结果](../artifacts/verification/2026-09-10-native-search/README.md#本轮线上结果)。
+
+## 有限研究完整解答（2026-09-11）
+
+当前后端为 `badcase-e61595bf20385b881e5023eab232e1cca23227bd`，Web保持 `research-22c681f99f457329f1b25570343b7f9be401201b`。0010增量迁移保存工作量、模型usage和请求元信息；旧运行版本可忽略新增列，恢复时不回滚业务数据库。当前版本按run保护执行次数、按研究保护范围，已累计48不再永久禁止正常追问。
+
+私有root/0700发布包 `/var/lib/chickenbro-research-completion-release-20260911/` 保留精确manifest、17文件overlay和root/0600环境恢复快照；旧后端和Web保留。本批 `deploy.py manifest.json rollback` 在同一全任务空闲门禁下恢复旧后端，再验证API/Worker身份、readiness及业务。旧版本会恢复旧研究策略，因此回退后须报告影响；不删除0010账本或恢复旧数据库覆盖新写入。未执行本轮回切演练。
+
+[业务、用量与恢复核验记录](../artifacts/verification/2026-09-11-research-completion/README.md)。

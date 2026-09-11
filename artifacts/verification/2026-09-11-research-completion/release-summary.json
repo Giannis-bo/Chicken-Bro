@@ -1,0 +1,271 @@
+{
+  "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+  "productModelTurns": 6,
+  "directWclValidationRequests": 5,
+  "newSimcJobs": 0,
+  "tokenUsage": {
+    "inputTokens": 3334846,
+    "outputTokens": 19775,
+    "cachedInputTokens": 2929664,
+    "reasoningOutputTokens": 1736,
+    "totalTokens": 3354621,
+    "uncachedInputTokens": 405182
+  },
+  "cases": [
+    {
+      "stage": "candidate",
+      "case": "comparison",
+      "runId": "33221e83-73fb-46a8-b5e8-89f17278db60",
+      "source": "/opt/chickenbro-releases/badcase-b0550e72b7003048a0ffc55bc7bfb1554135b003",
+      "status": "succeeded",
+      "errorCode": "",
+      "usage": {
+        "primary": {
+          "inputTokens": 389996,
+          "totalTokens": 393221,
+          "outputTokens": 3225,
+          "cachedInputTokens": 336256,
+          "reasoningOutputTokens": 189
+        }
+      },
+      "toolRecords": 8,
+      "newSourceSubqueries": 16,
+      "eventRequestUnits": 4800,
+      "cacheHits": 0,
+      "originalReceiptSha256": "d19286cf2720b0ff4fb7f55b86673c1f6581a9140414cebdba3b8285b72d4fa1"
+    },
+    {
+      "stage": "candidate",
+      "case": "comparison",
+      "runId": "beacb229-75d9-4dcb-a70f-98fba5ab6551",
+      "source": "/opt/chickenbro-releases/badcase-241b1af2817216ab12eeb5c6fb0677a2a78f3c5a",
+      "status": "failed",
+      "errorCode": "CODEX_OUTPUT_INVALID",
+      "usage": {
+        "primary": {
+          "inputTokens": 531259,
+          "totalTokens": 533403,
+          "outputTokens": 2144,
+          "cachedInputTokens": 457216,
+          "reasoningOutputTokens": 178
+        }
+      },
+      "toolRecords": 9,
+      "newSourceSubqueries": 18,
+      "eventRequestUnits": 3000,
+      "cacheHits": 0,
+      "originalReceiptSha256": "2280a5f50b12c4e6f4c43ee908c04401043e7330cc06e6d74a544dfebee5ad40"
+    },
+    {
+      "stage": "candidate",
+      "case": "comparison",
+      "runId": "88cc31e4-95f4-44ab-aed7-de019e3002f9",
+      "source": "/opt/chickenbro-releases/badcase-055e25d08d612633e7609d35d8ad516b4bda3b60",
+      "status": "succeeded",
+      "errorCode": "",
+      "usage": {
+        "primary": {
+          "inputTokens": 628005,
+          "totalTokens": 632399,
+          "outputTokens": 4394,
+          "cachedInputTokens": 549632,
+          "reasoningOutputTokens": 199
+        }
+      },
+      "toolRecords": 10,
+      "newSourceSubqueries": 17,
+      "eventRequestUnits": 2400,
+      "cacheHits": 0,
+      "originalReceiptSha256": "57625ffdd49e1f7f94a8d4eaddd8f897a7a8427e6031221815f225275a729883"
+    },
+    {
+      "stage": "candidate",
+      "case": "attributes",
+      "runId": "e0ac6960-e958-4ee9-8fdd-fa8ee82ac630",
+      "source": "/opt/chickenbro-releases/badcase-055e25d08d612633e7609d35d8ad516b4bda3b60",
+      "status": "succeeded",
+      "errorCode": "",
+      "usage": {
+        "primary": {
+          "inputTokens": 178919,
+          "totalTokens": 180059,
+          "outputTokens": 1140,
+          "cachedInputTokens": 134784,
+          "reasoningOutputTokens": 13
+        }
+      },
+      "toolRecords": 3,
+      "newSourceSubqueries": 1,
+      "eventRequestUnits": 0,
+      "cacheHits": 2,
+      "originalReceiptSha256": "57625ffdd49e1f7f94a8d4eaddd8f897a7a8427e6031221815f225275a729883"
+    },
+    {
+      "stage": "candidate",
+      "case": "attributes",
+      "runId": "062eb422-4ad7-4512-9f39-a065d1c86b7c",
+      "source": "/opt/chickenbro-releases/badcase-e61595bf20385b881e5023eab232e1cca23227bd",
+      "status": "succeeded",
+      "errorCode": "",
+      "usage": {
+        "primary": {
+          "inputTokens": 243635,
+          "totalTokens": 244924,
+          "outputTokens": 1289,
+          "cachedInputTokens": 187520,
+          "reasoningOutputTokens": 114
+        }
+      },
+      "toolRecords": 4,
+      "newSourceSubqueries": 1,
+      "eventRequestUnits": 1000,
+      "cacheHits": 3,
+      "originalReceiptSha256": "c7464cc901c1e83d35971ecdfd103ced5f6ef470eb30ccb33d564d8612bee643"
+    },
+    {
+      "stage": "production",
+      "case": "comparison",
+      "runId": "3d3bada9-de94-4129-b3a9-c21ac33411b5",
+      "source": "/opt/chickenbro-releases/badcase-e61595bf20385b881e5023eab232e1cca23227bd",
+      "status": "succeeded",
+      "errorCode": "",
+      "usage": {
+        "primary": {
+          "inputTokens": 1363032,
+          "totalTokens": 1370615,
+          "outputTokens": 7583,
+          "cachedInputTokens": 1264256,
+          "reasoningOutputTokens": 1043
+        }
+      },
+      "toolRecords": 21,
+      "newSourceSubqueries": 29,
+      "eventRequestUnits": 3300,
+      "cacheHits": 4,
+      "originalReceiptSha256": "89f8ea95c5ab08d68cafd7db6ea6aff6a769f3ac0c2cd59db74b49b7066c3e57"
+    }
+  ],
+  "publicCheck": {
+    "action": "verify",
+    "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+    "backend": "/opt/chickenbro-releases/badcase-e61595bf20385b881e5023eab232e1cca23227bd",
+    "web": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+    "businessSmoke": "required",
+    "webFiles": [
+      {
+        "path": "index.html",
+        "sha256": "0449de349cec7c36b8b83151cb0d16ffa1a64d2fc69cca4d940a5cd74359e2b2"
+      },
+      {
+        "path": "js/app.js",
+        "sha256": "99f9f337a0d04e9637da8abd002364ea1a96029e06866f6cc7df0481864b7950"
+      },
+      {
+        "path": "js/app.js.LICENSE.txt",
+        "sha256": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af"
+      },
+      {
+        "path": "js/639.js",
+        "sha256": "afa3ff6c2f8d86af69ab27342c328a85f7f278ba310539526aa6f418be90315d"
+      },
+      {
+        "path": "js/639.js.LICENSE.txt",
+        "sha256": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310"
+      },
+      {
+        "path": "brand/gugu-v1.ico",
+        "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d"
+      },
+      {
+        "path": "brand/gugu-v1-32.png",
+        "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5"
+      },
+      {
+        "path": "brand/gugu-v1-16.png",
+        "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998"
+      },
+      {
+        "path": "css/app.css",
+        "sha256": "54b7c3ce6229e3e9cd2b368d0e94c48fac3b4b85c36126d148b7cbceed6fa8bc"
+      },
+      {
+        "path": "chunk/953.js",
+        "sha256": "ea68804d5504a52a9d02fe427996035045dff9bc1f68df2a6e7d39183554eac8"
+      },
+      {
+        "path": "chunk/580.js.LICENSE.txt",
+        "sha256": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418"
+      },
+      {
+        "path": "chunk/580.js",
+        "sha256": "6cd99bac1a6d4a2ebf1dcebca97026641b1e35dfe8476da6ecae84272154f417"
+      },
+      {
+        "path": "static/images/web/assets/gu-gu-mascot.png",
+        "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+      }
+    ],
+    "recoverySnapshotValidated": true,
+    "rollbackDrill": false,
+    "activityBefore": {
+      "chat": 1,
+      "executions": 1,
+      "simc": 0,
+      "queue": 0
+    },
+    "activityAfter": {
+      "chat": 1,
+      "executions": 1,
+      "simc": 0,
+      "queue": 0
+    },
+    "observationSeconds": 30
+  },
+  "candidateReuseCheck": {
+    "ownerIsolation": true,
+    "idempotentReplayNoNewModel": true,
+    "restoredCrit622And868": true,
+    "healingCacheHits": 3,
+    "newOverviewOrHealingCalls": 0,
+    "newBuffEvidenceCalls": 1,
+    "allUpstreamZero": false,
+    "functionalAndReuseAccepted": true,
+    "source": "/opt/chickenbro-releases/badcase-e61595bf20385b881e5023eab232e1cca23227bd",
+    "runId": "062eb422-4ad7-4512-9f39-a065d1c86b7c"
+  },
+  "originalHistoryCheck": {
+    "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+    "originalConversationReadOnly": true,
+    "playerStats": [
+      {
+        "actor": 13,
+        "crit": {
+          "max": 622,
+          "min": 622
+        }
+      },
+      {
+        "actor": 6,
+        "crit": {
+          "max": 868,
+          "min": 868
+        }
+      },
+      {
+        "actor": 141,
+        "crit": {
+          "max": 674,
+          "min": 674
+        }
+      }
+    ],
+    "facts": 4,
+    "truncated": false
+  },
+  "notes": [
+    "Input includes cached input; total includes input and output, not an amount of money. Reasoning output is a subset of output; do not add it again.",
+    "All-source-zero was not achieved: the final attribute follow-up made one bounded Buffs query and reused all three healing results.",
+    "Top100 new model coverage was omitted within the six-turn budget; deterministic admission tests and existing prior coverage retained.",
+    "Original user token usage was not recorded; not reconstructed."
+  ]
+}

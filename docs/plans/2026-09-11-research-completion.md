@@ -20,7 +20,7 @@
 - [x] 2. tests/app_research_evidence_test.py 先覆盖历史属性恢复与紧凑投影；实现 research_evidence.py 和 repository/application 接线，恢复旧持久研究建立前的同对话证据。只白名单业务字段，结果作为非指令数据进入模型；字节、行数、角色数明确有界。ToolRecorder 对已完成战斗的近期成功概览做同owner/conversation复用，记录命中来源，不调用上游。
 - [x] 3. tests/app_wcl_healing_test.py 先覆盖 whole-fight聚合口径、缺字段、窗口范围、响应裁剪；wcl_source.py/source_gateway.py/MCP 增加 healing 视图，兼容 overview+Healing，带来源覆盖信息。用官方schema和有限实查确定字段，不能假定 missing=0。
 - [x] 4. 新增向前兼容 migration 保存 run usage 与工具请求元信息；codex_stdio/adapter 消费白名单token usage事件并持久化，未提供时保持unknown。更新运行提示词按目标→已有证据→必要缺口规划，优先聚合，不扩大无关研究。
-- [ ] 5. 定向测试→真实PostgreSQL→后端回归→本地diff审查→隔离Candidate原题与变体→合入main/push→排空门禁下API/Worker匹配发布→线上正常追问、隔离及公网Web文件核验；保留旧backend/Web和精确恢复manifest。未改Web仍验证既有产物，不声称新增人工QQ验收或回滚演练。
+- [x] 5. 定向测试→真实PostgreSQL→后端回归→本地diff审查→隔离Candidate原题与变体→合入main/push→排空门禁下API/Worker匹配发布→线上正常追问、隔离及公网Web文件核验；保留旧backend/Web和精确恢复manifest。未改Web仍验证既有产物，不声称新增人工QQ验收或回滚演练。
 
 所有结果绑定实际源码；失败保留，不靠扩大模型预算制造通过。
 
@@ -32,3 +32,7 @@
 - 第一次Candidate治疗表不完整；第二次完整取数后上游第二个final_answer触发既有协议拒绝。保留失败及usage，未改写为通过。模型总预算仍6，优先原题/属性Candidate与live；Top100当前策略使用本地范围校验及既有回归，不声称本轮新增真实模型覆盖。
 
 - 第三Candidate原题成功，属性回答正确但仍有1次概览重取，故效率不通过。最终补充：属性优先、历史不重复携带整张casts表、规范化WCL缓存身份（cn/www、query/fragment及展示参数）。剩余2次真实验证用于最终Candidate属性追问及live原题；原题Candidate既有成功保留，最终变体由定向PG与最终线上补齐。
+
+## 完成
+
+最终发布与分层验收见[记录](../../artifacts/verification/2026-09-11-research-completion/README.md)。6轮模型预算已用完，不再扩样。最终属性已复用3份healing缓存，只新增1次合理Buffs补证；保留全上游零调用指标未达成。

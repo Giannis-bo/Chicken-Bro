@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- 有限研究完整解答已发布（`e61595bf2`）：正常追问可继续、历史属性与治疗复用、治疗聚合及正确计费上线；Candidate属性与线上三人日志原题通过，实际token已可审计。保留范围上限、失败与未覆盖项。[发布证据](../artifacts/verification/2026-09-11-research-completion/README.md)。
+
 - 光塔持续时间有限实验完成：0.1/0.5/1及无额外精通共4组；站圈收益影响约0.5%，去掉收益仍未反转限定组合排名。乘数不是整场站圈率，真实站位仍未知，保留现有默认值，不改生产。[证据](../artifacts/verification/2026-09-11-lightspire-sensitivity/README.md)。
 
 - 饰品机制第一批：固定元素萨298羽毛＋黄眼睛，取消羽毛属性惩罚后DPS点估计+0.13%，未推翻历史组合排名；仅此条件实验完成，真实概率及当前游戏版本差异仍未验证。[证据](../artifacts/verification/2026-09-11-trinket-mechanism/README.md)。

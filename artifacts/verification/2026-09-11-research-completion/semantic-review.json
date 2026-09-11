@@ -1,0 +1,30 @@
+{
+  "reviewedAt": "2026-09-11T17:23:17.659333+08:00",
+  "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+  "localBackendTests": 744,
+  "localControlTests": 63,
+  "finalTargetedPostgresAndHistoryTests": 30,
+  "trackedServerFilesMatched": 137,
+  "productionRunId": "3d3bada9-de94-4129-b3a9-c21ac33411b5",
+  "businessVerdict": "passed",
+  "originalComparisonCandidateRunId": "88cc31e4-95f4-44ab-aed7-de019e3002f9",
+  "attributeCandidateRunId": "062eb422-4ad7-4512-9f39-a065d1c86b7c",
+  "checks": {
+    "wholeFightHealingPaired": true,
+    "signedAdjustmentsSeparated": true,
+    "durationNormalized": true,
+    "allThreePlayersCompared": true,
+    "castWindowsAndConditionalAdvice": true,
+    "noPermanentExhaustionAtOld48": true,
+    "knownStatsRestored": true,
+    "threeHealingCacheHits": true,
+    "ownerIsolationAndIdempotency": true
+  },
+  "limitations": [
+    "Attribute followup made one bounded Buffs query; zero total upstream calls was not achieved, while existing overview/healing evidence was reused.",
+    "Top100 was not given a new model run in this six-turn budget; local source-scope enforcement and existing earlier coverage retained.",
+    "No new SimC or interactive QQ login, no rollback drill.",
+    "One earlier final-answer protocol failure retained; this unrelated existing failure path was not changed.",
+    "Original user historical token usage is unknown."
+  ]
+}

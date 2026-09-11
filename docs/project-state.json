@@ -704,16 +704,16 @@
   "currentDelivery": {
     "asOf": "2026-09-11",
     "scope": "web_only_qq",
-    "latestRecordedApplicationSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
-    "evidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
+    "latestRecordedApplicationSourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+    "evidence": "artifacts/verification/2026-09-11-research-completion/release-summary.json",
     "status": "live_verified_for_recorded_release",
     "manualPostReleaseAcceptance": "not_claimed",
     "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence.",
     "webFilesVerified": 13,
-    "observationSeconds": 45.6,
+    "observationSeconds": 30,
     "rollbackDrill": "not_run",
-    "recoveryEvidence": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json",
-    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-project-closure/live-web-check.json"
+    "recoveryEvidence": "artifacts/verification/2026-09-11-research-completion/release-summary.json",
+    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-research-completion/release-summary.json"
   },
   "jointRelease": {
     "status": "released",
@@ -770,5 +770,17 @@
     "evidence": "artifacts/verification/2026-09-11-project-closure/README.md",
     "productRedeployment": "not_required_no_product_diff",
     "remainingWork": "expiry_pending_simulation_facts_and_retained_local_evidence"
+  },
+  "researchCompletion": {
+    "status": "live_verified",
+    "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+    "evidence": "artifacts/verification/2026-09-11-research-completion/README.md",
+    "modelTurns": 6,
+    "directWclValidationRequests": 5,
+    "newSimcJobs": 0,
+    "oldCumulativeWorkBlocksFollowup": false,
+    "newAccountDailyQuota": false,
+    "zeroAllUpstreamCalls": "not_achieved_one_bounded_buff_query_allowed",
+    "manualAcceptance": "not_claimed"
   }
 }
