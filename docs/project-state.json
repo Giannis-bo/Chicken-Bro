@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-10",
+  "updatedAt": "2026-09-11",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "in_progress",
   "targetProduct": {
@@ -25,7 +25,8 @@
     "phase3": "local_verified",
     "phase4": "local_verified",
     "phase5": "production_accepted_write_verified",
-    "phase6": "local_and_cloud_cleanup_complete"
+    "phase6": "local_and_cloud_cleanup_complete",
+    "scope": "historical_six_phase_rebuild_only"
   },
   "gates": {
     "implementationAuthorized": true,
@@ -155,7 +156,9 @@
       "originMain": "origin/main",
       "productionRuntimeCommit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
       "weappRefresh": "preview_refreshed"
-    }
+    },
+    "scope": "historical_six_phase_rebuild_only",
+    "asOf": "2026-09-04"
   },
   "executionAuthority": {
     "architecture": "docs/chickenbro-simc-architecture.md",
@@ -179,17 +182,18 @@
     "status": "user_accepted",
     "acceptedAt": "2026-09-08",
     "acceptance": "目前我认为1.0版本已经完成了！",
-    "scope": "current_implemented_chat_and_simc",
+    "scope": "historical_1_0_mini_web_accepted_implementation",
     "releaseNotes": "docs/releases/1.0.md",
     "verificationRecord": "artifacts/verification/2026-09-08-v1-close/README.md",
     "finalUiChanges": "web_deployed_mini_uploaded",
-    "wechatPublicRelease": "pending_user_platform_action",
+    "wechatPublicRelease": "cancelled_by_mini_retirement_2026-09-09",
     "historicalRefactorEvidenceAsOf": "2026-09-04",
     "latestApplicationSourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
     "publicationEvidence": "artifacts/verification/2026-09-08-v1-close/alignment/release.json",
     "latestMiniVersion": "1.0.5",
     "latestMiniUpload": "succeeded",
-    "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1"
+    "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1",
+    "note": "Historical 1.0 acceptance and source identities; not the current QQ/Web deployment or a pending Mini release."
   },
   "historicalRebuild": {
     "asOf": "2026-09-08",
@@ -215,7 +219,14 @@
       ],
       "candidateDatabaseProvisioningAuthorized": true
     },
-    "note": "Historical dual-client authorization and evidence; not authority for the QQ refactor or new deletion."
+    "note": "Historical dual-client authorization and evidence; not authority for the QQ refactor or new deletion.",
+    "compatibilityFields": [
+      "delivery",
+      "gates",
+      "refactorEvidence",
+      "defaultLocalReleaseArtifact",
+      "productRelease"
+    ]
   },
   "qqWebRefactor": {
     "status": "live_verified",
@@ -353,7 +364,7 @@
       "plan": "docs/plans/2026-09-10-bounded-research.md",
       "evidence": "artifacts/verification/2026-09-10-native-search/README.md",
       "scope": "native_search_tool_capability",
-      "answerQualityBacklog": "finite_catalogue_G11_live_verified_other_simulation_backlog_open",
+      "answerQualityBacklog": "G8_G9_original_replay_passed_G10_automatic_alias_research_and_G12_native_output_failure_open",
       "originalBadcaseClosure": false,
       "manualUserAcceptance": "not_claimed"
     },
@@ -368,12 +379,184 @@
       "pairedTrialsPerPhase": 10,
       "livePassed": 2,
       "remainingGroups": [
-        "G8",
-        "G9",
         "G10"
       ],
       "allManufacturingQualitiesVerified": false,
-      "manualUserAcceptance": "not_claimed"
+      "manualUserAcceptance": "not_claimed",
+      "remainingGroupsScope": "original_automatic_alias_research_not_declared_condition_comparison",
+      "replayEvidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md"
+    },
+    "badcaseFollowup": {
+      "asOf": "2026-09-11",
+      "status": "in_progress",
+      "tracking": "docs/plans/2026-09-11-remaining-issues-status.md",
+      "G8": {
+        "status": "original_replay_passed",
+        "implementation": "existing_released_tools_reused",
+        "candidate": "original_replay_on_released_source_passed",
+        "live": "no_new_release_or_live_smoke_claimed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+        "limit": "Finite original replay; not a new five-class randomized model matrix."
+      },
+      "G9": {
+        "status": "two_original_replays_passed",
+        "implementation": "existing_released_behavior_reused",
+        "candidate": "two_budget_explanation_replays_passed",
+        "live": "no_new_release_or_live_smoke_claimed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+        "limit": "No fabricated server budget cap or simulation; original ring DPS belongs to G12."
+      },
+      "G10": {
+        "status": "declared_condition_comparison_passed_automatic_alias_replay_open",
+        "implementation": "existing_released_tools_reused",
+        "candidate": "three_simulations_and_resolved_context_answer_passed",
+        "live": "no_new_live_acceptance",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
+        "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain.",
+        "automaticAliasWork": {
+          "status": "local_verified_candidate_pending",
+          "sourceCommit": "30a5870e3",
+          "integration": "not_reported",
+          "localTestsPassed": 45,
+          "localTestEvidence": "reported_by_owning_task",
+          "candidate": "pending_joint_accuracy_validation",
+          "live": "not_verified",
+          "manualUserAcceptance": "not_claimed",
+          "evidenceAtSourceCommit": [
+            "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
+            "artifacts/verification/2026-09-11-g10-product-path/before.json"
+          ],
+          "before": {
+            "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+            "passed": false,
+            "nativeSearchEvents": 5,
+            "optionsCalls": 3,
+            "simc": 0,
+            "reason": "Asked for formal names and upgrade levels"
+          },
+          "budget": {
+            "models": 8,
+            "cloudSimc": 12,
+            "observedSources": 60
+          }
+        }
+      },
+      "G12": {
+        "status": "enchant_and_completion_race_live_verified_native_failure_reopened",
+        "implementation": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
+        "candidate": "business_passed_model_matrix_9_of_10",
+        "live": "two_real_enchant_comparisons_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
+        "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here."
+      },
+      "G13": {
+        "status": "live_verified",
+        "implementation": "af244e22bea1b894745f2ec0fd2467843375061a",
+        "candidate": "deterministic_matrix_5_of_5_and_business_passed",
+        "live": "two_equipment_name_answers_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/release-rerun/README.md",
+        "limit": "Failed first release and verified recovery retained; release identity 60028b8338e6fb41b2509647afe7d27a26329279."
+      },
+      "food": {
+        "status": "conditional_burst_live_verified_full_timeline_open",
+        "implementation": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+        "candidate": "original_elemental_two_stat_comparison_passed",
+        "live": "feral_stat_experiment_readback_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md",
+        "limit": "Conditional 20-second burst; not a complete boss timeline or proof of original food support."
+      },
+      "historicalConsumption": {
+        "modelsObservedThroughG10Comparison": 114,
+        "lastFiniteWindow": {
+          "models": 7,
+          "modelLimit": 12,
+          "cloudSimc": 20,
+          "cloudSimcLimit": 20,
+          "observedSourceOperations": 57,
+          "sourceLimit": 60
+        },
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
+        "note": "Historical window remains stopped; new tasks track their own explicit budgets without resetting these totals. Provider-internal attempts are not known."
+      }
+    },
+    "cosAuditRecovery": {
+      "status": "historical_investigation_blocked_audit_enablement_pending_decision",
+      "evidenceCommit": "b019358dd00baa195ed452d16c60015cf3f83893",
+      "evidence": "artifacts/security/2026-09-11-cos-audit-recovery/README.md",
+      "implementation": "documentation_and_read_only_evidence_only",
+      "candidate": "not_applicable_no_runtime_change",
+      "live": "seven_theme_images_and_manifest_origin_cdn_integrity_verified",
+      "localRecovery": "eight_files_rebuilt_from_same_git_source_verified",
+      "independentDisasterRecovery": false,
+      "cloudRestoreExecuted": false,
+      "productionDeployment": "not_required_no_runtime_change",
+      "manualUserAcceptance": "not_claimed",
+      "historicalAnonymousWrites": "unknown",
+      "authenticatedTargetConfiguration": "not_verified_console_account_appid_mismatch",
+      "supportTicket": "draft_not_sent",
+      "blockers": [
+        "target_account_authenticated_read_only_access",
+        "supplier_history_and_capability_confirmation",
+        "explicit_ticket_send_authorization",
+        "separate_authorization_for_new_costs_or_migration"
+      ],
+      "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
+    },
+    "simcAccuracy": {
+      "status": "local_verified_candidate_pending",
+      "sourceCommit": "3c53101ec",
+      "integration": "not_reported",
+      "localTestsPassed": 99,
+      "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
+      "candidate": "pending_joint_G10_validation",
+      "live": "not_verified",
+      "manualUserAcceptance": "not_claimed",
+      "remainingEvidence": [
+        "real_crafted_item_version_fixture",
+        "enchant_quality_effect_mapping_and_report_readback",
+        "boss_timeline_and_entry_state",
+        "measured_trinket_mechanism_parameters"
+      ],
+      "budget": {
+        "models": 2,
+        "cloudSimc": 2,
+        "preferSharedG10Evidence": true
+      }
+    },
+    "persistentResearchBudget": {
+      "status": "local_verified",
+      "sourceCommit": "f48202568",
+      "integrationCommit": "30b3b7a52d4b9f0ba517dd405e7d84753bbf9df4",
+      "plan": "docs/plans/2026-09-11-persistent-research-budget.md",
+      "evidence": "artifacts/verification/2026-09-11-persistent-research/README.md",
+      "candidate": "not_verified",
+      "live": "not_deployed",
+      "manualUserAcceptance": "not_claimed",
+      "releasePrerequisite": "drain_old_jobs_and_apply_0009_chat_research_lifecycle_before_code_cutover",
+      "localVerification": {
+        "postgresTests": 28,
+        "backendTests": 719,
+        "webInputTests": 25,
+        "typecheck": "passed",
+        "lint": "passed",
+        "webBuild": "passed_with_existing_size_warning"
+      },
+      "limits": {
+        "chatSimcSubmissionsPerResearch": 4,
+        "generationSafetySeconds": 360,
+        "nativeWebGatewayPageHardLimit": false
+      },
+      "acceptanceBudget": {
+        "models": 6,
+        "cloudSimc": 2
+      }
     }
   },
   "miniRetirement": {
@@ -411,5 +594,14 @@
     "browserVerified": true,
     "secondAccountDenied": true,
     "productionRollbackDrill": "not_run"
+  },
+  "currentDelivery": {
+    "asOf": "2026-09-11",
+    "scope": "web_only_qq",
+    "latestRecordedApplicationSourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md",
+    "status": "live_verified_for_recorded_release",
+    "manualPostReleaseAcceptance": "not_claimed",
+    "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence."
   }
 }

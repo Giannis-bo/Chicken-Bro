@@ -472,7 +472,9 @@ export class ChatModel {
     if (event.type === 'failed') {
       this.update({ streamCompletedAt: event.completedAt ?? '', streamDurationMs: event.durationMs ?? null })
       this.activeStream = null
-      this.fail(event.errorCode, '本次回答未完成，用户消息已保留', event.retryable)
+      this.fail(event.errorCode, event.errorCode === 'CODEX_REQUEST_REJECTED'
+        ? '当前请求未通过安全检查，未生成回答。你的消息已保留。'
+        : '本次回答未完成，用户消息已保留', event.retryable)
       void this.refreshAfterStream(conversationId, true, generation)
     }
   }

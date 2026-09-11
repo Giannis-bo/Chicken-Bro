@@ -2,7 +2,7 @@
 
 Unknown ranking identities reserve slots; successful receipts bind those slots to
 characters so profile follow-ups do not consume a second slot. Failed/anonymous
-samples retain reservations. Semantic continuation is governed by the agent policy.
+samples retain reservations. Research lifecycle is bound by the server at message admission.
 """
 import copy
 import json
@@ -15,7 +15,7 @@ def blocked(dimension):
     return {'status': 'blocked', 'errorCode': 'RESEARCH_BUDGET_EXCEEDED',
             'facts': [], 'evidence': [], 'evidenceRefs': [],
             'limitations': [f'Research {dimension} budget exhausted. Stop expanding the research; report only verified scope and gaps.'],
-            'nextActions': ['Decline the oversized scope and offer a bounded alternative; do not split it into more calls.']}
+            'nextActions': ['本研究额度已用尽。可以继续解释已有证据并说明缺口，或发送 /结束研究。独立的新问题请在消息第一行输入 /新研究，下一行写问题；不得拆分同一研究重置预算。']}
 
 
 def character_key(region, realm, name):
@@ -48,6 +48,20 @@ class ResearchBudget:
         self.report_actors = {}
         self.pages = set()
         self.web_searches = 0
+
+    def dump(self):
+        """Versioned JSON state; monotonic process clocks are never persisted."""
+        return {key: sorted(value) if isinstance(value, set) else copy.deepcopy(value)
+                for key, value in self.__dict__.items() if key != 'started'}
+
+    @classmethod
+    def restore(cls, state):
+        budget = cls()
+        for key, default in budget.__dict__.items():
+            if key == 'started' or key not in state:
+                continue
+            budget.__dict__[key] = set(state[key]) if isinstance(default, set) else copy.deepcopy(state[key])
+        return budget
 
     def reserve(self, provider, target, options):
         if monotonic() - self.started >= 360:

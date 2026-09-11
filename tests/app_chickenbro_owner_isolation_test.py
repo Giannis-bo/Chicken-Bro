@@ -331,8 +331,7 @@ class OwnerIsolationTest(unittest.TestCase):
         )
 
         self.assertEqual(connection.enter_count, 1)
-        self.assertEqual(len(cursor.executed), 4)
-        statement, parameters = cursor.executed[3]
+        statement, parameters = cursor.executed[-1]
         self.assertIn("UPDATE chat.conversations", statement)
         self.assertIn("status = 'active'", statement)
         self.assertEqual(parameters, (now, conversation_id, owner_id))

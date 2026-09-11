@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-09-11T05:53:26.329Z",
+  "sourceCommit": "6e7037fbe2f2178da6ab36162e7fe01615731b8f",
+  "scope": "local_git_archive_restore_only",
+  "sourceIsIndependentBackup": false,
+  "cloudRestoreExecuted": false,
+  "archiveSha256": "713d299a96dea304d3f791219f1de0f58e504810abdf53ac12efc1c564034bd3",
+  "images": [
+    {
+      "name": "horde-bg-v2-clean.png",
+      "bytes": 836093,
+      "matched": true
+    },
+    {
+      "name": "alliance.png",
+      "bytes": 1396136,
+      "matched": true
+    },
+    {
+      "name": "maghar-citadel.png",
+      "bytes": 1780039,
+      "matched": true
+    },
+    {
+      "name": "forsaken.png",
+      "bytes": 1284774,
+      "matched": true
+    },
+    {
+      "name": "void.png",
+      "bytes": 1431956,
+      "matched": true
+    },
+    {
+      "name": "deathwing.png",
+      "bytes": 1917939,
+      "matched": true
+    },
+    {
+      "name": "venom.png",
+      "bytes": 1464788,
+      "matched": true
+    }
+  ],
+  "manifestMatched": true,
+  "temporaryRestoreDirectory": "/var/folders/1z/3qjyj_jx5p31s3jc698qmf680000gn/T/chickenbro-cos-restore-eP9NmE",
+  "stagingDirectory": "/var/folders/1z/3qjyj_jx5p31s3jc698qmf680000gn/T/chickenbro-web-themes-pOCo60"
+}

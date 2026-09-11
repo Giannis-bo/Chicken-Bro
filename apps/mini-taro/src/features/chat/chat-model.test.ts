@@ -662,3 +662,17 @@ it('does not consume a draft when a previous conversation admits after navigatio
   expect(accepted).not.toHaveBeenCalled()
   model.dispose()
 })
+
+
+it('shows policy rejection without suggesting retry or fabricating an answer', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  await model.send('查询资料')
+  const envelope = { requestId: 'server-request', conversationId: conversation.id, runId: 'run-policy' }
+  client.emit({ ...envelope, type: 'started', sequence: 1 })
+  client.emit({ ...envelope, type: 'failed', sequence: 2, errorCode: 'CODEX_REQUEST_REJECTED', retryable: false })
+  await Promise.resolve()
+  expect(model.get()).toMatchObject({ phase: 'blocked', errorCode: 'CODEX_REQUEST_REJECTED', retryable: false,
+    errorMessage: '当前请求未通过安全检查，未生成回答。你的消息已保留。', streamText: '' })
+})

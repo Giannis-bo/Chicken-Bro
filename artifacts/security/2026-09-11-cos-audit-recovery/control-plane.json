@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-09-11T05:53:04.401Z",
+  "anonymousGetBucketAcl": {
+    "http": 403,
+    "error": "AccessDenied",
+    "meaning": "Does not establish effective write ACL or logging/versioning settings"
+  },
+  "authenticatedConsole": {
+    "status": "wrong_account",
+    "targetBucketAppId": "1257807175",
+    "visibleBucketAppId": "1251810746",
+    "targetConfigurationVerified": false
+  },
+  "dedicatedTencentCloudToolsFound": false,
+  "localTccliCoscliLighthouseOnPath": false,
+  "cloudMutations": 0
+}

@@ -71,6 +71,83 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_policy_rejection_remains_failed_without_retry_or_fabricated_answer(self):
+        for phase in ('notification', 'terminal'):
+            for kind in ('cyberPolicy', 'misalignmentPolicyViolation'):
+                error = {'codexErrorInfo': kind, 'message': 'PRIVATE-POLICY-DETAIL'}
+                events = transcript(note('error', threadId='thread', turnId='turn', willRetry=False, error=error))
+                if phase == 'terminal':
+                    events = transcript(status='failed')
+                    events[-1]['params']['turn']['error'] = error
+                with self.subTest(phase=phase, kind=kind), self.assertRaises(CodexStreamError) as caught:
+                    self.run_stream(events)
+                self.assertEqual(caught.exception.code, 'CODEX_REQUEST_REJECTED')
+                self.assertNotIn('PRIVATE', str(caught.exception))
+
+    def test_upstream_error_metadata_uses_schema_allowlist_without_error_body(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        secret = 'PRIVATE-UPSTREAM-ERROR'
+        for info, expected in [('usageLimitExceeded', 'usageLimitExceeded'),
+                               ({'responseStreamDisconnected': {'httpStatusCode': 503, 'message': secret}}, 'responseStreamDisconnected'),
+                               (secret, 'unknown'), ({secret: {}}, 'unknown')]:
+            events = transcript(note('error', threadId='thread', turnId='turn', willRetry=False,
+                error={'codexErrorInfo': info, 'message': secret, 'additionalDetails': secret}))
+            with tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'warning') as log:
+                adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: FakeProcess(events))
+                with self.assertRaises(CodexStreamError):
+                    list(adapter.stream(prompt=secret, timeout_seconds=2,
+                        tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc')))
+                row = [json.loads(c.args[1]) for c in log.call_args_list if c.args[0] == 'codex_internal_stage %s'][-1]
+                self.assertEqual(row.get('upstream_kind'), expected)
+                self.assertEqual(row.get('upstream_http_status'), 503 if expected == 'responseStreamDisconnected' else None)
+                self.assertNotIn(secret, str(log.call_args_list))
+
+    def test_native_failure_categories_are_private_and_distinct(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        secret = 'PRIVATE-PROVIDER-TOKEN'
+        cases = [([], 'transport_eof'),
+                 ([dict(id=1, error=dict(message=secret))], 'rpc_error'),
+                 (transcript(status='failed'), 'turn_failed'),
+                 (transcript(), 'final_missing'),
+                 (transcript(note('error', threadId='other', turnId='turn', willRetry=False)), 'protocol_invalid'),
+                 (transcript(note('error', threadId='thread', turnId='turn', willRetry=False,
+                                  error=dict(message=secret))), 'upstream_error')]
+        for events, expected in cases:
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'warning') as log:
+                adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: FakeProcess(events))
+                with self.assertRaises(CodexStreamError) as caught:
+                    list(adapter.stream(prompt=secret, timeout_seconds=2,
+                        tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc')))
+                rows = [json.loads(c.args[1]) for c in log.call_args_list if c.args[0] == 'codex_internal_stage %s']
+                self.assertEqual(rows[-1].get('failure_kind'), expected)
+                self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+                self.assertNotIn(secret, str(log.call_args_list))
+                self.assertNotIn(expected, str(caught.exception))
+
+    def test_invalid_output_records_distinct_private_failure_sites_without_content(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        sites = []
+        secret = 'PRIVATE-UPSTREAM-ERROR-PROMPT'
+        for events in ([], [dict(id=1, error=dict(message=secret))]):
+            with tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'warning') as log:
+                adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True,
+                    popen=lambda *a, **k: FakeProcess(events))
+                with self.assertRaises(CodexStreamError) as caught:
+                    list(adapter.stream(prompt=secret, timeout_seconds=2,
+                        tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc')))
+                self.assertEqual(caught.exception.code, 'CODEX_OUTPUT_INVALID')
+                rows = [json.loads(c.args[1]) for c in log.call_args_list
+                        if c.args[0] == 'codex_internal_stage %s']
+                site = rows[-1]['failure_site']
+                self.assertRegex(site, r'^codex_stdio\.py:[1-9][0-9]{0,5}$')
+                sites.append(site)
+                self.assertNotIn(secret, str(log.call_args_list))
+                self.assertNotIn(directory, str(log.call_args_list))
+        self.assertNotEqual(*sites)
+
     def test_reference_repair_context_selected_only_for_nonempty_pure_url_errors(self):
         from server.app.chickenbro import codex_adapter as module
         with patch.object(module,'_repair_context',return_value='FULL') as full, \
@@ -146,7 +223,8 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         with patch.object(module._LOG, 'info') as log:
             diagnostic = module._RunDiagnostics('12345678-1234-1234-1234-123456789abc')
             for _ in range(100):
-                diagnostic.emit('validation', validation_codes=['WCL_REFERENCE_UNOBSERVED', secret], code=secret)
+                diagnostic.emit('validation', validation_codes=['WCL_REFERENCE_UNOBSERVED', secret], code=secret,
+                                failure_site=secret, failure_kind=secret)
                 diagnostic.emit(secret, code=secret)
             self.assertEqual(log.call_count, 1)
             rendered = str(log.call_args_list)

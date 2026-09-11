@@ -61,6 +61,9 @@ class RegisteredGateway:
         with self.host.lock:
             self.host.routes.pop(token,None)
 
+    def research_status(self, token):
+        return self.gateway.research_status(token)
+
     def answer_evidence(self, token):
         return self.gateway.answer_evidence(token)
 

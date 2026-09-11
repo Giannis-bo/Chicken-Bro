@@ -55,6 +55,7 @@ class _Run:
     lock: object = field(default_factory=threading.RLock)
     preparations: dict[str, dict] = field(default_factory=dict)
     submissions: dict[str, UUID | None] = field(default_factory=dict)
+    research_budget: object = None
 
 
 def _code(value: object, fallback: str = "SIMC_UNAVAILABLE") -> str:
@@ -220,8 +221,10 @@ def _job_packet(view: SimulationJobView) -> dict:
 
 class SimulationToolGateway:
     def __init__(self, application: SimulationApplication, *, clock: Callable[[], float] | None = None,
-                 sleep: Callable[[float], None] | None = None):
+                 sleep: Callable[[float], None] | None = None, research_budget=None, research_budget_factory=None):
         self._application = application
+        self._research_budget = research_budget
+        self._research_budget_factory = research_budget_factory
         self._clock = clock or time.monotonic
         self._sleep = sleep or time.sleep
         self._lock = threading.RLock()
@@ -238,6 +241,9 @@ class SimulationToolGateway:
             self._runs = {key: run for key, run in self._runs.items() if now < run.expires_at}
             key = (context.principal.user_id, context.conversation_id, context.run_id)
             run = self._runs.setdefault(key, _Run(context, now + _TTL_SECONDS))
+            if run.research_budget is None:
+                run.research_budget = (self._research_budget_factory(context) if self._research_budget_factory
+                                       else self._research_budget)
             token = secrets.token_urlsafe(32)
             self._capabilities[hashlib.sha256(token.encode()).hexdigest()] = run
             return token
@@ -345,6 +351,10 @@ class SimulationToolGateway:
                         return deepcopy(run.preparations[url])
                     if len(run.preparations) >= 3:
                         return _blocked("SIMC_PREPARE_BUDGET_EXCEEDED")
+                    if run.research_budget is not None:
+                        error, _ = run.research_budget.reserve('raiderio', url, {})
+                        if error:
+                            return error
                     # Reserve before network/DB work so failures cannot bypass the budget.
                     run.preparations[url] = _blocked("SIMC_UNAVAILABLE")
                     try:
@@ -397,11 +407,16 @@ class SimulationToolGateway:
                                        facts=["Configuration compiled without enqueueing a simulation."],
                                        limitations=["Custom APL syntax checks are not engine execution or proof of the intended order. Inspect result actionEvidence.sample after running.", "Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
                     digest = scenario_hash(scenario)
-                    key = hashlib.sha256(f"{run.context.run_id}:{snapshot_id}:{digest}".encode()).hexdigest()
+                    identity = run.research_budget.research_id if run.research_budget is not None else run.context.run_id
+                    key = hashlib.sha256(f"{identity}:{snapshot_id}:{digest}".encode()).hexdigest()
                     if run.submissions.get(key) is not None:
                         return _job_packet(self._application.read_job(principal, run.submissions[key]))
                     if key not in run.submissions and len(run.submissions) >= 4:
                         return _blocked("SIMC_JOB_BUDGET_EXCEEDED")
+                    if run.research_budget is not None:
+                        error = run.research_budget.reserve_simulation(key)
+                        if error:
+                            return error
                     # A lost response may already have committed and enqueued the job.
                     # Retain its slot and retry with the same application idempotency key.
                     run.submissions[key] = None

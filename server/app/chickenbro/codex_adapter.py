@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from server.app.chickenbro.stream import CodexStreamError
-from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images
+from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images, FAILURE_KINDS, UPSTREAM_KINDS
 from server.codex_worker import (
     DEFAULT_CODEX_BIN,
     DEFAULT_JOBS_DIR,
@@ -35,7 +35,7 @@ _DIAGNOSTIC_PHASES = frozenset(('budget', 'context', 'spawn', 'stream', 'process
     'patch_apply', 'validation', 'complete'))
 _VALIDATION_CODES = frozenset(('WCL_REFERENCE_MALFORMED', 'WCL_REFERENCE_UNOBSERVED',
     'WCL_GROUP_OBSERVATION_EMPTY'))
-_DIAGNOSTIC_CODES = frozenset(('CODEX_TIMEOUT', 'CODEX_OUTPUT_INVALID', 'CODEX_EXECUTION_FAILED',
+_DIAGNOSTIC_CODES = frozenset(('CODEX_REQUEST_REJECTED', 'CODEX_TIMEOUT', 'CODEX_OUTPUT_INVALID', 'CODEX_EXECUTION_FAILED',
     'CODEX_UNAVAILABLE', 'PROCESS_TIMEOUT', 'OS_ERROR', 'INVALID_DATA', 'UNEXPECTED'))
 
 
@@ -56,7 +56,7 @@ class _RunDiagnostics:
         self.repair_code = None
         self.native_web_counts = {}
 
-    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None):
+    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None, failure_site=None, failure_kind=None, upstream_kind=None, upstream_http_status=None):
         try:
             if not self.run_id or stage not in _DIAGNOSTIC_STAGES or stage in self.seen:
                 return
@@ -69,6 +69,14 @@ class _RunDiagnostics:
                 data['repair_elapsed_ms'] = max(0,min(86400000,int((now-self.repair_started)*1000)))
             if code is not None:data['code'] = code if isinstance(code,str) and code in _DIAGNOSTIC_CODES else 'UNEXPECTED'
             if isinstance(phase,str) and phase in _DIAGNOSTIC_PHASES:data['phase'] = phase
+            if isinstance(failure_site, str) and re.fullmatch(r'codex_(?:stdio|adapter)\.py:[1-9][0-9]{0,5}', failure_site):
+                data['failure_site'] = failure_site
+            if isinstance(failure_kind, str) and failure_kind in FAILURE_KINDS:
+                data['failure_kind'] = failure_kind
+            if isinstance(upstream_kind, str) and upstream_kind in UPSTREAM_KINDS:
+                data['upstream_kind'] = upstream_kind
+            if type(upstream_http_status) is int and 100 <= upstream_http_status <= 599:
+                data['upstream_http_status'] = upstream_http_status
             if isinstance(validation_codes, (list, tuple)):
                 codes = sorted({c for c in validation_codes if isinstance(c,str) and c in _VALIDATION_CODES})
                 data['validation_codes'] = codes
@@ -111,6 +119,31 @@ def _diagnostic_error(error):
     return 'UNEXPECTED'
 
 
+def _diagnostic_failure_site(error):
+    """Bounded code locations only; never format exception text, frames or locals."""
+    try:
+        allowed = {str(Path(__file__).with_name(name)): name
+                   for name in ('codex_adapter.py', 'codex_stdio.py')}
+        site = None
+        seen = set()
+        for _ in range(4):
+            if error is None or id(error) in seen:
+                break
+            seen.add(id(error))
+            frame = error.__traceback__
+            for _ in range(32):
+                if frame is None:
+                    break
+                name = allowed.get(frame.tb_frame.f_code.co_filename)
+                if name and 0 < frame.tb_lineno < 1000000:
+                    site = f'{name}:{frame.tb_lineno}'
+                frame = frame.tb_next
+            error = error.__cause__ or error.__context__
+        return site
+    except Exception:
+        return None
+
+
 def _observe_stream(method):
     @wraps(method)
     def observed(self, **kwargs):
@@ -119,7 +152,11 @@ def _observe_stream(method):
         try:
             yield from method(self, **kwargs)
         except Exception as error:
-            _diagnostic('stream_failed', code=_diagnostic_error(error))
+            _diagnostic('stream_failed', code=_diagnostic_error(error),
+                        failure_site=_diagnostic_failure_site(error),
+                        failure_kind=getattr(error, 'failure_kind', None),
+                        upstream_kind=getattr(error, 'upstream_kind', None),
+                        upstream_http_status=getattr(error, 'upstream_http_status', None))
             raise
         finally:
             try:
@@ -457,13 +494,20 @@ class NativeCodexChatAdapter:
         simulation_gateway_token = ""
         if self._source_gateway is not None:
             try:
-                source_gateway_token = str(self._source_gateway.issue_capability()).strip()
+                source_gateway_token = str(self._source_gateway.issue_capability(tool_context)
+                    if tool_context is not None else self._source_gateway.issue_capability()).strip()
             except (AttributeError, OSError, TypeError, ValueError):
                 raise CodexUnavailable() from None
             if not source_gateway_token:
                 raise CodexUnavailable() from None
 
         try:
+            if self._source_gateway is not None and hasattr(self._source_gateway, 'research_status'):
+                research_status = self._source_gateway.research_status(source_gateway_token)
+                developer_instructions += '\n服务端本次研究状态：' + json.dumps(research_status, ensure_ascii=False)
+                if research_status.get('state') == 'ended':
+                    profile_config['web_search'] = 'disabled'
+                    developer_instructions += '\n本研究已结束。本轮只讨论已有证据，不新增搜索、资料查询、模拟。独立新问题需用户明确开启新研究。'
             if self._simulation_gateway is not None and tool_context is not None:
                 simulation_gateway_token = self._simulation_gateway.issue_capability(tool_context)
             child_environment = {
