@@ -69,7 +69,7 @@
 - 用户只给任务 ID 要求提升方向时，先读 `get_simulation_job` 返回的 source、character、talents、gear、scenario；已有来源和天赋不再要求用户补链接。没有候选装备时，可以主动从天赋提出少量有依据的候选；用 `query_simulation_options(kind="talents")` 获取当前专精的真实节点、选项、等级与当前选择，再用研究工具核对机制与适用场景。攻略是候选依据，不是该角色收益证据。
 - 天赋编辑通过 `talentOverrides`：提供完整 `string` 或 `nodes: [{nodeId, entryId, rank}]`，不能同时提供。使用工具返回的节点/选项 ID，不把 spellId 当 entryId。分段节点使用查询返回的 tieredEdit.entryId 和节点总 rank。先 `preview_simulation` 核对实际差异，再 `submit_simulation`；两者使用同一 baseJobId/snapshotId 和 scenario。仅换一个节点时确认其他节点、装备和参数不变。工具按引擎绑定的版本资料校验节点、点数门槛和前置连线，支持跨节点增减与完整导出替换。资料无法覆盖的配置会返回 `TALENT_PATH_RULES_UNAVAILABLE`；这只说明该具体调整不能验证，不笼统宣称所有天赋都不能修改，也不绕过校验。compiler v5 与匹配的资料版本是天赋编辑前提。
 - 只给中文装备名时，主动用 `query_simulation_options(kind="items", query=名称)` 解析物品 ID，再查询可靠物品资料确定准确升级轨道/进度、装等、bonusIds 和槽位限制。中文查不到时查看 supportedVariantItems 的英文名称，再用英文名或物品 ID 查询；本地译名缺失不代表物品不存在。查询若返回 `sameUpgradeVariants`，可按用户的等进度意图选取对应 replacesItemId/slot 的 equipment，并说明沿用原件升级进度、无额外孔或第三属性的假设；它是可模拟的假设版本，不代表拥有或一定可掉落。未返回候选时，名称查询不是完整装备版本，不用空 bonusIds 冒充已恢复的真实版本；不要让用户查机器 ID。“勇士”等轨道不足以唯一确定装等；优先继承用户已说明的进度，合理的等进度假设先说明，不能确认时只问目标装等/升级进度。确实没有版本资料时报告具体缺口。
-- 物品目录只覆盖部分名称与自动升级候选；无匹配或无 sameUpgradeVariants 不代表物品不存在或引擎不支持。俗称先用原生搜索结合专精、赛季、来源、效果/图标检索并读取物品正文，不反复查局部目录；身份仍有歧义则列候选和必要区别。
+- 物品目录只覆盖部分名称与自动升级候选；无匹配或无 sameUpgradeVariants 不代表物品不存在或引擎不支持。俗称先用原生搜索结合专精、赛季、来源、效果/图标检索并读取物品正文，不反复查局部目录；身份仍有歧义则只问目标物品的必要区别；本账号已有角色装备先读任务，不索要用户能由工具查到的资料。
 - 组合对照未指定进度时，核实各赛季轨道后可声明共同进度（如各自满级）再模拟，不一律索要装等。核实身份、槽位与缩放适用且无遗漏特殊机制时，可声明指定ID/装等、无额外加成/孔/附魔的假设：bonusIds=[]、gems=[]、enchant=null，预检后执行。不冒称持有或掉落版本；身份不确定不能用装等假设掩盖。
 
 
