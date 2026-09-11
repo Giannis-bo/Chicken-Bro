@@ -1,0 +1,50 @@
+{
+  "registeredAt": "2026-09-11T08:25:53.800321+00:00",
+  "authorization": "User accepted next Lightspire study; separate from completed feather window",
+  "scope": {
+    "items": [
+      250214,
+      273796
+    ],
+    "itemLevel": 321,
+    "spec": "elemental shaman",
+    "scenario": "same historical profile, Patchwerk 300s fixed, 10000 iterations",
+    "parameter": "midnight.lightspire_core_duration_multiplier",
+    "plannedValues": [
+      0,
+      0.5,
+      1
+    ],
+    "sourceSemanticGate": "Check zero duration semantics before interpreting 0 as no light benefit",
+    "comparator": "Retained 298 Gaze+Feather results; no further simulations of those items"
+  },
+  "budgets": {
+    "sourceOperations": 8,
+    "cloudEngineInvocations": 6,
+    "businessModelCalls": 0,
+    "secondsPerRun": 120
+  },
+  "stopConditions": [
+    "Stop after three meaningful endpoints and result uncertainty check",
+    "No further equipment/spec/scenario",
+    "No empirical standing-time claim without logs",
+    "No engine changes, upgrades or product defaults changed",
+    "Zero parameter semantics must be validated before no-benefit interpretation"
+  ],
+  "historicalFeatherConsumption": {
+    "sourceOperations": 13,
+    "combatSimulations": 2,
+    "spellQueries": 2,
+    "businessModelCalls": 0
+  },
+  "preRunAmendment": {
+    "values": [
+      0.1,
+      0.5,
+      1
+    ],
+    "reason": "Official documented range0.1..1; installed buff start with duration0 schedules no expiry, so zero is not a no-benefit endpoint.",
+    "optionalNoLightBenefit": "If needed for ranking robustness, zero effect1275873 coefficient while retaining .5 duration and passive effect1275854; no new equipment or scenario",
+    "neverInterpretMultiplierAsWholeFightUptime": true
+  }
+}

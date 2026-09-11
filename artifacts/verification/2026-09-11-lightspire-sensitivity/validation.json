@@ -1,0 +1,14 @@
+{
+  "controlTests": {
+    "command": "npm run test:control",
+    "passed": 63,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jsonSyntax": true,
+  "cloudScriptSyntaxOnly": true,
+  "localEvidenceLinks": true,
+  "diffCheck": true,
+  "runtimeBuildRequired": false,
+  "productionDeployed": false
+}

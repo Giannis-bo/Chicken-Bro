@@ -1,0 +1,193 @@
+{
+  "cases": [
+    {
+      "multiplier": "no-light-mastery",
+      "dps": 162126.84995374893,
+      "meanStdDev": 43.08420471776224,
+      "count": 9999,
+      "elapsedSeconds": 27.997982683591545,
+      "profileSha256": "86a45519c51bd09a0e0dbc3596ca1939a94dc661e567603ea0e74be819b51377",
+      "reportSha256": "f8ade4a56700721518c92267b08973c67b2d0a19a3d2efec041becde15d02c7a",
+      "lightBuff": {
+        "name": "lights_blessing",
+        "spell": 1263768,
+        "uptime": 12.849433209987732,
+        "start_count": 6.095009500950095,
+        "refresh_count": 0.7492749274927493,
+        "duration": 6.324561050041112
+      },
+      "controls": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "gear": {
+        "trinket1": {
+          "name": "lightspire_core",
+          "encoded_item": "lightspire_core,id=250214,ilevel=321",
+          "ilevel": 321,
+          "agiint": 159
+        },
+        "trinket2": {
+          "name": "vile_vial_of_volatile_venom",
+          "encoded_item": "vile_vial_of_volatile_venom,id=273796,ilevel=321",
+          "ilevel": 321,
+          "stragiint": 159
+        }
+      },
+      "diagnosticLevels": [],
+      "halfWidth95": 84.44348954936464
+    },
+    {
+      "multiplier": 0.1,
+      "dps": 162255.15923463253,
+      "meanStdDev": 43.02976899345382,
+      "count": 9999,
+      "elapsedSeconds": 28.286033601965755,
+      "profileSha256": "b7b44063ec9284d90c2ef0950d6051abc1166a93c0d289a53c1c6b401d26f471",
+      "reportSha256": "4a5b24cff2e3943147bb2f48cb0d9a520d4849749784763516b119949e7bcc5c",
+      "lightBuff": {
+        "name": "lights_blessing",
+        "spell": 1263768,
+        "uptime": 2.7364662132879958,
+        "start_count": 6.7991799179917995,
+        "refresh_count": 0.0857085708570857,
+        "duration": 1.2074093569816537
+      },
+      "controls": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "gear": {
+        "trinket1": {
+          "name": "lightspire_core",
+          "encoded_item": "lightspire_core,id=250214,ilevel=321",
+          "ilevel": 321,
+          "agiint": 159
+        },
+        "trinket2": {
+          "name": "vile_vial_of_volatile_venom",
+          "encoded_item": "vile_vial_of_volatile_venom,id=273796,ilevel=321",
+          "ilevel": 321,
+          "stragiint": 159
+        }
+      },
+      "diagnosticLevels": [],
+      "halfWidth95": 84.33679749024779
+    },
+    {
+      "multiplier": 0.5,
+      "dps": 162956.45188211533,
+      "meanStdDev": 43.044414607072085,
+      "count": 9999,
+      "elapsedSeconds": 27.406317852903157,
+      "profileSha256": "bbe743ac28643e732b1f61bfd06e5af482495af318e679cb8f6d7357ef6e1388",
+      "reportSha256": "ca451189e12870849376524b33ab4da9e0d17d4d6e368db2350868f6764ea7c8",
+      "lightBuff": {
+        "name": "lights_blessing",
+        "spell": 1263768,
+        "uptime": 12.937068373504076,
+        "start_count": 6.140314031403141,
+        "refresh_count": 0.7500750075007501,
+        "duration": 6.320656564011632
+      },
+      "controls": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "gear": {
+        "trinket1": {
+          "name": "lightspire_core",
+          "encoded_item": "lightspire_core,id=250214,ilevel=321",
+          "ilevel": 321,
+          "agiint": 159
+        },
+        "trinket2": {
+          "name": "vile_vial_of_volatile_venom",
+          "encoded_item": "vile_vial_of_volatile_venom,id=273796,ilevel=321",
+          "ilevel": 321,
+          "stragiint": 159
+        }
+      },
+      "diagnosticLevels": [],
+      "halfWidth95": 84.36550236547107
+    },
+    {
+      "multiplier": 1.0,
+      "dps": 163509.7425117347,
+      "meanStdDev": 43.41766722542267,
+      "count": 9999,
+      "elapsedSeconds": 27.373309815768152,
+      "profileSha256": "6760d0199fa7da91466b44aaa45d7fc28dbc3bf4df89fd08eabd638f6bea1876",
+      "reportSha256": "e8a5592322b175a4f2bb69d6367c23f58b09f7c2383c7d22c0338685c020cf1f",
+      "lightBuff": {
+        "name": "lights_blessing",
+        "spell": 1263768,
+        "uptime": 24.050824549121604,
+        "start_count": 5.417241724172417,
+        "refresh_count": 1.4648464846484648,
+        "duration": 13.318749543130298
+      },
+      "controls": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "gear": {
+        "trinket1": {
+          "name": "lightspire_core",
+          "encoded_item": "lightspire_core,id=250214,ilevel=321",
+          "ilevel": 321,
+          "agiint": 159
+        },
+        "trinket2": {
+          "name": "vile_vial_of_volatile_venom",
+          "encoded_item": "vile_vial_of_volatile_venom,id=273796,ilevel=321",
+          "ilevel": 321,
+          "stragiint": 159
+        }
+      },
+      "diagnosticLevels": [],
+      "halfWidth95": 85.0970640545735
+    }
+  ],
+  "noLightMinusOldZeroPenalty": 1573.168993336818,
+  "defaultMinusNoLight": 829.6019283664064,
+  "fullMinusTenth": 1254.5832771021524,
+  "historicalDefaultDifference": 153.29038946924265,
+  "historicalDefaultSummedHalfWidths95": 167.81783136547108,
+  "checks": {
+    "identicalControlsAndGear": true,
+    "sourceProfileMatchesHistorical": true
+  },
+  "consumption": {
+    "combatSimulations": 4,
+    "spellQueries": 2,
+    "engineInvocations": 6,
+    "engineCeiling": 6,
+    "sourceOperations": 5,
+    "sourceCeiling": 8,
+    "businessModelCalls": 0
+  },
+  "stopped": true,
+  "productChanged": false,
+  "engineChanged": false
+}

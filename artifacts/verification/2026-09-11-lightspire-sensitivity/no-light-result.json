@@ -1,0 +1,49 @@
+{
+  "binarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "sourceProfileSha256": "c2d946481482050bdaf26bf5c2d4bb347e08db05c636cc44b0feb4a41bbc5a93",
+  "cases": [
+    {
+      "multiplier": "no-light-mastery",
+      "dps": 162126.84995374893,
+      "meanStdDev": 43.08420471776224,
+      "count": 9999,
+      "elapsedSeconds": 27.997982683591545,
+      "profileSha256": "86a45519c51bd09a0e0dbc3596ca1939a94dc661e567603ea0e74be819b51377",
+      "reportSha256": "f8ade4a56700721518c92267b08973c67b2d0a19a3d2efec041becde15d02c7a",
+      "lightBuff": {
+        "name": "lights_blessing",
+        "spell": 1263768,
+        "uptime": 12.849433209987732,
+        "start_count": 6.095009500950095,
+        "refresh_count": 0.7492749274927493,
+        "duration": 6.324561050041112
+      },
+      "controls": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "gear": {
+        "trinket1": {
+          "name": "lightspire_core",
+          "encoded_item": "lightspire_core,id=250214,ilevel=321",
+          "ilevel": 321,
+          "agiint": 159
+        },
+        "trinket2": {
+          "name": "vile_vial_of_volatile_venom",
+          "encoded_item": "vile_vial_of_volatile_venom,id=273796,ilevel=321",
+          "ilevel": 321,
+          "stragiint": 159
+        }
+      },
+      "diagnosticLevels": []
+    }
+  ],
+  "finished": true,
+  "combatRuns": 1
+}
