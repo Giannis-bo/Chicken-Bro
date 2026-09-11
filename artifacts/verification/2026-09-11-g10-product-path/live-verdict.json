@@ -1,0 +1,102 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "liveSha256": "3ce1f9a8395b009e3315ac92dc4fc9cc68f9f4972ccab7c7549a0a1a71bca334",
+  "runId": "d46835dd-7aa8-486e-b29d-ac2b66d9e371",
+  "passed": true,
+  "checks": {
+    "autonomousFourNicknameIdentities": true,
+    "noRedundantUserInput": true,
+    "declared321And298ExtraUpgradeAssumption": true,
+    "ownedSameSnapshot": true,
+    "sameTalentsAndControls": true,
+    "actualTwoSuccessfulJobs": true,
+    "effectiveConfigVerified": true,
+    "comparisonAndArithmeticAccurate": true,
+    "uncertainMechanicsPreservedInAnswer": true,
+    "terminalHistoryIsolationIdempotency": true
+  },
+  "comparison": {
+    "delta": 1953.951317001629,
+    "changes": {
+      "equipmentOverrides": {
+        "after": {
+          "trinket1": {
+            "gems": [],
+            "itemId": 250214,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 321
+          },
+          "trinket2": {
+            "gems": [],
+            "itemId": 273796,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 321
+          }
+        },
+        "before": {
+          "trinket1": {
+            "gems": [],
+            "itemId": 249343,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 298
+          },
+          "trinket2": {
+            "gems": [],
+            "itemId": 250144,
+            "enchant": null,
+            "bonusIds": [],
+            "itemLevel": 298
+          }
+        }
+      }
+    },
+    "variant": 162774.50701151835,
+    "baseline": 160820.55569451672,
+    "controls": {
+      "maxTime": 300,
+      "bloodlust": true,
+      "raidBuffs": true,
+      "fightStyle": "Patchwerk",
+      "iterations": 300,
+      "desiredTargets": 1,
+      "varyCombatLength": 0.2
+    },
+    "deltaPct": 1.2149885371079152,
+    "assessment": "higher",
+    "metricName": "dps",
+    "limitations": [
+      "Reported error bounds are summed conservatively; this is not a paired statistical significance test.",
+      "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+    ],
+    "variantJobId": "26b7f30f-2319-4a6f-bc7a-dd62e1a0f1e9",
+    "baselineJobId": "211c2799-8627-44be-bf28-35bd8e0e3783",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "engineDiagnostics": {
+      "variant": [],
+      "baseline": [
+        "implementation_not_yet_verified"
+      ]
+    },
+    "combinedErrorBound": 1105.6915712796463
+  },
+  "consumption": {
+    "models": 1,
+    "simc": 2,
+    "sources": 6
+  },
+  "taskTotal": {
+    "models": 7,
+    "simc": 6,
+    "sources": 31
+  },
+  "limitations": [
+    "Synthetic existing production account and owned Giannis job; not a fresh real-user acceptance.",
+    "300 iterations and 20 percent combat length variation inherited and correctly disclosed; no precision expansion.",
+    "Old-season298 includes extra upgrades, explicitly disclosed rather than claimed as ordinary Myth6/6.",
+    "Generic diagnostic does not identify the exact item, correctly disclosed.",
+    "Source receipt has five searches and one other action; no separate page-open receipt."
+  ]
+}

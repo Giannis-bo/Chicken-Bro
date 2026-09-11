@@ -1,0 +1,58 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "liveSha256": "3ce1f9a8395b009e3315ac92dc4fc9cc68f9f4972ccab7c7549a0a1a71bca334",
+  "passed": true,
+  "scope": "simc_accuracy_diagnostic_semantics",
+  "runId": "d46835dd-7aa8-486e-b29d-ac2b66d9e371",
+  "answerSha256": "8f5f5ea45a0dcdac24442cbdd912bf5ac3614189e1e810c5749a58f93858733d",
+  "jobDiagnostics": [
+    {
+      "jobId": "26b7f30f-2319-4a6f-bc7a-dd62e1a0f1e9",
+      "status": "succeeded",
+      "engineDiagnostics": [],
+      "limitations": []
+    },
+    {
+      "jobId": "211c2799-8627-44be-bf28-35bd8e0e3783",
+      "status": "succeeded",
+      "engineDiagnostics": [
+        "implementation_not_yet_verified"
+      ],
+      "limitations": [
+        "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+      ]
+    }
+  ],
+  "comparisonDiagnostics": {
+    "variant": [],
+    "baseline": [
+      "implementation_not_yet_verified"
+    ]
+  },
+  "controls": {
+    "maxTime": 300,
+    "bloodlust": true,
+    "raidBuffs": true,
+    "fightStyle": "Patchwerk",
+    "iterations": 300,
+    "desiredTargets": 1,
+    "varyCombatLength": 0.2
+  },
+  "checks": {
+    "ownedSuccessfulJobs": true,
+    "engineDiagnosticsPersistedAndReturned": true,
+    "comparisonPreservesMechanismCaveat": true,
+    "answerAcknowledgesUnverifiedImplementation": true,
+    "answerDoesNotUseSamplingErrorToClaimRealCombatWinner": true,
+    "doesNotInventWhichItemProducedGenericDiagnostic": true,
+    "ownerIsolation": true,
+    "idempotency": true
+  },
+  "manualSemanticReview": "Answer states old-combination implementation is unverified and result is only a current-engine reference, not a real-combat winner, despite exceeding summed sampling error. It does not falsely attribute the generic category to a specific item. Explicit 321/298, 300 iterations and 300 seconds plus/minus 20 percent controls are preserved.",
+  "additionalAccuracyModelCalls": 0,
+  "additionalAccuracySimcExecutions": 0,
+  "sharedConsumptionOwner": "G10 original-live",
+  "webCutoverVerified": true,
+  "userAcceptance": "not_claimed",
+  "releaseEvidence": "release.json"
+}

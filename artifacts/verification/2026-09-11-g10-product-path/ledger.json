@@ -1,23 +1,25 @@
 {
-  "status": "candidate_verified_production_pending",
+  "status": "live_verified",
   "limits": {
     "models": 8,
     "simc": 12,
     "sources": 60
   },
   "used": {
-    "models": 6,
-    "simc": 4,
-    "sources": 25
+    "models": 7,
+    "simc": 6,
+    "sources": 31
   },
   "initializationFailures": 2,
   "historicalModelsBeforeTask": 114,
   "separateAccuracyTaskSimc": 1,
   "remaining": {
-    "models": 2,
-    "simc": 8,
-    "sources": 35
+    "models": 1,
+    "simc": 6,
+    "sources": 29
   },
   "originalFailuresRetained": true,
-  "unrelatedNativeFailureNotRetried": true
+  "unrelatedNativeFailureNotRetried": true,
+  "stop": "All frozen gates passed; stop additional validation",
+  "productionSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b"
 }
