@@ -86,3 +86,9 @@ API/Worker当前运行源码 `3f0c15d988fd33fd08dae8514f70ee483862c3c8`，7文�
 私有root/0700发布包 `/var/lib/chickenbro-research-completion-release-20260911/` 保留精确manifest、17文件overlay和root/0600环境恢复快照；旧后端和Web保留。本批 `deploy.py manifest.json rollback` 在同一全任务空闲门禁下恢复旧后端，再验证API/Worker身份、readiness及业务。旧版本会恢复旧研究策略，因此回退后须报告影响；不删除0010账本或恢复旧数据库覆盖新写入。未执行本轮回切演练。
 
 [业务、用量与恢复核验记录](../artifacts/verification/2026-09-11-research-completion/README.md)。
+
+## 通用研究证据与语义优化（2026-09-11）
+
+API/Worker运行源码 `b406fc9155a03edba9e95912713606736fb2a1bd`，9文件增量；139份server源码、13份公网Web文件匹配。Web仍为research-22c681f99，无迁移、引擎/环境变更。8条Candidate与2条线上限定模型验证通过，0新增SimC；固定20题未全部运行。
+
+私有root/0700包 `/var/lib/chickenbro-generalization-release-20260911/` 保留精确manifest、overlay及root/0600恢复快照。旧后端e61595bf2保留；空闲门禁下执行本批 `deploy.py manifest.json rollback`，再验证身份/业务；不恢复旧数据库覆盖新写入。恢复材料已核验，未实际回切演练。[发布证据](../artifacts/verification/2026-09-11-research-generalization/README.md)。

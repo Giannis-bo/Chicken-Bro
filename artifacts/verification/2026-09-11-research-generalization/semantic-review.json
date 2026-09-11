@@ -1,0 +1,265 @@
+{
+  "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+  "model": "gpt-6-astra",
+  "cases": [
+    {
+      "environment": "candidate",
+      "caseId": "simple-class-question",
+      "runId": "18ff5e13-2e9a-46df-b12b-11db48b6476f",
+      "runStatus": "succeeded",
+      "finalAnswer": "增强萨是**萨满祭司的近战输出（DPS）专精**，穿锁甲，通常双持单手武器。\n\n它把武器攻击与风、火、雷等元素力量结合起来，属于**物理与魔法混合伤害的近战**；还能用图腾、打断和辅助治疗支援队伍，但主要职责是输出。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21445,
+          "totalTokens": 21534,
+          "outputTokens": 89,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "基础问答正确，无工具。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "query-simulation-help",
+      "runId": "2a99343a-4486-41ce-979b-41d79e3482cc",
+      "runStatus": "succeeded",
+      "finalAnswer": "能，鸡哥可以用云端 SimulationCraft 跑模拟，比较装备、宝石、附魔或天赋的 DPS 收益。\n\n你提供这些就够：\n- **角色资料**：Raider.IO 角色链接；如果之前跑过，也可以给已有任务 ID。\n- **比较目标**：比如换某件饰品、比较两种宝石，装备最好注明装等或升级进度。\n- **战斗条件**：单体还是多目标，有没有指定时长；没要求时我会说明采用的条件。\n\n能从角色资料里读取的装备和天赋，我会自行查询，不用你逐项填写。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21450,
+          "totalTokens": 21593,
+          "outputTokens": 143,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "能力询问未提交模拟，无工具。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "refuse-top100",
+      "runId": "702b93bd-e5e0-4b23-a51e-ee53102da6ee",
+      "runStatus": "succeeded",
+      "finalAnswer": "Top100 逐个遍历并模拟超出研究范围：一次研究最多分析 10 名玩家、运行 4 个模拟任务。\n\n可以改为：查看 IO 世界榜前 10 名增强萨的配装，选一个角色，在同一场景下比较原配装与最多 3 套候选，找出这些候选中表现最好的配置。要按这个范围继续吗？",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21460,
+          "totalTokens": 21552,
+          "outputTokens": 92,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "Top100先拒绝，并提出有限替代，未自动执行。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "misleading-empty-success",
+      "runId": "9f491be5-4085-451f-b1ce-45345730bbf5",
+      "runStatus": "succeeded",
+      "finalAnswer": "不能。**查询成功只说明请求正常返回，不代表伤害事件已完整取得。**\n\n没取到事件，可能与角色、战斗、时间窗、过滤条件、分页或数据权限有关。此时只能说“本次查询未返回伤害事件”。\n\n核对查询范围、确认数据完整，并结合对应玩家的伤害统计验证为零后，才能说“该玩家在这场战斗／这个时间窗内没有记录到伤害”。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21465,
+          "totalTokens": 21569,
+          "outputTokens": 104,
+          "cachedInputTokens": 20224,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "未将空结果解释为无伤害。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "misleading-causation",
+      "runId": "25e53774-751f-42ee-8cb0-acf31d38d5ee",
+      "runStatus": "succeeded",
+      "finalAnswer": "**不能证明暴击一定比急速好。** 即使榜上前三都堆暴击，也只能说明这三人的配置偏向暴击；天赋、装备联动、现有属性和战斗场景都可能影响选择，排名不能单独归因于暴击。\n\n不做模拟，可以把暴击作为配装参考，但这份样本不足以确定你把急速换成暴击就会提升。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21473,
+          "totalTokens": 21572,
+          "outputTokens": 99,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "未将前三相关性解释为确定收益。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "long-context-correction",
+      "runId": "12d70afd-8c58-43e6-a340-00a3f9693d10",
+      "runStatus": "succeeded",
+      "finalAnswer": "最后确认的是：\n\n- 角色：甲。\n- 时间范围：战斗最后 30 秒。\n- 装备限制：不换装备。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 22013,
+          "totalTokens": 22048,
+          "outputTokens": 35,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "恢复角色甲、最后30秒、不换装备，未调用工具。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "generic-resource-windows",
+      "runId": "853bdead-0784-4e02-8568-743e1cff0068",
+      "runStatus": "succeeded",
+      "finalAnswer": "按战斗开始时间换算，两段窗口的资源溢出为：\n\n| 战斗相对时间 | 原始时间戳（毫秒） | 资源溢出 |\n|---|---|---:|\n| 0–10 秒 | 1000–11000 | 4 |\n| 10–20 秒 | 11000–21000 | 9 |\n\n第二段更高，比第一段多 **5**。两段统计均完整，但仅凭溢出数值不能认定操作失误，还需结合当时需求与可行替代动作的收益。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 22072,
+          "totalTokens": 22204,
+          "outputTokens": 132,
+          "cachedInputTokens": 11392,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "两独立窗口分别4和9，时间范围正确，不归因为操作错误。"
+      }
+    },
+    {
+      "environment": "candidate",
+      "caseId": "owned-simulation-result",
+      "runId": "9b89edb6-b5e6-4702-adab-68ceb2ebe0ca",
+      "runStatus": "succeeded",
+      "finalAnswer": "任务已成功完成。实际模拟 DPS：**159,166.79**。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "17179bca-76f9-4e91-ba49-faaed07c3746",
+              "snapshotId": "ce9a6fe6-e034-4996-b480-ba7caa2f4bf4"
+            }
+          ]
+        }
+      ],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 68682,
+          "totalTokens": 68827,
+          "outputTokens": 145,
+          "cachedInputTokens": 62976,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "owner-scoped get返回159166.78869662393，回答159166.79，无新模拟。"
+      }
+    },
+    {
+      "environment": "production",
+      "caseId": "live-capability-boundary",
+      "runId": "3ea5dc41-2efa-47aa-9a11-995a8a32fe41",
+      "runStatus": "succeeded",
+      "finalAnswer": "能。鸡哥可以结合战斗日志分析伤害构成、有效治疗与过量、资源获取与溢出，以及施法次数、顺序和冷却空档；判断操作是否需要调整，还会核对当时承伤、目标和可行替代。\n\n**只是问“怎么做”、机制或比较方案，不会直接提交模拟。**你明确要求跑模拟，或用自己的角色量化比较具体方案时，我才会执行；必要信息齐全就直接跑，缺关键条件再问你。",
+      "toolObservations": [],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 21468,
+          "totalTokens": 21587,
+          "outputTokens": 119,
+          "cachedInputTokens": 7168,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "线上说明四类日志分析，明确解释性询问不提交模拟。"
+      }
+    },
+    {
+      "environment": "production",
+      "caseId": "owned-simulation-result",
+      "runId": "849c81e5-1147-483e-9c19-a30477a495a6",
+      "runStatus": "succeeded",
+      "finalAnswer": "任务已完成（成功）。实际模拟 DPS：**160,820.56**，采样误差 ±592.91（±0.37%）。\n\n引擎提示部分机制实现尚未验证。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "211c2799-8627-44be-bf28-35bd8e0e3783",
+              "snapshotId": "c775df55-d7c2-4222-811e-3818c493cbe5"
+            }
+          ]
+        }
+      ],
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 73012,
+          "totalTokens": 73169,
+          "outputTokens": 157,
+          "cachedInputTokens": 54144,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "review": {
+        "verdict": "passed",
+        "assessmentSource": "agent_evidence_review",
+        "note": "线上owner-scoped get返回160820.55569451672，回答160820.56。"
+      }
+    }
+  ],
+  "finalCheck": {
+    "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+    "backend": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+    "web": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+    "runtimeFilesMatched": 139,
+    "publicWebFilesMatched": 13,
+    "recoverySnapshotVerified": true,
+    "rollbackDrill": false
+  },
+  "manualUserAcceptance": "not_claimed",
+  "scope": "8 Candidate and 2 live bounded cases; not full 20-case semantic accuracy",
+  "fixedCorpus": {
+    "total": 20,
+    "executedCorpusCases": 5,
+    "unrunCorpusCases": 15,
+    "additionalTargetedCandidateCases": 3
+  }
+}

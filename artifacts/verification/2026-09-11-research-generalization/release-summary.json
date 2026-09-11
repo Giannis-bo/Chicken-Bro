@@ -1,0 +1,49 @@
+{
+  "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+  "backend": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+  "web": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+  "runtimeFilesMatched": 139,
+  "publicWebFilesMatched": 13,
+  "recoverySnapshotVerified": true,
+  "rollbackDrill": false,
+  "model": "gpt-6-astra",
+  "checks": {
+    "backendTests": 788,
+    "isolatedResearchPostgresTests": 13,
+    "controlTests": 63,
+    "mergedTargetedTests": 44,
+    "candidateModelCases": 8,
+    "liveModelCases": 2,
+    "qqAuthorizationUrl": true,
+    "csrfAndRetiredBearer": true,
+    "privateImageReadAndIsolation": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "usage": {
+    "inputTokens": 314540,
+    "outputTokens": 1115,
+    "totalTokens": 315655,
+    "cachedInputTokens": 212864,
+    "reasoningOutputTokens": 0
+  },
+  "newSimcJobs": 0,
+  "directWclQueries": 0,
+  "localFullBackend": "not_passed_missing_fastapi_other_dependencies; identical source suite passed on existing cloud runtime",
+  "harnessFailures": [
+    {
+      "stage": "create_conversation",
+      "cause": "missing idempotency header",
+      "newModelRuns": 0,
+      "resolved": true
+    },
+    {
+      "stage": "synthetic historical fixture insertion",
+      "cause": "missing executions parent; exact unscheduled fixture run marked failed before safe candidate stop",
+      "preservedCompletedModelCases": 6,
+      "newModelRunsForFailedFixture": 0,
+      "resolved": true
+    }
+  ],
+  "manualAcceptance": "not_claimed"
+}

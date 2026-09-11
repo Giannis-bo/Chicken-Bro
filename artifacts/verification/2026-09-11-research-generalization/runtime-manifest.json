@@ -1,0 +1,42 @@
+{
+  "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+  "expectedBackend": "/opt/chickenbro-releases/badcase-e61595bf20385b881e5023eab232e1cca23227bd",
+  "expectedWeb": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+  "files": {
+    "server/app/chickenbro/answer_grounding.py": "b6965818df2c52faebcf110dd394b3daaf5ac0a86537e85ac6d53108ce7e6adb",
+    "server/app/chickenbro/application.py": "de7138a396ae4f7cdd7ed0e93a4902f9402bd50a7ad08bdfd864a762a3627d61",
+    "server/app/chickenbro/codex_adapter.py": "26cea28ec960d27dc0fdec0666a8f6530b58d0cd01b660bc761cfa4b82e88932",
+    "server/app/chickenbro/research_context.py": "d47c784479a0cb9f584fa1daa152eaa659e7e1284fe38356e0de3403d287114b",
+    "server/app/chickenbro/research_evidence.py": "bf5554fb5ad910b7b7307d0377d5e974061506bdd927b14946458eca893ce9f8",
+    "server/app/chickenbro/research_lifecycle.py": "c9b284d539530fac30d81a5ec6fb83698a968540dbecdc92dfcb222c84b7a737",
+    "server/app/chickenbro/simulation_grounding.py": "ef2edb390934560eeea7a95bee87d7b17089282015dae669f2d3d28b47d99319",
+    "server/app/chickenbro/simulation_tools.py": "2e7270f93797e9f11d2d119195f13c77d9f0d43612c24d5dfaa3ca95cc48b184",
+    "server/chickenbro_native_mcp.py": "a6b301f58290743a2442cd25b6e8063b07a27d2998817df9b8d02630a1ed3838"
+  },
+  "baseHashes": {
+    "server/app/chickenbro/answer_grounding.py": "e415ebad2c6eb5d6f5cac17a768726c4f7b35658560ac892d06343480948db88",
+    "server/app/chickenbro/application.py": "e8b5d7d3ab824278f0e32ad11948af28d54cbbb32b046d7e7d2ef7d6f26e58ef",
+    "server/app/chickenbro/codex_adapter.py": "99f16cfe04c8729ce54ce5334e345a67546a079fc7ad265cc6c0f8f5ba4685ff",
+    "server/app/chickenbro/research_context.py": null,
+    "server/app/chickenbro/research_evidence.py": "79082aafdf1b1c2c458ca2ddf04c51a8fb4499835faeacad226fb1291db8ecf9",
+    "server/app/chickenbro/research_lifecycle.py": "48fd95c0f8d7c422e7e11b3a73783cba27165be707a7f30fad28a1a6e4afb396",
+    "server/app/chickenbro/simulation_grounding.py": null,
+    "server/app/chickenbro/simulation_tools.py": "89635ae869502454765fb3c715386de7d919a0da600cad27d22703ea15c33c91",
+    "server/chickenbro_native_mcp.py": "ec0283f2efb26e6d2ba57e12c47badc4fa8ef0191da5fb5081e1f40c8e60fa6a"
+  },
+  "webFiles": {
+    "index.html": "0449de349cec7c36b8b83151cb0d16ffa1a64d2fc69cca4d940a5cd74359e2b2",
+    "js/app.js": "99f9f337a0d04e9637da8abd002364ea1a96029e06866f6cc7df0481864b7950",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "js/639.js": "afa3ff6c2f8d86af69ab27342c328a85f7f278ba310539526aa6f418be90315d",
+    "js/639.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "brand/gugu-v1.ico": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d",
+    "brand/gugu-v1-32.png": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5",
+    "brand/gugu-v1-16.png": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998",
+    "css/app.css": "54b7c3ce6229e3e9cd2b368d0e94c48fac3b4b85c36126d148b7cbceed6fa8bc",
+    "chunk/953.js": "ea68804d5504a52a9d02fe427996035045dff9bc1f68df2a6e7d39183554eac8",
+    "chunk/580.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/580.js": "6cd99bac1a6d4a2ebf1dcebca97026641b1e35dfe8476da6ecae84272154f417",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+  }
+}

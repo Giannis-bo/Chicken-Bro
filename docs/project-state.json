@@ -704,16 +704,16 @@
   "currentDelivery": {
     "asOf": "2026-09-11",
     "scope": "web_only_qq",
-    "latestRecordedApplicationSourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
-    "evidence": "artifacts/verification/2026-09-11-research-completion/release-summary.json",
+    "latestRecordedApplicationSourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+    "evidence": "artifacts/verification/2026-09-11-research-generalization/release-summary.json",
     "status": "live_verified_for_recorded_release",
     "manualPostReleaseAcceptance": "not_claimed",
-    "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence.",
+    "note": "Recorded source and live HTTP business verification; no continuous monitoring or manual acceptance claimed.",
     "webFilesVerified": 13,
-    "observationSeconds": 30,
+    "observationSeconds": 0,
     "rollbackDrill": "not_run",
-    "recoveryEvidence": "artifacts/verification/2026-09-11-research-completion/release-summary.json",
-    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-research-completion/release-summary.json"
+    "recoveryEvidence": "artifacts/verification/2026-09-11-research-generalization/release-summary.json",
+    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-research-generalization/release-summary.json"
   },
   "jointRelease": {
     "status": "released",
@@ -781,6 +781,17 @@
     "oldCumulativeWorkBlocksFollowup": false,
     "newAccountDailyQuota": false,
     "zeroAllUpstreamCalls": "not_achieved_one_bounded_buff_query_allowed",
+    "manualAcceptance": "not_claimed"
+  },
+  "researchGeneralization": {
+    "status": "live_verified",
+    "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+    "evidence": "artifacts/verification/2026-09-11-research-generalization/README.md",
+    "candidateModelCases": 8,
+    "liveModelCases": 2,
+    "fixedSemanticCorpusCases": 20,
+    "fullCorpusRun": false,
+    "newSimcJobs": 0,
     "manualAcceptance": "not_claimed"
   }
 }
