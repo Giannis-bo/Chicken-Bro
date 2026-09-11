@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "units": {
+    "chickenbro-api": {
+      "cwd": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+      "environmentHash": "96f795510d7ffc0c6a89a09ce91c967788a365d525f104b0171b214416d88199"
+    },
+    "chickenbro-worker": {
+      "cwd": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+      "environmentHash": "899f0eeeb5cf84818b50f96198fb2502376285fa5554b71d43ff19bcdfb0cd16"
+    }
+  },
+  "backend": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+  "web": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+  "oldBackendInventoryUnchanged": true,
+  "oldWebInventoryUnchanged": true,
+  "recoverySnapshotPrivateAndManifestBound": true,
+  "recoverySnapshotSha256": "27db13e2cc8a1048108763e436b38536d257085b6dab930471abddaf5468ca3e",
+  "manifestSha256": "f6e89c4538f8cffeec4425032b1740c3bb1c41f8b0324513d65ce8fc268a8ef5",
+  "executeSha256": "3cd1f5055a7fd4b4442e2ecb71ba36513ea79c1973e69db236318912b2e56a9f",
+  "resultSha256": "3b496b5c4506990d45cebf93faca0698ceecd25f2ea456725c31c26418ab37ba",
+  "rollbackDrill": false,
+  "passed": true
+}

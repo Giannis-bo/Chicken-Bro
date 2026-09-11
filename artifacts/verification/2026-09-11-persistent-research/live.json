@@ -1,0 +1,83 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "receiptSha256": "ea327f3ea06ff432d102800363cadd4fd84522b0720d97a883c85b8220d6810b",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "trueVision": true,
+    "detachedGeneration": true,
+    "accountConcurrency": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true,
+    "persistentChatSimcSubmitAndReissue": true,
+    "realSimcQueueWorkerResult": true,
+    "simcProvenance": true,
+    "simcIdempotencyAndIsolation": true
+  },
+  "passed": true,
+  "controlledFixture": {
+    "sourceCalls": 48,
+    "upstreamCalls": 0,
+    "researchId": "9de2c69f-2ac5-45ee-a1fa-1ec8287deac3"
+  },
+  "chatRunId": "d86f9570-af35-4b56-88be-614c8e7e9cda",
+  "jobId": "b5030490-4b40-48cf-9f79-5ae62d883827",
+  "dps": 159655.04021355172,
+  "researchModelsUsed": 3,
+  "researchSimcUsed": 1,
+  "totalResearchModelsUsed": 6,
+  "totalResearchSimcUsed": 2,
+  "cases": [
+    {
+      "case": "continue",
+      "runId": "668511f5-8ca7-48f9-ac97-1da0345aa07b",
+      "researchId": "9de2c69f-2ac5-45ee-a1fa-1ec8287deac3",
+      "status": {
+        "state": "active",
+        "sourceCalls": 48,
+        "players": 1,
+        "simulations": 0
+      },
+      "answer": "角色查询被服务端阻止：本研究已用尽 **48 次来源查询额度**，本次未返回角色资料。\n\n因此尚无法核实该角色的职业专精、装备、天赋和评分。仍可继续解释已有证据，或根据你直接提供的角色资料分析；不能继续扩展本研究查询。本次没有改用搜索或提交模拟。",
+      "tools": [
+        {
+          "operation": "source.raiderio",
+          "state": "completed",
+          "status": "blocked",
+          "errorCode": "RESEARCH_BUDGET_EXCEEDED",
+          "characters": []
+        }
+      ]
+    },
+    {
+      "case": "new",
+      "runId": "ae070294-d9ff-4526-92bd-fd5982b93d72",
+      "researchId": "a98bcacb-56e7-43d6-932a-09832a31654f",
+      "status": {
+        "state": "active",
+        "sourceCalls": 1,
+        "players": 1,
+        "simulations": 0
+      },
+      "answer": "[魔魔糊胡萝卜](https://raider.io/characters/cn/the-masters-glaive/魔魔糊胡萝卜)的职业是**德鲁伊**，当前资料中的专精是**野性（猫德）**。",
+      "tools": [
+        {
+          "operation": "source.raiderio",
+          "state": "completed",
+          "status": "source_reference",
+          "errorCode": null,
+          "characters": [
+            {
+              "name": "魔魔糊胡萝卜",
+              "spec": "feral",
+              "level": null,
+              "realm": "The Master's Glaive",
+              "region": "cn",
+              "className": "druid"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

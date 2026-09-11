@@ -1,0 +1,49 @@
+{
+  "sourceCommit": "9e92bc124a1069a617883a710615e6a0bd544d61",
+  "receiptSha256": "5e301be8458bfd6d24e54b5d182a214b687ba07f3d511bda187f91acfcfe4a43",
+  "researchChecks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "trueVision": true,
+    "detachedGeneration": true,
+    "accountConcurrency": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true,
+    "persistentChatSimcSubmitAndReissue": true,
+    "realSimcQueueWorkerResult": true,
+    "simcProvenance": true,
+    "simcIdempotencyAndIsolation": true
+  },
+  "researchCases": [
+    {
+      "case": "continue",
+      "runId": "9afb14ec-cbfd-4c1c-8d02-7e1fbfb30275",
+      "researchId": "765991d5-53fa-42a2-ab80-41a6be844ede",
+      "status": {
+        "state": "active",
+        "sourceCalls": 48,
+        "players": 1,
+        "simulations": 0
+      },
+      "answer": "角色查询被服务端拦截：本研究已耗尽 **48 次来源查询额度**，返回 `RESEARCH_BUDGET_EXCEEDED`。\n\n本次未取得角色资料，无法核实该角色的职业、专精、装备、天赋或大秘境评分；当前可见会话也没有可复用的角色数据。\n\n仍可继续解释已有证据、整理缺口，但不能继续扩展本研究。此次未改用搜索，也未提交模拟。"
+    },
+    {
+      "case": "new",
+      "runId": "a0137bf2-b5cd-46e7-8efd-c63ebee67019",
+      "researchId": "f6784ea0-82c5-4206-8b87-e449ab1360f1",
+      "status": {
+        "state": "active",
+        "sourceCalls": 1,
+        "players": 1,
+        "simulations": 0
+      },
+      "answer": "[魔魔糊胡萝卜](https://raider.io/characters/cn/the-masters-glaive/魔魔糊胡萝卜)的职业是**德鲁伊**，当前资料显示为**野性专精（猫德）**。"
+    }
+  ],
+  "jobId": "17179bca-76f9-4e91-ba49-faaed07c3746",
+  "dps": 159166.78869662393,
+  "researchModelsUsed": 3,
+  "researchSimcUsed": 1,
+  "nativeOutcome": "failed_replay_assertion_pending_diagnosis",
+  "combinedCandidate": "not_passed"
+}

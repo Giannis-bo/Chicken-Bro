@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "backend": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+  "web": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+  "stages": [
+    "additive_migration_applied",
+    "backend_promoted",
+    "research_and_native_smoke_passed",
+    "awaiting_semantic_review"
+  ],
+  "status": "released",
+  "webFilesVerified": 13,
+  "observationSeconds": 45.6,
+  "userAcceptance": "not_claimed"
+}
