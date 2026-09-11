@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- 戒指附魔对照与任务完成读取竞争修复已发布（`95569fc01`）；按用户授权暂缓一条无工具调用、无回答的模型失败，保留实际9/10结果。隔离及线上两条真实对照、通用业务与Web核验通过。[发布记录](../artifacts/verification/2026-09-11-g12-final-window/release/README.md)。
+
 - Chat 原生实时搜索已恢复上线（`1c7caa159`）：隔离和线上均验证真实搜索、页面读取与资料取得，图片/SimC/权限及 Web 核验通过。[记录](../artifacts/verification/2026-09-10-native-search/README.md#本轮线上结果)。
 
 - 自定义施法 APL 与玩家术语先检索：`c408a30e6` 已合入推送并发布；隔离与公网真实相反顺序、Chat 先检索、第二账号隔离及 Web 13 文件核对通过。见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。
@@ -29,7 +31,7 @@
 
 ## 正在推进
 
-- G12 戒指附魔收益修复的最终有限续验为9/10，最后一条权限问答在原生模型适配层失败，具体原因待分型；按门禁停止，未合入或发布。六条模拟回答已验证现有工具可完成对照，不能替代整体验收。[记录](../artifacts/verification/2026-09-11-g12-final-window/README.md)。
+- G12 剩余未解项仅为已按用户授权暂缓的单条原生模型输出失败；G8/G9/G10 与食物问题继续保留，先核对现有工具与必要输入，停止盲目扩样本。
 
 - Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G8/G9/G10 剩余收益与组合模拟继续保留。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
 

@@ -1,0 +1,39 @@
+{
+  "observed_at": "2026-09-11T02:58:38.978318+00:00",
+  "before_current_release": {
+    "models": 32,
+    "simc": 36,
+    "sources": 208
+  },
+  "candidate_general": {
+    "models": 1,
+    "simc": 1,
+    "source_imports": 1,
+    "gateway_calls": 0,
+    "native_completed_events_observed": 0
+  },
+  "stage_totals": {
+    "models": 36,
+    "simc": 42,
+    "sources": 225
+  },
+  "stage_limits": {
+    "models": 36,
+    "simc": 48,
+    "sources": 260
+  },
+  "historical_models": 60,
+  "absolute_deadline": "2026-09-11T03:52:35+00:00",
+  "retained_failures": true,
+  "planned_live_models_max": 3,
+  "no_extra_recovery_model_if_three_live_calls_used": true,
+  "live": {
+    "models": 3,
+    "simc": 5,
+    "sources": 16,
+    "general_run": "4b63b3c5-5b52-4282-8cdb-98530ceee73c",
+    "general_job": "85ea33ab-7f9c-455e-9e98-3d421b6763b8"
+  },
+  "historical_plus_stage_models": 96,
+  "status": "ring_stage_released_with_explicit_exclusion"
+}
