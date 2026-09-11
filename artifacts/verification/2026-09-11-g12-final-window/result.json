@@ -1,0 +1,78 @@
+{
+  "observed_at": "2026-09-11T02:27:12.120075+00:00",
+  "status": "validation_failed_no_release",
+  "runtime_source": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
+  "head": "ec2ab434d2e0baebf150e1acc9ec18d523658905",
+  "before": {
+    "passed": 8,
+    "total": 10,
+    "reused_exact_receipts": 8,
+    "new_holdout_runs": 2
+  },
+  "after": {
+    "passed": 9,
+    "total_model_runs": 10,
+    "failed": 1,
+    "categories": {
+      "original": "2/2",
+      "variant": "2/2",
+      "holdout": "2/2",
+      "normal": "2/2",
+      "permission": "1/2"
+    }
+  },
+  "failure": {
+    "case": "permission-2",
+    "runId": "2ed6e056-58d3-4fcc-aff1-9fe93e6c4fbf",
+    "code": "CODEX_OUTPUT_INVALID",
+    "elapsed_ms": 8543,
+    "tool_results": 0,
+    "delivered_assistant_messages": 0,
+    "known_boundary": "Native model adapter before regular answer validation; no validation_codes on final failure diagnostic. Exact protocol/subprocess/evidence substage unavailable.",
+    "root_cause": "unresolved: no raw protocol envelope or subprocess stderr retained; exact invalidity cannot be reconstructed",
+    "no_claim": "Not evidence of search failure, invalid simulation result or unauthorized data access; no speculative attribution to provider outage/limits."
+  },
+  "stopping_rule": "Final fixed validation failed. No rerun, extra generation, candidate general, merge/push or promotion. Prior failure evidence preserved. G12 unclosed and G8/G9/G10/food remain separate.",
+  "usage": {
+    "observed_at": "2026-09-11T02:25:46.869853+00:00",
+    "additional_model_runs_including_failed": 12,
+    "additional_submitted_simc": 15,
+    "additional_source_operations": 78,
+    "stage_totals": {
+      "models": 32,
+      "simc": 36,
+      "sources": 208
+    },
+    "historical_plus_stage_models": 92,
+    "limits": {
+      "models": 36,
+      "simc": 48,
+      "sources": 260
+    },
+    "deadline": "2026-09-11T03:52:35+00:00",
+    "counter_scope": "Gateway operations plus native completed events; historical130 includes root inspections and retained overage. Reused baseline excluded. Active/uncaptured generations must be accounted separately; candidate/live general to be added after execution."
+  },
+  "production_unchanged": "/opt/chickenbro-releases/badcase-6c2b36b2ef7ba0a42d6adfb30f69eac9bed6029b",
+  "runtime_activity": {
+    "candidate_active_chat": 0,
+    "candidate_active_queue": 0
+  },
+  "tool_reuse": "Existing native search and equipment/compare tools successfully completed six experiments. New failure needs bounded error classification in existing stdio adapter, not a replacement search/tool subsystem.",
+  "release_helper_note": "Local-only drafted recovery-model cap has two mocked branch tests. Not uploaded, pinned or executed; no claim of accepted release readiness for modified helper.",
+  "private_evidence": {
+    "bundle_sha256": "87c293fbbe27177fbf9ff1e8e595577a5dc2a511e0b162e7e13b45df4d8b2318",
+    "retained_at": 1789034509.95872,
+    "expires_at": 1789639309.95872,
+    "exact_files": 23,
+    "roundtrip_verified": true
+  },
+  "local_evidence_sha256": {
+    "before-review.json": "bdfdaee9bc0a6104e310f3ca78d98540200bdca49dbf0f93b019880d7bf26284",
+    "after-review.json": "15a23bf0ff4b19c50a7c91496ac540e4aaa07d9948def48e3e6ce04912de0338",
+    "after-configuration-check.json": "bf37fb8c23b7d2b46591435051fa98fd6836847ba589b0dbf2d3eb925e839cea",
+    "remaining-tool-assessment.json": "a65adb237e0d78595fec6f07c20a518e8ac37c53344a6b89c067f3e7ea8797be",
+    "profile-identity-after.json": "6b70f8c581395a68e2135b245e63acce4168b178a4b85c7b1a875df384167cc8",
+    "read-race-local-review.json": "77c568c1750af6743905209004e6e6a62c39bbdae7912c76a9b4d338812c2b2e",
+    "release-recovery-budget-check.log": "dec5673ee7ead0e86a249ea046dba60aab31a8206a43fedeb035ab8449b4e26d"
+  }
+}

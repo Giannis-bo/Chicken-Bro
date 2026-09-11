@@ -29,6 +29,8 @@
 
 ## 正在推进
 
+- G12 戒指附魔收益修复的最终有限续验为9/10，最后一条权限问答在原生模型适配层失败，具体原因待分型；按门禁停止，未合入或发布。六条模拟回答已验证现有工具可完成对照，不能替代整体验收。[记录](../artifacts/verification/2026-09-11-g12-final-window/README.md)。
+
 - Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G8/G9/G10 剩余收益与组合模拟继续保留。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
 
 
