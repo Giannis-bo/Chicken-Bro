@@ -1,0 +1,24 @@
+{
+  "source_sha": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "scope": "Manual user-authorized backward-compatible backend plus Web report changes. No migrations/dependencies/runtime upgrade.",
+  "reviewed": [
+    "bounded integer stat map and food token prohibit top-level injection",
+    "old scenario omission preserves defaults and hashes",
+    "baseJob replaces stat map and owner checks remain",
+    "exact report food identity and validated attributes reuse",
+    "20-second burst is labeled conditional, original food support not claimed",
+    "legacy scenario versions hide unsupported new fields",
+    "Web displays hypothetical stat additions and food disabled"
+  ],
+  "candidate_original": {
+    "runId": "c2cd36e1-26be-4c2d-8dfb-fe6d83763a3e",
+    "status": "passed_conditional_burst",
+    "limits": "Not full boss timeline; uniform vulnerability not applied to displayed DPS"
+  },
+  "evidence": {
+    "food_tools_sha256": "2fe0fa989469e91ac71de23a9fb41028ef8a72ae49b0388940fdcd491cba8159",
+    "burst_tools_sha256": "6099bc52eef4085b0b96f03edea9d5c1fb1051df2c51bd2e7d033dba050a2726",
+    "model_after_sha256": "a340ad66bae5b56c9c263bb5974bf7c1be844da88ab0072323c55468124d09d3"
+  },
+  "remaining": "G10 exact item identity/upgrade levels awaiting clarification; deferred model failure excluded"
+}

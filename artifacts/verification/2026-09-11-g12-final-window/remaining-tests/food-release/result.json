@@ -1,0 +1,66 @@
+{
+  "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "backend": "/opt/chickenbro-releases/badcase-342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "web": "/var/www/chickenbro-web/releases/food-342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "stages": [
+    "backend_promoted",
+    "general_passed",
+    "awaiting_semantic_review"
+  ],
+  "status": "released",
+  "webFilesVerified": 13,
+  "observationSeconds": 45.62,
+  "userAcceptance": "not_claimed",
+  "semanticReview": {
+    "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "liveSha256": "96cd2957b18a6c475e00db1e284e7424783e06afbbc93e0c545d964f6b75f135",
+    "passed": true,
+    "reviewer": "root agent reviewed actual final answers and tool results",
+    "checks": {
+      "acquisition": true,
+      "analysis": true,
+      "completion": true,
+      "ownerAndHistory": true
+    },
+    "cases": [
+      {
+        "case": "live-exact-stat-burst",
+        "runId": "b7a6b910-aadc-4c6d-bbfc-ba4f7b2ae75a",
+        "answerSha256": "518fa7113a57b0d912b083f52558637fdc14a3f9ce72ee2a48dff3d9b5d2415c"
+      },
+      {
+        "case": "live-owned-result-reuse",
+        "runId": "04906eec-2705-4ce9-b86c-57f4f5f3fd91",
+        "answerSha256": "67ee2f1d44c1ea25ea43042a4595a40e2dff588fc00529ae8095d0663badf829"
+      }
+    ],
+    "limits": "Live uses latest owned feral snapshot as independent class coverage, not the original elemental character. Both answers label pure hypothetical stats and 20-second conditions; second explicitly distinguishes intellect from agility and food. Original elemental question verified in Candidate. No claim of full boss timeline."
+  },
+  "general": {
+    "mode": "production",
+    "source": "/opt/chickenbro-releases/badcase-342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "trueVision": true,
+      "detachedGeneration": true,
+      "accountConcurrency": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true,
+      "realSimcQueueWorkerResult": true,
+      "simcProvenance": true,
+      "simcIdempotencyAndIsolation": true
+    },
+    "chatRunId": "6c2d94a3-fbed-48d0-b631-aa8a39f33738",
+    "jobId": "d904eb9a-9d84-4e7a-bc6a-6bf4feeb4cc8",
+    "dps": 159186.15202774468,
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "passed": true,
+    "sessionsRevoked": true,
+    "productionIdentitiesCreated": 0
+  },
+  "releaseMode": "manual_user_authorized_backend_and_web",
+  "rollbackPerformed": false,
+  "rollbackBackend": "/opt/chickenbro-releases/badcase-60028b8338e6fb41b2509647afe7d27a26329279",
+  "rollbackWeb": "/var/www/chickenbro-web/releases/changelog-b5567b1065573cc048eea285bc748c09341a3c31"
+}

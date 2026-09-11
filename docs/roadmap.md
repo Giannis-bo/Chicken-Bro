@@ -31,13 +31,15 @@
 
 - [小程序清理](plans/2026-09-09-mini-retirement.md)：源码和 Web 已合入、推送及发布（`7adcdeffa`）；隔离及公网真实图片/SimC、CSRF、账号隔离和幂等验证通过；用户确认的 186 个仅微信账号及业务数据已从正式库删除，私有备份独立恢复、演练及保留记录核对通过。18 个 QQ 与 14 个无关联账号保留。公网 14 个 Web 文件与发布清单一致，旧代码/Web 版本保留用于回滚。
 
+- 食物与精确属性短时实验已发布（`342039cab`）：复用引擎选项完成 50 智力/72 暴击的条件爆发对照，支持最短 20 秒及真实属性读回；后端、Web 和线上业务验收通过，不冒称完整首领阶段还原。[发布记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md)。
+
 ## 正在推进
 
-- G12 剩余未解项仅为已按用户授权暂缓的单条原生模型输出失败；G8/G9/G10 与食物问题继续保留，先核对现有工具与必要输入，停止盲目扩样本。
+- G12 剩余单条原生模型输出失败按用户授权暂缓，不重跑。G10 完整饰品组合等待确认俗称身份与装等/升级档位，停止盲目扩样本。
 
-- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；完整饰品组合、食物阶段收益及原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
+- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；完整饰品组合与原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
 
-- Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G8/G9/G10 剩余收益与组合模拟继续保留。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
+- Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G10 完整组合仍需补齐装备身份与档位。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
 
 
 

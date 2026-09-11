@@ -1,0 +1,19 @@
+{
+  "models": 6,
+  "simc": 17,
+  "sources": 26,
+  "historical_models": 107,
+  "models_reserved": 0,
+  "simc_reserved": 0,
+  "diagnostic_complete": true,
+  "diagnostic_outcome": "Missing product food option confirmed; hearty silvermoon and loas rejected by installed engine; standard silvermoon works. Actual models1 sources15. No blind retry. Fixed capability verification uses explicit effects not original item support.",
+  "cumulative_models": 113,
+  "limits": {
+    "models": 12,
+    "simc": 20,
+    "sources": 60,
+    "hours": 2
+  },
+  "source_scope": "Observed source operations; absent native completion receipts do not establish provider-internal attempt count.",
+  "remaining": "G10 exact identities and levels; explicitly deferred model failure excluded"
+}
