@@ -1,0 +1,158 @@
+{
+  "cases": [
+    {
+      "case": "mechanism-explicit-progress",
+      "runId": "fb1015fc-e4a6-43c0-a8af-f1dae554b1a7",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "nativeWeb": {
+        "completed_events": {
+          "openPage": 1,
+          "other": 1,
+          "search": 7
+        },
+        "run_id": "fb1015fc-e4a6-43c0-a8af-f1dae554b1a7"
+      },
+      "operations": [
+        "simc.list",
+        "simc.get",
+        "simc.options",
+        "source.public_web",
+        "simc.options",
+        "simc.preview",
+        "simc.preview",
+        "simc.preview",
+        "simc.preview",
+        "simc.preview",
+        "simc.preview",
+        "simc.submit",
+        "simc.submit",
+        "simc.get",
+        "simc.get",
+        "simc.compare"
+      ],
+      "simc": 2,
+      "passed": true,
+      "comparison": {
+        "delta": 3931.842367661855,
+        "changes": {
+          "equipmentOverrides": {
+            "after": {
+              "trinket1": {
+                "gems": [],
+                "itemId": 250214,
+                "enchant": null,
+                "bonusIds": [],
+                "itemLevel": 321
+              },
+              "trinket2": {
+                "gems": [],
+                "itemId": 273796,
+                "enchant": null,
+                "bonusIds": [],
+                "itemLevel": 321
+              }
+            },
+            "before": {
+              "trinket1": {
+                "gems": [],
+                "itemId": 249343,
+                "enchant": null,
+                "bonusIds": [],
+                "itemLevel": 289
+              },
+              "trinket2": {
+                "gems": [],
+                "itemId": 250144,
+                "enchant": null,
+                "bonusIds": [],
+                "itemLevel": 289
+              }
+            }
+          }
+        },
+        "variant": 162905.18174282458,
+        "baseline": 158973.33937516273,
+        "controls": {
+          "maxTime": 300,
+          "fightStyle": "Patchwerk",
+          "iterations": 10000,
+          "desiredTargets": 1,
+          "varyCombatLength": 0.0
+        },
+        "deltaPct": 2.473271545477863,
+        "assessment": "higher",
+        "metricName": "dps",
+        "limitations": [
+          "Reported error bounds are summed conservatively; this is not a paired statistical significance test.",
+          "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+        ],
+        "variantJobId": "5364a742-cff1-4c05-bf5d-0406241e2378",
+        "baselineJobId": "d79e200d-554c-4290-907e-99ca3e3c8698",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "engineDiagnostics": {
+          "variant": [],
+          "baseline": [
+            "implementation_not_yet_verified"
+          ]
+        },
+        "combinedErrorBound": 170.5073695319296
+      }
+    },
+    {
+      "case": "holdout-ambiguous-appearance",
+      "runId": "61afd686-0b2f-4914-8bad-fa81bc4ae333",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "nativeWeb": {
+        "completed_events": {
+          "search": 3
+        },
+        "run_id": "61afd686-0b2f-4914-8bad-fa81bc4ae333"
+      },
+      "operations": [],
+      "simc": 0,
+      "passed": false,
+      "reason": "No invented identity or superiority, but needlessly asks user for already-queryable current gear screenshot; narrow clarification rule added and this case alone rechecked."
+    },
+    {
+      "case": "normal-owned-items",
+      "runId": "dbfd8742-689b-4dd6-aeb3-8faee0b5baf2",
+      "checks": {
+        "terminal": true,
+        "history": true,
+        "ownerIsolation": true,
+        "idempotency": true,
+        "detached": true,
+        "originalContext": true,
+        "syntheticLiveRegression": false
+      },
+      "nativeWeb": null,
+      "operations": [
+        "simc.list",
+        "simc.get"
+      ],
+      "simc": 0,
+      "passed": true
+    }
+  ],
+  "privateSha256": "cfd9619bcc2475a81fec72ced7a6a98c12df76db86523186abe61b08400e481d",
+  "models": 3,
+  "simc": 2,
+  "sources": 12,
+  "normal": "Reads original owned snapshot, separates later hypothetical overrides, no extra simulation."
+}

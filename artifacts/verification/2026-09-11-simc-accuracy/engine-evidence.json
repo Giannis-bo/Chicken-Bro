@@ -1,0 +1,37 @@
+{
+  "status": "cloud_engine_diagnostics_verified",
+  "source": "/opt/chickenbro-releases/g10-path-candidate-20260911",
+  "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "profileSha256": "6200591e37438e84554081d5e95cae0255198de8e0a4c8b3947c43819853b4a1",
+  "rawReportSha256": "4d2b9202c385155e1e37292d291a56ec5f673d882216aa0f9f5423f2b2be9582",
+  "fixtureSha256": "c4fc954b11457d2094c8e6d483108ed566ae86b5698337fe45925441d8b6760f",
+  "engineDiagnostics": [
+    "implementation_not_yet_verified"
+  ],
+  "rawLogLevels": [
+    "implementation_not_yet_verified"
+  ],
+  "hasPositiveMetric": true,
+  "iterations": 100,
+  "maxTime": 20,
+  "simcExecuted": 1,
+  "modelCalls": 0,
+  "scope": "isolated cloud parser execution; not persisted job, model answer, or live acceptance",
+  "sourceFiles": {
+    "server/app/simulation/diagnostics.py": "61205e8bbcca627be67120c97f89fe1ac4bbe004890cf602aa3fe7fbfe49ab94",
+    "server/app/simulation/report.py": "cacaa3e72fdea31d14109d59fd243b24e42805638e406776e1c10f81b4165361",
+    "server/app/simulation/worker.py": "bdf941cf7f47d5b649bb4a1e690a9570d808c1823f12c058d6ecc6a97725ff92",
+    "server/app/simulation/experiments.py": "ec6931afd10299c584d4642750f9238c6a31fcd12222dda9ff5694f95ec60276"
+  },
+  "sameRawBeforeAfter": {
+    "baselineSource": "/opt/chickenbro-releases/badcase-342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "baselineDiagnostics": null,
+    "baselinePositiveMetric": true,
+    "rawSha256": "4d2b9202c385155e1e37292d291a56ec5f673d882216aa0f9f5423f2b2be9582"
+  },
+  "preEngineHarnessFailure": {
+    "error": "WOW_SIMC_BIN absent; existing application uses default path",
+    "simcExecuted": 0,
+    "resolution": "Use the existing /opt/wow-simc/current/simc default, retaining original start marker"
+  }
+}

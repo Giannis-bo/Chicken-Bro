@@ -1,0 +1,23 @@
+{
+  "status": "candidate_verified_production_pending",
+  "limits": {
+    "models": 8,
+    "simc": 12,
+    "sources": 60
+  },
+  "used": {
+    "models": 6,
+    "simc": 4,
+    "sources": 25
+  },
+  "initializationFailures": 2,
+  "historicalModelsBeforeTask": 114,
+  "separateAccuracyTaskSimc": 1,
+  "remaining": {
+    "models": 2,
+    "simc": 8,
+    "sources": 35
+  },
+  "originalFailuresRetained": true,
+  "unrelatedNativeFailureNotRetried": true
+}

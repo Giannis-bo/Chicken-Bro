@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "ownJobAndSnapshotReadable": true,
+  "foreignJobSnapshotAndSubmission": [
+    404,
+    404,
+    404
+  ],
+  "newSimulations": 0
+}

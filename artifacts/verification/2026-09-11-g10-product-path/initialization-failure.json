@@ -1,0 +1,13 @@
+{
+  "cause": "runtime agent rules exceeded 32768-byte loader limit",
+  "bytesBeforeCorrection": 33186,
+  "bytesAfterCorrection": 32432,
+  "requestsFailedBeforeModel": 2,
+  "actualModelInvocations": 0,
+  "runIds": [
+    "ba74e0d9-a03f-4218-a115-93711a989e57",
+    "26d84be5-dd91-4672-bf18-11279db64efa"
+  ],
+  "harnessFix": "remove racy concurrent-send assertion that can dispatch an extra run when original already terminal",
+  "productionAffected": false
+}

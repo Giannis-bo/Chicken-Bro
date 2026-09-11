@@ -136,7 +136,8 @@ def select_report_actor(players: object, expected_actor: str) -> dict:
 
 
 def normalize_simc_report(payload: str | bytes, *, expected_actor: str,
-                          identity_sink: dict | None = None, npc_sources: dict | None = None) -> dict:
+                          identity_sink: dict | None = None, npc_sources: dict | None = None,
+                          diagnostic_sink: list | None = None) -> dict:
     if not isinstance(payload, (str, bytes)) or len(payload) > MAX_REPORT_BYTES:
         raise SimulationReportError()
     try:
@@ -154,6 +155,10 @@ def normalize_simc_report(payload: str | bytes, *, expected_actor: str,
     for log in _rows(data.get('logs')):
         if _object(log).get('level') in ('error', 'fatal'):
             raise SimulationReportError('SIMC_FATAL_DIAGNOSTIC')
+    if diagnostic_sink is not None:
+        from server.app.simulation.diagnostics import public_engine_diagnostics
+        diagnostic_sink[:] = public_engine_diagnostics([
+            _object(log).get('level') for log in _rows(data.get('logs'))])
     cd = _object(actor.get('collected_data'))
     metric_name = 'hps' if actor.get('role') == 'heal' else 'dps'
     if metric_name not in cd and metric_name == 'dps' and 'hps' in cd:

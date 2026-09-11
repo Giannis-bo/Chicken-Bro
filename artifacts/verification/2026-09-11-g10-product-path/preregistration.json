@@ -1,0 +1,24 @@
+{
+  "authorization": "six-task user delegation 2026-09-11",
+  "models": 8,
+  "simc": 12,
+  "observedSources": 60,
+  "priorModels": 114,
+  "priorWindowSimc": 20,
+  "priorWindowSources": 57,
+  "started": 1789105915.350969,
+  "originalRetainedAt": 1789034509.95872,
+  "originalExpiresAt": 1789639309.95872,
+  "stop": "no unchanged-cause retry; five-class gates then stop",
+  "baseline": "6e7037fbe2f2178da6ab36162e7fe01615731b8f",
+  "runtimeBaseline": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "matrix": [
+    "original nickname + historical context",
+    "mechanism variant representative-level choice",
+    "untouched holdout ambiguous identity",
+    "normal known-item result reuse",
+    "foreign-owner read and reuse denied"
+  ],
+  "acceptance": "actual native discovery, bounded preview/submit/read/compare or compatible owned-result reuse, explicit version assumptions and unresolved identity, no IDs/nicknames in runtime special cases",
+  "history": "../2026-09-11-g12-final-window/remaining-tests/g10-comparison/ledger.json"
+}

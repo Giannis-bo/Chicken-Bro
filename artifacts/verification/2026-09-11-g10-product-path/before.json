@@ -1,0 +1,34 @@
+{
+  "case": "original-before",
+  "runId": "206962df-5fae-4ab0-9205-9bb688efb100",
+  "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "passed": false,
+  "reason": "asks for formal name and upgrade levels; no simulation submitted",
+  "nativeWeb": {
+    "completed_events": {
+      "search": 5
+    },
+    "run_id": "206962df-5fae-4ab0-9205-9bb688efb100"
+  },
+  "operations": [
+    "simc.list",
+    "simc.get",
+    "simc.options",
+    "simc.options",
+    "simc.options"
+  ],
+  "checks": {
+    "terminal": true,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true,
+    "detached": true,
+    "originalContext": true,
+    "syntheticLiveRegression": false
+  },
+  "models": 1,
+  "simc": 0,
+  "sources": 5,
+  "privateSha256": "1ce8b08ca065036240edb03aef71f72aa4e547fb059691051835607df5f9ec30",
+  "infrastructure": "worker first start failed due to parent directory traversal permission; same queued request resumed after permission fix; no model retry"
+}

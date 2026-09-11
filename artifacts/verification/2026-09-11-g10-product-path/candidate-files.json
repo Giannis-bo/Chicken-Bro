@@ -1,0 +1,12 @@
+{
+  "sourceBase": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "overlay": "G10 plus b3626192f diagnostics; prompt 32432 bytes before final shortening",
+  "files": {
+    "server/app/chickenbro/agent/AGENTS.md": "ee9f5beb28e88bb1c131dfdf46cb8c7b64db9e87ce7518d3b836cc897d84d67d",
+    "server/app/chickenbro/simulation_tools.py": "b34ca9751eca0f1bd311ab23704a20f6720ff257b1039bb5e8c7e63871301cdb",
+    "server/app/simulation/diagnostics.py": "61205e8bbcca627be67120c97f89fe1ac4bbe004890cf602aa3fe7fbfe49ab94",
+    "server/app/simulation/report.py": "cacaa3e72fdea31d14109d59fd243b24e42805638e406776e1c10f81b4165361",
+    "server/app/simulation/worker.py": "bdf941cf7f47d5b649bb4a1e690a9570d808c1823f12c058d6ecc6a97725ff92",
+    "server/app/simulation/experiments.py": "ec6931afd10299c584d4642750f9238c6a31fcd12222dda9ff5694f95ec60276"
+  }
+}
