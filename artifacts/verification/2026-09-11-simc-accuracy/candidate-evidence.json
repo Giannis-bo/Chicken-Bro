@@ -1,0 +1,44 @@
+{
+  "status": "candidate_joint_model_verified",
+  "source": "/opt/chickenbro-releases/g10-path-candidate-20260911",
+  "runId": "4c66d0f8-17c9-4ab0-aba3-bbfd73fd5f50",
+  "privateEvidenceSha256": "e8d755a8c49a2b77471a58611fb4d7f5c136fa72e62ffc55279fca0a96415eaf",
+  "answerSha256": "83d1ea92133c6555a2d7d4f8f17d68b0d897fb934147189273c120e89fffcabb",
+  "jobDiagnostics": [
+    {
+      "jobId": "c4885259-2fb8-41d6-9c3a-812b02dd2c2f",
+      "status": "succeeded",
+      "engineDiagnostics": [],
+      "limitations": []
+    },
+    {
+      "jobId": "da5276c8-8a99-4ff8-95d5-c1e6ca8bbb7f",
+      "status": "succeeded",
+      "engineDiagnostics": [
+        "implementation_not_yet_verified"
+      ],
+      "limitations": [
+        "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+      ]
+    }
+  ],
+  "comparisonDiagnostics": {
+    "variant": [],
+    "baseline": [
+      "implementation_not_yet_verified"
+    ]
+  },
+  "comparisonLimitations": [
+    "Reported error bounds are summed conservatively; this is not a paired statistical significance test.",
+    "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+  ],
+  "checks": {
+    "diagnosticsPersistedAndReturned": true,
+    "comparisonRetainsBothSides": true,
+    "answerSeparatesSamplingAndMechanics": true,
+    "ownerIsolation": true,
+    "idempotency": true
+  },
+  "consumptionOwner": "G10 after-original-v2; shared evidence, no extra simulation or model charged to accuracy",
+  "liveVerified": false
+}
