@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "id": 250214,
+      "name": "光塔核心",
+      "alias": "光柱",
+      "url": "https://ol.3dmgame.com/gl/325280.html"
+    },
+    {
+      "id": 273796,
+      "name": "一瓶肮脏的烈性毒液",
+      "alias": "毒液",
+      "url": "https://www.wowhead.com/cn/item=273796"
+    },
+    {
+      "id": 249343,
+      "name": "艾林先知的凝视",
+      "alias": "黄眼睛",
+      "url": "https://www.wowhead.com/item=249343/gaze-of-the-alnseer?bonus=13335:12806",
+      "evidence": "Actual browser visual: yellow eye icon; Myth6/6 ilvl289; passive effect. Alias inference cross-check, not a literal naming dictionary."
+    },
+    {
+      "id": 250144,
+      "name": "烬翼羽毛",
+      "alias": "羽毛",
+      "url": "https://www.wowhead.com/cn/item=250144"
+    }
+  ],
+  "upgradeSources": [
+    "https://warcraft.wiki.gg/wiki/Midnight_Season_2",
+    "https://warcraft.wiki.gg/wiki/Midnight_Mythic%2B_Season_1"
+  ],
+  "engineSource": {
+    "commit": "f50a2121bf894570146507496f3e113bff68e445",
+    "path": "engine/player/unique_gear_midnight.cpp",
+    "defaults": "engine/player/player.hpp",
+    "scope": "installed cloud source archive read directly; no engine download or upgrade"
+  }
+}

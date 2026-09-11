@@ -33,13 +33,15 @@
 
 - 食物与精确属性短时实验已发布（`342039cab`）：复用引擎选项完成 50 智力/72 暴击的条件爆发对照，支持最短 20 秒及真实属性读回；后端、Web 和线上业务验收通过，不冒称完整首领阶段还原。[发布记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md)。
 
+- G10 饰品组合已完成三组有限模拟：本季321光柱＋毒液对上季289或虚铸298黄眼睛＋羽毛均领先；复用已上线工具，无新增产品代码或部署。保留装等及引擎机制假设，不称全装等结论。[对照记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md)。
+
 ## 正在推进
 
-- G12 剩余单条原生模型输出失败按用户授权暂缓，不重跑。G10 完整饰品组合等待确认俗称身份与装等/升级档位，停止盲目扩样本。
+- G12 剩余单条原生模型输出失败按用户授权暂缓，不重跑。G10 已按明示升级档位完成有界对照，停止扩样。
 
-- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；完整饰品组合与原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
+- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；G10 三组声明条件对照已完成，原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
 
-- Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G10 完整组合仍需补齐装备身份与档位。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
+- Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G10 已复用现有工具完成声明条件组合对照。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
 
 
 

@@ -1,0 +1,370 @@
+{
+  "status": "conditional_comparison_verified",
+  "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+  "environment": "isolated database with deployed source and existing cloud engine",
+  "controls": {
+    "fightStyle": "Patchwerk",
+    "maxTime": 300,
+    "iterations": 10000,
+    "desiredTargets": 1,
+    "raidBuffs": true,
+    "bloodlust": true
+  },
+  "checks": {
+    "checks": {
+      "sameSnapshot": true,
+      "sameTalents": true,
+      "sameRuntime": true,
+      "sameControls": true,
+      "exactGear": true,
+      "actualEffects": true,
+      "foreignSnapshotRejected": true
+    },
+    "privateSha256": "e65c9b17cde2532b441eea23f99ad6b51473635291f5313609a0ccfc0f574367",
+    "modelCase": "resolved context result reuse, not a fresh original nickname discovery replay",
+    "additionalSimcAllowed": 0
+  },
+  "cases": [
+    {
+      "name": "S2-H6-321",
+      "jobId": "c949b29d-db38-43f0-96c5-e689db47a323",
+      "dps": 162803.1614926461,
+      "error": 83.45232949335511,
+      "effectiveConfig": {
+        "status": "verified",
+        "profileSha256": "c2d946481482050bdaf26bf5c2d4bb347e08db05c636cc44b0feb4a41bbc5a93",
+        "checked": [
+          "talents",
+          "equipmentItemIds",
+          "overriddenItemLevels",
+          "overriddenEnchantIds"
+        ],
+        "overriddenEnchants": {
+          "trinket1": null,
+          "trinket2": null
+        },
+        "enchantEvidenceScope": "engine_reported_input_identity"
+      },
+      "gear": [
+        {
+          "slot": "trinket1",
+          "itemId": 250214,
+          "itemLevel": 321.0
+        },
+        {
+          "slot": "trinket2",
+          "itemId": 273796,
+          "itemLevel": 321.0
+        }
+      ],
+      "effects": [
+        {
+          "name": "debilitating_venom_Crit",
+          "uptime": 3.6983408674200757
+        },
+        {
+          "name": "debilitating_venom_Haste",
+          "uptime": 3.8458678867886786
+        },
+        {
+          "name": "debilitating_venom_Mastery",
+          "uptime": 3.714846417975131
+        },
+        {
+          "name": "debilitating_venom_Vers",
+          "uptime": 3.740874087408741
+        },
+        {
+          "name": "empowering_venom_Crit",
+          "uptime": 3.747874787478748
+        },
+        {
+          "name": "empowering_venom_Haste",
+          "uptime": 3.742874287428743
+        },
+        {
+          "name": "empowering_venom_Mastery",
+          "uptime": 3.7438743874387437
+        },
+        {
+          "name": "empowering_venom_Vers",
+          "uptime": 3.7653765376537653
+        },
+        {
+          "name": "lights_blessing",
+          "uptime": 12.8706035936927
+        }
+      ]
+    },
+    {
+      "name": "S1-M6-289",
+      "jobId": "57d50294-4db1-41bf-88ba-10133656dbd9",
+      "dps": 159029.57780207967,
+      "error": 85.70059281033687,
+      "effectiveConfig": {
+        "status": "verified",
+        "profileSha256": "9ac6a4a64d95d9491193476c27521842ad611e8faa3d5281f349f56a7f178b80",
+        "checked": [
+          "talents",
+          "equipmentItemIds",
+          "overriddenItemLevels",
+          "overriddenEnchantIds"
+        ],
+        "overriddenEnchants": {
+          "trinket1": null,
+          "trinket2": null
+        },
+        "enchantEvidenceScope": "engine_reported_input_identity"
+      },
+      "gear": [
+        {
+          "slot": "trinket1",
+          "itemId": 249343,
+          "itemLevel": 289.0
+        },
+        {
+          "slot": "trinket2",
+          "itemId": 250144,
+          "itemLevel": 289.0
+        }
+      ],
+      "effects": [
+        {
+          "name": "alnscorned_essence",
+          "uptime": 59.0666283628362
+        },
+        {
+          "name": "alnsight",
+          "uptime": 38.69301883521687
+        },
+        {
+          "name": "emberwing_burn_crit",
+          "uptime": 0.3530353035303542
+        },
+        {
+          "name": "emberwing_burn_mast",
+          "uptime": 0.35170183685035283
+        },
+        {
+          "name": "emberwing_burn_vers",
+          "uptime": 0.33703370337033806
+        },
+        {
+          "name": "emberwing_heatwave",
+          "uptime": 15.0
+        }
+      ]
+    },
+    {
+      "name": "S1-voidforged-298",
+      "jobId": "1869a097-5788-4feb-a75b-c403c9d9d2eb",
+      "dps": 160438.39883577477,
+      "error": 88.5717818606558,
+      "effectiveConfig": {
+        "status": "verified",
+        "profileSha256": "f4ef3fbf09378a1b508c9559d39249f659008b7e6a26ef93ba18efe59e00ddb2",
+        "checked": [
+          "talents",
+          "equipmentItemIds",
+          "overriddenItemLevels",
+          "overriddenEnchantIds"
+        ],
+        "overriddenEnchants": {
+          "trinket1": null,
+          "trinket2": null
+        },
+        "enchantEvidenceScope": "engine_reported_input_identity"
+      },
+      "gear": [
+        {
+          "slot": "trinket1",
+          "itemId": 249343,
+          "itemLevel": 298.0
+        },
+        {
+          "slot": "trinket2",
+          "itemId": 250144,
+          "itemLevel": 298.0
+        }
+      ],
+      "effects": [
+        {
+          "name": "alnscorned_essence",
+          "uptime": 58.955455612227944
+        },
+        {
+          "name": "alnsight",
+          "uptime": 38.64850511717836
+        },
+        {
+          "name": "emberwing_burn_crit",
+          "uptime": 0.3316998366503326
+        },
+        {
+          "name": "emberwing_burn_mast",
+          "uptime": 0.32669933660032746
+        },
+        {
+          "name": "emberwing_burn_vers",
+          "uptime": 0.32469913658032545
+        },
+        {
+          "name": "emberwing_heatwave",
+          "uptime": 15.0
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "baselineJobId": "57d50294-4db1-41bf-88ba-10133656dbd9",
+      "variantJobId": "c949b29d-db38-43f0-96c5-e689db47a323",
+      "metricName": "dps",
+      "baseline": 159029.57780207967,
+      "variant": 162803.1614926461,
+      "delta": 3773.583690566418,
+      "deltaPct": 2.372881663097184,
+      "combinedErrorBound": 169.15292230369198,
+      "assessment": "higher",
+      "changes": {
+        "equipmentOverrides": {
+          "before": {
+            "trinket1": {
+              "gems": [],
+              "itemId": 249343,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 289
+            },
+            "trinket2": {
+              "gems": [],
+              "itemId": 250144,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 289
+            }
+          },
+          "after": {
+            "trinket1": {
+              "gems": [],
+              "itemId": 250214,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 321
+            },
+            "trinket2": {
+              "gems": [],
+              "itemId": 273796,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 321
+            }
+          }
+        }
+      },
+      "controls": {
+        "fightStyle": "Patchwerk",
+        "desiredTargets": 1,
+        "iterations": 10000,
+        "raidBuffs": true,
+        "bloodlust": true,
+        "maxTime": 300
+      },
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "limitations": [
+        "Reported error bounds are summed conservatively; this is not a paired statistical significance test."
+      ]
+    },
+    {
+      "baselineJobId": "1869a097-5788-4feb-a75b-c403c9d9d2eb",
+      "variantJobId": "c949b29d-db38-43f0-96c5-e689db47a323",
+      "metricName": "dps",
+      "baseline": 160438.39883577477,
+      "variant": 162803.1614926461,
+      "delta": 2364.7626568713167,
+      "deltaPct": 1.473938080927805,
+      "combinedErrorBound": 172.02411135401093,
+      "assessment": "higher",
+      "changes": {
+        "equipmentOverrides": {
+          "before": {
+            "trinket1": {
+              "gems": [],
+              "itemId": 249343,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 298
+            },
+            "trinket2": {
+              "gems": [],
+              "itemId": 250144,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 298
+            }
+          },
+          "after": {
+            "trinket1": {
+              "gems": [],
+              "itemId": 250214,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 321
+            },
+            "trinket2": {
+              "gems": [],
+              "itemId": 273796,
+              "enchant": null,
+              "bonusIds": [],
+              "itemLevel": 321
+            }
+          }
+        }
+      },
+      "controls": {
+        "fightStyle": "Patchwerk",
+        "desiredTargets": 1,
+        "iterations": 10000,
+        "raidBuffs": true,
+        "bloodlust": true,
+        "maxTime": 300
+      },
+      "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+      "limitations": [
+        "Reported error bounds are summed conservatively; this is not a paired statistical significance test."
+      ]
+    }
+  ],
+  "limitations": [
+    "Explicit level-scaled unsocketed/unenchanted item experiments; not claimed recovered owned variants or bonus IDs",
+    "Yellow-eye identification cross-checked against yellow eye icon and passive effect on Wowhead item249343",
+    "Lightspire Core engine duration multiplier0.5",
+    "Emberwing Feather10% penalty proc probability is an unverified engine placeholder",
+    "Sampling errors do not include uncertainty from those mechanism assumptions",
+    "Not a new original-prompt autonomous nickname-discovery replay; final result reuse case is separately marked"
+  ],
+  "runtimeChangeRequired": false,
+  "newReleaseRequired": false,
+  "modelReview": {
+    "runId": "a5edca8e-828d-4bf8-832b-6449570433ce",
+    "answerSha256": "5c88e6b1beeb860c9d1c445cde36c4eb438e9d910f0780e46e2c6cb736627a7a",
+    "privateSha256": "f92cf75bacbdd222c9ac8eab3a311399557333f265c8b0bd4eaa1a6ed1011063",
+    "passed": true,
+    "operations": [
+      "simc.get",
+      "simc.get",
+      "simc.get",
+      "simc.compare",
+      "simc.compare"
+    ],
+    "checks": {
+      "terminal": true,
+      "history": true,
+      "ownerIsolation": true,
+      "idempotency": true,
+      "detached": true
+    },
+    "denominatorChecked": "Model computes old combo deficit relative to new; root summary computes new combo uplift relative to old. Both correct and explicitly labeled.",
+    "contextScope": "One resolved-context reuse case; not original prompt autonomous nickname discovery."
+  }
+}
