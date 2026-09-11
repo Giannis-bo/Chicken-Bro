@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "receiptSha256": "c6c7c71607bd6bbfd35e91c37f9d7faf149e0d3e884821590fad01a88f5de941",
+  "runId": "6ffadcdb-877b-4c8a-ab3a-e818c36b8061",
+  "status": "failed",
+  "errorCode": "CODEX_REQUEST_REJECTED",
+  "retryable": false,
+  "noAssistantOrTools": true,
+  "secondOwnerDenied": true,
+  "persistedRecordUnchanged": true,
+  "modelCalls": 0,
+  "simcJobs": 0,
+  "passed": true,
+  "durableSha256": "e3255444ec2eb74f64393d51abec28f0a2bbce01dbe6a8348a5320dbc051e4a6",
+  "combinedCandidateReview": "passed using unchanged research success receipts and fresh failed replay"
+}

@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "receipts": {
+    "production-research-private.json": "ea327f3ea06ff432d102800363cadd4fd84522b0720d97a883c85b8220d6810b",
+    "native-production/live-private.json": "fb21d9a6027853326953be540077175c3ab1b058489d85c7f5e556c1f3fe9566",
+    "g10-production/live-private.json": "3ce1f9a8395b009e3315ac92dc4fc9cc68f9f4972ccab7c7549a0a1a71bca334"
+  },
+  "passed": true,
+  "reviews": {
+    "research": {
+      "passed": true,
+      "reviewer": "persistent-research task",
+      "scope": "same epoch 48-call block with zero upstream; new epoch one real matching druid/feral fetch; same positive SimC job on reissue; owner scoped; vision and transport checks"
+    },
+    "native": {
+      "passed": true,
+      "reviewer": "native-output task",
+      "runId": "5829b167-a0bd-4d94-a463-e148c28de1fb",
+      "scope": "failed CODEX_REQUEST_REJECTED, nonretryable replay, no assistant/tools, owner isolation; not successful model answer"
+    },
+    "g10": {
+      "passed": true,
+      "reviewer": "G10 task",
+      "runId": "d46835dd-7aa8-486e-b29d-ac2b66d9e371",
+      "scope": "four item IDs and disclosed 321/298 assumptions; same snapshot talents and controls; two real v6 successful jobs; compare arithmetic; no unnecessary clarification; owner scoped"
+    },
+    "diagnostics": {
+      "passed": true,
+      "reviewer": "SimC precision task",
+      "scope": "old-group get and compare preserve implementation_not_yet_verified; final answer distinguishes sampling error from mechanics uncertainty and limits real-world conclusion"
+    }
+  }
+}
