@@ -409,7 +409,7 @@
         "limit": "No fabricated server budget cap or simulation; original ring DPS belongs to G12."
       },
       "G10": {
-        "status": "declared_condition_comparison_passed_automatic_alias_replay_open",
+        "status": "declared_condition_comparison_passed_automatic_alias_candidate_verified",
         "implementation": "existing_released_tools_reused",
         "candidate": "three_simulations_and_resolved_context_answer_passed",
         "live": "no_new_live_acceptance",
@@ -417,13 +417,13 @@
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
         "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain.",
         "automaticAliasWork": {
-          "status": "local_verified_candidate_pending",
+          "status": "candidate_verified_production_pending",
           "sourceCommit": "30a5870e3",
-          "integration": "not_reported",
+          "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
           "localTestsPassed": 45,
           "localTestEvidence": "reported_by_owning_task",
-          "candidate": "pending_joint_accuracy_validation",
-          "live": "not_verified",
+          "candidate": "five_class_matrix_passed",
+          "live": "pending_joint_release",
           "manualUserAcceptance": "not_claimed",
           "evidenceAtSourceCommit": [
             "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
@@ -441,6 +441,14 @@
             "models": 8,
             "cloudSimc": 12,
             "observedSources": 60
+          },
+          "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
+          "jointLocalTestsPassed": 125,
+          "consumption": {
+            "models": 6,
+            "cloudSimc": 4,
+            "sources": 25,
+            "initializationFailuresBeforeModel": 2
           }
         }
       },
@@ -537,14 +545,14 @@
       "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
     },
     "simcAccuracy": {
-      "status": "local_verified_candidate_pending",
+      "status": "candidate_verified_production_pending",
       "sourceCommit": "3c53101ec",
-      "integration": "not_reported",
+      "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
       "localTestsPassed": 99,
       "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
       "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
-      "candidate": "pending_joint_G10_validation",
-      "live": "not_verified",
+      "candidate": "persistence_get_compare_answer_and_owner_isolation_verified",
+      "live": "pending_joint_release",
       "manualUserAcceptance": "not_claimed",
       "remainingEvidence": [
         "real_crafted_item_version_fixture",
@@ -556,6 +564,15 @@
         "models": 2,
         "cloudSimc": 2,
         "preferSharedG10Evidence": true
+      },
+      "evidence": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "candidateEvidence": "artifacts/verification/2026-09-11-simc-accuracy/candidate-evidence.json",
+      "consumption": {
+        "ownCloudSimc": 1,
+        "ownModels": 0,
+        "sharedG10CloudSimc": 2,
+        "sharedG10Models": 1,
+        "sharedConsumptionCountedOnlyInG10": true
       }
     },
     "persistentResearchBudget": {
