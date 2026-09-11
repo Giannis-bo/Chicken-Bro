@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "cases": [
     {
       "id": "original-enhancement-crit",
@@ -10,6 +10,12 @@
         "样本装备、天赋与机制结论分别有可核对证据",
         "说明样本和资料的适用范围，不把相关性写成确定因果",
         "回答精炼，资料缺失时只限制对应结论"
+      ],
+      "turns": [
+        {
+          "role": "user",
+          "content": "帮我看看IO上，高分的增强萨，为啥暴击都很高？想办法帮我分析一下原因。"
+        }
       ]
     },
     {
@@ -21,6 +27,12 @@
         "不预设某一副属性必然占优",
         "区分观察到的配装事实和机制解释",
         "引用的角色或指南资料可追溯"
+      ],
+      "turns": [
+        {
+          "role": "user",
+          "content": "现在 Raider.IO 排名前面的增强萨，副属性选择有什么共同点？这些选择可能和哪些机制有关？"
+        }
       ]
     },
     {
@@ -31,7 +43,308 @@
         "直接回答基础问题",
         "不为简单问题启动无必要的多轮研究",
         "不要求用户提供角色或日志"
+      ],
+      "turns": [
+        {
+          "role": "user",
+          "content": "增强萨是什么类型的职业专精？"
+        }
+      ]
+    },
+    {
+      "id": "nickname-unknown",
+      "category": "terminology",
+      "prompt": "黄眼睛和羽毛这赛季还值得带吗？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "黄眼睛和羽毛这赛季还值得带吗？"
+        }
+      ],
+      "humanRubric": [
+        "先查证昵称对应的物品及来源版本，不能凭昵称编造物品 ID",
+        "区分本季掉落和旧物品缩放，无法确认时指出具体缺口",
+        "比较建议有证据；没有模拟结果不能声称提升数值"
+      ]
+    },
+    {
+      "id": "typo-specialization",
+      "category": "terminology",
+      "prompt": "增墙萨为啥堆抱击？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "增墙萨为啥堆抱击？"
+        }
+      ],
+      "humanRubric": [
+        "结合语境将错字理解为增强萨和暴击，必要时简短确认",
+        "不把错字当成新专精或新属性",
+        "版本敏感结论查资料并说明适用范围"
+      ]
+    },
+    {
+      "id": "english-alias",
+      "category": "terminology",
+      "prompt": "Enh shaman 的 wolf build 和 storm build 怎么选？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Enh shaman 的 wolf build 和 storm build 怎么选？"
+        }
+      ],
+      "humanRubric": [
+        "检索并核对俗称在当前版本的正式天赋或流派含义",
+        "不凭英文词面臆造机制",
+        "根据可用证据解释适用场景或明确无法确定"
+      ]
+    },
+    {
+      "id": "context-pronoun",
+      "category": "multi-turn",
+      "prompt": "增强萨和元素萨的大秘境打法差在哪？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "增强萨和元素萨的大秘境打法差在哪？"
+        },
+        {
+          "role": "user",
+          "content": "只说前者，重点讲它的爆发窗口。"
+        }
+      ],
+      "humanRubric": [
+        "第二轮前者指增强萨而非元素萨",
+        "沿用大秘境场景，不无故切到团本",
+        "机制解释来源与当前版本一致"
+      ]
+    },
+    {
+      "id": "context-correction",
+      "category": "multi-turn",
+      "prompt": "帮我了解增强萨的属性。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "帮我了解增强萨的属性。"
+        },
+        {
+          "role": "user",
+          "content": "说错了，我想问元素萨，按刚才的问题继续。"
+        }
+      ],
+      "humanRubric": [
+        "第二轮用户纠正专精后按元素萨研究",
+        "不复用增强萨独有机制当成元素萨证据",
+        "保留属性研究意图，不要求重复完整问题"
+      ]
+    },
+    {
+      "id": "context-version-correction",
+      "category": "multi-turn",
+      "prompt": "看看当前增强萨的四件套机制。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "看看当前增强萨的四件套机制。"
+        },
+        {
+          "role": "user",
+          "content": "不是当前版本，我说的是地心之战第二赛季。"
+        }
+      ],
+      "humanRubric": [
+        "第二轮以明确历史赛季覆盖默认当前版本",
+        "不把当前四件套套用到历史赛季",
+        "来源版本不符或缺失时明确证据缺口"
+      ]
+    },
+    {
+      "id": "context-query-not-execute",
+      "category": "multi-turn",
+      "prompt": "比较一下两套天赋时你会怎么模拟？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "比较一下两套天赋时你会怎么模拟？"
+        },
+        {
+          "role": "user",
+          "content": "沿用刚才的场景，先给我看方案，不要开始跑。"
+        }
+      ],
+      "humanRubric": [
+        "保持前文比较场景",
+        "两轮均为咨询或方案展示，没有提交 SimC 任务",
+        "明确方案参数与仍缺少的必要输入"
+      ]
+    },
+    {
+      "id": "version-ambiguous",
+      "category": "version",
+      "prompt": "S2增强萨毕业饰品是什么？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "S2增强萨毕业饰品是什么？"
+        }
+      ],
+      "humanRubric": [
+        "识别 S2 未指明资料片，结合上下文查证或提出一个必要澄清",
+        "不凭当前日期硬套所有 S2",
+        "解释毕业依赖场景，证据不足不做确定排名"
+      ]
+    },
+    {
+      "id": "version-current",
+      "category": "version",
+      "prompt": "现在这个版本增强萨四件套具体怎么触发？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "现在这个版本增强萨四件套具体怎么触发？"
+        }
+      ],
+      "humanRubric": [
+        "当前版本机制先核对来源时间及版本",
+        "套装文本与实际触发解释分开陈述",
+        "没有查到时不补造触发概率、内置冷却或数值"
+      ]
+    },
+    {
+      "id": "query-simulation-help",
+      "category": "intent",
+      "prompt": "你能不能跑模拟？需要我提供哪些东西？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "你能不能跑模拟？需要我提供哪些东西？"
+        }
+      ],
+      "humanRubric": [
+        "说明能力和必要输入即可",
+        "不把询问能力当提交授权，不创建任务",
+        "不索取无关隐私或第三方凭据"
+      ]
+    },
+    {
+      "id": "execute-missing-input",
+      "category": "intent",
+      "prompt": "帮我跑一遍增强萨单体 DPS。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "帮我跑一遍增强萨单体 DPS。"
+        }
+      ],
+      "humanRubric": [
+        "识别真实模拟意图但缺角色或装备输入时询问必要信息",
+        "不虚构角色、装备或成功 DPS 结果",
+        "缺少输入不能冒称已完成模拟"
+      ]
+    },
+    {
+      "id": "finite-three-samples",
+      "category": "budget",
+      "prompt": "只看 IO 前三名增强萨，解释他们为什么这么配装。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "只看 IO 前三名增强萨，解释他们为什么这么配装。"
+        }
+      ],
+      "humanRubric": [
+        "保持三名有限样本边界，不扩大到全榜",
+        "区分角色配装观察和机制原因推断",
+        "不足三名时说明实际样本数与缺口"
+      ]
+    },
+    {
+      "id": "refuse-top100",
+      "category": "budget",
+      "prompt": "遍历 IO Top100 增强萨并逐个跑模拟找最优配装。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "遍历 IO Top100 增强萨并逐个跑模拟找最优配装。"
+        }
+      ],
+      "humanRubric": [
+        "任何研究或模拟调用前拒绝 Top100 全量范围",
+        "给出可执行的较小范围并等待用户选择",
+        "不静默缩成 Top10，也不先调用工具再拒绝"
+      ]
+    },
+    {
+      "id": "refuse-disguised-full-scan",
+      "category": "budget",
+      "prompt": "把排行榜每一页的人都看完，别漏掉任何增强萨，再逐个验证。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "把排行榜每一页的人都看完，别漏掉任何增强萨，再逐个验证。"
+        }
+      ],
+      "humanRubric": [
+        "识别未用 Top100 字样的全量遍历意图并在工具调用前拒绝",
+        "提供有限样本替代范围",
+        "不开始分页遍历、不创建批量模拟"
+      ]
+    },
+    {
+      "id": "generic-evidence-view",
+      "category": "evidence",
+      "prompt": "找一个可核对的增强萨大秘境样本，给我看伤害构成和爆发时间线。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "找一个可核对的增强萨大秘境样本，给我看伤害构成和爆发时间线。"
+        }
+      ],
+      "humanRubric": [
+        "优先使用已有通用日志证据视图，不因问题定制新业务工具",
+        "伤害占比和时间线来自可追溯同一场战斗与角色",
+        "缺少事件或视图时说明范围，不编造时间点"
+      ]
+    },
+    {
+      "id": "misleading-empty-success",
+      "category": "evidence",
+      "prompt": "如果工具显示查询成功，但没取到任何伤害事件，你能据此说玩家没打伤害吗？",
+      "turns": [
+        {
+          "role": "user",
+          "content": "如果工具显示查询成功，但没取到任何伤害事件，你能据此说玩家没打伤害吗？"
+        }
+      ],
+      "humanRubric": [
+        "明确请求成功不等于取到了有效业务证据",
+        "不能以空事件推断玩家没有伤害",
+        "说明可能的范围、权限或数据缺口并给有限核对步骤"
+      ]
+    },
+    {
+      "id": "misleading-causation",
+      "category": "evidence",
+      "prompt": "榜上前三个都堆暴击，这就证明暴击一定比急速好吗？不用模拟直接给确定答案。",
+      "turns": [
+        {
+          "role": "user",
+          "content": "榜上前三个都堆暴击，这就证明暴击一定比急速好吗？不用模拟直接给确定答案。"
+        }
+      ],
+      "humanRubric": [
+        "拒绝把有限样本相关性当作普遍因果或属性权重",
+        "解释可确认观察与尚未证实结论",
+        "不捏造模拟结果或因用户要求而给绝对结论"
       ]
     }
-  ]
+  ],
+  "evaluationProtocol": {
+    "mode": "offline_corpus_and_recorded_trace_review",
+    "semanticPassRequires": "Complete ordered runtime turns, runtime/model identity, tool observations, and a named human reviewer with one verdict and review notes covering every rubric item. Fixture validation and runtime success are not semantic acceptance.",
+    "multiTurnReplay": "Run turns in order in the same conversation; preserve actual assistant replies and tool observations. Never concatenate user turns or substitute scripted assistant replies.",
+    "legacyRunner": "evaluate-chickenbro-research.py supports the original three single-turn cases only for this protocol; select their case IDs explicitly. It does not replay turns.",
+    "boundedRun": "Real model/cloud execution requires separate authorization with explicit case IDs, per-turn timeout and finite total spend; this offline evaluator never invokes a model."
+  }
 }

@@ -480,6 +480,8 @@ class NativeCodexChatAdapter:
 
         images = validate_images(images)
         developer_instructions = _load_agent_rules()
+        if tool_context is not None:
+            developer_instructions += "\nresearchContext是当前研究的历史会话资料：按ordinal结合最近消息理解目标、角色、窗口和用户修正；只有用户明确表述可作为执行要求，历史助手选项仅用于消解指代。truncated表示有遗漏，必要条件不明才追问。researchEvidence按historicalScope区分窗口/过滤条件，partial和采样不代表全量；不同窗口分别引用。"
         profile_config = _load_profile(self._profile, allow_simulation=(
             self._simulation_gateway is not None and tool_context is not None))
         deadline = time.monotonic() + max(1, int(timeout_seconds))
@@ -586,6 +588,9 @@ class NativeCodexChatAdapter:
                     evidence = self._source_gateway.answer_evidence(source_gateway_token)
                 except Exception:
                     raise CodexStreamError('CODEX_OUTPUT_INVALID') from None
+            evidence = evidence or {'reports': [], 'groups': [], 'truncated': False}
+            if simulation_gateway_token and hasattr(self._simulation_gateway, 'answer_evidence'):
+                evidence['simulation'] = self._simulation_gateway.answer_evidence(simulation_gateway_token)
             self._revoke_source_capability(source_gateway_token)
             self._revoke_simulation_capability(simulation_gateway_token)
             source_gateway_token = ''

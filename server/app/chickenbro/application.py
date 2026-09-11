@@ -481,7 +481,8 @@ class ChatApplication:
         completed = False
         terminal_persisted = False
         try:
-            history = self._repository.list_messages(principal.user_id, conversation_id)
+            from server.app.chickenbro.research_context import current_research_history
+            history = current_research_history(self._repository.list_messages(principal.user_id, conversation_id))
             image_inputs = []
             image_labels = []
             image_rows = [(item, identity) for item in list(history)[-20:]
@@ -768,6 +769,8 @@ class ChatApplication:
 
     @staticmethod
     def _prompt(history: Sequence[Any], message: str) -> str:
+        from server.app.chickenbro.research_context import current_research_history, project_context
+        history = current_research_history(history)
         rows = []
         for item in list(history)[-20:]:
             role_value = _value(item, "role", "user")
@@ -778,7 +781,7 @@ class ChatApplication:
                 if _value(item, "image_ids", ()):
                     row.update(messageId=str(_value(item, "id")), imageIds=list(map(str, _value(item, "image_ids"))))
                 rows.append(row)
-        return json.dumps({"messages": rows}, ensure_ascii=False)
+        return json.dumps({"messages": rows, "researchContext": project_context(history)}, ensure_ascii=False)
 
 
 __all__ = (

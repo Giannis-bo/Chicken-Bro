@@ -72,7 +72,13 @@ class PostgresResearchBudget:
             cur.execute('SELECT work FROM chat.research_runs WHERE run_id=%s AND user_id=%s', (self.run_id,self.user_id))
             work = cur.fetchone()[0]
             source = data.get('source', {})
-            return {'state': state, 'sourceCalls': source.get('calls', 0),
+            used = {key:len(source.get(key, [])) for key in ('players','fights','groups')}
+            used['simulations'] = len(data.get('submissions', []))
+            limits = {'players':10,'fights':3,'groups':3,'simulations':4}
+            return {'state': state, 'scopeUsed':used, 'scopeLimits':limits,
+                    'scopeRemaining':{key:max(0,limit-used[key]) for key,limit in limits.items()},
+                    'executionRemaining':{'sourceCalls':max(0,48-work.get('calls',0)), 'eventUnits':max(0,20000-work.get('events',0))},
+                    'sourceCalls': source.get('calls', 0),
                     'turnSourceCalls':work.get('calls',0), 'turnEventUnits':work.get('events',0),
                     'executionLimits':{'sourceCallsPerTurn':48,'eventUnitsPerTurn':20000},
                     'players': len(source.get('players', [])),

@@ -324,7 +324,7 @@ def collect_evidence(previous, result):
             casts = _mapping(fact.get('casts'))
             entries = _items(casts.get('entries'))
             events = _items(fact.get('events'))
-            rec.update({'kind':'report', 'status': r.get('status'),'scope':_fields(fact,('queryScope',)),
+            rec.update({'kind':'report', 'status': ('partial' if fact.get('status') == 'partial' or fact.get('sourceStatus') == 'partial' else r.get('status')),'scope':_fields(fact,('queryScope',)),
                 'fightScope':_fields(fact.get('fight'),('name','difficulty','startTime','endTime','kill')),
                 'eventPage':_fields(fact.get('eventPage'),('count','complete','startTime','endTime','nextPageTimestamp','fieldsTruncated')),
                 'casts':[_fields(x,('name','guid','total')) for x in entries[:24]],
@@ -482,6 +482,9 @@ def validate_answer(text, evidence):
         elif any(any(name in c for name in names) for c in cells):
             if any(i < len(cells) and cells[i] in ('','-','—','–','N/A') for i in observation_columns):
                 errors.add('WCL_GROUP_OBSERVATION_EMPTY')
+    if isinstance(evidence, Mapping) and 'simulation' in evidence:
+        from server.app.chickenbro.simulation_grounding import validate_simulation_answer
+        errors.update(validate_simulation_answer(str(text), evidence['simulation']))
     return sorted(errors)
 
 
@@ -551,6 +554,8 @@ def repair_context(evidence):
     bounded = {'attemptedWcl': bool(safe.get('attemptedWcl')), 'reports': [], 'groups': [_fields(g, ('zoneId','encounterId','encounterName','difficulty','partition','className','specName','region','metric')) for g in _items(safe.get('groups'))[:MAX_GROUPS]], 'truncated': True}
     while len(json.dumps(bounded, ensure_ascii=False, separators=(',',':'))) > 8000 and bounded['groups']:
         bounded['groups'].pop()
+    if 'simulation' in safe:
+        bounded['simulation'] = safe['simulation']
     bounded['projectionTruncated'] = True
     bounded['observedReferenceCount'] = safe.get('observedReferenceCount', 0)
     bounded['referencesTruncated'] = bool(safe.get('referencesTruncated'))

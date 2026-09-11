@@ -191,3 +191,25 @@ class ResearchPostgresTest(unittest.TestCase):
         self.assertEqual(self.repo.research_evidence(self.owner,self.conversation)['facts'],[])
         fresh=self.store(self.admit('继续新日志'))
         self.assertIsNone(fresh.reserve('warcraftlogs',body['target'].replace('fight=1','fight=4'),{'view':'overview'})[0])
+
+    def test_generic_windows_load_separately_with_request_filters_and_owner_isolation(self):
+        from server.app.chickenbro.worker_gateway import ToolRecorder
+        run=self.admit()
+        with self.connect() as conn:conn.execute("INSERT INTO chat.executions(run_id,user_id,stage) VALUES (%s,%s,'succeeded')",(run,self.owner))
+        for i,view in enumerate(('healing','healing','statistics')):
+            window={} if i==0 else {'startTime':1000,'endTime':2000}
+            options={'view':view,**window}
+            if view=='statistics':options['dataType']='Resources'
+            fact={'reportCode':'AAAAAAAAAAAAAAAA','fightId':1,'sourceId':7,'view':view}
+            fact[view]={'window':window,'totals':{'effective':100}} if view=='healing' else {**window,'dataType':'Resources','complete':False,'metricsComplete':True,'resources':[{'type':0,'waste':4}]}
+            result={'status':'verified' if view=='healing' else 'partial','sourceKey':'warcraftlogs','facts':[fact]}
+            ToolRecorder(self.connect,run).execute('source.warcraftlogs',{'provider':'warcraftlogs','target':'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=1&source=7','options':options},lambda:result)
+        self.admit()
+        evidence=self.repo.research_evidence(self.owner,self.conversation)
+        self.assertEqual(len(evidence['facts']),3)
+        statistics=next(f for f in evidence['facts'] if f['view']=='statistics')
+        self.assertEqual(statistics['status'],'partial')
+        self.assertEqual(statistics['historicalScope']['filters']['dataType'],'Resources')
+        self.assertEqual(self.repo.research_evidence(uuid4(),self.conversation)['facts'],[])
+        self.admit('/新研究\n独立问题')
+        self.assertEqual(self.repo.research_evidence(self.owner,self.conversation)['facts'],[])

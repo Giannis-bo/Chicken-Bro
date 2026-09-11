@@ -15,6 +15,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from server.app.chickenbro.simulation_grounding import collect_simulation_evidence
 from server.app.identity.domain import Principal
 from server.app.simulation.application import (
     SimulationApplication,
@@ -56,6 +57,7 @@ class _Run:
     preparations: dict[str, dict] = field(default_factory=dict)
     submissions: dict[str, UUID | None] = field(default_factory=dict)
     research_budget: object = None
+    answer_evidence: dict = field(default_factory=dict)
 
 
 def _code(value: object, fallback: str = "SIMC_UNAVAILABLE") -> str:
@@ -309,7 +311,20 @@ class SimulationToolGateway:
         return _packet("ready", options=options, runtimeRevision=caps.runtime_revision,
                        compilerRevision=caps.compiler_revision)
 
+    def answer_evidence(self, token: str) -> dict:
+        run = self._authorized(token)
+        with run.lock:
+            return collect_simulation_evidence(run.answer_evidence, None)
+
     def execute(self, token: str, operation: str, arguments: dict) -> dict:
+        packet = self._execute(token, operation, arguments)
+        if operation in {"get", "list", "submit", "compare"}:
+            run = self._authorized(token)
+            with run.lock:
+                run.answer_evidence = collect_simulation_evidence(run.answer_evidence, packet)
+        return packet
+
+    def _execute(self, token: str, operation: str, arguments: dict) -> dict:
         run = self._authorized(token)
         try:
             if not isinstance(arguments, dict) or not isinstance(operation, str):

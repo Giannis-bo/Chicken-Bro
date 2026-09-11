@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "research-generalization",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Authorized generic research evidence, semantic evaluation and release.",
+      "paths": ["docs/plans/2026-09-11-research-generalization.md"],
+      "prefixes": ["artifacts/verification/2026-09-11-research-generalization/"]
+    },
+    {
       "id": "research-completion",
       "disposition": "keep",
       "category": "target-verification",

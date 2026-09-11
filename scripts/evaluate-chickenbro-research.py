@@ -59,11 +59,19 @@ def _load_cases(selected_ids: list[str]) -> list[dict[str, Any]]:
         for item in cases
         if isinstance(item, dict) and str(item.get("id") or "").strip()
     }
-    requested = selected_ids or list(by_id)
+    # Preserve the historical bounded default as the corpus grows.
+    requested = selected_ids or [
+        "original-enhancement-crit",
+        "variant-enhancement-secondary-stats",
+        "simple-class-question",
+    ]
     missing = [case_id for case_id in requested if case_id not in by_id]
     if missing:
         raise ValueError("unknown evaluation case: " + ", ".join(missing))
-    return [by_id[case_id] for case_id in requested]
+    selected = [by_id[case_id] for case_id in requested]
+    if any(len(case.get("turns", [])) > 1 for case in selected):
+        raise ValueError("multi-turn cases require ordered conversation replay; this runner supports single-turn cases only")
+    return selected
 
 
 def _build_gateway_app(gateway: ChickenbroSourceGateway) -> FastAPI:
