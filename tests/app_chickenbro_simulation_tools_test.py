@@ -354,6 +354,30 @@ class SimulationExperimentTest(unittest.TestCase):
         missing=query('无底袋')['options']
         self.assertIn(270164,[x['itemId'] for x in missing['supportedVariantItems']])
 
+    def test_item_search_reuses_owned_snapshot_names_outside_variant_catalog(self):
+        from copy import deepcopy
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tests.app_simulation_talent_editor_test import RUNTIME
+        sid = UUID(self.prepare()['snapshotId'])
+        old = self.repository.snapshots[(self.owner.user_id, sid)]
+        raw = deepcopy(old.snapshot)
+        raw['gear']['trinket1'] = {'itemId': 273796, 'itemLevel': 321,
+            'name': 'Vile Vial of Volatile Venom', 'bonusIds': [12846], 'gems': [], 'enchant': None}
+        self.repository.snapshots[(self.owner.user_id, sid)] = replace(old, snapshot=raw)
+        self.application._runtime_capabilities = replace(self.application._runtime_capabilities, runtime_revision=RUNTIME)
+        names = SimpleNamespace(data={'items': {'273796': '一瓶肮脏的烈性毒液'}})
+        with patch.object(simulation_tools, 'catalog_for_build', return_value=names):
+            for query in ('volatile venom', '273796', '烈性毒液'):
+                args = {'snapshotId': str(sid), 'kind': 'items', 'query': query}
+                result = self.gateway.execute(self.token, 'options', args)
+                self.assertEqual([row['itemId'] for row in result['options']['items']], [273796])
+                self.assertEqual(result['options']['items'][0]['sameUpgradeVariants'], [])
+            other = self.gateway.issue_capability(replace(self.context, principal=self.other, run_id=uuid4()))
+            denied = self.gateway.execute(other, 'options', args)
+            self.assertNotIn('options', denied)
+            self.assertEqual(denied['status'], 'blocked')
+
     def test_talent_preview_submit_followup_and_owner_isolation(self):
         from copy import deepcopy
         from pathlib import Path

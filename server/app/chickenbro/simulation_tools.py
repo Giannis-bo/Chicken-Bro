@@ -261,12 +261,15 @@ class SimulationToolGateway:
             names = catalog_for_build(catalog["build"])
             engine_names = variant_item_names(caps.runtime_revision)
             localized = names.data['items'] if names else {}
-            if not localized and not engine_names: return _blocked("SIMC_CATALOG_UNAVAILABLE")
+            source_names = {str(item['itemId']): item['name'] for item in source.get('gear', {}).values()
+                            if type(item.get('itemId')) is int and isinstance(item.get('name'), str) and item['name']}
+            if not localized and not engine_names and not source_names: return _blocked("SIMC_CATALOG_UNAVAILABLE")
             if not query: raise ValueError("item name or ID required")
-            all_names = {**engine_names, **localized}
+            all_names = {**source_names, **engine_names, **localized}
             rows = [{"itemId":int(k),"name":v,"nameEn":engine_names.get(k)} for k,v in all_names.items()
                     if k.isdigit() and v and (query.casefold() in v.casefold() or query==k
-                        or query.casefold() in engine_names.get(k,'').casefold())]
+                        or query.casefold() in engine_names.get(k,'').casefold()
+                        or query.casefold() in source_names.get(k,'').casefold())]
             for row in rows[:30]:
                 row["sameUpgradeVariants"] = same_upgrade_variants(row["itemId"], source.get("gear", {}), caps.runtime_revision)
             options = {"items":rows[:30],"hasMore":len(rows)>30,"gameBuild":catalog['build'],
