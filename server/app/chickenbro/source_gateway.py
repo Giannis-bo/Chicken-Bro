@@ -102,6 +102,53 @@ class ServerConfiguredSourceQuery:
         self._raiderio = raiderio_research if raiderio_research is not None else RaiderIOResearch()
         self._wcl_reader = wcl_reader or build_wcl_log_evidence
 
+    def validate(self, provider, target, options):
+        """Pure local validation before reserving any upstream work."""
+        from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+        options = options or {}
+        if not isinstance(options, Mapping):
+            raise InvalidSourceLink('options must be an object')
+        if provider == 'warcraftlogs_batch':
+            rows = options.get('queries')
+            if target != 'reports' or set(options) != {'queries'} or not isinstance(rows, list) or not 1 <= len(rows) <= 3:
+                raise InvalidSourceLink('batch requires 1-3 queries')
+            for row in rows:
+                if not isinstance(row, Mapping) or set(row)-{'target','options'}:
+                    raise InvalidSourceLink('invalid batch member')
+                self.validate('warcraftlogs', row.get('target',''), row.get('options'))
+        elif provider == 'warcraftlogs':
+            parsed = parse_character_source_url(normalize_wcl_report_url(target))
+            if parsed.provider is not SourceProvider.WARCRAFTLOGS:
+                raise InvalidSourceLink('WCL report URL required')
+            normalized=validate_wcl_options(options)
+            if normalized.get('view')=='healing' and (not parsed.fight_id or not parsed.actor_id):
+                raise InvalidSourceLink('healing requires fight/source')
+        elif provider == 'raiderio':
+            if parse_character_source_url(target).provider is not SourceProvider.RAIDERIO or options:
+                raise InvalidSourceLink('Raider.IO character URL without options required')
+        elif provider == 'public_web':
+            if set(options)-{'start','match'} or not isinstance(target,str) or not target.strip() or len(target)>2000:
+                raise InvalidSourceLink('invalid public web request')
+            if 'start' in options and (type(options['start']) is not int or options['start']<0):raise InvalidSourceLink()
+            if 'match' in options and not isinstance(options['match'],str):raise InvalidSourceLink()
+        elif provider == 'warcraftlogs_rankings':
+            if target!='rankings':raise InvalidSourceLink()
+            from server.app.chickenbro.wcl_rankings import query_wcl_rankings
+            query_wcl_rankings(options,validate_only=True)
+        elif provider == 'warcraftlogs_character':
+            if target!='character':raise InvalidSourceLink()
+            from server.app.chickenbro.character_discovery import discover_wcl_character
+            discover_wcl_character(options,validate_only=True)
+        elif provider == 'raiderio_rankings':
+            if target!='rankings':raise InvalidSourceLink()
+            from server.app.chickenbro.raiderio_research import RaiderIOResearch
+            RaiderIOResearch().rankings(options,validate_only=True)
+        elif provider == 'raiderio_batch':
+            rows=options.get('targets')
+            if target!='characters' or set(options)!={'targets'} or not isinstance(rows,list) or not 1<=len(rows)<=10:raise InvalidSourceLink()
+            for row in rows:self.validate('raiderio',row,{})
+        else:raise InvalidSourceLink('unknown provider')
+
     def query(self, provider: str, target: str, options: Mapping[str, Any] | None = None, *, web_state=None) -> dict[str, Any]:
         normalized_provider = _text(provider, 40).lower()
         options = options or {}
@@ -262,12 +309,14 @@ class ServerConfiguredSourceQuery:
             fact = result['facts'][0]
             if view != 'full':
                 fact['view'] = view
-            if view in ('events', 'statistics') and evidence.get('queryScope') != 'report_discovery':
+            if view in ('events', 'statistics', 'healing') and evidence.get('queryScope') != 'report_discovery':
                 for key in ('actors','actorsTruncated','fights','fightsTruncated','players','playersTruncated','casts','damage'):
                     fact.pop(key, None)
-            if view in ('overview', 'statistics'):
+            if view in ('overview', 'statistics', 'healing'):
                 for key in ('events','eventPage','eventSummary'):
                     fact.pop(key, None)
+            if view == 'healing':
+                fact['healing'] = evidence.get('healing',{})
             if view == 'statistics':
                 fact['statistics'] = statistics
         return result
@@ -326,6 +375,13 @@ class ChickenbroSourceGateway:
             if str(provider).lower().startswith('warcraftlogs'):
                 index = self._answer_evidence.setdefault(token, {"reports": [], "groups": [], "truncated": False})
                 index['attemptedWcl'] = True
+            if hasattr(self._query_service, 'validate'):
+                try:
+                    self._query_service.validate(str(provider).strip().lower(), target, options)
+                except (InvalidSourceLink, TypeError, AttributeError):
+                    return {'status':'blocked','errorCode':'SOURCE_INVALID_ARGUMENTS','facts':[],
+                        'limitations':['Local source parameters are invalid; no upstream request or research charge occurred.'],
+                        'nextActions':['Use WCL view=overview for gear/stats, healing for aggregated healing, events for sequences, statistics with explicit startTime/endTime. Correct parameters before retrying.']}
             error, receipt = self._budgets[token].reserve(str(provider).strip().lower(), target, options)
             if error:
                 return error
@@ -352,6 +408,41 @@ class ChickenbroSourceGateway:
             "limitations": ["The configured source API returned no bounded result."],
             "nextActions": [],
         }
+
+    def reserve_scope(self, token, provider, target, options):
+        with self._lock:
+            if not self._valid(token,self._aware_now()):raise SourceGatewayUnauthorized()
+            return self._budgets[token].reserve_scope(provider,target,options)
+
+    def seed_evidence(self, token, evidence):
+        with self._lock:
+            if not self._valid(token,self._aware_now()):
+                raise SourceGatewayUnauthorized()
+            admitted=[]
+            for fact in evidence.get('facts',[]):
+                if not isinstance(fact,dict) or not fact.get('reportCode') or not fact.get('fightId'):continue
+                actors={str(p['id']) for p in fact.get('players',[]) if isinstance(p,dict) and type(p.get('id')) is int}
+                if fact.get('sourceId'):actors.add(str(fact['sourceId']))
+                targets=[{'target':f"https://www.warcraftlogs.com/reports/{fact['reportCode']}?fight={fact['fightId']}&source={actor}",'options':{'view':'overview'}} for actor in actors]
+                # One fact is admitted atomically, including every retained player.
+                budget=self._budgets[token]
+                error=budget.reserve_scope('warcraftlogs_evidence', '', {'targets':targets,'report':fact['reportCode'],'fight':str(fact['fightId'])})
+                if not error:admitted.append(fact)
+            safe={**evidence,'facts':admitted,'truncated':bool(evidence.get('truncated')) or len(admitted)!=len(evidence.get('facts',[]))}
+            self._answer_evidence[token] = collect_evidence(self._answer_evidence.get(token), safe)
+            return safe
+
+    def usage_recorder(self, token):
+        with self._lock:
+            if not self._valid(token,self._aware_now()):raise SourceGatewayUnauthorized()
+            return getattr(self._budgets[token], 'record_usage', lambda _:None)
+
+    def record_usage(self, token, usage):
+        with self._lock:
+            if not self._valid(token,self._aware_now()):
+                raise SourceGatewayUnauthorized()
+            budget=self._budgets[token]
+            if hasattr(budget,'record_usage'):budget.record_usage(usage)
 
     def research_status(self, token):
         with self._lock:

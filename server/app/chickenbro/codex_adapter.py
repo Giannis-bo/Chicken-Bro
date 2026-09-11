@@ -490,6 +490,7 @@ class NativeCodexChatAdapter:
         command = [self._codex_bin, "-c", 'approval_policy="never"']
         command.extend(["app-server", "--listen", "stdio://"])
 
+        usage_recorder = None
         source_gateway_token = ""
         simulation_gateway_token = ""
         if self._source_gateway is not None:
@@ -502,12 +503,24 @@ class NativeCodexChatAdapter:
                 raise CodexUnavailable() from None
 
         try:
+            if source_gateway_token and hasattr(self._source_gateway,'usage_recorder'):
+                usage_recorder=self._source_gateway.usage_recorder(source_gateway_token)
             if self._source_gateway is not None and hasattr(self._source_gateway, 'research_status'):
                 research_status = self._source_gateway.research_status(source_gateway_token)
                 developer_instructions += '\n服务端本次研究状态：' + json.dumps(research_status, ensure_ascii=False)
                 if research_status.get('state') == 'ended':
                     profile_config['web_search'] = 'disabled'
                     developer_instructions += '\n本研究已结束。本轮只讨论已有证据，不新增搜索、资料查询、模拟。独立新问题需用户明确开启新研究。'
+            if self._source_gateway is not None and hasattr(self._source_gateway,'seed_evidence'):
+                try:
+                    history_evidence=json.loads(prompt).get('researchEvidence',{})
+                except (ValueError,AttributeError):
+                    history_evidence={}
+                admitted=self._source_gateway.seed_evidence(source_gateway_token,{'status':'verified','sourceKey':'warcraftlogs',**history_evidence})
+                if history_evidence and isinstance(admitted,dict):
+                    prompt_data=json.loads(prompt)
+                    prompt_data['researchEvidence']=admitted
+                    prompt=json.dumps(prompt_data,ensure_ascii=False)
             if self._simulation_gateway is not None and tool_context is not None:
                 simulation_gateway_token = self._simulation_gateway.issue_capability(tool_context)
             child_environment = {
@@ -565,6 +578,8 @@ class NativeCodexChatAdapter:
                 raise CodexExecutionFailed()
             if terminal is None:
                 raise CodexStreamError("CODEX_OUTPUT_INVALID")
+            if source_gateway_token and hasattr(self._source_gateway,'record_usage'):
+                self._source_gateway.record_usage(source_gateway_token,{'primary':getattr(session,'token_usage',None)})
             evidence = None
             if source_gateway_token:
                 try:
@@ -579,6 +594,9 @@ class NativeCodexChatAdapter:
             errors = _answer_errors(terminal['text'], evidence)
             _diagnostic('validation', validation_codes=errors, deadline=deadline)
             if errors:
+                diagnostic=_DIAGNOSTICS.get()
+                if diagnostic is not None and usage_recorder is not None:
+                    diagnostic.usage_writer=usage_recorder
                 fixed = self._repair_answer(prompt, terminal['text'], errors, evidence,
                                             deadline, command, profile_config, child_environment)
                 terminal = {'type': 'completed', 'text': fixed}
@@ -605,6 +623,9 @@ class NativeCodexChatAdapter:
         except (OSError, ValueError, TypeError):
             raise CodexStreamError("CODEX_OUTPUT_INVALID") from None
         finally:
+            if usage_recorder is not None:
+                try:usage_recorder({'primary':getattr(session,'token_usage',None)})
+                except Exception:_LOG.warning('chat_usage_unavailable')
             session.messages.close()
             if not process_finished:
                 self._terminate(process)
@@ -683,6 +704,9 @@ class NativeCodexChatAdapter:
             raise CodexStreamError('CODEX_OUTPUT_INVALID') from None
         finally:
             if session is not None:
+                diagnostic=_DIAGNOSTICS.get()
+                if diagnostic is not None and hasattr(diagnostic,'usage_writer'):
+                    diagnostic.usage_writer({'repair':getattr(session,'token_usage',None)})
                 session.messages.close()
             if process is not None:
                 if not finished:

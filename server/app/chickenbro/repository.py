@@ -138,6 +138,10 @@ class PostgresChatRepository(ChatImageRepository):
                 rows = cursor.fetchall()
         return [self._conversation_from_row(row) for row in rows]
 
+    def research_evidence(self, user_id, conversation_id):
+        from server.app.chickenbro.research_evidence import load_evidence
+        return load_evidence(self._connection_factory, user_id, conversation_id)
+
     def list_messages(self, user_id: UUID, conversation_id: UUID) -> Sequence[Message]:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:

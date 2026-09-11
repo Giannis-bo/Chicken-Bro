@@ -292,7 +292,7 @@ class RaiderIOResearch:
         self._realm_resolver = realm_resolver or resolve_wcl_realm
         self._http_client = http_client or HttpxSourceGateway(timeout_seconds=15)
 
-    def rankings(self, options: Mapping[str, Any]) -> dict[str, Any]:
+    def rankings(self, options: Mapping[str, Any], *, validate_only=False) -> dict[str, Any]:
         if not isinstance(options, Mapping) or any(
             not isinstance(key, str) or key not in _RANKING_KEYS for key in options
         ):
@@ -314,6 +314,7 @@ class RaiderIOResearch:
             season != "current" and not _SEASON_RE.fullmatch(season)
         ):
             raise InvalidSourceLink("invalid Raider.IO season")
+        if validate_only:return None
         evidence: list[dict[str, Any]] = []
         if season == "current":
             affix_url = _AFFIX_API + "?" + urlencode({"region": "us" if region == "world" else region, "locale": "en"})

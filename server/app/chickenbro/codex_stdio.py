@@ -12,7 +12,7 @@ from server.app.chickenbro.stream import CodexStreamError
 
 _MAX_LINE_BYTES = 1024 * 1024
 _MAX_TEXT_CHARS = 262144
-_BODY_METHODS = {"item/started", "item/completed", "item/agentMessage/delta", "item/reasoning/summaryTextDelta", "turn/completed"}
+_BODY_METHODS = {"item/started", "item/completed", "item/agentMessage/delta", "item/reasoning/summaryTextDelta", "turn/completed", "thread/tokenUsage/updated"}
 _APPROVAL_METHODS = {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}
 
 
@@ -28,6 +28,14 @@ UPSTREAM_KINDS = frozenset(('contextWindowExceeded', 'sessionBudgetExceeded',
     'threadRollbackFailed', 'sandboxError', 'other', 'httpConnectionFailed',
     'responseStreamConnectionFailed', 'responseStreamDisconnected',
     'responseTooManyFailedAttempts', 'activeTurnNotSteerable', 'unknown'))
+
+
+def clean_token_usage(value):
+    total=value.get('total') if isinstance(value,dict) else None
+    keys=('inputTokens','cachedInputTokens','outputTokens','reasoningOutputTokens','totalTokens')
+    if not isinstance(total,dict) or not all(type(total.get(k)) is int and 0<=total[k]<=10**12 for k in keys):
+        return None
+    return {k:total[k] for k in keys}
 
 
 def invalid(kind='protocol_invalid', upstream=None):
@@ -121,6 +129,7 @@ class CodexStdioSession:
         self.items = {}
         self.final_id = None
         self.final_text = None
+        self.token_usage = None
 
     def send(self, message):
         payload = (json.dumps(message, ensure_ascii=False) + "\n").encode("utf-8")
@@ -238,6 +247,10 @@ class CodexStdioSession:
                 params = message.get("params")
                 if not isinstance(params, dict) or params.get("threadId") != self.thread_id:
                     raise invalid()
+                if method == 'thread/tokenUsage/updated':
+                    if params.get('turnId') == self.turn_id:
+                        self.token_usage = clean_token_usage(params.get('tokenUsage')) or self.token_usage
+                    continue
                 if method == "turn/completed":
                     turn = params.get("turn", {})
                     if turn.get("id") != self.turn_id:

@@ -494,6 +494,9 @@ class ChatApplication:
                 image_labels.append({"imageNumber": len(image_inputs), "messageId": str(_value(item, "id")),
                                      "imageId": str(identity)})
             prompt_data = json.loads(self._prompt(history, ""))
+            evidence_reader = getattr(self._repository, 'research_evidence', None)
+            if callable(evidence_reader):
+                prompt_data['researchEvidence'] = evidence_reader(principal.user_id, conversation_id)
             prompt_data["productCapabilities"] = {
                 "imageInputEnabled": self._images_enabled,
                 "instruction": ("本次运行面已开放 PNG/JPEG 图片选择，每条最多三张。只有实际附带的图像可用于看图判断。"

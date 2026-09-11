@@ -38,7 +38,7 @@ def _zone(value):
     return result
 
 
-def query_wcl_rankings(options):
+def query_wcl_rankings(options, *, validate_only=False):
     if not isinstance(options,dict) or set(options)-_ALLOWED:raise InvalidSourceLink()
     region=options.get('region','world')
     if region not in _REGIONS:raise InvalidSourceLink()
@@ -51,6 +51,7 @@ def query_wcl_rankings(options):
         partition=_integer(options,'partition',1,100)
         class_name=options.get('className');spec_name=options.get('specName');metric=options.get('metric','dps')
         if any(not isinstance(v,str) or not re.fullmatch(r'[A-Za-z][A-Za-z ]{0,30}',v) for v in (class_name,spec_name)) or metric not in ('dps','hps','bossdps'):raise InvalidSourceLink()
+    if validate_only:return None
     try:
         if eid is None:
             data=_graphql(ZONE_QUERY,{'id':zid}) if zid else _graphql(CATALOG_QUERY,{})

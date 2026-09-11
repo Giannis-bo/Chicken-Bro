@@ -68,9 +68,13 @@ class PostgresResearchBudget:
             'nextActions':['独立的新问题请在消息第一行输入 /新研究，下一行写新问题；不要拆分原研究绕过预算。']}
 
     def status(self):
-        with self._locked() as (_, _, state, data):
+        with self._locked() as (cur, _, state, data):
+            cur.execute('SELECT work FROM chat.research_runs WHERE run_id=%s AND user_id=%s', (self.run_id,self.user_id))
+            work = cur.fetchone()[0]
             source = data.get('source', {})
             return {'state': state, 'sourceCalls': source.get('calls', 0),
+                    'turnSourceCalls':work.get('calls',0), 'turnEventUnits':work.get('events',0),
+                    'executionLimits':{'sourceCallsPerTurn':48,'eventUnitsPerTurn':20000},
                     'players': len(source.get('players', [])),
                     'simulations': len(data.get('submissions', []))}
 
@@ -80,11 +84,33 @@ class PostgresResearchBudget:
                 return self._ended(), None
             budget = ResearchBudget.restore(data.get('source', {}))
             budget.started = self.started
+            cumulative_calls, cumulative_events = budget.calls, budget.events
+            cur.execute('SELECT work FROM chat.research_runs WHERE run_id=%s AND user_id=%s', (self.run_id,self.user_id))
+            work = cur.fetchone()[0]
+            before_calls, before_events = work.get('calls',0), work.get('events',0)
+            budget.calls, budget.events = before_calls, before_events
             error, receipt = budget.reserve(provider,target,options)
+            if error and any(d in ' '.join(error.get('limitations',[])) for d in ('source calls','events (','time budget')):
+                error = {'status':'blocked','errorCode':'RESEARCH_TURN_BUDGET_EXCEEDED','facts':[],
+                    'limitations':['This response reached its execution limit. This does not exhaust the research scope or invalidate existing evidence.'],
+                    'nextActions':['Stop new work in this response, answer from retained evidence and identify the remaining finite gap. A user follow-up may continue within the same player/fight scope; do not automatically split bulk research.']}
             if not error:
+                cur.execute('UPDATE chat.research_runs SET work=%s::jsonb WHERE run_id=%s AND user_id=%s',
+                    (json.dumps({'calls':budget.calls,'events':budget.events}),self.run_id,self.user_id))
+                budget.calls = cumulative_calls + budget.calls - before_calls
+                budget.events = cumulative_events + budget.events - before_events
                 data['source'] = budget.dump()
                 self._save(cur,identity,data)
             return error, receipt
+
+    def reserve_scope(self, provider, target, options):
+        with self._locked() as (cur, identity, state, data):
+            budget = ResearchBudget.restore(data.get('source', {}))
+            error = budget.reserve_scope(provider, target, options, ended=state != 'active')
+            if not error:
+                data['source'] = budget.dump()
+                self._save(cur, identity, data)
+            return error
 
     def observe(self, receipt, result):
         with self._locked() as (cur, identity, _, data):
@@ -92,6 +118,13 @@ class PostgresResearchBudget:
             budget.observe(receipt,result)
             data['source'] = budget.dump()
             self._save(cur,identity,data)
+
+    def record_usage(self, usage):
+        from server.app.chickenbro.codex_stdio import clean_token_usage
+        safe={phase:clean_token_usage({'total':value}) for phase,value in usage.items() if phase in ('primary','repair')}
+        with self.connect() as conn:
+            conn.execute('UPDATE chat.agent_runs SET model_usage=model_usage || %s::jsonb WHERE id=%s AND user_id=%s',
+                         (json.dumps(safe),self.run_id,self.user_id))
 
     def reserve_simulation(self, key):
         with self._locked() as (cur, identity, state, data):

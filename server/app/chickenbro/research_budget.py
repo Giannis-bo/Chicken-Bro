@@ -63,6 +63,19 @@ class ResearchBudget:
             budget.__dict__[key] = set(state[key]) if isinstance(default, set) else copy.deepcopy(state[key])
         return budget
 
+    def reserve_scope(self, provider, target, options, *, ended=False):
+        trial = copy.deepcopy(self)
+        trial.calls = trial.events = 0
+        trial.started = monotonic()
+        error, receipt = trial.reserve(provider, target, options)
+        if error:
+            return error
+        if ended and any(getattr(trial,k) != getattr(self,k) for k in ('players','fights','groups','pages','slots')):
+            return blocked('ended scope')
+        trial.calls, trial.events, trial.started = self.calls, self.events, self.started
+        self.__dict__.update(trial.__dict__)
+        return None
+
     def reserve(self, provider, target, options):
         if monotonic() - self.started >= 360:
             return blocked('time'), None
@@ -76,6 +89,12 @@ class ResearchBudget:
         return None, receipt
 
     def _reserve(self, provider, target, options, receipt):
+        if provider == 'warcraftlogs_evidence':
+            queries=options.get('targets') or [{'target':f"https://www.warcraftlogs.com/reports/{options['report']}?fight={options['fight']}",'options':{'view':'overview'}}]
+            for query in queries:
+                error=self._reserve('warcraftlogs',query['target'],query['options'],receipt)
+                if error:return error
+            return None
         if provider == 'warcraftlogs_batch':
             queries = options.get('queries', [])
             if not isinstance(queries, list) or not 1 <= len(queries) <= 3:
@@ -136,7 +155,7 @@ class ResearchBudget:
             if actor:
                 actor_key = scope + ':' + actor
                 self.players.add(self.report_actors.get(actor_key, 'actor:' + actor_key))
-            if options.get('view', 'full') != 'overview':
+            if options.get('view', 'full') not in ('overview', 'healing'):
                 limit = options.get('limit', 300)
                 pages = options.get('maxPages', 3) if options.get('view') == 'statistics' else 1
                 if type(limit) is not int or type(pages) is not int or limit < 1 or pages < 1:
@@ -189,6 +208,17 @@ class ResearchBudget:
                 if not isinstance(fact, dict):
                     continue
                 scope = str(fact.get('reportCode', '')) + ':' + str(fact.get('fightId', ''))
+                players = [p for p in fact.get('players', []) if isinstance(p, dict)
+                           and type(p.get('id')) is int and all(isinstance(p.get(k),str) and p[k] for k in ('name','server','region'))]
+                for player in players:
+                    if sum(p['id'] == player['id'] for p in players) != 1:
+                        continue
+                    alias = scope + ':' + str(player['id'])
+                    key = character_key(player['region'], player['server'], player['name'])
+                    self.report_actors[alias] = key
+                    if 'actor:' + alias in self.players:
+                        self.players.discard('actor:' + alias)
+                        self.players.add(key)
                 known = self.report_players.get(scope, {})
                 actors = [a for a in fact.get('actors', []) if isinstance(a, dict) and type(a.get('id')) is int and isinstance(a.get('name'), str)]
                 for actor in actors:

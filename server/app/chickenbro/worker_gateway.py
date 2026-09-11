@@ -13,19 +13,38 @@ class ToolRecorder:
         self.connect = guarded_connection
         self.run_id = run_id
 
-    def execute(self, operation, arguments, invoke):
+    def execute(self, operation, arguments, invoke, admit_reuse=None):
         call_id = uuid4()
         digest = hashlib.sha256(json.dumps(arguments,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        reused = None
         with self.connect() as conn:
             with conn.cursor() as cur:
                 cur.execute('SELECT count(*) FROM chat.tool_results WHERE run_id=%s', (self.run_id,))
                 if cur.fetchone()[0] >= 128:
                     return {'status':'blocked','facts':[], 'errorCode':'CHAT_TOOL_BUDGET_EXCEEDED',
                         'limitations':['Research budget exhausted; explain evidence gaps without further calls.']}
-                cur.execute("""INSERT INTO chat.tool_results(run_id,call_id,operation,request_hash,state)
-                    VALUES (%s,%s,%s,%s,'started')""",(self.run_id,call_id,operation,digest))
+                if operation == 'source.warcraftlogs' and (arguments.get('options') or {}).get('view') in ('overview','healing'):
+                    cur.execute("""SELECT t.run_id,t.result_json FROM chat.tool_results t
+                        JOIN chat.agent_runs prior ON prior.id=t.run_id
+                        JOIN chat.agent_runs current ON current.id=%s AND current.user_id=prior.user_id
+                            AND current.conversation_id=prior.conversation_id
+                        WHERE t.operation=%s AND t.request_hash=%s AND t.state='completed'
+                            AND t.started_at>now()-interval '6 hours'
+                            AND t.result_json->>'status'='verified'
+                            AND t.result_json @? '$.facts[*].fight ? (@.kill == true)'
+                            AND NOT (t.result_json ? 'reuse')
+                        ORDER BY t.started_at DESC LIMIT 1""",(self.run_id,operation,digest))
+                    row=cur.fetchone()
+                    if row:
+                        reused=row[1]
+                        reused['reuse']={'runId':str(row[0]),'upstreamCalls':0,'scope':'same account and conversation; completed fight; original result less than 6h old'}
+                cur.execute("""INSERT INTO chat.tool_results(run_id,call_id,operation,request_hash,state,request_json)
+                    VALUES (%s,%s,%s,%s,'started',%s::jsonb)""",(self.run_id,call_id,operation,digest,json.dumps(arguments,ensure_ascii=False) if operation.startswith('source.') else None))
         try:
-            result = invoke()
+            if reused is not None and admit_reuse is not None:
+                error = admit_reuse()
+                if error: reused = error
+            result = reused if reused is not None else invoke()
             encoded = json.dumps(result,ensure_ascii=False)
             if len(encoded.encode()) > 180000:
                 result = {'status':'partial','facts':[], 'limitations':['Tool result exceeded the bounded response size. Narrow the query.']}
@@ -61,6 +80,15 @@ class RegisteredGateway:
         with self.host.lock:
             self.host.routes.pop(token,None)
 
+    def seed_evidence(self, token, evidence):
+        return self.gateway.seed_evidence(token,evidence)
+
+    def usage_recorder(self, token):
+        return self.gateway.usage_recorder(token)
+
+    def record_usage(self, token, usage):
+        return self.gateway.record_usage(token,usage)
+
     def research_status(self, token):
         return self.gateway.research_status(token)
 
@@ -72,8 +100,12 @@ class RegisteredGateway:
             if set(body)-{'provider','target','options'}:
                 raise ValueError('invalid source arguments')
             provider,target = body['provider'],body['target']
-            return self.recorder.execute('source.'+str(provider)[:40],body,
-                lambda:self.gateway.query(token,provider,target,body.get('options')))
+            result = self.recorder.execute('source.'+str(provider)[:40],body,
+                lambda:self.gateway.query(token,provider,target,body.get('options')),
+                admit_reuse=lambda:self.gateway.reserve_scope(token,provider,target,body.get('options')))
+            if result.get('reuse'):
+                result = self.gateway.seed_evidence(token,result)
+            return result
         if set(body)-{'operation','arguments'}:
             raise ValueError('invalid simulation arguments')
         return self.recorder.execute('simc.'+str(body['operation'])[:40],body,

@@ -14,7 +14,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         definitions = {t['name']:t for t in module.handle_rpc_request({'id':1,'method':'tools/list'})['result']['tools']}
         report = definitions['query_warcraftlogs_report']['inputSchema']['properties']['options']['properties']
         self.assertIn('view', report)
-        self.assertEqual(report['view']['enum'], ['full','overview','events','statistics'])
+        self.assertEqual(report['view']['enum'], ['full','overview','events','statistics','healing'])
         self.assertEqual(report['maxPages']['maximum'], 5)
         batch = definitions['query_warcraftlogs_batch']['inputSchema']['properties']['queries']['items']['properties']['options']['properties']
         self.assertEqual(batch['view'], report['view'])

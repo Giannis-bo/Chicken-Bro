@@ -41,7 +41,7 @@ def _packet(status, *, facts=None, pagination=None):
                 if status == 'source_reference' else [], 'pagination': pagination or {}}
 
 
-def discover_wcl_character(options):
+def discover_wcl_character(options, *, validate_only=False):
     if not isinstance(options, dict) or set(options) - {'name','realm','region','page','limit'}:
         raise InvalidSourceLink()
     name, realm, region = (_part(options.get(k)) for k in ('name','realm','region'))
@@ -51,6 +51,7 @@ def discover_wcl_character(options):
     page, limit = options.get('page', 1), options.get('limit', 5)
     if type(page) is not int or not 1 <= page <= 20 or type(limit) is not int or not 1 <= limit <= 10:
         raise InvalidSourceLink()
+    if validate_only:return None
     try:
         server = resolve_wcl_realm(region, realm)
         if not server:

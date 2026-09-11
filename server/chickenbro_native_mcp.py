@@ -73,7 +73,7 @@ WARCRAFTLOGS_TOOL_DEFINITION = {
         "options.startTime/endTime select report-relative milliseconds. Continue with startTime=eventPage.nextPageTimestamp "
         "and the same other filters. Tables/player details cover the fight independently of event pages. "
         "An unfinished page is queryable data, not an API inability; fetch further relevant pages as needed. "
-        "Choose view=overview for whole-fight tables/gear without events; view=events for focused events without repeated tables. "
+        "Use view=healing with fight and source for paired effective/raw (including overheal) aggregate totals and spell hit/crit breakdown; optional paired startTime/endTime gives a window. Do this before event traversal. Choose view=overview for whole-fight tables/gear without events; view=events for focused events without repeated tables. "
         "Use view=statistics for cast counts, resource waste and healing sums in an explicit fight/source/startTime/endTime window. "
         "Statistics follow up to maxPages (default 3, maximum 5) within 20 seconds; check complete and metricsComplete. "
         "Incomplete sums are subtotals, not whole-window totals or causal proof. full preserves the legacy combined response."
@@ -91,7 +91,7 @@ WARCRAFTLOGS_TOOL_DEFINITION = {
             "options": {
                 "type": "object", "additionalProperties": False,
                 "properties": {
-                    "view": {"type":"string", "enum":["full","overview","events","statistics"]},
+                    "view": {"type":"string", "enum":["full","overview","events","statistics","healing"]},
                     "maxPages": {"type":"integer", "minimum":1, "maximum":5},
                     "dataType": {"type": "string", "enum": ["All", "Buffs", "Casts", "CombatantInfo", "DamageDone", "DamageTaken", "Deaths", "Debuffs", "Dispels", "Healing", "Interrupts", "Resources", "Summons", "Threat"]},
                     "startTime": {"type": "number", "minimum": 0},

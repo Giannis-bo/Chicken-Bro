@@ -97,6 +97,16 @@ query ChickenbroOverview($code: String!, $fightIds: [Int], $sourceId: Int) {
   }}
 }
 """
+WCL_HEALING_QUERY = """
+query ChickenbroHealing($code:String!, $fightIds:[Int], $sourceId:Int, $startTime:Float, $endTime:Float) {
+ reportData { report(code:$code) {
+  title startTime endTime fights { id name difficulty kill startTime endTime }
+  masterData { gameVersion logVersion }
+  effectiveHealing:table(fightIDs:$fightIds,sourceID:$sourceId,dataType:Healing,startTime:$startTime,endTime:$endTime)
+  rawHealing:table(fightIDs:$fightIds,sourceID:$sourceId,dataType:Healing,startTime:$startTime,endTime:$endTime,viewOptions:8)
+ } }
+}
+"""
 _RUN_READER = ContextVar('wcl_run_reader', default=None)
 _STATISTICS_DEADLINE = ContextVar('wcl_statistics_deadline', default=None)
 
@@ -388,8 +398,12 @@ def validate_wcl_options(options: Any) -> dict[str, Any]:
     if not isinstance(options, Mapping) or set(options) - {"dataType", "startTime", "endTime", "limit", "view", "maxPages"}:
         raise InvalidSourceLink("invalid WCL event options")
     result = dict(options)
-    if result.get('view', 'full') not in ('full', 'overview', 'events', 'statistics'):
+    if result.get('view')=='overview' and result.get('dataType')=='Healing':
+        result.update(view='healing');result.pop('dataType')
+    if result.get('view', 'full') not in ('full', 'overview', 'events', 'statistics', 'healing'):
         raise InvalidSourceLink('invalid WCL view')
+    if result.get('view')=='healing' and (set(result)-{'view','startTime','endTime','limit'} or ('startTime' in result) != ('endTime' in result)):
+        raise InvalidSourceLink('healing supports an optional paired startTime/endTime window')
     if 'maxPages' in result and (result.get('view') != 'statistics' or type(result['maxPages']) is not int or not 1 <= result['maxPages'] <= 5):
         raise InvalidSourceLink('maxPages requires statistics view and must be 1-5')
     if result.get('view') == 'statistics' and not {'startTime','endTime'} <= result.keys():
@@ -464,6 +478,11 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
     elif not discovery and view == 'overview':
         query = WCL_OVERVIEW_QUERY
         variables = {k:variables[k] for k in ('code', 'fightIds', 'sourceId')}
+    if view == 'healing':
+        if not fight_ids or not reference.get('sourceId'):
+            raise InvalidSourceLink('healing requires a specific fight and source actor')
+        query = WCL_HEALING_QUERY
+        variables = {k:variables[k] for k in ('code','fightIds','sourceId','startTime','endTime')}
     reader = _RUN_READER.get()
     data = reader.query(query, variables) if reader else _graphql(query, variables)
     field_errors = data.get("_fieldErrors", [])
@@ -553,6 +572,19 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
         if not discovery:
             result['nextActions'] = ['Whole-fight tables/gear only; no events were requested. '
                                      'Use events for a sequence or statistics for an explicit actor/time window.']
+    if view == 'healing':
+        from server.app.chickenbro.wcl_healing import project_healing
+        if 'startTime' in options and (options['startTime'] < selected_fight.get('startTime',0) or options['endTime'] > selected_fight.get('endTime',0)):
+            raise InvalidSourceLink('healing window must be within the selected fight')
+        for key in ('events','eventPage','eventSummary','casts','damage','players','actors','fights'):
+            result.pop(key,None)
+        result['healing'] = project_healing(report.get('effectiveHealing'),report.get('rawHealing'))
+        result['queryScope']='healing_aggregate'
+        result['healing']['window']={k:options[k] for k in ('startTime','endTime') if k in options}
+        if not result['healing']['complete'] or field_errors:
+            result['sourceStatus']='partial'
+            result['blockers'].append('Healing aggregate coverage or paired totals are incomplete; do not invent totals.')
+        result['nextActions']=['Use aggregated effective/raw totals and spell rows first. Compare actors in the same fight/difficulty and normalize by duration. Read gear with overview and only necessary sequences with events.']
     result['view'] = view
     return result
 

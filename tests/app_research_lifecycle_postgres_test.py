@@ -158,3 +158,33 @@ class ResearchPostgresTest(unittest.TestCase):
                     conversation_id=self.conversation, run_id=run, prompt=content, timeout_seconds=30))
             start = next(e for e in process.sent() if e.get('method') == 'thread/start')
             self.assertEqual(start['params']['config']['web_search'], expected)
+
+    def test_new_turn_preserves_scope_but_can_finish_known_player_after_48_calls(self):
+        first=self.store(self.admit())
+        url='https://raider.io/characters/us/realm/player'
+        for _ in range(48):self.assertIsNone(first.reserve('raiderio',url,{})[0])
+        same=self.store(first.run_id)
+        self.assertEqual(same.reserve('raiderio',url,{})[0]['errorCode'],'RESEARCH_TURN_BUDGET_EXCEEDED')
+        second=self.store(self.admit('补查同一个角色'))
+        self.assertEqual(second.research_id,first.research_id)
+        self.assertIsNone(second.reserve('raiderio',url,{})[0])
+        self.assertEqual(second.status()['sourceCalls'],49)
+        self.assertEqual(second.status()['turnSourceCalls'],1)
+
+    def test_evidence_and_successful_overview_reuse_stay_in_owner_conversation(self):
+        from server.app.chickenbro.worker_gateway import ToolRecorder
+        old=self.admit();body={'provider':'warcraftlogs','target':'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=1&source=7','options':{'view':'overview'}}
+        result={'status':'verified','sourceKey':'warcraftlogs','facts':[{'reportCode':'AAAAAAAAAAAAAAAA','fightId':'1','sourceId':'7','view':'overview','fight':{'kill':True},'players':[{'id':7,'name':'Player','combatantInfo':{'stats':{'Crit':{'min':622,'max':622}}}}]}]}
+        with self.connect() as conn:conn.execute("INSERT INTO chat.executions(run_id,user_id,stage) VALUES (%s,%s,'succeeded')",(old,self.owner))
+        ToolRecorder(self.connect,old).execute('source.warcraftlogs',body,lambda:result)
+        new=self.admit()
+        with self.connect() as conn:conn.execute("INSERT INTO chat.executions(run_id,user_id,stage) VALUES (%s,%s,'succeeded')",(new,self.owner))
+        reused=ToolRecorder(self.connect,new).execute('source.warcraftlogs',body,lambda:self.fail('cache hit reached upstream'))
+        self.assertEqual(reused['reuse']['runId'],str(old))
+        evidence=self.repo.research_evidence(self.owner,self.conversation)
+        self.assertEqual(evidence['facts'][0]['players'][0]['combatantInfo']['stats']['Crit']['min'],622)
+        self.assertEqual(self.repo.research_evidence(uuid4(),self.conversation)['facts'],[])
+        self.admit('/新研究\n一个独立新日志问题')
+        self.assertEqual(self.repo.research_evidence(self.owner,self.conversation)['facts'],[])
+        fresh=self.store(self.admit('继续新日志'))
+        self.assertIsNone(fresh.reserve('warcraftlogs',body['target'].replace('fight=1','fight=4'),{'view':'overview'})[0])
