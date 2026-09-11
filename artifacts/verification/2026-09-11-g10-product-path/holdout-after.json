@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "runId": "49e8d52d-bf5d-4fef-a307-a03dee4d26ab",
+  "checks": {
+    "terminal": true,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true,
+    "detached": true,
+    "originalContext": true,
+    "syntheticLiveRegression": false
+  },
+  "nativeWeb": {
+    "completed_events": {
+      "search": 2
+    },
+    "run_id": "49e8d52d-bf5d-4fef-a307-a03dee4d26ab"
+  },
+  "toolOperations": [],
+  "reason": "Preserves identity uncertainty and asks only for missing target item screenshot, without requesting known owned gear.",
+  "privateSha256": "d14d9179f389ea108b5cea00c64d74af263434e8dd4ccdc07941435013be7470",
+  "models": 1,
+  "simc": 0,
+  "sources": 2
+}
