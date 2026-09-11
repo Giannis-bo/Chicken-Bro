@@ -695,6 +695,32 @@
     "manualUserAcceptance": "not_claimed",
     "rollbackDrill": "not_run",
     "previousBlockingDefect": "durable_subscription_marked_policy_refusal_retryable",
-    "candidateRecheck": "artifacts/verification/2026-09-11-persistent-research/candidate-recheck.json"
+    "candidateRecheck": "artifacts/verification/2026-09-11-persistent-research/candidate-recheck.json",
+    "privateCopyRetention": {
+      "status": "manifest_verified_not_connected_to_cleanup",
+      "localManifest": "/Users/boyuan/.codex/badcase/chickenbro/persistent-research-20260911/retention.json",
+      "remoteManifest": "/var/lib/chickenbro-joint-research-20260911/retention.json",
+      "manifestSha256": "2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902",
+      "localMode": "0600",
+      "remoteOwnerMode": "root:root 0600",
+      "nativeExpiresAt": 1789639309.95872,
+      "g10ExpiresAt": 1789611698.4364,
+      "mixedTransportExpiresAt": 1789611698.4364,
+      "originalRetentionNotExtended": true,
+      "cleanupPerformed": false,
+      "existingMechanism": "badcase scan/prune only raw/*.json; image retention service only product chat images; inspected timers and cron references do not cover joint manifests",
+      "notCovered": [
+        "local_joint_release_copies",
+        "remote_joint_release_copies",
+        "mixed_transport_archives"
+      ],
+      "excluded": [
+        "production_records",
+        "rollback_metadata",
+        "source",
+        "release_manifests"
+      ],
+      "newSchedulerCreated": false
+    }
   }
 }

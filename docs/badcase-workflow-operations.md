@@ -211,3 +211,13 @@ python3 -m unittest discover -s tests -p badcase_workflow_test.py
 用户明确“先跳过这个case，先把其他能修复的推进修复和发布”。本轮G12仅暂缓最后一条无工具调用、无回答的CODEX_OUTPUT_INVALID；历史9/10、失败回执及消耗均保留，不改判通过。刚补的诊断代码另存stash `de7c71b2861ebf3ddbce42215b4ab5ed463e479b`，不进入955运行源码发布。
 
 既有generalization验证支持可选`authorized_exclusion`，绑定组报告SHA、运行源码、trial_id、失败证据SHA、晚于失败且早于冻结的授权时间、授权原文及原因。只允许after的单条permission样本、criteria全部unavailable、outcome仍failed、CODEX_OUTPUT_INVALID且观测工具调用0/无回答；必须仍有另一条已通过权限回归。所有实际重复数、失败率、耗时与成本仍包含失败项，默认门槛不变。缺授权、错身份、遗漏失败、权限泄漏或其他类别失败不得套用该例外。此次准入不证明被排除故障已修复，线上通用业务、独立语义、Web及恢复门禁保持。
+
+## 2026-09-11 联合发布私有副本保留登记
+
+精确清单为本地 `/Users/boyuan/.codex/badcase/chickenbro/persistent-research-20260911/retention.json` 和云端 `/var/lib/chickenbro-joint-research-20260911/retention.json`；本轮只读核对两份SHA256均为 `2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902`，本地0600、云端root:root/0600。只依据清单中的相对路径及唯一显式临时归档路径识别副本，不扩展到整个父目录。
+
+原生副本到期 `1789639309.95872`（北京时间2026-09-17 18:01:49.958720），G10及混合transport归档采用更早的 `1789611698.4364`（北京时间2026-09-17 10:21:38.436400）。保持原证据起点，未重新计时；本轮未清理。
+
+**当前未接入现有清理机制。** `scripts/badcase_workflow.py` 的 `_prune` 仅枚举工作流根下 `raw/*.json`，按 `retained_at` 清理，不消费上述清单，也不遍历联合发布子目录或云端目录。已检查现有Badcase自动化、云端定时器及cron/tmpfiles相关引用：图片retention服务执行 `server.purge_chat_images`，未发现上述联合清单的消费者。普通系统临时文件清理不能视为按本清单到期与哈希验证的覆盖。
+
+本次只登记缺口，不创建定时任务、不改清理器、不执行删除。若以后接入，应先按精确清单逐文件/副本哈希核对；生产记录、rollback metadata、恢复快照、源码与发布manifest独立保留，不能连带删除。清单中的日期不是已完成清理的证明。
