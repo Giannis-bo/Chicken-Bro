@@ -283,8 +283,17 @@ class SimulationToolGateway:
                 row["sameUpgradeVariants"] = same_upgrade_variants(row["itemId"], source.get("gear", {}), caps.runtime_revision)
             options = {"items":rows[:30],"hasMore":len(rows)>30,"gameBuild":catalog['build'],
                        "catalogRevision":catalog["revision"],
-                       "supportedVariantItems":([{ "itemId":int(k), "nameEn":v} for k,v in engine_names.items()] if not rows else []),
-                       "limitations":["If a localized name has no match, inspect supportedVariantItems and retry its exact English name or ID. Use sameUpgradeVariants only when the user intends the same upgrade progress; disclose its assumption. Otherwise research an exact item variant. Name matches alone do not establish track, rank or availability."]}
+                       "supportedVariantItems":([{ "itemId":int(k), "nameEn":v} for k,v in engine_names.items()] if not rows else [])}
+            limitations = [
+                "This is a partial name index and a limited automatic upgrade-variant catalog, not the full game or engine item database. An empty match or missing sameUpgradeVariants does not establish item absence or simulation incompatibility.",
+                "Name matches establish neither season, slot, difficulty, rank nor ownership. Verify those using relevant public item sources. A declared level-scaled experiment is a hypothesis, not a recovered owned variant.",
+            ]
+            options["limitations"] = limitations
+            return _packet("ready" if rows else "partial", options=options,
+                           limitations=limitations,
+                           nextActions=["Resolve the nickname with native web search using class, season, effect or appearance; read the relevant item page. Retry the verified full name or ID only when this index can add information."] if not rows else [],
+                           runtimeRevision=caps.runtime_revision,
+                           compilerRevision=caps.compiler_revision)
         else: raise ValueError("unknown option kind")
         return _packet("ready", options=options, runtimeRevision=caps.runtime_revision,
                        compilerRevision=caps.compiler_revision)

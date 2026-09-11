@@ -391,6 +391,24 @@ class SimulationExperimentTest(unittest.TestCase):
         missing=query('无底袋')['options']
         self.assertIn(270164,[x['itemId'] for x in missing['supportedVariantItems']])
 
+    def test_item_search_miss_is_partial_discovery_not_item_or_engine_absence(self):
+        from tests.app_simulation_talent_editor_test import RUNTIME
+        self.application._runtime_capabilities = replace(
+            self.application._runtime_capabilities, runtime_revision=RUNTIME)
+        sid = self.prepare()['snapshotId']
+        missing = self.gateway.execute(self.token, 'options', {
+            'snapshotId': sid, 'kind': 'items', 'query': 'unresolved nickname xyz'})
+        self.assertEqual(missing['status'], 'partial')
+        self.assertEqual(missing['options']['items'], [])
+        self.assertTrue(missing['options']['supportedVariantItems'])
+        self.assertTrue(missing['limitations'])
+        self.assertTrue(missing['nextActions'])
+        matched = self.gateway.execute(self.token, 'options', {
+            'snapshotId': sid, 'kind': 'items', 'query': 'Bottomless Bag'})
+        self.assertEqual(matched['status'], 'ready')
+        self.assertEqual(matched['options']['items'][0]['itemId'], 270164)
+        self.assertTrue(matched['limitations'])
+
     def test_item_search_reuses_owned_snapshot_names_outside_variant_catalog(self):
         from copy import deepcopy
         from types import SimpleNamespace
