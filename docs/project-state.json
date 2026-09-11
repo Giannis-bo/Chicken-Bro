@@ -457,6 +457,28 @@
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
         "note": "Historical window remains stopped; new tasks track their own explicit budgets without resetting these totals. Provider-internal attempts are not known."
       }
+    },
+    "cosAuditRecovery": {
+      "status": "historical_investigation_blocked_audit_enablement_pending_decision",
+      "evidenceCommit": "b019358dd00baa195ed452d16c60015cf3f83893",
+      "evidence": "artifacts/security/2026-09-11-cos-audit-recovery/README.md",
+      "implementation": "documentation_and_read_only_evidence_only",
+      "candidate": "not_applicable_no_runtime_change",
+      "live": "seven_theme_images_and_manifest_origin_cdn_integrity_verified",
+      "localRecovery": "eight_files_rebuilt_from_same_git_source_verified",
+      "independentDisasterRecovery": false,
+      "cloudRestoreExecuted": false,
+      "productionDeployment": "not_required_no_runtime_change",
+      "manualUserAcceptance": "not_claimed",
+      "historicalAnonymousWrites": "unknown",
+      "authenticatedTargetConfiguration": "not_verified_console_account_appid_mismatch",
+      "supportTicket": "draft_not_sent",
+      "blockers": [
+        "target_account_authenticated_read_only_access",
+        "supplier_history_and_capability_confirmation",
+        "explicit_ticket_send_authorization",
+        "separate_authorization_for_new_costs_or_migration"
+      ]
     }
   },
   "miniRetirement": {

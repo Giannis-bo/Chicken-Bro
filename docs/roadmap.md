@@ -49,7 +49,7 @@
 ## 暂缓与待决策
 
 - 暂缓新增新闻、装备库、天赋库、旧模拟器及插件 `/simc` 文本导入。
-- COS 历史匿名写入调查、日志及版本恢复能力见[历史安全记录](../artifacts/security/2026-09-08-cos-write-hardening/report.md)。
+- COS 七图及清单源站/CDN完整性、本地Git重建八文件已验证；历史匿名写入仍未知，目标账号配置与供应商能力确认受阻，审计启用待决策。工单未发送，未执行独立灾备或云端恢复；新增费用/迁移未授权。[本轮证据](../artifacts/security/2026-09-11-cos-audit-recovery/README.md)；[历史记录](../artifacts/security/2026-09-08-cos-write-hardening/report.md)保留。
 
 [架构](chickenbro-simc-architecture.md) · [验证矩阵](verification-matrix.md) · [生产 Runbook](chickenbro-simc-production-runbook.md) · [计划白名单](plans/README.md)
 
