@@ -310,6 +310,20 @@ class ClosingCodex(FakeCodex):
 
 
 class ChatApplicationTest(unittest.TestCase):
+    def test_policy_rejection_is_nonretryable_and_replayed_without_new_model_call(self):
+        from server.app.chickenbro.stream import CodexStreamError
+        codex = FakeCodex(error=CodexStreamError('CODEX_REQUEST_REJECTED'))
+        application = ChatApplication(repository=self.repository, codex=codex, clock=lambda: self.now)
+        kwargs = dict(client_message_id='policy-message', idempotency_key='policy-request')
+        events = list(application.stream_message(self.principal, self.conversation_id, '查询资料', **kwargs))
+        replay = list(application.stream_message(self.principal, self.conversation_id, '查询资料', **kwargs))
+        for result in (events, replay):
+            self.assertEqual(result[-1].event_type, 'failed')
+            self.assertEqual(result[-1].error_code, 'CODEX_REQUEST_REJECTED')
+            self.assertFalse(result[-1].retryable)
+            self.assertFalse(any(e.event_type in ('delta', 'completed') for e in result))
+        self.assertEqual(codex.calls, 1)
+
     def test_progress_is_separate_persistent_and_survives_failure(self):
         for failed in (False, True):
             with self.subTest(failed=failed):

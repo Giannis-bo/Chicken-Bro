@@ -37,6 +37,8 @@ def invalid(kind='protocol_invalid', upstream=None):
         info = upstream.get('codexErrorInfo') if isinstance(upstream, dict) else None
         name = info if isinstance(info, str) else next(iter(info)) if isinstance(info, dict) and len(info) == 1 else None
         error.upstream_kind = name if name in UPSTREAM_KINDS else 'unknown'
+        if error.upstream_kind in ('cyberPolicy', 'misalignmentPolicyViolation'):
+            error.code = 'CODEX_REQUEST_REJECTED'
         detail = info.get(name) if isinstance(info, dict) else None
         status = detail.get('httpStatusCode') if isinstance(detail, dict) else None
         if type(status) is int and 100 <= status <= 599:

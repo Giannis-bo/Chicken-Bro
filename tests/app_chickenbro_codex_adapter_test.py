@@ -71,6 +71,19 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_policy_rejection_remains_failed_without_retry_or_fabricated_answer(self):
+        for phase in ('notification', 'terminal'):
+            for kind in ('cyberPolicy', 'misalignmentPolicyViolation'):
+                error = {'codexErrorInfo': kind, 'message': 'PRIVATE-POLICY-DETAIL'}
+                events = transcript(note('error', threadId='thread', turnId='turn', willRetry=False, error=error))
+                if phase == 'terminal':
+                    events = transcript(status='failed')
+                    events[-1]['params']['turn']['error'] = error
+                with self.subTest(phase=phase, kind=kind), self.assertRaises(CodexStreamError) as caught:
+                    self.run_stream(events)
+                self.assertEqual(caught.exception.code, 'CODEX_REQUEST_REJECTED')
+                self.assertNotIn('PRIVATE', str(caught.exception))
+
     def test_upstream_error_metadata_uses_schema_allowlist_without_error_body(self):
         from server.app.chickenbro import codex_adapter as module
         from types import SimpleNamespace
