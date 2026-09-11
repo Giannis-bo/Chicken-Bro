@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- 当前装备完整名称查询修复已正式发布（运行树同`af244e22b`，发布标识`60028b833`）；修正验收脚本后，线上武器/饰品两题、通用业务、账号隔离、Web13文件及运行观察通过，G13已released。[记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/release-rerun/README.md)。
+
 - 戒指附魔对照与任务完成读取竞争修复已发布（`95569fc01`）；按用户授权暂缓一条无工具调用、无回答的模型失败，保留实际9/10结果。隔离及线上两条真实对照、通用业务与Web核验通过。[发布记录](../artifacts/verification/2026-09-11-g12-final-window/release/README.md)。
 
 - Chat 原生实时搜索已恢复上线（`1c7caa159`）：隔离和线上均验证真实搜索、页面读取与资料取得，图片/SimC/权限及 Web 核验通过。[记录](../artifacts/verification/2026-09-10-native-search/README.md#本轮线上结果)。
@@ -33,7 +35,7 @@
 
 - G12 剩余未解项仅为已按用户授权暂缓的单条原生模型输出失败；G8/G9/G10 与食物问题继续保留，先核对现有工具与必要输入，停止盲目扩样本。
 
-- G8 顺序实验与G9两条预算解释在当前955运行版原题回放通过。G10下属的快照名称查询修复已合入（`af244e22b`），隔离验收通过；线上验收脚本误判无搜索回执导致回滚，955恢复业务验证通过。8模型/6SimC本阶段上限已用完，停止重试。[记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
+- G8 顺序实验与G9两条预算解释在已上线运行版原题回放通过。G10下属名称查询缺陷已作为G13发布；完整饰品组合、食物阶段收益及原暂缓模型失败仍保留。[阶段记录](../artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md)。
 
 - Chat 有限附魔清单的名称/覆盖/版本整理已通过 G11 前后对照及线上验收（`6c2b36b2e`）；G8/G9/G10 剩余收益与组合模拟继续保留。[记录](../artifacts/verification/2026-09-10-native-search/quality-README.md)。
 

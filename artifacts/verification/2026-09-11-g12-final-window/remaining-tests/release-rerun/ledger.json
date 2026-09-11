@@ -1,0 +1,14 @@
+{
+  "models": 3,
+  "max_models_including_recovery": 4,
+  "simc": 1,
+  "max_simc_including_recovery": 2,
+  "observed_source_imports": 1,
+  "observed_native_completed_events": 0,
+  "max_research_sources": 6,
+  "prior_models": 104,
+  "cumulative_models": 107,
+  "recovery_used": false,
+  "status": "released",
+  "scope": "Only G13 release rerun; reused previous exact runtime tests and candidate proof. Absent native summary is not proof of all vendor attempts."
+}
