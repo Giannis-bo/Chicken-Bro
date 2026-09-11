@@ -451,7 +451,35 @@
         "live": "two_real_enchant_comparisons_and_business_passed",
         "manualUserAcceptance": "not_claimed",
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
-        "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here."
+        "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here.",
+        "nativeOutputWork": {
+          "status": "integrated_pending_joint_candidate_and_live",
+          "implementationCommit": "fff567fbe",
+          "integrationCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
+          "evidenceCommit": "9e0a485e8",
+          "evidence": "artifacts/verification/2026-09-11-native-output/README.md",
+          "historicalRootCause": "unknown_protocol_and_stderr_not_retained",
+          "newReproduction": "structured_cyberPolicy_zero_tools",
+          "implementation": "nonretryable_CODEX_REQUEST_REJECTED_failed_state_without_assistant_record",
+          "local": {
+            "backendRelevantTests": 128,
+            "chatStateTests": 31,
+            "typecheck": "passed",
+            "singleTaskWebBuild": "passed",
+            "jointLatestWebBuild": "pending"
+          },
+          "candidate": "pending",
+          "live": "pending",
+          "manualUserAcceptance": "not_claimed",
+          "consumption": {
+            "models": 3,
+            "modelCeiling": 8,
+            "cloudSimc": 0,
+            "simcCeiling": 4
+          },
+          "releaseOwnerTask": "01a08f04-7fb0-73d1-813f-a4c755c75007",
+          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web"
+        }
       },
       "G13": {
         "status": "live_verified",

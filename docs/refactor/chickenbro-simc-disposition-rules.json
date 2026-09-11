@@ -17,7 +17,7 @@
       "owner": "control_and_cleanup",
       "reason": "Retain explicitly authorized current delivery status without overwriting historical failures.",
       "paths": ["docs/plans/2026-09-11-remaining-issues-status.md"],
-      "prefixes": ["artifacts/security/2026-09-11-cos-audit-recovery/"]
+      "prefixes": ["artifacts/security/2026-09-11-cos-audit-recovery/", "artifacts/verification/2026-09-11-native-output/"]
     },
     {
       "id": "g12-enchant-validation",
