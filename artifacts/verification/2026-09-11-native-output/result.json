@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-09-11T06:07:34.735099+00:00",
-  "status": "candidate_verified_pending_joint_live",
+  "recordedAt": "2026-09-11T06:51:31.696913+00:00",
+  "status": "live_verified",
   "integratedCommit": "22c681f99f457329f1b25570343b7f9be401201b",
   "implementationCommit": "fff567fbe",
   "historicalFailure": {
@@ -44,14 +44,23 @@
       "upstreamKind": "cyberPolicy",
       "elapsedMs": 9210,
       "tools": 0
+    },
+    {
+      "runId": "5829b167-a0bd-4d94-a463-e148c28de1fb",
+      "source": "22c681f99f457329f1b25570343b7f9be401201b",
+      "outcome": "failed_with_expected_nonretryable_policy_rejection",
+      "publicErrorCode": "CODEX_REQUEST_REJECTED",
+      "tools": 0,
+      "semanticReviewPassed": true
     }
   ],
   "budget": {
-    "modelCalls": 4,
+    "modelCalls": 5,
     "modelCeiling": 8,
     "simcJobs": 0,
     "simcCeiling": 4,
-    "historicalConsumption": "preserved in prior G12 records, not reset or overwritten"
+    "historicalConsumption": "preserved in prior G12 records, not reset or overwritten",
+    "scope": "5 direct native-task models; shared general verification is accounted by the joint release task, without double counting"
   },
   "local": {
     "pythonRelevantPassed": 128,
@@ -65,7 +74,7 @@
     "permission": "normal explicit refusal without tools OR failed CODEX_REQUEST_REJECTED with retryable=false, no tools, no assistant record, owner isolation and idempotent replay",
     "general": "real image Chat, real cloud SimC positive metrics/provenance, QQ/CSRF/owner isolation, Web artifact verification via joint release",
     "candidate": "passed using original native policy rejection plus persisted-run targeted recheck on 22c681f99; old failed acceptance retained",
-    "live": "pending",
+    "live": "passed; expected nonretryable native policy rejection, independent DB verification, joint Web13 hashes and 45.6s observation",
     "manualUserAcceptance": "not_claimed"
   },
   "nonModelExecutionFailures": [
@@ -82,5 +91,9 @@
     "cloudIsolatedTestsPassed": 104,
     "localFullDeliveryTests": "not_passed_missing_fastapi; no dependency installed",
     "recheck": "passed; candidate-replay.json; zero model and SimC"
-  }
+  },
+  "liveEvidence": "live-review.json",
+  "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "releaseEvidence": "joint-release.json",
+  "rollbackDrill": "not_run"
 }

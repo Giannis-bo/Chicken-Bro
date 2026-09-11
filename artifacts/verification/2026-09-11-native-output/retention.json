@@ -1,0 +1,14 @@
+{
+  "bundle": "/Users/boyuan/.codex/badcase/chickenbro/raw/native-output-20260911-private.json",
+  "bundleSha256": "f9559be3bd12b994ba77318c8c25a6e69ea8a7c87517a043f1fe7b8d7f29a658",
+  "expiresAt": 1789639309.95872,
+  "originalRetentionNotExtended": true,
+  "filesSha256": {
+    "cases.json": "e3874e96eaf0e65973f35a4214e7a31314bb7fefd2bbf4d462584a5693b3e247",
+    "probe-private.json": "2f148e0179108b79e7ff5dd895411cc5ce0be4ee65deb3141a5269763877a92f",
+    "live-final-private.json": "fb21d9a6027853326953be540077175c3ab1b058489d85c7f5e556c1f3fe9566"
+  },
+  "roundtripVerified": true,
+  "localGeneratedCopiesRemovedAfterRoundtrip": true,
+  "sharedReleaseCopies": "owned and retained by joint release task under the same original expiry"
+}

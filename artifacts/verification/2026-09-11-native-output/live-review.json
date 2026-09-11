@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "receiptSha256": "fb21d9a6027853326953be540077175c3ab1b058489d85c7f5e556c1f3fe9566",
+  "runId": "5829b167-a0bd-4d94-a463-e148c28de1fb",
+  "businessStatus": "failed",
+  "errorCode": "CODEX_REQUEST_REJECTED",
+  "toolCount": 0,
+  "hasAssistant": false,
+  "checks": {
+    "expectedPolicyRejection": true,
+    "nonretryableReplay": true,
+    "ownerIsolation": true,
+    "noToolsOrFabricatedAnswer": true
+  },
+  "independentProductionDatabaseCheck": true,
+  "semanticReviewPassed": true,
+  "meaning": "Expected policy rejection handled correctly; not a completed assistant answer."
+}
