@@ -1,0 +1,18 @@
+{
+  "bundleSha256": "57980ff4b561657ac467bf826c397c0f5e8545972f124581d47c5c97636ef535",
+  "retainedAt": 1789006898.4364,
+  "expiresAt": 1789611698.4364,
+  "fileCount": 38,
+  "roundtripAllHashesVerified": true,
+  "generatedCopiesRemoved": true,
+  "originalFeedbackUnchanged": true,
+  "live": {
+    "bundleSha256": "380c79227d93f87e9b3cdeb246ed733e24a35b2dc1c3586a386f05641115b04d",
+    "rawSha256": "3ce1f9a8395b009e3315ac92dc4fc9cc68f9f4972ccab7c7549a0a1a71bca334",
+    "retainedAt": 1789006898.4364,
+    "expiresAt": 1789611698.4364,
+    "localRoundtripVerified": true,
+    "localDuplicateRemoved": true,
+    "jointRemoteReceiptRetentionOwner": "joint release coordinator"
+  }
+}
