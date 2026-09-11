@@ -409,7 +409,7 @@
         "limit": "No fabricated server budget cap or simulation; original ring DPS belongs to G12."
       },
       "G10": {
-        "status": "declared_condition_comparison_passed_automatic_alias_replay_open",
+        "status": "declared_condition_comparison_passed_automatic_alias_candidate_verified",
         "implementation": "existing_released_tools_reused",
         "candidate": "three_simulations_and_resolved_context_answer_passed",
         "live": "no_new_live_acceptance",
@@ -417,13 +417,13 @@
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
         "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain.",
         "automaticAliasWork": {
-          "status": "local_verified_candidate_pending",
+          "status": "candidate_verified_production_pending",
           "sourceCommit": "30a5870e3",
-          "integration": "not_reported",
+          "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
           "localTestsPassed": 45,
           "localTestEvidence": "reported_by_owning_task",
-          "candidate": "pending_joint_accuracy_validation",
-          "live": "not_verified",
+          "candidate": "five_class_matrix_passed",
+          "live": "pending_joint_release",
           "manualUserAcceptance": "not_claimed",
           "evidenceAtSourceCommit": [
             "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
@@ -441,6 +441,14 @@
             "models": 8,
             "cloudSimc": 12,
             "observedSources": 60
+          },
+          "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
+          "jointLocalTestsPassed": 125,
+          "consumption": {
+            "models": 6,
+            "cloudSimc": 4,
+            "sources": 25,
+            "initializationFailuresBeforeModel": 2
           }
         }
       },
@@ -453,7 +461,7 @@
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
         "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here.",
         "nativeOutputWork": {
-          "status": "integrated_pending_joint_candidate_and_live",
+          "status": "joint_candidate_failed_durable_fix_integrated_recheck_pending",
           "implementationCommit": "fff567fbe",
           "integrationCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
           "evidenceCommit": "9e0a485e8",
@@ -468,17 +476,24 @@
             "singleTaskWebBuild": "passed",
             "jointLatestWebBuild": "pending"
           },
-          "candidate": "pending",
+          "candidate": "old_joint_candidate_failed_retryable_projection_recheck_pending",
           "live": "pending",
           "manualUserAcceptance": "not_claimed",
           "consumption": {
-            "models": 3,
+            "models": 4,
             "modelCeiling": 8,
             "cloudSimc": 0,
             "simcCeiling": 4
           },
           "releaseOwnerTask": "01a08f04-7fb0-73d1-813f-a4c755c75007",
-          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web"
+          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web",
+          "durableFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "durableFixVerification": {
+            "relatedTestsPassed": 104,
+            "environment": "existing_cloud_runtime",
+            "localFullTests": "not_claimed_missing_fastapi",
+            "modelFreeReadbackRecheck": "provided_pending_result"
+          }
         }
       },
       "G13": {
@@ -537,14 +552,14 @@
       "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
     },
     "simcAccuracy": {
-      "status": "local_verified_candidate_pending",
+      "status": "candidate_verified_production_pending",
       "sourceCommit": "3c53101ec",
-      "integration": "not_reported",
+      "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
       "localTestsPassed": 99,
       "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
       "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
-      "candidate": "pending_joint_G10_validation",
-      "live": "not_verified",
+      "candidate": "persistence_get_compare_answer_and_owner_isolation_verified",
+      "live": "pending_joint_release",
       "manualUserAcceptance": "not_claimed",
       "remainingEvidence": [
         "real_crafted_item_version_fixture",
@@ -556,6 +571,15 @@
         "models": 2,
         "cloudSimc": 2,
         "preferSharedG10Evidence": true
+      },
+      "evidence": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "candidateEvidence": "artifacts/verification/2026-09-11-simc-accuracy/candidate-evidence.json",
+      "consumption": {
+        "ownCloudSimc": 1,
+        "ownModels": 0,
+        "sharedG10CloudSimc": 2,
+        "sharedG10Models": 1,
+        "sharedConsumptionCountedOnlyInG10": true
       }
     },
     "persistentResearchBudget": {
@@ -631,5 +655,16 @@
     "status": "live_verified_for_recorded_release",
     "manualPostReleaseAcceptance": "not_claimed",
     "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence."
+  },
+  "jointRelease": {
+    "status": "blocked_pending_refreeze_and_recheck",
+    "rejectedCandidateSource": "9e92bc124a1069a617883a710615e6a0bd544d61",
+    "blockingDefect": "durable_subscription_marked_policy_refusal_retryable",
+    "integratedFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "productionSourceAsReported": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "productionChanged": false,
+    "evidenceStatus": "reported_by_native_task_fix_diff_verified_control_update",
+    "required": "release_owner_refreeze_latest_source_and_recheck_original_failure_without_model_or_simc",
+    "specializedCandidateEvidence": "G10_and_accuracy_evidence_retained_not_joint_release_acceptance"
   }
 }

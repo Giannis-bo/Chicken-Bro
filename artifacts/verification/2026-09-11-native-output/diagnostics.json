@@ -1,0 +1,19 @@
+[
+  {
+    "code": "CODEX_OUTPUT_INVALID",
+    "elapsed_ms": 10947,
+    "failure_kind": "upstream_error",
+    "failure_site": "codex_stdio.py:166",
+    "run_id": "a14be532-66de-4e19-b82f-a0555e905999",
+    "stage": "stream_failed"
+  },
+  {
+    "code": "CODEX_OUTPUT_INVALID",
+    "elapsed_ms": 9816,
+    "failure_kind": "upstream_error",
+    "failure_site": "codex_stdio.py:184",
+    "run_id": "084e8dd3-c3aa-4a6f-9975-6e8550515e75",
+    "stage": "stream_failed",
+    "upstream_kind": "cyberPolicy"
+  }
+]

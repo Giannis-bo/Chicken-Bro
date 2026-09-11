@@ -169,7 +169,9 @@ class DurableSubscription:
                 yield ChatEvent('completed' if row['status']=='succeeded' else 'failed',
                     self.first.request_id,self.first.conversation_id,sequence,
                     run_id=self.first.run_id,text=row['answer'] or '',
-                    error_code=row['error'] or '',retryable=row['status']=='failed',
+                    error_code=row['error'] or '',
+                    retryable=row['status']=='failed' and row['error'] in {
+                        'CODEX_UNAVAILABLE', 'CODEX_TIMEOUT', 'CODEX_EXECUTION_FAILED'},
                     completed_at=row['finished'].isoformat(),
                     duration_ms=max(0,int((row['finished']-row['started']).total_seconds()*1000)))
                 return

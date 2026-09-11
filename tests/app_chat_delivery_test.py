@@ -3,6 +3,27 @@ from threading import Event, BoundedSemaphore
 from server.app.chickenbro.delivery import BackgroundDelivery, DeliveryCapacity
 
 class DeliveryTest(unittest.TestCase):
+    def test_durable_failed_terminal_uses_the_same_retryability_contract_as_direct_delivery(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+        from server.app.chickenbro.durable import DurableSubscription
+        from server.app.chickenbro.stream import ChatEvent
+        now = datetime.now(timezone.utc)
+        for code, retryable in [('CODEX_REQUEST_REJECTED', False), ('CODEX_OUTPUT_INVALID', False),
+                                ('UNKNOWN', False), ('CODEX_TIMEOUT', True),
+                                ('CODEX_UNAVAILABLE', True), ('CODEX_EXECUTION_FAILED', True)]:
+            with self.subTest(code=code):
+                row = dict(status='failed', progress='', draft='', error=code,
+                           started=now, finished=now, answer=None)
+                executions = SimpleNamespace(recover=lambda owner: None, snapshot=lambda owner, run: row)
+                first = ChatEvent('started', 'request', 'conversation', 1, run_id='run')
+                events = list(DurableSubscription(first, executions, 'owner'))
+                self.assertEqual(len(events), 2)
+                self.assertEqual(events[-1].public_payload()['type'], 'failed')
+                self.assertEqual(events[-1].public_payload()['errorCode'], code)
+                self.assertEqual(events[-1].public_payload()['retryable'], retryable)
+                self.assertNotIn('text', events[-1].public_payload())
+
     def test_disconnect_does_not_cancel_producer(self):
         release, done = Event(), Event()
         def producer():
