@@ -340,8 +340,9 @@
       "evidence": "artifacts/verification/2026-09-10-bounded-research/release/README.md",
       "preReleaseReportAccepted": true,
       "manualPostReleaseAcceptance": "not_claimed",
-      "persistentCrossTurnBudget": false,
-      "productionRollbackDrill": "not_run"
+      "persistentCrossTurnBudget": true,
+      "productionRollbackDrill": "not_run",
+      "persistentCrossTurnBudgetEvidence": "artifacts/verification/2026-09-11-persistent-research/README.md"
     },
     "customApl": {
       "status": "live_verified",
@@ -364,7 +365,7 @@
       "plan": "docs/plans/2026-09-10-bounded-research.md",
       "evidence": "artifacts/verification/2026-09-10-native-search/README.md",
       "scope": "native_search_tool_capability",
-      "answerQualityBacklog": "G8_G9_original_replay_passed_G10_automatic_alias_research_and_G12_native_output_failure_open",
+      "answerQualityBacklog": "G8_G9_finite_replay_G10_alias_path_live_verified_remaining_mechanism_and_version_evidence_open",
       "originalBadcaseClosure": false,
       "manualUserAcceptance": "not_claimed"
     },
@@ -378,17 +379,15 @@
       "pairedAfterPassed": 10,
       "pairedTrialsPerPhase": 10,
       "livePassed": 2,
-      "remainingGroups": [
-        "G10"
-      ],
+      "remainingGroups": [],
       "allManufacturingQualitiesVerified": false,
       "manualUserAcceptance": "not_claimed",
-      "remainingGroupsScope": "original_automatic_alias_research_not_declared_condition_comparison",
-      "replayEvidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md"
+      "remainingGroupsScope": "listed_G8_G9_G10_scoped_paths_only_not_all_quality_or_mechanism_gaps",
+      "replayEvidence": "docs/plans/2026-09-11-remaining-issues-status.md"
     },
     "badcaseFollowup": {
       "asOf": "2026-09-11",
-      "status": "in_progress",
+      "status": "scoped_fixes_live_verified_remaining_evidence_open",
       "tracking": "docs/plans/2026-09-11-remaining-issues-status.md",
       "G8": {
         "status": "original_replay_passed",
@@ -409,21 +408,21 @@
         "limit": "No fabricated server budget cap or simulation; original ring DPS belongs to G12."
       },
       "G10": {
-        "status": "declared_condition_comparison_passed_automatic_alias_candidate_verified",
+        "status": "automatic_alias_path_live_verified_with_declared_assumptions",
         "implementation": "existing_released_tools_reused",
         "candidate": "three_simulations_and_resolved_context_answer_passed",
         "live": "no_new_live_acceptance",
         "manualUserAcceptance": "not_claimed",
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
-        "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain.",
+        "limit": "Finite original alias path verified under disclosed item-level and engine assumptions; not universal aliases, exact item versions or real-combat superiority.",
         "automaticAliasWork": {
-          "status": "candidate_verified_production_pending",
+          "status": "live_verified",
           "sourceCommit": "30a5870e3",
           "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
           "localTestsPassed": 45,
           "localTestEvidence": "reported_by_owning_task",
           "candidate": "five_class_matrix_passed",
-          "live": "pending_joint_release",
+          "live": "four_item_discovery_two_owned_simulations_compare_and_limits_verified",
           "manualUserAcceptance": "not_claimed",
           "evidenceAtSourceCommit": [
             "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
@@ -445,23 +444,25 @@
           "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
           "jointLocalTestsPassed": 125,
           "consumption": {
-            "models": 6,
-            "cloudSimc": 4,
-            "sources": 25,
+            "models": 7,
+            "cloudSimc": 6,
+            "sources": 31,
             "initializationFailuresBeforeModel": 2
-          }
+          },
+          "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json"
         }
       },
       "G12": {
-        "status": "enchant_and_completion_race_live_verified_native_failure_reopened",
+        "status": "enchant_completion_race_and_native_refusal_handling_live_verified",
         "implementation": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
         "candidate": "business_passed_model_matrix_9_of_10",
         "live": "two_real_enchant_comparisons_and_business_passed",
         "manualUserAcceptance": "not_claimed",
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
-        "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here.",
+        "limit": "Historical 2ed6 root cause remains unknown and original 9/10 retained. Expected failed policy refusal is not an assistant answer.",
         "nativeOutputWork": {
-          "status": "joint_candidate_failed_durable_fix_integrated_recheck_pending",
+          "status": "live_verified",
           "implementationCommit": "fff567fbe",
           "integrationCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
           "evidenceCommit": "9e0a485e8",
@@ -474,13 +475,13 @@
             "chatStateTests": 31,
             "typecheck": "passed",
             "singleTaskWebBuild": "passed",
-            "jointLatestWebBuild": "pending"
+            "jointLatestWebBuild": "passed"
           },
-          "candidate": "old_joint_candidate_failed_retryable_projection_recheck_pending",
-          "live": "pending",
+          "candidate": "original_failed_run_nonretryable_replay_passed_without_new_model",
+          "live": "expected_policy_rejection_nonretryable_replay_isolation_verified",
           "manualUserAcceptance": "not_claimed",
           "consumption": {
-            "models": 4,
+            "models": 5,
             "modelCeiling": 8,
             "cloudSimc": 0,
             "simcCeiling": 4
@@ -492,8 +493,10 @@
             "relatedTestsPassed": 104,
             "environment": "existing_cloud_runtime",
             "localFullTests": "not_claimed_missing_fastapi",
-            "modelFreeReadbackRecheck": "provided_pending_result"
-          }
+            "modelFreeReadbackRecheck": "passed"
+          },
+          "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json"
         }
       },
       "G13": {
@@ -552,14 +555,14 @@
       "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
     },
     "simcAccuracy": {
-      "status": "candidate_verified_production_pending",
+      "status": "live_verified",
       "sourceCommit": "3c53101ec",
       "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
       "localTestsPassed": 99,
       "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
       "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
       "candidate": "persistence_get_compare_answer_and_owner_isolation_verified",
-      "live": "pending_joint_release",
+      "live": "persisted_get_compare_and_answer_mechanism_limits_verified",
       "manualUserAcceptance": "not_claimed",
       "remainingEvidence": [
         "real_crafted_item_version_fixture",
@@ -579,19 +582,24 @@
         "ownModels": 0,
         "sharedG10CloudSimc": 2,
         "sharedG10Models": 1,
-        "sharedConsumptionCountedOnlyInG10": true
-      }
+        "sharedConsumptionCountedOnlyInG10": true,
+        "sharedLiveG10CloudSimc": 2,
+        "sharedLiveG10Models": 1
+      },
+      "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+      "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json",
+      "scope": "engine_diagnostic_projection_only"
     },
     "persistentResearchBudget": {
-      "status": "local_verified",
+      "status": "live_verified",
       "sourceCommit": "f48202568",
       "integrationCommit": "30b3b7a52d4b9f0ba517dd405e7d84753bbf9df4",
       "plan": "docs/plans/2026-09-11-persistent-research-budget.md",
       "evidence": "artifacts/verification/2026-09-11-persistent-research/README.md",
-      "candidate": "not_verified",
-      "live": "not_deployed",
+      "candidate": "passed_after_zero_model_native_recheck",
+      "live": "persistent_budget_reissue_and_business_verified",
       "manualUserAcceptance": "not_claimed",
-      "releasePrerequisite": "drain_old_jobs_and_apply_0009_chat_research_lifecycle_before_code_cutover",
+      "releasePrerequisite": "completed_old_task_drain_additive_migration_and_joint_web_cutover",
       "localVerification": {
         "postgresTests": 28,
         "backendTests": 719,
@@ -608,7 +616,18 @@
       "acceptanceBudget": {
         "models": 6,
         "cloudSimc": 2
-      }
+      },
+      "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+      "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
+      "liveEvidence": "artifacts/verification/2026-09-11-persistent-research/live.json",
+      "migration": "0009_applied",
+      "consumption": {
+        "models": 6,
+        "modelCeiling": 6,
+        "cloudSimc": 2,
+        "simcCeiling": 2
+      },
+      "scopeLimit": "Native web retains its existing contract rather than gateway five-page hard accounting; no account-wide multi-research quota."
     }
   },
   "miniRetirement": {
@@ -650,21 +669,32 @@
   "currentDelivery": {
     "asOf": "2026-09-11",
     "scope": "web_only_qq",
-    "latestRecordedApplicationSourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
-    "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md",
+    "latestRecordedApplicationSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "evidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
     "status": "live_verified_for_recorded_release",
     "manualPostReleaseAcceptance": "not_claimed",
-    "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence."
+    "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence.",
+    "webFilesVerified": 13,
+    "observationSeconds": 45.6,
+    "rollbackDrill": "not_run",
+    "recoveryEvidence": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json"
   },
   "jointRelease": {
-    "status": "blocked_pending_refreeze_and_recheck",
+    "status": "released",
     "rejectedCandidateSource": "9e92bc124a1069a617883a710615e6a0bd544d61",
-    "blockingDefect": "durable_subscription_marked_policy_refusal_retryable",
     "integratedFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
-    "productionSourceAsReported": "342039cab3516176e7436e7af30dc2e1c7897bfc",
-    "productionChanged": false,
-    "evidenceStatus": "reported_by_native_task_fix_diff_verified_control_update",
-    "required": "release_owner_refreeze_latest_source_and_recheck_original_failure_without_model_or_simc",
-    "specializedCandidateEvidence": "G10_and_accuracy_evidence_retained_not_joint_release_acceptance"
+    "productionSourceAsReported": "22c681f99f457329f1b25570343b7f9be401201b",
+    "productionChanged": true,
+    "evidenceStatus": "final_receipts_cross_checked",
+    "required": "completed_migration_backend_web_and_semantic_checks",
+    "specializedCandidateEvidence": "retained_and_supplemented_by_live_reviews",
+    "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "evidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
+    "semanticReview": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json",
+    "finalCheck": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json",
+    "manualUserAcceptance": "not_claimed",
+    "rollbackDrill": "not_run",
+    "previousBlockingDefect": "durable_subscription_marked_policy_refusal_retryable",
+    "candidateRecheck": "artifacts/verification/2026-09-11-persistent-research/candidate-recheck.json"
   }
 }
