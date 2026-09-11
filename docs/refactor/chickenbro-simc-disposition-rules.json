@@ -2,6 +2,14 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "g12-enchant-validation",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "simc",
+      "reason": "Retain bounded enchant experiment failures and explicitly scoped release evidence.",
+      "prefixes": ["artifacts/verification/2026-09-11-g12-final-window/"]
+    },
+    {
       "id": "custom-apl",
       "disposition": "keep",
       "category": "target-verification",
