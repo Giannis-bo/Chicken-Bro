@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "research-completion",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "User-authorized finite research completion and release evidence.",
+      "paths": ["docs/plans/2026-09-11-research-completion.md"],
+      "prefixes": ["artifacts/verification/2026-09-11-research-completion/"]
+    },
+    {
       "id": "persistent-research-budget",
       "disposition": "keep",
       "category": "target-verification",
