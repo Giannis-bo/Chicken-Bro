@@ -192,7 +192,7 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             diagnostic = module._RunDiagnostics('12345678-1234-1234-1234-123456789abc')
             for _ in range(100):
                 diagnostic.emit('validation', validation_codes=['WCL_REFERENCE_UNOBSERVED', secret], code=secret,
-                                failure_site=secret)
+                                failure_site=secret, failure_kind=secret)
                 diagnostic.emit(secret, code=secret)
             self.assertEqual(log.call_count, 1)
             rendered = str(log.call_args_list)
