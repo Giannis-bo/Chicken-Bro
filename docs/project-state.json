@@ -461,7 +461,7 @@
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
         "limit": "Original CODEX_OUTPUT_INVALID failure retained; newly authorized separate task, no retry or success claimed here.",
         "nativeOutputWork": {
-          "status": "integrated_pending_joint_candidate_and_live",
+          "status": "joint_candidate_failed_durable_fix_integrated_recheck_pending",
           "implementationCommit": "fff567fbe",
           "integrationCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
           "evidenceCommit": "9e0a485e8",
@@ -476,17 +476,24 @@
             "singleTaskWebBuild": "passed",
             "jointLatestWebBuild": "pending"
           },
-          "candidate": "pending",
+          "candidate": "old_joint_candidate_failed_retryable_projection_recheck_pending",
           "live": "pending",
           "manualUserAcceptance": "not_claimed",
           "consumption": {
-            "models": 3,
+            "models": 4,
             "modelCeiling": 8,
             "cloudSimc": 0,
             "simcCeiling": 4
           },
           "releaseOwnerTask": "01a08f04-7fb0-73d1-813f-a4c755c75007",
-          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web"
+          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web",
+          "durableFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "durableFixVerification": {
+            "relatedTestsPassed": 104,
+            "environment": "existing_cloud_runtime",
+            "localFullTests": "not_claimed_missing_fastapi",
+            "modelFreeReadbackRecheck": "provided_pending_result"
+          }
         }
       },
       "G13": {
@@ -648,5 +655,16 @@
     "status": "live_verified_for_recorded_release",
     "manualPostReleaseAcceptance": "not_claimed",
     "note": "Recorded release identity, not a fresh runtime probe; later parallel releases must update from their own evidence."
+  },
+  "jointRelease": {
+    "status": "blocked_pending_refreeze_and_recheck",
+    "rejectedCandidateSource": "9e92bc124a1069a617883a710615e6a0bd544d61",
+    "blockingDefect": "durable_subscription_marked_policy_refusal_retryable",
+    "integratedFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "productionSourceAsReported": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+    "productionChanged": false,
+    "evidenceStatus": "reported_by_native_task_fix_diff_verified_control_update",
+    "required": "release_owner_refreeze_latest_source_and_recheck_original_failure_without_model_or_simc",
+    "specializedCandidateEvidence": "G10_and_accuracy_evidence_retained_not_joint_release_acceptance"
   }
 }
