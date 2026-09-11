@@ -529,6 +529,34 @@
         "cloudSimc": 2,
         "preferSharedG10Evidence": true
       }
+    },
+    "persistentResearchBudget": {
+      "status": "local_verified",
+      "sourceCommit": "f48202568",
+      "integrationCommit": "30b3b7a52d4b9f0ba517dd405e7d84753bbf9df4",
+      "plan": "docs/plans/2026-09-11-persistent-research-budget.md",
+      "evidence": "artifacts/verification/2026-09-11-persistent-research/README.md",
+      "candidate": "not_verified",
+      "live": "not_deployed",
+      "manualUserAcceptance": "not_claimed",
+      "releasePrerequisite": "drain_old_jobs_and_apply_0009_chat_research_lifecycle_before_code_cutover",
+      "localVerification": {
+        "postgresTests": 28,
+        "backendTests": 719,
+        "webInputTests": 25,
+        "typecheck": "passed",
+        "lint": "passed",
+        "webBuild": "passed_with_existing_size_warning"
+      },
+      "limits": {
+        "chatSimcSubmissionsPerResearch": 4,
+        "generationSafetySeconds": 360,
+        "nativeWebGatewayPageHardLimit": false
+      },
+      "acceptanceBudget": {
+        "models": 6,
+        "cloudSimc": 2
+      }
     }
   },
   "miniRetirement": {
