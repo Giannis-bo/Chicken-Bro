@@ -2,6 +2,14 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "remaining-issues-control-state",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "control_and_cleanup",
+      "reason": "Retain explicitly authorized current delivery status without overwriting historical failures.",
+      "paths": ["docs/plans/2026-09-11-remaining-issues-status.md"]
+    },
+    {
       "id": "g12-enchant-validation",
       "disposition": "keep",
       "category": "target-verification",
