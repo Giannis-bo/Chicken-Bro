@@ -53,7 +53,7 @@
 - 制造/特殊装备真实版本fixture、附魔各品质效果、完整首领阶段及饰品机制实测仍需资料；当前诊断投影不补齐这些事实。历史原生失败2ed6根因仍未知，本轮新策略拒绝不能反推同因。跨轮预算不承诺原生网页的网关5页硬计量或跨独立研究的账号总额度。
 
 - 暂缓新增新闻、装备库、天赋库、旧模拟器及插件 `/simc` 文本导入。
-- COS 七图及清单源站/CDN完整性、本地Git重建八文件已验证；历史匿名写入仍未知，目标账号配置与供应商能力确认受阻，审计启用待决策。工单未发送，未执行独立灾备或云端恢复；新增费用/迁移未授权。[本轮证据](../artifacts/security/2026-09-11-cos-audit-recovery/README.md)；[历史记录](../artifacts/security/2026-09-08-cos-write-hardening/report.md)保留。
+- COS 历史调查及相关审计/恢复跟进已于2026-09-11按用户决定关闭，不再作为待办推进。既有完整性及本地重建证据保留，历史匿名写入结论仍未知。[历史记录](../artifacts/security/2026-09-11-cos-audit-recovery/README.md)。
 
 [架构](chickenbro-simc-architecture.md) · [验证矩阵](verification-matrix.md) · [生产 Runbook](chickenbro-simc-production-runbook.md) · [计划白名单](plans/README.md)
 

@@ -532,7 +532,7 @@
       }
     },
     "cosAuditRecovery": {
-      "status": "historical_investigation_blocked_audit_enablement_pending_decision",
+      "status": "closed_by_user_no_further_investigation",
       "evidenceCommit": "b019358dd00baa195ed452d16c60015cf3f83893",
       "evidence": "artifacts/security/2026-09-11-cos-audit-recovery/README.md",
       "implementation": "documentation_and_read_only_evidence_only",
@@ -546,13 +546,20 @@
       "historicalAnonymousWrites": "unknown",
       "authenticatedTargetConfiguration": "not_verified_console_account_appid_mismatch",
       "supportTicket": "draft_not_sent",
-      "blockers": [
+      "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4",
+      "userDecision": {
+        "date": "2026-09-11",
+        "instruction": "这个也忽略，不用管了，没问题",
+        "scope": "Stop COS historical investigation and associated audit/recovery followups; retain historical evidence.",
+        "historicalSafetyConclusion": "unknown_not_reclassified_as_verified_safe"
+      },
+      "historicalBlockers": [
         "target_account_authenticated_read_only_access",
         "supplier_history_and_capability_confirmation",
         "explicit_ticket_send_authorization",
         "separate_authorization_for_new_costs_or_migration"
       ],
-      "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
+      "followupRequired": false
     },
     "simcAccuracy": {
       "status": "live_verified",
@@ -734,6 +741,6 @@
     "scope": "status_retention_scheduling_safe_git_cleanup",
     "evidence": "artifacts/verification/2026-09-11-project-closure/README.md",
     "productRedeployment": "not_required_no_product_diff",
-    "remainingWork": "expiry_pending_external_account_and_simulation_facts"
+    "remainingWork": "expiry_pending_simulation_facts_and_retained_local_evidence"
   }
 }
