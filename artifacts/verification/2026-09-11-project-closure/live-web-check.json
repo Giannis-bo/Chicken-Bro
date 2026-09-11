@@ -1,0 +1,67 @@
+{
+  "observedAt": "2026-09-11T07:07:31.578327+00:00",
+  "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+  "webFiles": [
+    {
+      "path": "brand/gugu-v1-16.png",
+      "matches": true
+    },
+    {
+      "path": "brand/gugu-v1-32.png",
+      "matches": true
+    },
+    {
+      "path": "brand/gugu-v1.ico",
+      "matches": true
+    },
+    {
+      "path": "chunk/580.js",
+      "matches": true
+    },
+    {
+      "path": "chunk/580.js.LICENSE.txt",
+      "matches": true
+    },
+    {
+      "path": "chunk/953.js",
+      "matches": true
+    },
+    {
+      "path": "css/app.css",
+      "matches": true
+    },
+    {
+      "path": "index.html",
+      "matches": true
+    },
+    {
+      "path": "js/639.js",
+      "matches": true
+    },
+    {
+      "path": "js/639.js.LICENSE.txt",
+      "matches": true
+    },
+    {
+      "path": "js/app.js",
+      "matches": true
+    },
+    {
+      "path": "js/app.js.LICENSE.txt",
+      "matches": true
+    },
+    {
+      "path": "static/images/web/assets/gu-gu-mascot.png",
+      "matches": true
+    }
+  ],
+  "businessSmoke": "not_repeated_no_product_change",
+  "initialProbe": "Python TLS verification failed; system curl with certificate verification succeeded",
+  "runtimeIdentity": {
+    "backendSymlink": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+    "apiProcessCwd": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+    "workerProcessCwd": "/opt/chickenbro-releases/badcase-22c681f99f457329f1b25570343b7f9be401201b",
+    "webSymlink": "/var/www/chickenbro-web/releases/research-22c681f99f457329f1b25570343b7f9be401201b",
+    "servicesActive": true
+  }
+}

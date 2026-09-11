@@ -1,0 +1,56 @@
+{
+  "removedWorktrees": [
+    "/private/tmp/cb-feedback/release-src",
+    "/Users/boyuan/.codex/worktrees/270d/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/34e6/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/39d5/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/4cc7/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/7767/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/a330/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/c5e3/wow_mini_program",
+    "/Users/boyuan/.codex/worktrees/e2d7/wow_mini_program",
+    "/Users/boyuan/Documents/wow_mini_program/.worktrees/changelog-20260909",
+    "/Users/boyuan/Documents/wow_mini_program/.worktrees/qq-web"
+  ],
+  "ignoredEvidenceFilesPreserved": 13,
+  "bundleRestoreVerified": true,
+  "removedBranches": [
+    {
+      "ref": "refs/heads/codex/badcase-web-proxy-20260910",
+      "sha": "6e7037fbe2f2178da6ab36162e7fe01615731b8f"
+    },
+    {
+      "ref": "refs/heads/codex/control-cos-status-20260911",
+      "sha": "f353e3d5680fd52a5cea569fa0fd254e28af8d5f"
+    },
+    {
+      "ref": "refs/heads/codex/control-state-20260911",
+      "sha": "24d231e9526a6d18eb67e1e52a2a9601b1e9a107"
+    },
+    {
+      "ref": "refs/heads/codex/cos-audit-recovery-20260911",
+      "sha": "b019358dd00baa195ed452d16c60015cf3f83893"
+    },
+    {
+      "ref": "refs/heads/codex/g10-nickname-path",
+      "sha": "83ba217b9db1a2a7556be1550847ce74d61324db"
+    },
+    {
+      "ref": "refs/heads/codex/native-output-invalid",
+      "sha": "3c1c2a17c6cffcc9f1423e505b59098f7ecdb8c1"
+    },
+    {
+      "ref": "refs/heads/codex/persistent-research-budget",
+      "sha": "3c1c2a17c6cffcc9f1423e505b59098f7ecdb8c1"
+    },
+    {
+      "ref": "refs/heads/codex/simc-accuracy-diagnostics",
+      "sha": "159e7307bc7de88f3868a901a99db621bd678977"
+    }
+  ],
+  "retainedWorktrees": [
+    "/Users/boyuan/Documents/wow_mini_program",
+    "/Users/boyuan/Documents/wow_mini_program/.worktrees/badcase-workflow"
+  ],
+  "retainedReason": "Untracked historical evidence preserved; not forced clean."
+}

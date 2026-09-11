@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-09-11",
   "activeMilestone": "chickenbro_web_only_qq",
-  "status": "in_progress",
+  "status": "delivered_with_followups",
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
@@ -409,11 +409,11 @@
       },
       "G10": {
         "status": "automatic_alias_path_live_verified_with_declared_assumptions",
-        "implementation": "existing_released_tools_reused",
-        "candidate": "three_simulations_and_resolved_context_answer_passed",
-        "live": "no_new_live_acceptance",
+        "implementation": "automatic_alias_research_path_released",
+        "candidate": "five_class_matrix_passed",
+        "live": "four_item_discovery_two_owned_simulations_compare_and_limits_verified",
         "manualUserAcceptance": "not_claimed",
-        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
+        "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
         "limit": "Finite original alias path verified under disclosed item-level and engine assumptions; not universal aliases, exact item versions or real-combat superiority.",
         "automaticAliasWork": {
           "status": "live_verified",
@@ -677,7 +677,8 @@
     "webFilesVerified": 13,
     "observationSeconds": 45.6,
     "rollbackDrill": "not_run",
-    "recoveryEvidence": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json"
+    "recoveryEvidence": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json",
+    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-project-closure/live-web-check.json"
   },
   "jointRelease": {
     "status": "released",
@@ -697,7 +698,7 @@
     "previousBlockingDefect": "durable_subscription_marked_policy_refusal_retryable",
     "candidateRecheck": "artifacts/verification/2026-09-11-persistent-research/candidate-recheck.json",
     "privateCopyRetention": {
-      "status": "manifest_verified_not_connected_to_cleanup",
+      "status": "existing_automation_connected_expiry_pending",
       "localManifest": "/Users/boyuan/.codex/badcase/chickenbro/persistent-research-20260911/retention.json",
       "remoteManifest": "/var/lib/chickenbro-joint-research-20260911/retention.json",
       "manifestSha256": "2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902",
@@ -708,19 +709,31 @@
       "mixedTransportExpiresAt": 1789611698.4364,
       "originalRetentionNotExtended": true,
       "cleanupPerformed": false,
-      "existingMechanism": "badcase scan/prune only raw/*.json; image retention service only product chat images; inspected timers and cron references do not cover joint manifests",
-      "notCovered": [
-        "local_joint_release_copies",
-        "remote_joint_release_copies",
-        "mixed_transport_archives"
-      ],
+      "existingMechanism": "Existing Badcase cron agent consumes pinned exact inventories before scans; raw prune and image retention remain separate.",
+      "notCovered": [],
       "excluded": [
         "production_records",
         "rollback_metadata",
         "source",
         "release_manifests"
       ],
-      "newSchedulerCreated": false
+      "newSchedulerCreated": false,
+      "previousGap": "manifest_verified_not_connected_to_cleanup",
+      "coverageScope": "scheduler_agent_procedure_only_not_a_deployed_deterministic_cleaner",
+      "automationId": "badcase",
+      "inventoryEvidence": "artifacts/verification/2026-09-11-project-closure/automation-check.json",
+      "localInventorySha256": "92b4e38c4b10ead032385ecdc7f831d68326d9cb6d36b41fc039ec34f9d0aeeb",
+      "remoteInventorySha256": "f58f8100463de5e01837cc38246c82e7a0db0123281496e89afaff4d802a0aba"
     }
+  },
+  "statusScope": "Authorized Web/QQ delivery complete; data evidence and external operations followups remain open.",
+  "closure": {
+    "asOf": "2026-09-11",
+    "userClosureAuthorized": true,
+    "manualUserAcceptance": "not_claimed",
+    "scope": "status_retention_scheduling_safe_git_cleanup",
+    "evidence": "artifacts/verification/2026-09-11-project-closure/README.md",
+    "productRedeployment": "not_required_no_product_diff",
+    "remainingWork": "expiry_pending_external_account_and_simulation_facts"
   }
 }

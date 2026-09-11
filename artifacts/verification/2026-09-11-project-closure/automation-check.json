@@ -1,0 +1,13 @@
+{
+  "id": "badcase",
+  "status": "ACTIVE",
+  "kind": "cron",
+  "promptSha256": "15abb572793f3f4aabe6314aa65f9ab567fc0c39b80229cb1b6a20d56c38fc1b",
+  "retentionInstructionsPresent": true,
+  "newSchedulerCreated": false,
+  "cleanupPerformed": false,
+  "reason": "Not expired; existing scheduler agent now consumes exact inventories; no deterministic cleaner deployed.",
+  "latestBadcaseWindow": "2026-09-11 12:00 scan new=0, no duplicate release",
+  "latestChangelogWindow": "2026-09-10 19:00 live_verified; 2026-09-11 19:00 not yet due",
+  "externalDispositionsPresent": true
+}

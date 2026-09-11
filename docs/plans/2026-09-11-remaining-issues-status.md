@@ -91,3 +91,7 @@
 本地 `persistent-research-20260911/retention.json` 与云端 `/var/lib/chickenbro-joint-research-20260911/retention.json` 已逐份只读核对，SHA相同、均0600，云端root所有。精确绝对路径及哈希见[现有保留流程登记](../badcase-workflow-operations.md#2026-09-11-联合发布私有副本保留登记)。原生到期1789639309.95872，G10及混合transport取更早1789611698.4364，不重新计时。
 
 清单覆盖的联合回执、题包、transport副本**尚未接入现有清理机制，未清理**。现有scan/prune只清本地raw问题包，云端图片retention只负责产品图片；不能把这些已有机制当成联合副本已被覆盖。本轮不创建定时任务或扩大删除范围；生产记录、回滚metadata/恢复快照、源码及发布manifest继续独立保护。
+
+## 2026-09-11 项目收尾补记
+
+用户已明确授权收尾、清理、合入及必要发布。最终限定交付维持已完成；上述“尚未接入”是初次登记状态，现联合副本已通过现有Badcase调度Agent接入精确清单/到期/哈希处置，未改Python raw prune、未新增调度器、尚未执行到期删除。Git可恢复清理、最新线上目录与13文件核验及各外部资料恢复条件见[收尾记录](../../artifacts/verification/2026-09-11-project-closure/README.md)。没有新增产品差异，无需重复部署或扩样。

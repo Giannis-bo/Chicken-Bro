@@ -1,0 +1,39 @@
+{
+  "asOf": "2026-09-11",
+  "scope": "supplementary_scheduler_handoff_not_a_rewritten_cli_release_ledger",
+  "groups": {
+    "G7": {
+      "reportSha256": "93909abce399446f868381b320b6a5d8f48bc685011b4d4588c2e1dbcbc3a5f8",
+      "disposition": "externally_released",
+      "evidence": "artifacts/verification/2026-09-10-badcase-g7/release/README.md",
+      "evidenceSha256": "100e6d8d649485baec5c06583288d279ac72ef0b3db0de7b15f4a69e9469bdc1",
+      "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "manualUserAcceptance": "not_claimed"
+    },
+    "G10": {
+      "reportSha256": "24529f983150c009cbf8fee093eea4f587a364798339d26eaaeaf2b25a821640",
+      "disposition": "externally_released_scoped",
+      "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
+      "evidenceSha256": "678253a12f5251a048d93a710eb5cdd0221e8744ac81255f559fb78ddff9c0fb",
+      "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "manualUserAcceptance": "not_claimed"
+    },
+    "G8": {
+      "reportSha256": "20d3be515622e39fc5b4eb01f9effd1dcc4f864b058edc9eec1dc6674cc18325",
+      "disposition": "finite_original_replay_complete",
+      "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+      "evidenceSha256": "9ed87c05e22dcc788fa27de004c2de1578487e0fc4187d6846ae7d580cd93e31",
+      "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "manualUserAcceptance": "not_claimed"
+    },
+    "G9": {
+      "reportSha256": "4529c5d95303313d0497a3c46f4b367cb042f5b48375062ca0d727e8d64152e1",
+      "disposition": "finite_original_replay_complete",
+      "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+      "evidenceSha256": "9ed87c05e22dcc788fa27de004c2de1578487e0fc4187d6846ae7d580cd93e31",
+      "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "manualUserAcceptance": "not_claimed"
+    }
+  },
+  "newReportPolicy": "Fresh report hashes require current evidence and authorized scope; do not apply old disposition by group name alone."
+}
