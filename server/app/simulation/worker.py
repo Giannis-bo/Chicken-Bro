@@ -139,6 +139,7 @@ class SemanticSimulationMetric:
     error_pct: float | None = None
     report: dict | None = None
     report_identity: dict | None = None
+    engine_diagnostics: list | None = None
 
 
 class SimulationResultParser:
@@ -173,8 +174,10 @@ class SimulationResultParser:
         if execution.requires_json or execution.report_json is not None:
             try:
                 report_identity = {}
+                engine_diagnostics = []
                 report = normalize_simc_report(execution.report_json, expected_actor=expected_actor,
-                    identity_sink=report_identity, npc_sources=execution.npc_sources)
+                    identity_sink=report_identity, npc_sources=execution.npc_sources,
+                    diagnostic_sink=engine_diagnostics)
             except SimulationReportError as error:
                 raise SimulationWorkerError(error.code) from None
             metric = report["metric"]
@@ -187,6 +190,7 @@ class SimulationResultParser:
                 error_pct=error_pct,
                 report=report,
                 report_identity=report_identity,
+                engine_diagnostics=engine_diagnostics,
             )
         actor_matches = list(self._ACTOR_PATTERN.finditer(execution.stdout or ""))
         actors = [match.group(1).strip() for match in actor_matches]
@@ -365,6 +369,7 @@ class SimulationWorker:
                 **({"effectiveConfig": effective_config} if effective_config is not None else {}),
                 **({"report": metric.report} if metric.report is not None else {}),
                 **({"reportIdentity": metric.report_identity} if metric.report_identity is not None else {}),
+                **({"engineDiagnostics": metric.engine_diagnostics} if metric.engine_diagnostics is not None else {}),
                 **({"metricError": metric.error, "metricErrorPct": metric.error_pct} if metric.error is not None else {}),
                 "provenance": {
                     **provenance,

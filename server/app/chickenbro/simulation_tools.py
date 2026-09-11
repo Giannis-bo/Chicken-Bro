@@ -154,6 +154,11 @@ def _job_packet(view: SimulationJobView) -> dict:
     if view.result is not None:
         result = {"metricName": view.result.primary_metric_name,
                   "metricValue": view.result.primary_metric_value, "provenance": provenance}
+        from server.app.simulation.diagnostics import public_engine_diagnostics, engine_diagnostic_limitations
+        diagnostics = public_engine_diagnostics(view.result.result.get('engineDiagnostics'))
+        if 'engineDiagnostics' in view.result.result:
+            result['engineDiagnostics'] = diagnostics
+        limitations.extend(engine_diagnostic_limitations(diagnostics))
         proof = view.result.result.get("effectiveConfig", {})
         if isinstance(proof,dict) and proof.get("status") == "verified" and proof.get("profileSha256") == view.result.profile_sha256:
             result["effectiveConfig"] = {"status":"verified", "profileSha256":view.result.profile_sha256,

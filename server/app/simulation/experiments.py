@@ -3,6 +3,7 @@ from copy import deepcopy
 from math import isfinite
 from server.app.simulation.compiler import normalize_scenario
 from server.app.simulation.application import SimulationApplicationError, validated_simulation_result_provenance
+from server.app.simulation.diagnostics import public_engine_diagnostics, engine_diagnostic_limitations
 
 _VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses'}
 
@@ -59,6 +60,8 @@ def compare_jobs(baseline, variant):
     delta=bv-av
     delta_pct=delta/av*100
     if not isfinite(delta_pct): fail('SIMC_COMPARISON_METRIC_MISMATCH')
+    diagnostics = {key: public_engine_diagnostics(view.result.result.get('engineDiagnostics'))
+                   for key, view in (('baseline', baseline), ('variant', variant))}
     return {'baselineJobId':str(a.id),'variantJobId':str(b.id),'metricName':baseline.result.primary_metric_name,
             'baseline':av,'variant':bv,'delta':delta,'deltaPct':delta_pct,
             'combinedErrorBound':margin,
@@ -66,4 +69,6 @@ def compare_jobs(baseline, variant):
             'changes':{k:{'before':deepcopy(baseline.scenario.get(k)), 'after':deepcopy(variant.scenario.get(k))}
                        for k in sorted(_VARIANT_FIELDS) if baseline.scenario.get(k)!=variant.scenario.get(k)},
             'controls':controls(baseline.scenario),'runtimeRevision':a.runtime_revision,
-            'limitations':['Reported error bounds are summed conservatively; this is not a paired statistical significance test.']}
+            'engineDiagnostics': diagnostics,
+            'limitations':['Reported error bounds are summed conservatively; this is not a paired statistical significance test.']
+                + engine_diagnostic_limitations(diagnostics['baseline'] + diagnostics['variant'])}
