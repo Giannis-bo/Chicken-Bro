@@ -1,0 +1,28 @@
+{
+  "limit": 8,
+  "used": 5,
+  "operations": [
+    {
+      "type": "remote_source",
+      "scope": "Lightspire implementation and buff duration semantics"
+    },
+    {
+      "type": "remote_source",
+      "scope": "buff start expiration scheduling"
+    },
+    {
+      "type": "spell_query",
+      "scope": "1250527 baseline effects"
+    },
+    {
+      "type": "web_open",
+      "url": "https://github.com/simulationcraft/simc/wiki/ExpansionOptions",
+      "finding": "Default0.5; documented0.1..1; per-proc duration, not whole-fight uptime"
+    },
+    {
+      "type": "spell_query",
+      "scope": "1250527 effect1275873 coefficient0, preserve passive1275854"
+    }
+  ],
+  "scope": "Installed engine facts and sensitivity only; no player positioning logs or empirical uptime measured"
+}

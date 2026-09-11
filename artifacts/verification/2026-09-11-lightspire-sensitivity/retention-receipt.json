@@ -1,0 +1,10 @@
+{
+  "manifest": "/var/lib/chickenbro-lightspire-sensitivity-20260911/retention.json",
+  "sha256": "5043e7cfc1cd1f03d090ec19070e9869f1516e4111142a06742b1b3ab1923eea",
+  "files": 12,
+  "expiresAt": 1789611698.4364,
+  "cleanupPerformed": false,
+  "automationId": "badcase",
+  "automationPromptReadbackMatched": true,
+  "newSchedulerCreated": false
+}

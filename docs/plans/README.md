@@ -1,5 +1,7 @@
 # 计划白名单
 
+- `已完成 / 光塔有限敏感性实验`：[光塔研究](../../artifacts/verification/2026-09-11-lightspire-sensitivity/README.md)。4次云端战斗＋2次资料查询达到6次引擎调用上限；不改生产，真实站位与版本准确性仍未知。
+
 - `已完成 / 有限机制敏感性实验，真实概率仍未知`：[饰品机制第一批](../../artifacts/verification/2026-09-11-trinket-mechanism/README.md)。用户授权最多6次云端模拟；实际2次战斗/2次资料查询，未改引擎或产品，不需发布。
 
 - `已完成 / 项目收尾；到期处置与外部资料待后续`：[收尾记录](../../artifacts/verification/2026-09-11-project-closure/README.md)。用户于2026-09-11授权状态整理、清理、合入及必要发布；仅文档与现有自动化配置变化，不重部署产品。

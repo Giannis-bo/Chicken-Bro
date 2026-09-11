@@ -649,6 +649,20 @@
       "releaseRequired": false,
       "furtherSampling": "stopped",
       "empiricalProcProbability": "unknown"
+    },
+    "lightspireSensitivityStudy": {
+      "asOf": "2026-09-11",
+      "status": "bounded_sensitivity_complete_empirical_positioning_unknown",
+      "evidence": "artifacts/verification/2026-09-11-lightspire-sensitivity/README.md",
+      "scope": "elemental_321_lightspire_venom_fixed_300s",
+      "combatSimulations": 4,
+      "spellQueries": 2,
+      "sourceOperations": 5,
+      "modelCalls": 0,
+      "productChanged": false,
+      "releaseRequired": false,
+      "furtherSampling": "stopped",
+      "rankingReversed": false
     }
   },
   "miniRetirement": {
