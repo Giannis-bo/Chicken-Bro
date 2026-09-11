@@ -2,6 +2,12 @@
 
 适用产品为 Web / QQ 登录、Chat、云端 SimC。历史迁移、双端切流和小程序发布过程归入[历史存档](chickenbro-simc-production-runbook-pre-mini-retirement.md)，不得重放六阶段脚本作为常规发布。
 
+## 2026-09-11 Web 会话返回状态修复
+
+本批仅切换静态 Web 到 `chat-return-0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67`，API/Worker 继续运行 `badcase-b406fc9155a03edba9e95912713606736fb2a1bd`。13 份公网文件、真实浏览器加载公网构建后的隔离会话交互与 readiness 通过。未重启服务、迁移或写生产业务数据。
+
+root/0700 发布包 `/var/lib/chickenbro-chat-return-20260911/` 保存完整静态包、manifest、旧目录清单及发布执行器。回退执行 `python3 /var/lib/chickenbro-chat-return-20260911/deploy-web.py rollback /var/lib/chickenbro-chat-return-20260911/release-manifest.json`（root），只在当前指针和两版 SHA 均匹配时原子恢复旧 `research-22c681f99...`。旧版保留且逐文件核验；未实际回切。见[本批记录](../artifacts/verification/2026-09-11-chat-return-state/README.md)。
+
 ## 运行身份核对
 
 操作前核对 `wow-lighthouse` 所对应实例、当前代码/Web symlink、systemd API/Worker 的有效工作目录与配置文件路径、数据库名，以及实际源文件和产物 SHA。不要输出环境文件内容、DSN 密码或第三方凭据。正式库为 `chickenbro_prod`，正式网站为 `https://www.chickenbro.cloud/`，readiness 为 `/api/v2/health/readiness`。

@@ -256,6 +256,17 @@
     "userQqLoginConfirmed": "2026-09-09"
   },
   "incrementalWork": {
+    "chatConversationReturn": {
+      "status": "live_verified",
+      "sourceCommit": "0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67",
+      "scope": "web_only_copy_and_inflight_conversation_state",
+      "productionCutoverAuthorized": true,
+      "evidence": "artifacts/verification/2026-09-11-chat-return-state/README.md",
+      "webArtifactFilesVerified": 13,
+      "browserVerification": "actual_public_artifact_with_isolated_api_and_sse_fixture",
+      "manualUserAcceptance": "not_claimed",
+      "backendRestarted": false
+    },
     "chatImages": {
       "status": "live_verified",
       "plan": "docs/plans/2026-09-09-chat-images.md",

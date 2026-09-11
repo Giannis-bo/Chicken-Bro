@@ -22,3 +22,11 @@
 ## 验证边界
 
 首轮验证为本地受控流事件和页面交互。用户随后明确授权“直接发布”。发布前使用本机 Edge 对实际 Web 构建产物验证六项行为，通过结果见 `candidate-browser.json`；API 与流事件完全隔离，未调用真实模型或写入生产数据。未改变完整页面刷新后的服务端执行恢复合同。线上发布结果将在本目录单独记录，不将自动化验证视为用户手工验收。
+
+## 已发布
+
+源码 `0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67` 已合入并推送 main。Web current 已原子切至 `/var/www/chickenbro-web/releases/chat-return-0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67`。后端保持 `badcase-b406fc9155a03edba9e95912713606736fb2a1bd`，API/Worker 未重启，数据库、环境及 SimC runtime 未改动。
+
+发布前新目录 13 文件通过 SHA 和服务器隔离 loopback HTTP 读取；正式切换后 13 个公网文件全部与 `release-manifest.json` 匹配（`public-verification.json`）。Edge 加载实际公网产物，使用隔离 API/SSE fixture 验证额度提示移除、等待恢复、后台内容隔离、进度恢复、完成解锁和再次发送，六项通过（`live-browser.json`、`live-progress.png`）。真实 readiness 全部 ready，API/Worker active。未宣称真实 QQ 登录、真实模型/图片/SimC 新任务或第二账号业务验收；本批仅前端，未重放后端整套 Candidate。
+
+恢复包 `/var/lib/chickenbro-chat-return-20260911/` 为 root/0700，包含 root/0600 `deploy-web.py`、静态归档、manifest 和 baseline 清单。旧目录 `research-22c681f99f457329f1b25570343b7f9be401201b` 完整保留、SHA 核验通过。仅当当前指针仍为本批且两版清单匹配时，可由 root 执行 `python3 /var/lib/chickenbro-chat-return-20260911/deploy-web.py rollback /var/lib/chickenbro-chat-return-20260911/release-manifest.json` 原子恢复旧 Web；不影响后端任务或新写入。未执行实际回切演练。

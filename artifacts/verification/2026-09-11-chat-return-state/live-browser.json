@@ -1,0 +1,14 @@
+{
+  "mode": "public-artifact-with-isolated-api-fixture",
+  "passed": true,
+  "checks": [
+    "copy-removed",
+    "waiting-restored",
+    "background-isolated",
+    "progress-restored",
+    "completion-unlocks",
+    "followup-sent"
+  ],
+  "realModelCalls": 0,
+  "productionDataWrites": 0
+}
