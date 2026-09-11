@@ -438,6 +438,36 @@ class WorkflowTests(unittest.TestCase):
         manifest['evidence'].pop('generalization',None)
         with self.assertRaises(w.WorkflowError): self.flow.freeze(manifest)
 
+    def test_explicit_model_failure_exclusion_preserves_failed_trial_and_denominator(self):
+        batch=self.prepared()
+        record=json.loads(Path(batch['evidence']['generalization']['path']).read_text())
+        obs=record['groups']['G1']['pairs']['permission']['after']
+        trial=obs['runs'][1]
+        trial.update(outcome='failed',criteria={'complete':'unavailable'},
+                     failure={'code':'CODEX_OUTPUT_INVALID','observed_tool_calls':0,'delivered_answer':False})
+        trial['cost']['tool_calls']=0
+        obs['summary'].update(passed=1,pass_rate=0.5)
+        obs['summary']['cost']['tool_calls']=1
+        record['authorized_exclusion']={'group_id':'G1','report_sha256':batch['groups']['G1'],
+            'source_sha':batch['source_sha'],'trial_id':trial['trial_id'],
+            'evidence_sha256':trial['evidence_sha256'],'authorization_ref':'User explicitly defer this failed model case and release remaining scope',
+            'authorized_at':w.utc_now(),'reason':'Unresolved model failure retained separately; no foreign data was read'}
+        record['observed_at']=w.utc_now()
+        original=copy.deepcopy(record)
+        w.validate_generalization(record,batch)
+        self.assertEqual(record,original)
+        for mutation in ('missing_authorization','wrong_receipt','tools','answer','wrong_code','unused_trial'):
+            bad=copy.deepcopy(record)
+            failure=bad['groups']['G1']['pairs']['permission']['after']['runs'][1]['failure']
+            if mutation=='missing_authorization':bad['authorized_exclusion']['authorization_ref']=''
+            elif mutation=='wrong_receipt':bad['authorized_exclusion']['evidence_sha256']='0'*64
+            elif mutation=='tools':failure['observed_tool_calls']=1
+            elif mutation=='answer':failure['delivered_answer']=True
+            elif mutation=='wrong_code':failure['code']='OWNER_ISOLATION_FAILED'
+            else:bad['authorized_exclusion']['trial_id']='missing'
+            with self.subTest(mutation=mutation),self.assertRaises(w.WorkflowError):
+                w.validate_generalization(bad,batch)
+
     def test_generalization_rejects_unregistered_specialized_or_regressing_samples(self):
         mutations=('missing_variant','missing_holdout','used_holdout','late_fixed','specialization',
                    'failed_acceptance','normal_regression','permission_regression','wrong_conditions',

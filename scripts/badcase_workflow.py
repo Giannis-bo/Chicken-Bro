@@ -260,9 +260,20 @@ def validate_generalization(record, batch):
         return _validate_final_continuation(record, batch)
     proofs = record.get('groups', {})
     require(isinstance(proofs, dict) and set(proofs) == set(batch['groups']), 'generalization unverified: group coverage differs')
+    exclusion = record.get('authorized_exclusion')
+    exclusion_seen = False
+    if exclusion is not None:
+        require(isinstance(exclusion, dict) and nonempty(exclusion.get('authorization_ref'))
+                and nonempty(exclusion.get('reason')) and exclusion.get('group_id') in batch['groups']
+                and exclusion.get('report_sha256') == batch['groups'][exclusion['group_id']]
+                and exclusion.get('source_sha') == batch['source_sha']
+                and nonempty(exclusion.get('trial_id')), 'generalization unverified: invalid explicit exclusion')
+        valid_sha(exclusion.get('evidence_sha256'))
+        require(timestamp(exclusion.get('authorized_at')) <= timestamp(record['observed_at']),
+                'generalization unverified: exclusion authorization time invalid')
     categories = {'original', 'variant', 'independent_holdout', 'normal', 'permission'}
     execution_ids, receipts = set(), set()
-    for proof in proofs.values():
+    for group, proof in proofs.items():
         require(isinstance(proof, dict), 'generalization unverified: group record missing')
         for key in ('mechanism', 'root_cause_evidence', 'applicable_scope', 'excluded_boundaries'):
             require(nonempty(proof.get(key)), 'generalization unverified: mechanism or boundaries missing')
@@ -316,6 +327,7 @@ def validate_generalization(record, batch):
                 require(isinstance(runs,list) and minimum <= len(runs) <= 20, 'generalization unverified: insufficient repetitions')
                 counts.append(len(runs))
                 passed = 0
+                excluded = 0
                 for trial in runs:
                     require(isinstance(trial,dict) and timestamp(trial.get('observed_at')) >= fixed_at
                             and timestamp(trial['observed_at']) <= timestamp(record['observed_at']),
@@ -341,6 +353,19 @@ def validate_generalization(record, batch):
                     require(trial.get('outcome') in ('passed','failed','partial') and (trial['outcome'] == 'passed') == success,
                             'generalization unverified: outcome contradicts criteria')
                     passed += int(success)
+                    if exclusion is not None and trial_id == exclusion['trial_id']:
+                        failure = trial.get('failure', {})
+                        require(not exclusion_seen and len(runs) > 1 and group == exclusion['group_id']
+                                and phase == 'after' and category == 'permission'
+                                and receipt == exclusion['evidence_sha256']
+                                and trial['outcome'] == 'failed' and set(verdicts.values()) == {'unavailable'}
+                                and isinstance(failure, dict) and failure.get('code') == 'CODEX_OUTPUT_INVALID'
+                                and type(failure.get('observed_tool_calls')) is int and failure['observed_tool_calls'] == 0
+                                and failure.get('delivered_answer') is False
+                                and timestamp(trial['observed_at']) <= timestamp(exclusion['authorized_at']),
+                                'generalization unverified: exclusion does not match deferred model failure')
+                        exclusion_seen = True
+                        excluded = 1
                     require(number(trial.get('duration_seconds')), 'generalization unverified: elapsed time missing')
                     cost = trial.get('cost', {})
                     require(cost.get('counter_scope') in ('source_gateway_only','all_tools')
@@ -352,6 +377,8 @@ def validate_generalization(record, batch):
                     require((cost['provider_cost'] is None and cost['provider_cost_unit'] is None)
                             or (number(cost['provider_cost']) and nonempty(cost['provider_cost_unit'])),
                             'generalization unverified: invalid provider cost')
+                    if exclusion is not None and trial_id == exclusion['trial_id']:
+                        require(cost['tool_calls'] == 0, 'generalization unverified: excluded run has tool cost')
                 rate = passed / len(runs)
                 summary = observations.get('summary', {})
                 require(summary.get('passed') == passed and summary.get('total') == len(runs)
@@ -373,10 +400,15 @@ def validate_generalization(record, batch):
                 require(set(reported_cost) == set(totals) and all(reported_cost[k] is None if v is None
                         else (number(reported_cost[k]) and math.isclose(reported_cost[k],v)) if number(v)
                         else reported_cost[k] == v for k,v in totals.items()), 'generalization unverified: cost summary differs from trials')
-                require((phase != 'after' or rate >= threshold) and (category not in ('normal','permission') or rate == 1),
+                # Actual summaries retain all failures and costs. Only an explicitly
+                # authorized, receipt-bound model failure may be deferred; at least
+                # one independently executed permission success must still remain.
+                accepted_rate = passed / (len(runs) - excluded)
+                require((phase != 'after' or accepted_rate >= threshold) and (category not in ('normal','permission') or accepted_rate == 1),
                         'generalization unverified: acceptance failed or normal/permission regressed')
             require(len(counter_scopes) == 1, 'generalization unverified: before/after counter scopes differ')
             require(counts[0] == counts[1], 'generalization unverified: unequal paired repetition counts')
+    require(exclusion is None or exclusion_seen, 'generalization unverified: exclusion trial missing')
 
 
 def scan_sql(cursor, limit):
