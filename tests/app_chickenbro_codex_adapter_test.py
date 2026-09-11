@@ -71,6 +71,25 @@ class Gateway:
 
 
 class ChickenbroCodexAdapterTest(unittest.TestCase):
+    def test_upstream_error_metadata_uses_schema_allowlist_without_error_body(self):
+        from server.app.chickenbro import codex_adapter as module
+        from types import SimpleNamespace
+        secret = 'PRIVATE-UPSTREAM-ERROR'
+        for info, expected in [('usageLimitExceeded', 'usageLimitExceeded'),
+                               ({'responseStreamDisconnected': {'httpStatusCode': 503, 'message': secret}}, 'responseStreamDisconnected'),
+                               (secret, 'unknown'), ({secret: {}}, 'unknown')]:
+            events = transcript(note('error', threadId='thread', turnId='turn', willRetry=False,
+                error={'codexErrorInfo': info, 'message': secret, 'additionalDetails': secret}))
+            with tempfile.TemporaryDirectory() as directory, patch.object(module._LOG, 'warning') as log:
+                adapter = NativeCodexChatAdapter(jobs_dir=directory, enabled=True, popen=lambda *a, **k: FakeProcess(events))
+                with self.assertRaises(CodexStreamError):
+                    list(adapter.stream(prompt=secret, timeout_seconds=2,
+                        tool_context=SimpleNamespace(run_id='12345678-1234-1234-1234-123456789abc')))
+                row = [json.loads(c.args[1]) for c in log.call_args_list if c.args[0] == 'codex_internal_stage %s'][-1]
+                self.assertEqual(row.get('upstream_kind'), expected)
+                self.assertEqual(row.get('upstream_http_status'), 503 if expected == 'responseStreamDisconnected' else None)
+                self.assertNotIn(secret, str(log.call_args_list))
+
     def test_native_failure_categories_are_private_and_distinct(self):
         from server.app.chickenbro import codex_adapter as module
         from types import SimpleNamespace

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from server.app.chickenbro.stream import CodexStreamError
-from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images, FAILURE_KINDS
+from server.app.chickenbro.codex_stdio import CodexStdioSession, validate_images, FAILURE_KINDS, UPSTREAM_KINDS
 from server.codex_worker import (
     DEFAULT_CODEX_BIN,
     DEFAULT_JOBS_DIR,
@@ -56,7 +56,7 @@ class _RunDiagnostics:
         self.repair_code = None
         self.native_web_counts = {}
 
-    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None, failure_site=None, failure_kind=None):
+    def emit(self, stage, *, code=None, phase=None, validation_codes=None, deadline=None, failure_site=None, failure_kind=None, upstream_kind=None, upstream_http_status=None):
         try:
             if not self.run_id or stage not in _DIAGNOSTIC_STAGES or stage in self.seen:
                 return
@@ -73,6 +73,10 @@ class _RunDiagnostics:
                 data['failure_site'] = failure_site
             if isinstance(failure_kind, str) and failure_kind in FAILURE_KINDS:
                 data['failure_kind'] = failure_kind
+            if isinstance(upstream_kind, str) and upstream_kind in UPSTREAM_KINDS:
+                data['upstream_kind'] = upstream_kind
+            if type(upstream_http_status) is int and 100 <= upstream_http_status <= 599:
+                data['upstream_http_status'] = upstream_http_status
             if isinstance(validation_codes, (list, tuple)):
                 codes = sorted({c for c in validation_codes if isinstance(c,str) and c in _VALIDATION_CODES})
                 data['validation_codes'] = codes
@@ -150,7 +154,9 @@ def _observe_stream(method):
         except Exception as error:
             _diagnostic('stream_failed', code=_diagnostic_error(error),
                         failure_site=_diagnostic_failure_site(error),
-                        failure_kind=getattr(error, 'failure_kind', None))
+                        failure_kind=getattr(error, 'failure_kind', None),
+                        upstream_kind=getattr(error, 'upstream_kind', None),
+                        upstream_http_status=getattr(error, 'upstream_http_status', None))
             raise
         finally:
             try:

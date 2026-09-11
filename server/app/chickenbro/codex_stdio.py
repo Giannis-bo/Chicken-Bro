@@ -20,9 +20,27 @@ FAILURE_KINDS = frozenset(('protocol_invalid', 'transport_eof', 'rpc_error',
     'upstream_error', 'turn_failed', 'final_missing'))
 
 
-def invalid(kind='protocol_invalid'):
+# Fixed names from the installed App Server ErrorNotification JSON schema.
+# Never retain message, additionalDetails, misalignment instructions or raw envelopes.
+UPSTREAM_KINDS = frozenset(('contextWindowExceeded', 'sessionBudgetExceeded',
+    'usageLimitExceeded', 'rateLimitExceeded', 'serverOverloaded', 'cyberPolicy',
+    'misalignmentPolicyViolation', 'internalServerError', 'unauthorized', 'badRequest',
+    'threadRollbackFailed', 'sandboxError', 'other', 'httpConnectionFailed',
+    'responseStreamConnectionFailed', 'responseStreamDisconnected',
+    'responseTooManyFailedAttempts', 'activeTurnNotSteerable', 'unknown'))
+
+
+def invalid(kind='protocol_invalid', upstream=None):
     error = CodexStreamError("CODEX_OUTPUT_INVALID")
     error.failure_kind = kind if kind in FAILURE_KINDS else 'protocol_invalid'
+    if kind in ('upstream_error', 'turn_failed', 'rpc_error'):
+        info = upstream.get('codexErrorInfo') if isinstance(upstream, dict) else None
+        name = info if isinstance(info, str) else next(iter(info)) if isinstance(info, dict) and len(info) == 1 else None
+        error.upstream_kind = name if name in UPSTREAM_KINDS else 'unknown'
+        detail = info.get(name) if isinstance(info, dict) else None
+        status = detail.get('httpStatusCode') if isinstance(detail, dict) else None
+        if type(status) is int and 100 <= status <= 599:
+            error.upstream_http_status = status
     return error
 
 
@@ -163,7 +181,7 @@ class CodexStdioSession:
                     or params.get("threadId") != self.thread_id or params.get("turnId") != self.turn_id):
                 raise invalid()
             if params.get("willRetry") is not True:
-                raise invalid('upstream_error')
+                raise invalid('upstream_error', params.get('error'))
 
     def request(self, identity, method, params):
         self.send({"id": identity, "method": method, "params": params})
@@ -173,7 +191,7 @@ class CodexStdioSession:
                 if type(message["id"]) is not int or message["id"] != identity:
                     raise invalid()
                 if "error" in message:
-                    raise invalid('rpc_error')
+                    raise invalid('rpc_error', message.get('error'))
                 result = message.get("result")
                 if not isinstance(result, dict):
                     raise invalid()
@@ -223,7 +241,7 @@ class CodexStdioSession:
                     if turn.get("id") != self.turn_id:
                         raise invalid()
                     if turn.get("status") != "completed" or turn.get("error") is not None:
-                        raise invalid('turn_failed')
+                        raise invalid('turn_failed', turn.get('error'))
                     if not self.final_text:
                         raise invalid('final_missing')
                     yield {"type": "completed", "text": self.final_text}
