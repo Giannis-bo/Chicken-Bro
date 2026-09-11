@@ -1,0 +1,43 @@
+{
+  "status": "cdn_bytes_verified",
+  "checkedAt": "2026-09-11T05:52:29.665Z",
+  "root": "https://static.chickenbro.cloud/wow-assets/releases/2026-09-08-web-themes-v1",
+  "cacheControl": "public,max-age=31536000,immutable",
+  "verified": [
+    {
+      "name": "horde-bg-v2-clean.png",
+      "bytes": 836093,
+      "sha256": "85e852429c5062f071eb9b3892d8126d48e20678a4825faed2fc0f1a4f7c0a1f"
+    },
+    {
+      "name": "alliance.png",
+      "bytes": 1396136,
+      "sha256": "d9d08992d0e94b8892e43d64f3f6c830687157eccd758e114bfd26a0aaf6d7fa"
+    },
+    {
+      "name": "maghar-citadel.png",
+      "bytes": 1780039,
+      "sha256": "779264fbf3e9bfce279dc2b609f075c4537eebdb62c210f953a9ebd60a1b0234"
+    },
+    {
+      "name": "forsaken.png",
+      "bytes": 1284774,
+      "sha256": "1a6e81c85fefbfa68a1e7c95e8b80c115e6e8784b4fc242895cea874f13a90a6"
+    },
+    {
+      "name": "void.png",
+      "bytes": 1431956,
+      "sha256": "2dc14d350babc395cd870d90ac92ec09d87f339bed968c8dff1ce8c1606e8125"
+    },
+    {
+      "name": "deathwing.png",
+      "bytes": 1917939,
+      "sha256": "41ee351b45316b11c6ce73913aac755287d37d4ff1f435784a5b05c5e811aa1c"
+    },
+    {
+      "name": "venom.png",
+      "bytes": 1464788,
+      "sha256": "a2812b1541eea7966847667a01a8bbd644b7ca56dac16e4b894f269caeb95c58"
+    }
+  ]
+}
