@@ -415,7 +415,34 @@
         "live": "no_new_live_acceptance",
         "manualUserAcceptance": "not_claimed",
         "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
-        "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain."
+        "limit": "Original autonomous alias research is a separate authorized task; engine assumptions and item-level boundaries remain.",
+        "automaticAliasWork": {
+          "status": "local_verified_candidate_pending",
+          "sourceCommit": "30a5870e3",
+          "integration": "not_reported",
+          "localTestsPassed": 45,
+          "localTestEvidence": "reported_by_owning_task",
+          "candidate": "pending_joint_accuracy_validation",
+          "live": "not_verified",
+          "manualUserAcceptance": "not_claimed",
+          "evidenceAtSourceCommit": [
+            "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
+            "artifacts/verification/2026-09-11-g10-product-path/before.json"
+          ],
+          "before": {
+            "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+            "passed": false,
+            "nativeSearchEvents": 5,
+            "optionsCalls": 3,
+            "simc": 0,
+            "reason": "Asked for formal names and upgrade levels"
+          },
+          "budget": {
+            "models": 8,
+            "cloudSimc": 12,
+            "observedSources": 60
+          }
+        }
       },
       "G12": {
         "status": "enchant_and_completion_race_live_verified_native_failure_reopened",
@@ -480,6 +507,28 @@
         "separate_authorization_for_new_costs_or_migration"
       ],
       "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4"
+    },
+    "simcAccuracy": {
+      "status": "local_verified_candidate_pending",
+      "sourceCommit": "3c53101ec",
+      "integration": "not_reported",
+      "localTestsPassed": 99,
+      "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
+      "candidate": "pending_joint_G10_validation",
+      "live": "not_verified",
+      "manualUserAcceptance": "not_claimed",
+      "remainingEvidence": [
+        "real_crafted_item_version_fixture",
+        "enchant_quality_effect_mapping_and_report_readback",
+        "boss_timeline_and_entry_state",
+        "measured_trinket_mechanism_parameters"
+      ],
+      "budget": {
+        "models": 2,
+        "cloudSimc": 2,
+        "preferSharedG10Evidence": true
+      }
     }
   },
   "miniRetirement": {
