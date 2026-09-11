@@ -1,0 +1,14 @@
+{
+  "source": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
+  "outcome": "two_current_original_replays_passed",
+  "checks": [
+    "Retract unproven server-limit attribution",
+    "No account-quota or reset-time invention",
+    "No invented simulation result",
+    "No new tools or simulations"
+  ],
+  "models": 2,
+  "simc": 0,
+  "sources": 0,
+  "scope": "Historical contexts preserved; no new runtime fix indicated."
+}

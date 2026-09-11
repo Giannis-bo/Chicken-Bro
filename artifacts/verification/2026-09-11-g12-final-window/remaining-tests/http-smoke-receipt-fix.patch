@@ -1,0 +1,13 @@
+--- http-smoke.py
++++ http-smoke-fixed.py
+@@ -156,8 +156,8 @@
+             receipt = json.loads(line.split('codex_native_web_summary ', 1)[1])
+             if receipt.get('run_id') == first['runId']:
+                 receipts.append(receipt)
+-        assert len(receipts) == 1, 'native invocation receipt missing or ambiguous'
+-        entry['nativeWeb'] = receipts[0]
++        assert len(receipts) <= 1, 'native invocation receipt ambiguous'
++        entry['nativeWeb'] = receipts[0] if receipts else None
+         source_calls += sum(t['operation'].startswith('source.') for t in entry['tool_results'])+sum((entry.get('nativeWeb') or {}).get('completed_events',{}).values())
+         report['cases'].append(entry)
+         (Path('/var/lib/chickenbro-remaining-goal-20260911-bounded-next/release')/'live-progress.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))

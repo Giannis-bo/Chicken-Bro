@@ -1,0 +1,13 @@
+{
+  "old_missing_receipt_reproduced": true,
+  "new_zero_receipt_passes": true,
+  "new_one_receipt_preserved": true,
+  "duplicate_receipts_rejected": true,
+  "syntax_compiles": true,
+  "reuse": "Matches already-used isolated harness optional-native-summary behavior",
+  "original_executor_preserved": true,
+  "fixed_harness_sha256": "10a2494184925cc7685819888bd9a31cf7b2c20dfcac2889e0735d5f51f664f4",
+  "live_rerun": false,
+  "reason": "Stage model/SimC cap exhausted; no new release round",
+  "count_semantics": "Absent summary means no completed native events observed, not proof of every vendor attempt."
+}

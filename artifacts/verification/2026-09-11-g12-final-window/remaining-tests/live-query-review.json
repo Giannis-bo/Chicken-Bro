@@ -1,0 +1,13 @@
+{
+  "runId": "1bd830bb-23ab-4fe2-92c6-8caadba55c14",
+  "status": "succeeded",
+  "answer_sha256": "e46d00b048e976ff56b39299da4524abdf2529c3fe7c6b82d6b7eb77f17feb42",
+  "matched_item_id": 237847,
+  "source_read_and_exact_name_query": true,
+  "tool_operations": [
+    "simc.get",
+    "simc.options"
+  ],
+  "new_simulation": false,
+  "final_live_acceptance": "incomplete: first case succeeded but harness asserted missing native receipt; second never dispatched"
+}

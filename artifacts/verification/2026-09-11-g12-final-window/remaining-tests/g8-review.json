@@ -1,0 +1,156 @@
+{
+  "case": "g8-original-current-tools",
+  "runId": "a016c118-1cab-445c-ab95-44b08a55124e",
+  "source": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
+  "outcome": "current_original_replay_passed",
+  "checks": {
+    "same_original_gear_talents_snapshot_runtime": true,
+    "both_new_jobs_compiler_v6": true,
+    "same_non_apl_scenario": true,
+    "only_two_target_skill_priority_conditions_differ": true,
+    "normal_rotation_preserved_between_arms": true,
+    "three_sampled_windows_verified": true,
+    "answer_reports_sampling_and_cooldown_alignment_limits": true,
+    "DPS_math_and_error_correct": true
+  },
+  "original_seed_compiler": "chickenbro-simc-compiler-v5",
+  "comparison": {
+    "delta": -769.8156481762417,
+    "variant": 160247.6535730376,
+    "baseline": 161017.46922121383,
+    "controls": {
+      "maxTime": 300,
+      "bloodlust": true,
+      "raidBuffs": true,
+      "fightStyle": "Patchwerk",
+      "iterations": 10000,
+      "desiredTargets": 1,
+      "varyCombatLength": 0.0
+    },
+    "deltaPct": -0.47809448993303366,
+    "assessment": "lower",
+    "metricName": "dps",
+    "limitations": [
+      "Reported error bounds are summed conservatively; this is not a paired statistical significance test."
+    ],
+    "variantJobId": "cd9e37d1-4582-46ce-b562-772544887639",
+    "baselineJobId": "572bfe50-2557-47a3-925d-e659ec1ea4c0",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "combinedErrorBound": 173.14270983856463
+  },
+  "sampled_timings": {
+    "before": [
+      {
+        "name": "stormkeeper",
+        "time": 0.0,
+        "spellId": 191634
+      },
+      {
+        "name": "ascendance",
+        "time": 0.972,
+        "spellId": 1219480
+      },
+      {
+        "name": "stormkeeper",
+        "time": 43.419000000000004,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 87.181,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 130.50300000000001,
+        "spellId": 191634
+      },
+      {
+        "name": "ascendance",
+        "time": 131.50300000000001,
+        "spellId": 1219480
+      },
+      {
+        "name": "stormkeeper",
+        "time": 183.096,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 217.808,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 255.823,
+        "spellId": 191634
+      },
+      {
+        "name": "ascendance",
+        "time": 256.96,
+        "spellId": 1219480
+      }
+    ],
+    "inside": [
+      {
+        "name": "ascendance",
+        "time": 0.0,
+        "spellId": 1219480
+      },
+      {
+        "name": "stormkeeper",
+        "time": 0.971,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 41.905,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 84.45700000000001,
+        "spellId": 191634
+      },
+      {
+        "name": "ascendance",
+        "time": 134.626,
+        "spellId": 1219480
+      },
+      {
+        "name": "stormkeeper",
+        "time": 135.798,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 184.89600000000002,
+        "spellId": 191634
+      },
+      {
+        "name": "stormkeeper",
+        "time": 220.957,
+        "spellId": 191634
+      },
+      {
+        "name": "ascendance",
+        "time": 273.228,
+        "spellId": 1219480
+      },
+      {
+        "name": "stormkeeper",
+        "time": 274.40000000000003,
+        "spellId": 191634
+      }
+    ]
+  },
+  "intermediate_job": "261798ba-2fe0-43f5-95d8-7857e73f1a6c",
+  "intermediate_disposition": "Completed but third Stormkeeper outside intended Ascendance window; retained, excluded from final comparison; one condition corrected after evidence.",
+  "model_calls": 1,
+  "simc_jobs": 3,
+  "source_operations": 7,
+  "limits": [
+    "Current original replay, not new five-class release or user acceptance.",
+    "Seed uses older compiler; paired experiments both use current v6. First review assertion expecting seed compiler equality was corrected; no product failure."
+  ]
+}

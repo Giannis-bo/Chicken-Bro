@@ -1,0 +1,52 @@
+{
+  "models": 8,
+  "max_models": 8,
+  "simc": 6,
+  "max_simc": 6,
+  "observed_research_sources": 14,
+  "max_sources": 20,
+  "historical_models": 96,
+  "cumulative_models": 104,
+  "breakdown": {
+    "G8": {
+      "models": 1,
+      "simc": 3,
+      "sources": 7
+    },
+    "G9": {
+      "models": 2,
+      "simc": 0,
+      "sources": 0
+    },
+    "G10": {
+      "models": 1,
+      "simc": 0,
+      "sources": 4
+    },
+    "candidate_general": {
+      "models": 1,
+      "simc": 1,
+      "source_imports": 1
+    },
+    "live_general": {
+      "models": 1,
+      "simc": 1,
+      "source_imports": 1
+    },
+    "live_query": {
+      "models": 1,
+      "simc": 0,
+      "observed_native_completed": 0
+    },
+    "recovery_general": {
+      "models": 1,
+      "simc": 1,
+      "source_imports": 1
+    }
+  },
+  "status": "stopped_after_recovered_release_failure",
+  "deadline": "2026-09-11T04:35:55+00:00",
+  "counter_scope": "Business research gateway/native completed events plus source imports. Operational DB/log/file verification separate. Missing native summary is not proof of every vendor attempt.",
+  "failure_retained": true,
+  "retry": false
+}
