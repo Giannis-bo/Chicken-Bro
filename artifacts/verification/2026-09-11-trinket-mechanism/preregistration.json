@@ -1,0 +1,51 @@
+{
+  "registeredAt": "2026-09-11T08:12:26.644955+00:00",
+  "authorization": "User accepted bounded trinket-mechanism plan in task 01a08f46-d2fd-7383-bdb2-fa3854166a03",
+  "question": "Does the unverified Emberwing Feather penalty probability plausibly explain the prior G10 ranking?",
+  "scope": {
+    "items": [
+      250144,
+      249343
+    ],
+    "itemLevels": [
+      298,
+      298
+    ],
+    "spec": "elemental shaman",
+    "snapshot": "Reuse exact prior Giannis G10 profile, no new player import",
+    "scenario": "single-target Patchwerk 300s; prior controls and talents held fixed",
+    "varyOnly": "Emberwing Feather negative proc probability; exact option and semantics must be verified first",
+    "comparator": "Retained S2-H6-321 result used only if engine/profile/control identities permit; not new simulations of further items"
+  },
+  "budgets": {
+    "externalSourceOperations": 16,
+    "cloudSimcInvocations": 6,
+    "newBusinessModelCalls": 0,
+    "maxIterationsPerRun": 10000,
+    "maxWallSecondsPerRun": 120,
+    "sourceDefinition": "Each web query/open and each focused remote engine-source read batch counts once; local evidence and runtime identity inspection excluded"
+  },
+  "stopConditions": [
+    "Stop once mechanism contract, available fact evidence and bounded sensitivity conclusion are obtained",
+    "No extrapolation of assumed probability to measured game truth",
+    "If exact profile or runtime cannot be verified, do not claim old ranking replicated",
+    "No engine upgrade, dependencies, account imports or budget reset",
+    "If evidence is unavailable within source budget, record gap and stop searching"
+  ],
+  "consumption": {
+    "externalSourceOperations": 10,
+    "cloudSimcInvocations": 1,
+    "combatSimulations": 0,
+    "spellQueries": 1,
+    "newBusinessModelCalls": 0
+  },
+  "methodAmendment": {
+    "registeredBeforeCombatRuns": true,
+    "reason": "Feather probability is constexpr, no registered override; do not rebuild or modify engine.",
+    "test": "Retain 10% RNG roll; zero effect 1254615 coefficient using documented DBC override to remove negative rating magnitude while leaving haste/cooldowns unchanged.",
+    "baselineProfileSha256": "f4ef3fbf09378a1b508c9559d39249f659008b7e6a26ef93ba18efe59e00ddb2",
+    "plannedCombatRuns": 2,
+    "sameSeed": 20260911,
+    "noClaim": "No empirical probability estimate, no probability sweep, no universal monotonic bound."
+  }
+}

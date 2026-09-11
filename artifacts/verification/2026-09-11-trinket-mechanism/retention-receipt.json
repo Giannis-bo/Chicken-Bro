@@ -1,0 +1,10 @@
+{
+  "manifest": "/var/lib/chickenbro-trinket-mechanism-20260911/retention.json",
+  "sha256": "ee361f8698a444c7ab3c0fce198bea9004b2f7d3c31d7f73c25d9085c73a05b1",
+  "files": 6,
+  "expiresAt": 1789611698.4364,
+  "cleanupPerformed": false,
+  "automationId": "badcase",
+  "automationPromptReadbackMatched": true,
+  "newSchedulerCreated": false
+}

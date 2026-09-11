@@ -1,0 +1,84 @@
+{
+  "limit": 16,
+  "used": 13,
+  "operations": [
+    {
+      "index": 1,
+      "type": "remote_engine_source",
+      "target": "Installed archive: feather implementation, defaults and option registration"
+    },
+    {
+      "index": 2,
+      "type": "web_search",
+      "target": "site.github.com/simulationcraft/simc Emberwing chance"
+    },
+    {
+      "index": 3,
+      "type": "web_search",
+      "target": "Emberwing Feather 10%"
+    },
+    {
+      "index": 4,
+      "type": "web_open",
+      "target": "https://github.com/simulationcraft/simc/blob/midnight/engine/player/unique_gear_midnight.cpp"
+    },
+    {
+      "index": 5,
+      "type": "web_open",
+      "target": "https://github.com/simulationcraft/simc/wiki/SpellData"
+    },
+    {
+      "index": 6,
+      "type": "web_search",
+      "target": "site:github.com/simulationcraft/simc Emberwing testing; no results"
+    },
+    {
+      "index": 7,
+      "type": "web_find",
+      "target": "GitHub HTML EMBERWING_BURN_CHANCE; no match in rendered response"
+    },
+    {
+      "index": 8,
+      "type": "web_find",
+      "target": "SpellData override.spell_data"
+    },
+    {
+      "index": 9,
+      "type": "remote_engine_source",
+      "target": "Installed feather driver ID and data-entry lookup"
+    },
+    {
+      "index": 10,
+      "type": "cloud_spell_query",
+      "target": "1250508: effect1254615 coefficient1.058092; no combat"
+    },
+    {
+      "index": 11,
+      "type": "cloud_spell_query",
+      "target": "effect1254615 coefficient0: scaled value0; query assertion formatting failure, no combat"
+    },
+    {
+      "index": 12,
+      "type": "web_open",
+      "target": "https://raw.githubusercontent.com/simulationcraft/simc/midnight/engine/player/unique_gear_midnight.cpp"
+    },
+    {
+      "index": 13,
+      "type": "web_find",
+      "target": "Raw upstream EMBERWING_BURN_CHANCE; still 0.1 placeholder, no empirical rate"
+    }
+  ],
+  "primaryEvidence": {
+    "installedCommit": "f50a2121bf894570146507496f3e113bff68e445",
+    "installedBinarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "driver": 1250508,
+    "hasteEffect": 1254614,
+    "penaltyMagnitudeEffect": 1254615,
+    "negativeEffectDurationSeconds": 10,
+    "hasteDurationSeconds": 15,
+    "cooldownSeconds": 120,
+    "placeholderProbability": 0.1,
+    "empiricalLiveProbability": "not_established"
+  },
+  "secondarySearchResults": "Not used as measured parameter evidence. Searches finding usage rates or unrelated posts do not establish proc probability."
+}

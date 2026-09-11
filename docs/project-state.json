@@ -635,6 +635,20 @@
         "simcCeiling": 2
       },
       "scopeLimit": "Native web retains its existing contract rather than gateway five-page hard accounting; no account-wide multi-research quota."
+    },
+    "trinketMechanismStudy": {
+      "asOf": "2026-09-11",
+      "status": "bounded_sensitivity_complete_empirical_probability_unknown",
+      "evidence": "artifacts/verification/2026-09-11-trinket-mechanism/README.md",
+      "scope": "elemental_298_feather_gaze_fixed_300s",
+      "combatSimulations": 2,
+      "spellQueries": 2,
+      "sourceOperations": 13,
+      "modelCalls": 0,
+      "productChanged": false,
+      "releaseRequired": false,
+      "furtherSampling": "stopped",
+      "empiricalProcProbability": "unknown"
     }
   },
   "miniRetirement": {

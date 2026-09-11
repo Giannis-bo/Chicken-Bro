@@ -1,0 +1,39 @@
+{
+  "checks": {
+    "exactHistoricalProfile": true,
+    "binaryMatchesHistorical": true,
+    "identicalCurrentControlsAndGear": true,
+    "historicalBaselineWithinSummedError": true,
+    "hasteStartsAndUptimeIdentical": true,
+    "negativeAurasStillTrigger": "Expected: penalty magnitude overridden, not proc probability or RNG",
+    "empiricalProcRate": "unknown",
+    "dataBuild": "12.1.0.69299 hotfix 2026-08-13; held fixed, not claimed current live game data"
+  },
+  "baselineDps": 160345.57216290626,
+  "zeroPenaltyDps": 160553.6809604121,
+  "delta": 208.10879750584718,
+  "deltaPct": 0.12978767963385263,
+  "summedHalfWidths95": 175.39266828785952,
+  "historicalNewComboDps": 162803.1614926461,
+  "historicalNewComboMinusZeroPenalty": 2249.4805322339816,
+  "historicalReferenceCombinedError": 170.99114052367293,
+  "conclusion": "Removing negative-rating magnitude did not reverse the retained ranking under frozen profile/engine conditions. Not measured proc probability, universal optimality, or live game accuracy.",
+  "remainingAssumptions": [
+    "Lightspire duration multiplier stays0.5 in historical reference",
+    "Fixed item-level experiments do not reconstruct owned bonuses",
+    "Engine data frozen at 2026-08-13",
+    "No paired significance test; conservative sum of reported uncertainty"
+  ],
+  "consumption": {
+    "sourceOperations": 13,
+    "sourceCeiling": 16,
+    "engineInvocations": 4,
+    "engineInvocationCeiling": 6,
+    "combatSimulations": 2,
+    "spellQueries": 2,
+    "newBusinessModelCalls": 0,
+    "failedPreCombatAssertions": 1
+  },
+  "productionChanged": false,
+  "engineChanged": false
+}

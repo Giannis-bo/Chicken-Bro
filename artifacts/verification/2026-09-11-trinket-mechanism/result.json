@@ -1,0 +1,171 @@
+{
+  "binarySha256": "69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "baseProfileSha256": "f4ef3fbf09378a1b508c9559d39249f659008b7e6a26ef93ba18efe59e00ddb2",
+  "zeroPenaltyQueryVerified": true,
+  "cases": [
+    {
+      "name": "baseline",
+      "dps": 160345.57216290626,
+      "meanStdDev": 44.824220215535455,
+      "count": 9999,
+      "elapsedSeconds": 31.929635832086205,
+      "profileSha256": "f4ef3fbf09378a1b508c9559d39249f659008b7e6a26ef93ba18efe59e00ddb2",
+      "reportSha256": "336fc65a3e6e76cbc154cdde8e8da939c97c57538360af35d9b6531441cd96ae",
+      "gear": {
+        "trinket1": {
+          "name": "gaze_of_the_alnseer",
+          "encoded_item": "gaze_of_the_alnseer,id=249343,ilevel=298",
+          "ilevel": 298,
+          "mastery_rating": 123
+        },
+        "trinket2": {
+          "name": "emberwing_feather",
+          "encoded_item": "emberwing_feather,id=250144,ilevel=298",
+          "ilevel": 298,
+          "agiint": 128
+        }
+      },
+      "buffs": [
+        {
+          "name": "alnscorned_essence",
+          "spell": 1266687,
+          "uptime": 58.9340344701137,
+          "start_count": 5.242424242424242,
+          "duration": 33.725604177396875
+        },
+        {
+          "name": "alnsight",
+          "spell": 1266686,
+          "uptime": 38.67345371203774,
+          "start_count": 7.307330733073307,
+          "duration": 15.877340650017148
+        },
+        {
+          "name": "emberwing_burn_crit",
+          "spell": 1255853,
+          "uptime": 0.34170083675034574,
+          "start_count": 0.10251025102510251,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_burn_mast",
+          "spell": 1255856,
+          "uptime": 0.3316998366503354,
+          "start_count": 0.09950995099509952,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_burn_vers",
+          "spell": 1255857,
+          "uptime": 0.32903290329033225,
+          "start_count": 0.09870987098709871,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_heatwave",
+          "spell": 1250508,
+          "uptime": 15.0,
+          "start_count": 3.0,
+          "duration": 15.0
+        }
+      ],
+      "options": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "diagnosticLevels": [
+        "implementation_not_yet_verified"
+      ],
+      "confidenceHalfWidth95": 87.85385725754168
+    },
+    {
+      "name": "zero-penalty",
+      "dps": 160553.6809604121,
+      "meanStdDev": 44.6634793908525,
+      "count": 9999,
+      "elapsedSeconds": 32.523247711826116,
+      "profileSha256": "897466d8dec104147bd3cb67f25ad792e5522f33a56869bbe0a3b14a0265231b",
+      "reportSha256": "0aeb4b1fa93011a1780a808232954793af13cecf488d67c42bc480145756e983",
+      "gear": {
+        "trinket1": {
+          "name": "gaze_of_the_alnseer",
+          "encoded_item": "gaze_of_the_alnseer,id=249343,ilevel=298",
+          "ilevel": 298,
+          "mastery_rating": 123
+        },
+        "trinket2": {
+          "name": "emberwing_feather",
+          "encoded_item": "emberwing_feather,id=250144,ilevel=298",
+          "ilevel": 298,
+          "agiint": 128
+        }
+      },
+      "buffs": [
+        {
+          "name": "alnscorned_essence",
+          "spell": 1266687,
+          "uptime": 59.199543320998615,
+          "start_count": 5.262026202620262,
+          "duration": 33.75134011136262
+        },
+        {
+          "name": "alnsight",
+          "spell": 1266686,
+          "uptime": 38.85484628462844,
+          "start_count": 7.346234623462347,
+          "duration": 15.867335034847025
+        },
+        {
+          "name": "emberwing_burn_crit",
+          "spell": 1255853,
+          "uptime": 0.3333666700003368,
+          "start_count": 0.1000100010001,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_burn_mast",
+          "spell": 1255856,
+          "uptime": 0.33770043671034156,
+          "start_count": 0.10131013101310131,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_burn_vers",
+          "spell": 1255857,
+          "uptime": 0.32403240324032734,
+          "start_count": 0.09720972097209721,
+          "duration": 10.0
+        },
+        {
+          "name": "emberwing_heatwave",
+          "spell": 1250508,
+          "uptime": 15.0,
+          "start_count": 3.0,
+          "duration": 15.0
+        }
+      ],
+      "options": {
+        "iterations": 10000,
+        "max_time": 300.0,
+        "vary_combat_length": 0.0,
+        "fixed_time": true,
+        "desired_targets": 1,
+        "seed": 20260911,
+        "confidence": 0.95
+      },
+      "diagnosticLevels": [
+        "implementation_not_yet_verified"
+      ],
+      "confidenceHalfWidth95": 87.53881103031783
+    }
+  ],
+  "scope": "isolated direct engine experiment, not product submission or live user acceptance",
+  "finished": true,
+  "combatSimulations": 2,
+  "totalEngineInvocationsIncludingInspection": 4
+}
