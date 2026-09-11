@@ -37,6 +37,17 @@ export interface ChatModelDependencies {
 
 type ChatListener = (state: ChatModelState) => void
 
+interface ReplySession {
+  conversationId: string
+  previousMessageIds: ReadonlySet<string>
+  generation: number
+  task: ApiStreamTask | null
+  state: Partial<ChatModelState>
+  sequence: number
+  requestId: string
+  runId: string
+}
+
 const initialState: ChatModelState = {
   phase: 'idle',
   conversations: [],
@@ -82,6 +93,8 @@ export class ChatModel {
   private readonly requestId: () => string
   private readonly pendingBackgroundRefresh = new Set<string>()
   private readonly backgroundStreams = new Set<ApiStreamTask>()
+  private readonly replies = new Map<string, ReplySession>()
+  private currentReply: ReplySession | null = null
   private activeStream: ApiStreamTask | null = null
   private streamSucceeded = false
   private streamSequence = 0
@@ -244,6 +257,20 @@ export class ChatModel {
       errorMessage: '',
       retryable: false,
     })
+    const reply = this.replies.get(conversationId)
+    if (reply) {
+      reply.generation = generation
+      this.currentReply = reply
+      this.activeStream = reply.task
+      if (reply.task) this.backgroundStreams.delete(reply.task)
+      this.streamSequence = reply.sequence
+      this.streamRequestId = reply.requestId
+      this.streamRunId = reply.runId
+      const userMessagePersisted = result.payload.messages.some(message => message.role === 'user'
+        && !reply.previousMessageIds.has(message.id))
+      this.update({ ...reply.state, phase: 'sending',
+        ...(userMessagePersisted ? { pendingUserContent: '', pendingUserImages: [] } : {}) })
+    }
     if (this.pendingBackgroundRefresh.delete(conversationId)) {
       await this.refreshAfterStream(conversationId, false, generation)
     }
@@ -357,6 +384,11 @@ export class ChatModel {
           idempotencyKey: boundedRequestId(this.requestId(), 'idempotency') }
     if (images.length) this.pendingImageSend = requestIdentity
     const { clientMessageId, idempotencyKey } = requestIdentity
+    const reply: ReplySession = { conversationId: conversation.id,
+      previousMessageIds: new Set(conversation.messages.map(message => message.id)), generation, task: null,
+      state: this.replyState(), sequence: 0, requestId: '', runId: '' }
+    this.replies.set(conversation.id, reply)
+    this.currentReply = reply
     let admissionSeen = false
     let endedDuringStart = false
     let task: ApiStreamTask | null = null
@@ -377,11 +409,23 @@ export class ChatModel {
           auth,
           idempotencyKey,
           onEvent: (event) => {
+            if (this.replies.get(conversation.id) !== reply) return
+            const visible = reply === this.currentReply && reply.generation === this.streamGeneration
             if (event.type === 'completed' || event.type === 'failed') {
               endedDuringStart = true
+              this.replies.delete(conversation.id)
               finishBackground()
             }
-            this.onStreamEvent(event, conversation.id, generation)
+            if (visible) {
+              this.onStreamEvent(event, conversation.id, reply.generation)
+              reply.state = this.replyState()
+              reply.sequence = this.streamSequence
+              reply.requestId = this.streamRequestId
+              reply.runId = this.streamRunId
+              if (this.state.phase !== 'sending') this.replies.delete(conversation.id)
+            } else if (event.type !== 'completed' && event.type !== 'failed') {
+              this.onBackgroundEvent(reply, event)
+            }
             if (generation === this.streamGeneration && !admissionSeen && event.type === 'started' && event.sequence === 1 && event.conversationId === conversation.id) {
               admissionSeen = true
               onAccepted?.()
@@ -389,17 +433,21 @@ export class ChatModel {
             if (this.state.phase !== 'sending') endedDuringStart = true
           },
           onFailure: (error) => {
+            if (this.replies.get(conversation.id) !== reply) return
             endedDuringStart = true
+            this.replies.delete(conversation.id)
             finishBackground()
-            this.onStreamFailure(error, conversation.id, generation)
+            this.onStreamFailure(error, conversation.id, reply.generation)
           },
         },
       )
     } catch {
+      this.replies.delete(conversation.id)
       this.onStreamFailure('CHAT_TRANSPORT_UNAVAILABLE', conversation.id, generation)
       return null
     }
     if (endedDuringStart) return null
+    reply.task = task
     this.activeStream = task
     return task
   }
@@ -421,6 +469,8 @@ export class ChatModel {
     activeStream?.abort()
     for (const stream of this.backgroundStreams) stream.abort()
     this.backgroundStreams.clear()
+    this.replies.clear()
+    this.currentReply = null
     this.pendingBackgroundRefresh.clear()
     this.listeners.clear()
   }
@@ -428,11 +478,42 @@ export class ChatModel {
   private beginViewRequest(): number {
     this.openingId = null
     this.streamSucceeded = false
+    this.currentReply = null
     const activeStream = this.activeStream
     this.activeStream = null
     this.streamGeneration += 1
     if (activeStream) this.backgroundStreams.add(activeStream)
     return this.streamGeneration
+  }
+
+  private replyState(): Partial<ChatModelState> {
+    const { pendingUserContent, pendingUserImages, streamText, streamProgress,
+      streamProgressStatus, streamCompletedAt, streamDurationMs } = this.state
+    return { pendingUserContent, pendingUserImages, streamText, streamProgress,
+      streamProgressStatus, streamCompletedAt, streamDurationMs }
+  }
+
+  private onBackgroundEvent(reply: ReplySession, event: ChatEventEnvelope): void {
+    if (event.conversationId !== reply.conversationId
+      || event.sequence !== reply.sequence + 1
+      || (reply.sequence === 0 && event.type !== 'started')
+      || (reply.requestId && reply.requestId !== event.requestId)
+      || (reply.runId && reply.runId !== event.runId)) {
+      this.replies.delete(reply.conversationId)
+      if (reply.task) this.backgroundStreams.delete(reply.task)
+      reply.task?.abort()
+      return
+    }
+    reply.sequence = event.sequence
+    reply.requestId = event.requestId
+    reply.runId = event.runId
+    if (event.type === 'progress') {
+      reply.state.streamProgress = Array.from((reply.state.streamProgress ?? '') + event.text).slice(0, 16000).join('')
+      reply.state.streamProgressStatus = 'thinking'
+    } else if (event.type === 'delta') {
+      reply.state.streamText = (reply.state.streamText ?? '') + event.text
+      reply.state.streamProgressStatus = 'completed'
+    }
   }
 
   private onStreamEvent(event: ChatEventEnvelope, conversationId: string, generation: number): void {

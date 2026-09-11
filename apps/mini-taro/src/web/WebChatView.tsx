@@ -165,7 +165,6 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
                 <WebMessage content={state.streamText} markdown />
               </View>
             ) : null}
-            <Text className={styles['composerHint'] ?? ''}>后续消息沿用研究额度。独立新问题：首行 /新研究，下一行写问题；结束：/结束研究。</Text>
             {showWelcome ? (
               <View className={styles['emptyState'] ?? ''}>
                 <Text className={styles['emptyTitle'] ?? ''}>准备好了，随时开始</Text>
@@ -272,7 +271,6 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
               </button>
               </div>
             </div>
-            <Text className={styles['composerHint'] ?? ''}>后续消息沿用研究额度。独立新问题：首行 /新研究，下一行写问题；结束：/结束研究。</Text>
             {showWelcome ? (
               <View className={styles['quickPrompts'] ?? ''}>
                 {quickPrompts.map((prompt) => (

@@ -124,6 +124,84 @@ it('locks saved feedback without interrupting chat', async () => {
 
 const auth: ClientAuthContext = { kind: 'web', csrfToken: 'web-csrf' }
 
+it.each(['completed', 'failed'] as const)('restores an in-flight reply after A → B → A and handles %s', async terminal => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  model.send('A问题')
+  const stream = client.streamOptions!
+  const base = { conversationId: conversation.id, requestId: 'request-a', runId: 'run-a' }
+  stream.onEvent({ ...base, type: 'started', sequence: 1 })
+  stream.onEvent({ ...base, type: 'progress', sequence: 2, text: '核对日志' })
+  client.detail = { ...otherConversation, messages: [] }
+  await model.open(otherConversation.id)
+  stream.onEvent({ ...base, type: 'progress', sequence: 3, text: '与治疗' })
+  expect(model.get().streamProgress).toBe('')
+  client.detail = { ...conversation, messages: [
+    { id: 'question-a', role: 'user', content: 'A问题', createdAt: now },
+  ] }
+  await model.open(conversation.id)
+  expect(model.get()).toMatchObject({ phase: 'sending', streamProgress: '核对日志与治疗', pendingUserContent: '' })
+  const sendsBefore = client.calls.filter(call => call.name === 'stream').length
+  model.send('不能重复提交')
+  expect(client.calls.filter(call => call.name === 'stream')).toHaveLength(sendsBefore)
+  stream.onEvent({ ...base, type: 'delta', sequence: 4, text: '分析结果' })
+  expect(model.get().streamText).toBe('分析结果')
+  client.detail = { ...client.detail, messages: [...client.detail.messages,
+    { id: 'answer-a', role: 'assistant', content: terminal === 'completed' ? '分析结果' : '', createdAt: now,
+      progress: { text: '核对日志与治疗', status: terminal, completedAt: now, durationMs: 1000 } },
+  ] }
+  stream.onEvent(terminal === 'completed'
+    ? { ...base, type: 'completed', sequence: 5, text: '分析结果' }
+    : { ...base, type: 'failed', sequence: 5, errorCode: 'CODEX_TIMEOUT', retryable: true })
+  await Promise.resolve()
+  expect(model.get().phase).toBe(terminal === 'completed' ? 'ready' : 'blocked')
+  expect(model.get().activeConversation?.messages).toHaveLength(2)
+  model.send('继续提问')
+  expect(client.calls.filter(call => call.name === 'stream')).toHaveLength(sendsBefore + 1)
+  model.dispose()
+})
+
+it('keeps an unadmitted image question visible when returning before it reaches history', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  const image = { id: 'image-a', mimeType: 'image/png' as const, width: 2, height: 2 }
+  model.send('图片问题', [image])
+  client.detail = { ...otherConversation, messages: [] }
+  await model.open(otherConversation.id)
+  client.detail = { ...conversation, messages: [] }
+  await model.open(conversation.id)
+  expect(model.get()).toMatchObject({ phase: 'sending', pendingUserContent: '图片问题', pendingUserImages: [image] })
+  model.dispose()
+})
+
+it('recovers A after a rejected B send and unlocks it if the restored connection fails', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => auth)
+  await model.load()
+  model.send('A问题')
+  const stream = client.streamOptions!
+  const base = { conversationId: conversation.id, requestId: 'request-a', runId: 'run-a' }
+  stream.onEvent({ ...base, type: 'started', sequence: 1 })
+  client.detail = { ...otherConversation, messages: [] }
+  await model.open(otherConversation.id)
+  client.streamFailure = 'CHAT_ACCOUNT_BUSY'
+  model.send('B问题')
+  await Promise.resolve()
+  expect(model.get().errorCode).toBe('CHAT_ACCOUNT_BUSY')
+  stream.onEvent({ ...base, type: 'delta', sequence: 2, text: 'A的回答' })
+  client.detail = { ...conversation, messages: [] }
+  await model.open(conversation.id)
+  expect(model.get()).toMatchObject({ phase: 'sending', streamText: 'A的回答', errorCode: '', errorMessage: '' })
+  stream.onFailure('connection interrupted')
+  await Promise.resolve()
+  expect(model.get()).toMatchObject({ phase: 'blocked', retryable: true })
+  client.streamFailure = ''
+  expect(model.send('恢复后继续')).not.toBeNull()
+  model.dispose()
+})
+
 it('restores the locked server choice when the other client has already confirmed', async () => {
   const client = new FakeChatClient()
   client.detail = { ...conversation, messages: [{ id: 'answer', role: 'assistant', content: '回答', createdAt: now, resolved: null }] }

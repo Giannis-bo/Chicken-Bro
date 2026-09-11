@@ -66,6 +66,46 @@ describe('Web chat composer interactions', () => {
     })))
   }
 
+  it('restores waiting and live progress on return to A, then enables the next question', async () => {
+    const success = (payload: unknown) => ({ payload, fromFallback: false, error: '' })
+    const a = { id: 'chat-one', title: 'A会话', status: 'active', createdAt: '2026-09-11', updatedAt: '2026-09-11' }
+    const b = { ...a, id: 'chat-two', title: 'B会话' }
+    const question = { id: 'question-a', role: 'user', content: '分析日志', createdAt: '2026-09-11' }
+    let completed = false
+    let admitted = false
+    api.list.mockResolvedValue(success({ items: [a, b], nextCursor: null }))
+    api.get.mockImplementation(async (id: string) => success({ ...(id === a.id ? a : b), messages: id === a.id && admitted
+      ? [question, ...(completed ? [{ id: 'answer-a', role: 'assistant', content: '已完成分析', createdAt: '2026-09-11' }] : [])] : [] }))
+    await act(async () => root.render(null))
+    await act(async () => root.render(createElement(WebChatView, { auth: { kind: 'web', csrfToken: 'test-csrf' } })))
+    expect(container.textContent).not.toContain('研究额度')
+    await draft('分析日志')
+    await enter()
+    const stream = api.streamMessage.mock.calls.at(-1)![2]
+    const base = { conversationId: a.id, requestId: 'request-a', runId: 'run-a' }
+    admitted = true
+    await act(async () => stream.onEvent({ ...base, type: 'started', sequence: 1 }))
+    const open = async (id: string) => act(async () => container.querySelector<HTMLButtonElement>(`[data-conversation-id="${id}"]`)!.click())
+    await open(b.id)
+    expect(container.querySelector('[aria-label="等待回复"]')).toBeNull()
+    await open(a.id)
+    expect(container.querySelector('[aria-label="等待回复"]')).not.toBeNull()
+    await draft('继续提问')
+    expect(container.querySelector<HTMLButtonElement>('button[aria-label="正在回复"]')!.disabled).toBe(true)
+    await open(b.id)
+    await act(async () => stream.onEvent({ ...base, type: 'progress', sequence: 2, text: '正在核对日志' }))
+    expect(container.textContent).not.toContain('正在核对日志')
+    await open(a.id)
+    expect(container.textContent).toContain('正在核对日志')
+    completed = true
+    await act(async () => stream.onEvent({ ...base, type: 'completed', sequence: 3, text: '已完成分析' }))
+    expect(container.textContent).toContain('已完成分析')
+    expect(container.querySelector('[aria-label="等待回复"]')).toBeNull()
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="发送消息"]')!.disabled).toBe(false)
+    await enter()
+    expect(api.streamMessage.mock.calls.at(-1)![1].content).toBe('继续提问')
+  })
+
   it.each(['click', 'enter'])('sends on the first visit without creating a conversation manually via %s', async method => {
     await firstVisit()
     expect(api.create).not.toHaveBeenCalled()

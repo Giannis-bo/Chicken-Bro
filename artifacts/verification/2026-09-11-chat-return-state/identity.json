@@ -1,0 +1,77 @@
+{
+  "baseCommit": "40b5e22be64121bf976c90089bd702ff48e35052",
+  "sourceState": "uncommitted",
+  "node": "23.9.0",
+  "sourceFiles": [
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-model.ts",
+      "sha256": "2162681af81568855bc3d35c55bd37ffa306b1cc806db1cfca8a680cc57bc0a1"
+    },
+    {
+      "path": "apps/mini-taro/src/features/chat/chat-model.test.ts",
+      "sha256": "6588ffc832c1f0b1bc583f0e83400f0a442728bde2b04730db642dbb13020152"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebChatView.tsx",
+      "sha256": "5f7eee11308e9d6e30ede1fe529f97a7d1b5eb072a85d2266b1ed41a0a6db11d"
+    },
+    {
+      "path": "apps/mini-taro/src/web/web-chat-composer.test.tsx",
+      "sha256": "e712050a982cb26b81edb262e52f3a7ba3cbc7dc7321997bf7e04089ac659d8e"
+    }
+  ],
+  "webBuild": [
+    {
+      "path": "apps/mini-taro/dist/h5/index.html",
+      "sha256": "086db46bcbca597ddb9117362598225dc42c31abef865cffd9d8282511852601"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/brand/gugu-v1-16.png",
+      "sha256": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/brand/gugu-v1-32.png",
+      "sha256": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/brand/gugu-v1.ico",
+      "sha256": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/chunk/31.js",
+      "sha256": "3c01b065720146306f600a87a2317b3d124f55b441fb3d94f6bfb2a3a63170b8"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/chunk/322.js",
+      "sha256": "010d4726b7d4e6f260e1d8b978af565b87f0ae884025eb400a607f742c1e6aeb"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/chunk/322.js.LICENSE.txt",
+      "sha256": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/css/app.css",
+      "sha256": "54b7c3ce6229e3e9cd2b368d0e94c48fac3b4b85c36126d148b7cbceed6fa8bc"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/js/325.js",
+      "sha256": "459b19436e611683ebfb9b5ce1c82fc3033abdeee7b1d7332d6a51d5ffcb9fe7"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/js/325.js.LICENSE.txt",
+      "sha256": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/js/app.js",
+      "sha256": "86b7bf2b21abe81386fbf77bbb36d5ceb1f089c7a99d0b0e01d3d114ac2ec086"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/js/app.js.LICENSE.txt",
+      "sha256": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af"
+    },
+    {
+      "path": "apps/mini-taro/dist/h5/static/images/web/assets/gu-gu-mascot.png",
+      "sha256": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+    }
+  ]
+}
