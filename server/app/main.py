@@ -108,6 +108,15 @@ def create_app(
     if chat_application is None:
         if postgres_factory is None:
             raise RuntimeError("Chat application was not constructed")
+        from server.app.chickenbro.research_lifecycle import PostgresResearchBudget
+        def research_budget_factory(context):
+            if context is None:
+                raise ValueError('trusted Chat research context required')
+            return PostgresResearchBudget(postgres_factory.connection, context.principal.user_id, context.run_id)
+        source_gateway = ChickenbroSourceGateway(query_service=ServerConfiguredSourceQuery(),
+            research_budget_factory=research_budget_factory)
+        simulation_gateway = SimulationToolGateway(simulation_application, research_budget_factory=research_budget_factory)
+        app.state.chickenbro_simulation_gateway = simulation_gateway
         chat_application = ChatApplication(
             repository=PostgresChatRepository(postgres_factory.connection,
                 durable=os.environ.get('WOW_CHAT_DURABLE_ENABLED') == '1'),

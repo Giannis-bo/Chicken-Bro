@@ -281,6 +281,8 @@ class ChickenbroSourceGateway:
         query_service: ServerConfiguredSourceQuery | Callable[[str, str], Mapping[str, Any]] | None = None,
         now: Callable[[], datetime] | None = None,
         capability_ttl_seconds: int = 600,
+        research_budget=None,
+        research_budget_factory=None,
     ):
         self._query_service = query_service or ServerConfiguredSourceQuery()
         self._now = now or _utc_now
@@ -288,18 +290,22 @@ class ChickenbroSourceGateway:
         self._capabilities: dict[str, datetime] = {}
         self._answer_evidence: dict[str, dict] = {}
         self._budgets = {}
+        self._research_budget = research_budget
+        self._research_budget_factory = research_budget_factory
         self._web_states = {}
         self._lock = RLock()
 
-    def issue_capability(self) -> str:
+    def issue_capability(self, context=None) -> str:
         with self._lock:
             now = self._aware_now()
             self._prune(now)
             if len(self._capabilities) >= 256:
                 raise SourceGatewayUnauthorized("source gateway capacity reached")
+            budget = (self._research_budget_factory(context) if self._research_budget_factory
+                      else self._research_budget or ResearchBudget())
             token = secrets.token_urlsafe(32)
             self._capabilities[token] = now + self._ttl
-            self._budgets[token] = ResearchBudget()
+            self._budgets[token] = budget
             from server.chickenbro_public_web_research import PublicWebState
             self._web_states[token] = PublicWebState()
             return token
@@ -346,6 +352,13 @@ class ChickenbroSourceGateway:
             "limitations": ["The configured source API returned no bounded result."],
             "nextActions": [],
         }
+
+    def research_status(self, token):
+        with self._lock:
+            if not self._valid(token, self._aware_now()):
+                raise SourceGatewayUnauthorized('source gateway capability is invalid or expired')
+            budget = self._budgets[token]
+            return budget.status() if hasattr(budget, 'status') else {'state': 'active'}
 
     def answer_evidence(self, token: str) -> dict:
         with self._lock:
