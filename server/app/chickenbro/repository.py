@@ -347,6 +347,8 @@ class PostgresChatRepository(ChatImageRepository):
                     if getattr(getattr(error, "diag", None), "constraint_name", None) == "agent_runs_one_streaming_per_user":
                         raise ChatAccountBusy("account already has a streaming reply") from error
                     raise
+                from server.app.chickenbro.research_lifecycle import bind_research
+                bind_research(cursor, user_id, conversation_id, run_id, content)
                 if self.durable:
                     from server.app.chickenbro.durable import enqueue_execution
                     enqueue_execution(cursor, run_id, user_id)
