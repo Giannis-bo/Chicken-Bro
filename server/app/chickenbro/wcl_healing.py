@@ -15,16 +15,20 @@ def project_healing(effective, raw):
     valid = isinstance(a,list) and isinstance(b,list) and number(left.get('totalTime')) and left.get('totalTime')==right.get('totalTime') and left['totalTime']>0
     a=a if isinstance(a,list) else [];b=b if isinstance(b,list) else []
     def key(row):return (row.get('guid',row.get('id')),row.get('name'))
-    valid = valid and all(isinstance(r,dict) and number(r.get('total')) for r in a+b)
+    valid = valid and all(isinstance(r,dict) and type(r.get('total')) in (int,float) and isfinite(r['total']) for r in a+b)
     valid = valid and len({key(r) for r in a})==len(a) and len({key(r) for r in b})==len(b) and {key(r) for r in a}=={key(r) for r in b}
     totals=None
     if valid:
         effective_total,raw_total=sum(r['total'] for r in a),sum(r['total'] for r in b)
         raw_by_key={key(r):r['total'] for r in b}
-        valid = all(raw_by_key[key(r)] >= r['total'] for r in a)
+        valid = all((raw_by_key[key(r)] >= r['total'] >= 0) or (raw_by_key[key(r)] < 0 and r['total'] < 0) for r in a)
         if valid:
             seconds=left['totalTime']/1000
-            totals={'effective':effective_total,'raw':raw_total,'overheal':raw_total-effective_total,
+            gross_effective=sum(max(0,r['total']) for r in a)
+            gross_raw=sum(max(0,r['total']) for r in b)
+            totals={'effective':effective_total,'raw':raw_total,'overheal':gross_raw-gross_effective,
+                    'grossEffective':gross_effective,'grossRaw':gross_raw,
+                    'signedAdjustments':{'effective':effective_total-gross_effective,'raw':raw_total-gross_raw},
                     'effectiveHps':effective_total/seconds,'rawHps':raw_total/seconds}
     fields=('guid','id','name','type','total','overheal','totalReduced','hitCount','tickCount','critHitCount','critTickCount','uptime','composite')
     def compact(row,depth=0):
@@ -36,6 +40,6 @@ def project_healing(effective, raw):
         return result
     return {'complete':bool(valid),'totals':totals,'totalTimeMs':left.get('totalTime'),
         'entries':[compact(r) for r in b[:80] if isinstance(r,dict)],'rowsTruncated':len(b)>80,
-        'coverage':'Paired Healing tables, identical fight/source/time filters. Effective includes credited absorbs; raw includes overheal. Sum top-level entries only, never add their subentries again.',
+        'coverage':'Paired Healing tables, identical fight/source/time filters. Effective includes credited absorbs; raw includes overheal. Sum top-level entries only, never add their subentries again. Net totals preserve signed upstream adjustment rows. Overheal is the difference of positive rows only; signedAdjustments are separate and must not be called overheal.',
         'limitations':['Separate absorb totals are not inferred when the upstream table does not explicitly distinguish them. Spell hit/tick counts are logged healing impacts, not manual casts.',
                        'Raw rows and hitdetails use viewOptions=8. totalReduced is preserved as an upstream field, not relabelled as effective healing.']}

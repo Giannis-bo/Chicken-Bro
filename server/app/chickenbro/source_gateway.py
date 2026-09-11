@@ -273,7 +273,7 @@ class ServerConfiguredSourceQuery:
         }
         statistics = evidence.get('statistics') or {}
         observed_statistics = statistics.get('observedThrough', 0) > statistics.get('startTime', 0)
-        if verified or (source_status == "partial" and (evidence.get("fights") or observed_statistics)):
+        if verified or (source_status == "partial" and (evidence.get("fights") or observed_statistics or evidence.get("healing"))):
             result["facts"] = [{
                 "queryMode": "server_configured_warcraftlogs_api",
                 "queryScope": evidence.get("queryScope", "scoped_analysis"),

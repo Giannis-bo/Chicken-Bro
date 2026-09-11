@@ -11,7 +11,7 @@ class HealingTest(unittest.TestCase):
         effective={'data':{'totalTime':10000,'entries':[{'guid':1,'name':'Spell','total':60,'subentries':[{'guid':2,'total':60}]}]}}
         raw={'data':{'totalTime':10000,'entries':[{'guid':1,'name':'Spell','total':100,'overheal':40,'subentries':[{'guid':2,'total':100}]}]}}
         result=project_healing(effective,raw)
-        self.assertTrue(result['complete']);self.assertEqual(result['totals'],{'effective':60,'raw':100,'overheal':40,'effectiveHps':6.0,'rawHps':10.0})
+        self.assertTrue(result['complete']);self.assertEqual(result['totals'],{'effective':60,'raw':100,'overheal':40,'grossEffective':60,'grossRaw':100,'signedAdjustments':{'effective':0,'raw':0},'effectiveHps':6.0,'rawHps':10.0})
     def test_missing_or_different_aggregate_coverage_is_not_complete(self):
         from server.app.chickenbro.wcl_healing import project_healing
         self.assertFalse(project_healing({}, {})['complete'])
@@ -32,3 +32,12 @@ class InvalidHealingPairsTest(unittest.TestCase):
         for rows in [[{'guid':1,'name':'a','total':10},{'guid':2,'name':'b','total':20},{'guid':2,'name':'b','total':20}], [{'guid':1,'name':'a','total':9},{'guid':2,'name':'b','total':21}]]:
             result=project_healing(effective,{'data':{'totalTime':1000,'entries':rows}})
             self.assertFalse(result['complete']);self.assertIsNone(result['totals'])
+
+    def test_signed_upstream_adjustments_are_not_overheal(self):
+        def table(heal,adjustment):return {'data':{'totalTime':1000,'entries':[{'guid':1,'name':'Heal','total':heal},{'guid':2,'name':'Adjustment','total':adjustment}]}}
+        result=project_healing(table(100,-20),table(150,-10))
+        self.assertTrue(result['complete'])
+        self.assertEqual(result['totals']['effective'],80)
+        self.assertEqual(result['totals']['raw'],140)
+        self.assertEqual(result['totals']['overheal'],50)
+        self.assertEqual(result['totals']['signedAdjustments'],{'effective':-20,'raw':-10})
