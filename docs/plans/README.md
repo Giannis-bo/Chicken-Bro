@@ -1,5 +1,7 @@
 # 计划白名单
 
+- `正在推进 / 已合入推送，本地验证`：[跨轮研究预算](2026-09-11-persistent-research-budget.md)，源码 `f48202568`；Candidate/live 尚未验证。包含 additive migration `0009_chat_research_lifecycle`，发布须先按计划完成旧任务排空与迁移，不能直接切换未经迁移的完整 main。
+
 - `正在推进 / 2026-09-11 新授权`：[六项剩余问题分级状态](2026-09-11-remaining-issues-status.md)。各项独立验证与串行交付；本索引不把历史 Goal 完成当作泛化缺口关闭。
 
 - `已完成 / 工具能力已上线`：[原生搜索恢复](2026-09-10-bounded-research.md#2026-09-10-工具能力独立验收当前授权)，`1c7caa159` 隔离和线上检索通过；回答质量问题独立保留。
