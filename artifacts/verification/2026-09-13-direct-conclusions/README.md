@@ -1,6 +1,6 @@
 # 鸡哥直接结论表达
 
-用户于 2026-09-13 授权测试、验收通过后提交、合入并发布。当前状态：最终 Candidate 和独立修正路径验收通过，准备发布。
+用户于 2026-09-13 授权测试、验收通过后提交、合入并发布。状态：已提交、快进合入 main、推送并上线。运行源码 `730882f2aef78f4460295800065c5d82b7fb7d72`。
 
 ## 改动
 
@@ -27,4 +27,8 @@
 
 ## 发布与恢复
 
-待最终验收通过后，以新提交绑定精确 overlay；空闲门禁切换 API/Worker，保留旧后端与 Web。使用本批私有 `deploy.py manifest.json rollback` 恢复旧指针后重新核验业务，不覆盖数据库。线上业务、运行清单和公网 Web 哈希另行记录。
+- [线上4条](direct-conclusions-live.json)全部成功，三条表达用例逐句审阅通过；完整复盘给出团队优先事项与药水前移建议，没有截图中的旁支免责。真实 SimC DPS160820.55569451672，回答160820.56。QQ授权URL、CSRF、私有图片、第二账号隔离、SSE完成和幂等重放通过。
+- [运行核验](direct-conclusions-runtime.json)：API/Worker运行于 `badcase-730882f2aef78f4460295800065c5d82b7fb7d72`；144份后端实际字节清单和13份公网Web文件匹配，旧Web保持 `chat-return-0f8b3ce9...`。
+- [提交绑定](direct-conclusions-binding.json)：Candidate的144份server文件与提交比对，12份逐字节一致、132份仅CRLF/LF差异，无其他内容差异。运行清单独立绑定实际字节；临时诊断源码未发布。
+- 8文件精确overlay，API/Worker在全任务空闲门禁下同步切换；旧后端 `badcase-2294cb95...` 与Web保留。manifest SHA256为 `1de6098abd98fbb5de2706869283bc51a922360448ddce9277eb96182e1fd2fd`。
+- root/0700 `/var/lib/chickenbro-direct-conclusions-20260913/` 保存manifest、overlay、执行器及root/0600恢复快照，恢复材料已核验。以root执行本批 `deploy.py manifest.json rollback`，同一空闲门禁恢复旧指针并重新核验业务；不覆盖数据库。未执行本轮生产回切演练。
