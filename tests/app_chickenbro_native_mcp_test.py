@@ -58,6 +58,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
         self.assertEqual(
             {
                 "research_public_web",
+                "read_chickenbro_skill",
                 "query_warcraftlogs_report",
                 "query_warcraftlogs_batch",
                 "query_warcraftlogs_character",

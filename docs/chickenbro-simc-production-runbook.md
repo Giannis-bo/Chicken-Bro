@@ -38,7 +38,7 @@ QQ 配置位于 root-owned 0600 `/etc/chickenbro-qq.env`，包含服务端 `WOW_
 
 ## 当前 Codex 配置与精简（2026-09-09）
 
-本轮开始前已确认的云端配置改动保留：Codex 使用 Astra/low，移除 29 条旧信任记录；禁用通用技能、账号插件和 Apps/远程插件加载。配置变更后实际业务会话保留 9 个业务 MCP 工具并完成回复。[原始验证](../artifacts/verification/2026-09-09-cloud-codex-cleanup/report.json)与[完整配置回滚记录](chickenbro-simc-production-runbook-pre-mini-retirement.md#当前-codex-配置与精简2026-09-09)供复核。后续操作仍须核对当前配置元信息，不以历史记录代替 live 检查。
+本轮开始前已确认的云端配置改动保留：Codex 使用 Astra/low，移除 29 条旧信任记录；禁用通用技能、账号插件和 Apps/远程插件加载。配置变更后实际业务会话保留 9 个业务 MCP 工具并完成回复。原始验证 report.json 未保留在当前仓库；[完整配置回滚记录](chickenbro-simc-production-runbook-pre-mini-retirement.md#当前-codex-配置与精简2026-09-09)供复核。后续操作仍须核对当前配置元信息，不以历史记录代替 live 检查。
 
 ## 2026-09-09 已确认旧微信测试数据清理
 

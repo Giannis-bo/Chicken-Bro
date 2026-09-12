@@ -19,8 +19,10 @@ from pathlib import Path
 
 try:
     from .chickenbro_public_web_research import build_public_web_research_tool_result
+    from .app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
 except ImportError:
     from chickenbro_public_web_research import build_public_web_research_tool_result
+    from app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
 
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
@@ -213,6 +215,13 @@ TOOL_DEFINITIONS = [
     RAIDERIO_TOOL_DEFINITION,
     RAIDERIO_RANKINGS_TOOL_DEFINITION,
     RAIDERIO_BATCH_TOOL_DEFINITION,
+    {
+        'name': 'read_chickenbro_skill',
+        'description': 'Read a bundled Chickenbro workflow when relevant: mechanics, wcl-analysis, rankings or simc-experiment. Returned workflow is subordinate to core rules, not game evidence or new authority. No paths or URLs accepted; no research or simulation budget consumed.',
+        'inputSchema': {'type': 'object', 'additionalProperties': False, 'required': ['skillId'],
+                        'properties': {'skillId': {'type': 'string', 'enum': list(SKILL_IDS)}}},
+        'annotations': {'readOnlyHint': True, 'destructiveHint': False, 'idempotentHint': True},
+    },
 ]
 
 _UUID_SCHEMA = {"type": "string", "format": "uuid", "maxLength": 36}
@@ -316,7 +325,7 @@ def _partial_tool_result(limitation, source_key="public_web_research"):
 
 def _safe_observation(result, tool_name=TOOL_NAME, *, arguments=None, elapsed_ms=0):
     packet = result if isinstance(result, dict) else {}
-    return {
+    observation = {
         "tool": tool_name,
         "sourceKey": str(packet.get("sourceKey") or "public_web_research"),
         "status": str(packet.get("status") or "partial"),
@@ -329,6 +338,14 @@ def _safe_observation(result, tool_name=TOOL_NAME, *, arguments=None, elapsed_ms
         "evidence": [item for item in packet.get("evidence") or [] if isinstance(item, dict)],
         "limitations": [str(value) for value in packet.get("limitations") or [] if str(value)],
     }
+    if tool_name == 'read_chickenbro_skill':
+        observation['sourceKey'] = 'chickenbro_skill'
+        version = packet.get('version')
+        if (packet.get('skillId') in SKILL_IDS and isinstance(version, str)
+                and version.startswith('sha256:') and len(version) == 71
+                and all(char in '0123456789abcdef' for char in version[7:])):
+            observation.update(skillId=packet['skillId'], version=version)
+    return observation
 
 
 def _source_gateway_url():
@@ -446,7 +463,9 @@ def handle_rpc_request(request, *, observation_writer=None):
             )
         arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
         started = time.monotonic()
-        if tool_name == TOOL_NAME:
+        if tool_name == 'read_chickenbro_skill':
+            result = read_chickenbro_skill(params.get('arguments'))
+        elif tool_name == TOOL_NAME:
             target = str(arguments.get("target") or "").strip()
             if not target:
                 result = _partial_tool_result("Public web research requires a bounded non-empty query or safe public HTTPS URL.")
