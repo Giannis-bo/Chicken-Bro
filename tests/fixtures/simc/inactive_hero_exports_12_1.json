@@ -1,0 +1,28 @@
+[
+  {
+    "name": "MID1_Death_Knight_Blood.simc",
+    "character": {
+      "classKey": "deathknight",
+      "specKey": "blood",
+      "level": 90
+    },
+    "baseline": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAADMwM20YZDklBsBYGzAAAmZwgB",
+    "withInactive": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAgZgBmxmGLbgsMgNAzYGAAwMDGMA",
+    "invalidInactiveRank": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAgLYgBmxmGLbgsMgNAzYGAAwMDGMA",
+    "inactiveEntry": 117629,
+    "zeroInactiveRank": "CoPAAAAAAAAAAAAAAAAAAAAAAwYWmZmxMmZmhZZmZmmZxMjxMAAAAAzMzMzwMDzYMDAjZmZGAAgDYgBmxmGLbgsMgNAzYGAAwMDGMA"
+  },
+  {
+    "name": "MID1_Demon_Hunter_Devourer.simc",
+    "character": {
+      "classKey": "demonhunter",
+      "specKey": "devourer",
+      "level": 90
+    },
+    "baseline": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmBzMAAAAAAALzYAzAAAAAAAAwMGMmZmZMzMzYmFzYsotNmZmZ2abmZGAjZAIwMzgxMA",
+    "withInactive": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmBzMAAAAAAALzYAzAAAAwAAAAmxgxMzMjZmZGzsYGjFttxMzMzWbzMzAYMDABmZGMmB",
+    "invalidInactiveRank": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmBzMAAAAAAALzYAzAAAAwFAAAAmxgxMzMjZmZGzsYGjFttxMzMzWbzMzAYMDABmZGMmB",
+    "inactiveEntry": 117492,
+    "zeroInactiveRank": "CgcBAAAAAAAAAAAAAAAAAAAAAAA2MmZmZmZmBzMAAAAAAALzYAzAAAAwBAAAAmxgxMzMjZmZGzsYGjFttxMzMzWbzMzAYMDABmZGMmB"
+  }
+]

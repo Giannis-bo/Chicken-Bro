@@ -81,13 +81,11 @@ def decode_talents(code, character, runtime):
         raise TalentEditError('TALENT_SPEC_INVALID')
     take(128)  # Export hash is not a source of node order; catalog is runtime-bound.
     result = []
-    granted_nodes = set()
     for node_id, entries in sorted(nodes.items()):
         if not take(1):
             continue
         purchased = take(1)
         if not purchased:
-            granted_nodes.add(node_id)
             # The export carries the grant bit. SimC imports the first entry
             # here; display coordinates are not a reliable grant predicate.
             result.append({'id': entries[0]['entryId'], 'nodeID': node_id, 'rank': 1})
@@ -113,9 +111,12 @@ def decode_talents(code, character, runtime):
         raise TalentEditError('TALENT_EXPORT_INVALID')
     by_id = {t['entryId']: t for entries in nodes.values() for t in entries}
     selected_heroes = {by_id[e['id']]['subTreeId'] for e in result if by_id[e['id']]['tree'] == 4}
-    # Blizzard exports free roots of inactive hero trees too. They are not
-    # allocated talents; preserve only the active subtree, as Raider.IO does.
-    result = [e for e in result if not (e['nodeID'] in granted_nodes and
+    # Addon exports include purchased nodes in inactive hero trees too.
+    # The pinned engine disables those nodes through the selection talent.
+    # Validate encoded ranks before dropping inactive allocations.
+    if any(not 1 <= e['rank'] <= by_id[e['id']]['maxRanks'] for e in result):
+        raise TalentEditError('TALENT_EXPORT_INVALID')
+    result = [e for e in result if not (
               by_id[e['id']]['tree'] == 3 and by_id[e['id']]['subTreeId'] not in selected_heroes)]
     _encode(result, character, spec_id, class_id)
     return result

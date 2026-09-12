@@ -1,0 +1,53 @@
+{
+  "observedAt": "2026-09-12T10:11:46.949578+00:00",
+  "group": "G15",
+  "reportSha256": "8b316b2fa771d86986b2e018092271c29dc09b5e785688964a8fb12849707f1d",
+  "status": "local_verified_release_blocked",
+  "baseSource": "89069b249",
+  "productionDirectoryObserved": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+  "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+  "mechanism": "Inactive hero allocations in addon exports were rejected by active-tree reconstruction. Decode now filters inactive hero nodes after validating their ranks.",
+  "engineSourceEvidence": "Existing cloud source-f50a2121bf894570146507496f3e113bff68e445.tar.gz; engine/player/player.cpp lines 11349-11355 explicitly disables inactive hero allocations. No engine modification or execution.",
+  "tests": {
+    "command": "python3 -m unittest tests.app_simulation_talent_editor_test tests.app_wcl_talents_test tests.app_simulation_compiler_test tests.app_chickenbro_simulation_tools_test",
+    "passed": 63,
+    "baselineExpectedFailures": 3,
+    "sampleCoverage": [
+      "original elemental export",
+      "blood death knight inactive purchased node",
+      "devourer demon hunter inactive purchased node",
+      "official-profile normal paths",
+      "existing simulation-tool owner contracts",
+      "inactive ranks zero and two rejected"
+    ],
+    "earlierCommandFailure": "One invocation named nonexistent tests.app_simulation_wcl_talents_test; corrected to tests.app_wcl_talents_test. Not counted as a passed run."
+  },
+  "review": {
+    "independentReviewer": "g15_review",
+    "finalAssessment": "No blocking code issue; cross-class bit fixtures independently inspected; local scope only.",
+    "specialCases": "No original question, identity, report, class, or answer matching in production code."
+  },
+  "acceptance": {
+    "candidate": false,
+    "live": false,
+    "fiveClassPairedRealModel": false,
+    "fourExactComparisons": false,
+    "manual": false,
+    "recovery": false
+  },
+  "blocker": "Exact original four comparisons require complete plugin profile provenance. Current product excludes /simc text imports; compiler does not carry Omnium, crafted_stats, crafting_quality, redirected_base_stats or content_tuning fields. Decoder fix alone cannot satisfy original acceptance. No policy bypass or substituted old configuration.",
+  "resumeCondition": "Explicit product decision for supported faithful input contract, or independently sourced complete supported snapshots proving equivalence; then preregister exact five-class samples and finish paired Candidate/live acceptance within remaining fixed budget. Do not replay unchanged unsupported request.",
+  "thisRun": {
+    "productModels": 0,
+    "simcJobs": 0,
+    "wclQueries": 0,
+    "raiderQueries": 0,
+    "productionSqlReads": 3,
+    "agentUsage": "unknown; not zero"
+  },
+  "release": {
+    "merged": false,
+    "pushed": false,
+    "deployed": false
+  }
+}

@@ -17,6 +17,33 @@ class TalentEditorTest(unittest.TestCase):
         decoded = decode_talents(self.code, self.character, RUNTIME)
         self.assertEqual({x['id']: x['rank'] for x in decoded}, {x['id']: x['rank'] for x in self.recorded})
 
+    def test_export_with_inactive_hero_allocations_uses_only_selected_tree(self):
+        # Addon export carries purchased Stormbringer nodes alongside active
+        # Farseer. Engine create_talent_obj disables the inactive subtree.
+        code = 'CYQALMl7AwW51MWzGneuHE3tPCAAAAzMbbzMGjZZZZMmhZAAAAgFzstZmZYzwCz2MTDNzCAMbzMzYmtFTbmZGjlZMzYGLWmZWGGzMLAADgZmZGDDD'
+        decoded = decode_talents(code, self.character, RUNTIME)
+        ranks = {e['id']: e['rank'] for e in decoded}
+        self.assertEqual(len(decoded), 80)
+        self.assertEqual(ranks[123377], 1)  # Farseer selection
+        self.assertEqual(ranks[117485], 1)  # active hero root
+        self.assertNotIn(128226, ranks)    # inactive purchased choice
+        self.assertNotIn(117464, ranks)    # inactive purchased normal node
+        edited = edit_talents({'string': code}, self.character, RUNTIME, {'string': code})
+        self.assertEqual(edited['changes'], [])
+        self.assertEqual({e['id']: e['rank'] for e in edited['loadout']}, ranks)
+
+    def test_inactive_allocations_preserve_other_classes_and_reject_bad_ranks(self):
+        fixtures = json.loads((FIXTURES / 'inactive_hero_exports_12_1.json').read_text())
+        for fixture in fixtures:
+            with self.subTest(profile=fixture['name']):
+                baseline = decode_talents(fixture['baseline'], fixture['character'], RUNTIME)
+                decoded = decode_talents(fixture['withInactive'], fixture['character'], RUNTIME)
+                self.assertEqual(decoded, baseline)
+                self.assertNotIn(fixture['inactiveEntry'], {e['id'] for e in decoded})
+                for malformed in ('invalidInactiveRank', 'zeroInactiveRank'):
+                    with self.assertRaises(TalentEditError):
+                        decode_talents(fixture[malformed], fixture['character'], RUNTIME)
+
     def test_choice_edit_preserves_every_other_node_and_source(self):
         original = {'string': self.code}
         before = copy.deepcopy(original)
