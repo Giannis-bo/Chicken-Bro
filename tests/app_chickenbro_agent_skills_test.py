@@ -201,7 +201,7 @@ class ChickenbroJobRunIdentityTest(unittest.TestCase):
 
     def test_stream_binds_before_spawning_runtime_and_fails_closed_on_write_error(self):
         adapter = importlib.import_module('server.app.chickenbro.codex_adapter')
-        fixtures = importlib.import_module('app_chickenbro_codex_adapter_test')
+        fixtures = importlib.import_module('tests.app_chickenbro_codex_adapter_test')
         run_id = '12345678-1234-1234-1234-123456789abc'
         captured = []
         def popen(*args, **kwargs):
