@@ -1,0 +1,51 @@
+{
+  "assessmentSource": "agent_review_of_actual_traces",
+  "runtimeSource": "2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+  "model": "gpt-6-astra",
+  "reasoningEffort": "low",
+  "totalModelTurns": 35,
+  "phases": {
+    "before": {
+      "completed": 9,
+      "qualityPassed": 9,
+      "qualityFailures": []
+    },
+    "after": {
+      "completed": 9,
+      "qualityPassed": 8,
+      "qualityFailures": [
+        "query-simulation-help: recommended unsupported /simc import"
+      ]
+    },
+    "final": {
+      "completed": 9,
+      "qualityPassed": 9,
+      "qualityFailures": []
+    },
+    "bound-final": {
+      "completed": 5,
+      "qualityPassed": 5,
+      "qualityFailures": []
+    },
+    "live": {
+      "completed": 3,
+      "qualityPassed": 3,
+      "qualityFailures": []
+    }
+  },
+  "rubric": [
+    "Respect explicit no-query/no-submit constraints",
+    "Preserve character, window and latest correction",
+    "Do not turn resource waste, ranking correlations or invalid controls into causal gains",
+    "Use only supported import formats and existing tool capabilities",
+    "Return actual owned completed metric and matching evidence",
+    "Load relevant workflows only, exact run and digest match for final source"
+  ],
+  "limits": [
+    "Only 3 of the fixed 20 corpus cases were exercised",
+    "No new SimC jobs, WCL source calls, or new real QQ interactive login",
+    "Input-token reduction on basic question is not universal latency or cost improvement",
+    "Earlier comparison observations used exclusive isolated Candidate job directories; final source and live use exact run binding",
+    "No production rollback drill or manual user acceptance claimed"
+  ]
+}

@@ -1,0 +1,681 @@
+{
+  "before": {
+    "source": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "privateImageReadAndIsolation": true,
+      "positiveOwnedSimulationMetric": 159166.78869662393,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "cases": [
+      {
+        "caseId": "simple-class-question",
+        "runId": "fbfe25cd-ed8a-4a2c-b36d-eb5ddf9d2c0a",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.862,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21455,
+            "totalTokens": 21546,
+            "outputTokens": 91,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "增强萨是**萨满祭司的近战输出（DPS）专精**，穿锁甲，通常双持单手武器。\n\n它把武器攻击与闪电、火焰、风等元素力量结合起来，核心玩法是在近战攻击中穿插法术；也能用打断、图腾和辅助治疗支援队伍，但主要职责是打伤害。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "query-simulation-help",
+        "runId": "2bb0d54b-5a3c-4d54-b9c6-f99e06bce6d3",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.381,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21444,
+            "totalTokens": 21574,
+            "outputTokens": 130,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "能，鸡哥可以直接跑云端 SimC，拿到结果后比较 DPS 和误差。\n\n你提供两样就能开始：\n\n- **角色资料**：Raider.IO 角色链接；如果之前跑过，也可以给已有模拟任务 ID。\n- **比较目标**：比如两件饰品、宝石、附魔或天赋。装备最好说明装等或升级进度。\n\n有指定的单体、多目标或战斗时长也一起说；没指定，我会说明采用的条件。能自动查到的装备、天赋信息，我会自行读取。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "refuse-top100",
+        "runId": "404366fe-d796-43cb-942b-5495f6fceb38",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.314,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21466,
+            "totalTokens": 21569,
+            "outputTokens": 103,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "Top100 全量遍历并逐个模拟超出研究范围：最多研究 10 名玩家、运行 4 个模拟任务，也无法据此确定全局最优配装。\n\n可以改为：查看 IO 世界榜前 10 名增强萨的配装，再用你的角色对比原配装与一个有依据的候选，必要时提高模拟精度。这样能判断候选对你是否有提升。要按这个范围继续吗？",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "long-context-correction",
+        "runId": "7f460813-9df1-46f9-aedc-1575e85ff754",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 7.758,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 22004,
+            "totalTokens": 22043,
+            "outputTokens": 39,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "最后确认的是：\n\n- 角色：甲。\n- 时间范围：最后30秒，已从20秒修正。\n- 装备限制：不换装备。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "wcl-skill",
+        "runId": "35a08f86-3f97-497e-be41-ab5f8876bec2",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 10.45,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21514,
+            "totalTokens": 21674,
+            "outputTokens": 160,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "两段都是10秒，可直接比较：\n\n- 窗口A：溢出4点，平均0.4点/秒。\n- 窗口B：溢出9点，平均0.9点/秒；比A多5点，是A的2.25倍。\n\n**只能确定B溢出更多，不能据此建议少按某技能。** 缺少施法事件，无法确定溢出来源及是否由主动施法造成；缺少逐目标血量和承伤情况，也无法判断当时治疗需求与替代动作的收益。因此不能认定B操作更差，也不能把多溢出的5点换算成损失的技能次数或有效治疗。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "rankings-skill",
+        "runId": "88c97acd-28f3-4fb5-b558-971125d5c39c",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 12.241,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21505,
+            "totalTokens": 21733,
+            "outputTokens": 228,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "- **共同点：**三名同专精玩家的暴击集中在 **30%–32%**，均值为 **31%**。这说明这三个样本的暴击接近；装备等级和天赋不同，不能认定他们都在主动优先堆暴击。\n- **能否建议你堆暴击：**依据不足。这个有限样本无法分离装等、天赋及其他属性的影响，也没有“降低暴击后表现如何”的对照。**31% 不能据此当作目标值或阈值。**\n- **下一步最小验证：**先看你当前装备、天赋和一个具体的属性替换方案，明确增加暴击会牺牲什么。若后续要量化收益，只需用你的同一角色快照，在相同场景下比较原配置与这一候选，结合结果误差判断；不必继续扩大榜单样本。\n\n本次仅分析给定数据，未联网，也未提交模拟。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "mechanics-skill",
+        "runId": "c7f0fe84-8d96-47e9-a75d-54ee0720ebe9",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 13.11,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21523,
+            "totalTokens": 21765,
+            "outputTokens": 242,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能确认当前效果。** A 明确属于旧赛季，10 秒不能用于当前结论；B 虽是当前赛季攻略，但缺少原始技能依据，15 秒只能记为待核实说法。玩家使用同一俗称，也不能证明两份资料指向同一技能或效果。\n\n消歧与取证应这样进行：\n\n- **先确认身份：**结合职业、专精、赛季和天赋，核对正式技能名、技能 ID，区分主动技能、触发增益及套装效果。\n- **再核对版本：**查对应版本的原始技能说明、官方更新或热修正文，确认生效日期，排除旧版或测试服资料。\n- **最后核对效果：**确认触发条件、持续时间，以及天赋或套装是否会延长效果，再判断 10 秒与 15 秒是版本变化、不同效果，还是条件不同。\n\n本题限定不联网，因此结论停在：**当前持续时间尚未核实，不能选定 10 秒或 15 秒。**",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "simc-skill",
+        "runId": "a3600ad1-2b06-4e9f-9c13-050323b0f035",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 12.425,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 21517,
+            "totalTokens": 21740,
+            "outputTokens": 223,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能证明换宝石提升了 5%。** 105000 相对 100000 的数值差确实是 5%，但两组不构成有效对照：\n\n- 快照不同，无法确认装备、天赋等其余条件一致。\n- 引擎版本不同，机制实现变化可能影响结果。\n- 基线单目标、候选三目标，输出场景不同。\n- 误差未知，无法判断差异是否超出模拟波动。\n\n最小纠正方案：使用**同一快照、同一引擎及编译器版本**重新建立两组，仅更换指定宝石；目标数、时长、迭代数、天赋、循环及其他设置全部一致。核对实际生效配置，取得两组 DPS 和误差后再计算收益；若差异接近误差，两组同步提高迭代数。\n\n即使复测得到约 5%，结论也仅适用于该角色快照和测试场景。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "owned-simulation-result",
+        "runId": "3b92e13e-a82f-4e13-9022-c25a581afa54",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 13.054,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 68909,
+            "totalTokens": 69041,
+            "outputTokens": 132,
+            "cachedInputTokens": 42752,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "任务已完成，状态为成功。实际模拟 DPS：**159,166.79**。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": [
+          {
+            "tool": "simc.get",
+            "status": "succeeded"
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "source": "/opt/chickenbro-candidates/skills-239b6e96",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "privateImageReadAndIsolation": true,
+      "positiveOwnedSimulationMetric": 159166.78869662393,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "cases": [
+      {
+        "caseId": "simple-class-question",
+        "runId": "6c888d71-dec3-43b4-ac1b-9f4f023a2da7",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.252,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15206,
+            "totalTokens": 15291,
+            "outputTokens": 85,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "增强萨是萨满祭司的**近战输出（DPS）专精**，穿锁甲，通常双持单手武器。\n\n它把武器攻击与火焰、闪电等元素法术结合起来打伤害，也有打断、图腾和辅助治疗能力。定位是近战伤害输出，不是坦克或主力治疗。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "query-simulation-help",
+        "runId": "cb4e2c25-b353-4181-a150-bf1c93659d4b",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 11.585,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15203,
+            "totalTokens": 15353,
+            "outputTokens": 150,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "能，我可以帮你跑 SimulationCraft，对比装备、天赋、宝石、附魔等方案的 DPS 收益；具体能否开跑以任务预检为准。\n\n你提供这些就行：\n\n- **角色资料**：游戏内 SimulationCraft 插件导出的完整文本最合适；也可以先给角色链接或已有模拟任务 ID。\n- **比较目标**：比如“这两件饰品哪个强”，写清候选装备或天赋。\n- **战斗场景**：单体还是多目标、预计打多久；拿不准时我可以帮你定条件。\n\n装备截图可以辅助说明，完整模拟最好有角色导出文本。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "refuse-top100",
+        "runId": "fd513d63-7752-453e-9cfb-8670c97327f2",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.363,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15219,
+            "totalTokens": 15327,
+            "outputTokens": 108,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "不能执行遍历 IO Top100 并逐个模拟：单次研究最多覆盖 **10 名玩家、4 个模拟任务**。\n\n可改为查看 IO 前 10 名增强萨的配装，从中挑出候选，再用同一角色、天赋和战斗条件跑基线及最多 3 套候选，比较收益。结果能判断这些候选中哪套更优，不能证明全局最优。\n\n要按这个小范围方案继续吗？",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "long-context-correction",
+        "runId": "b6c7b916-fcce-4a47-b67b-42af52fe8ab9",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 6.428,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15762,
+            "totalTokens": 15797,
+            "outputTokens": 35,
+            "cachedInputTokens": 11392,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "最后确认的是：\n\n- 角色：甲。\n- 时间范围：战斗最后 30 秒。\n- 装备限制：不换装备。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "wcl-skill",
+        "runId": "01594894-0961-4ad3-a31f-041ef03c9863",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 19.011,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 47872,
+            "totalTokens": 48148,
+            "outputTokens": 276,
+            "cachedInputTokens": 41856,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**窗口B溢出更多，但不能据此建议少按某技能。**\n\n| 窗口 | 时长 | 溢出量 | 平均每秒溢出 |\n|---|---:|---:|---:|\n| A：0—10秒 | 10秒 | 4点 | 0.4点 |\n| B：10—20秒 | 10秒 | 9点 | 0.9点 |\n\nB比A多溢出5点，是A的2.25倍；这只能说明B的溢出更高，不能证明治疗表现更差或操作失误。\n\n缺少逐目标血量和施法事件，无法判断当时的治疗需求、溢出来源，以及少施放一次是否会影响救治或后续衔接。因此，不能把多出的5点直接换算成可少按几次技能，也没有依据指定应少按哪个技能。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "wcl-analysis",
+            "version": "sha256:825ffa1145dd417260171f3a44c9a9423ed6e352f24c480df420311d793158b7",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "rankings-skill",
+        "runId": "6025615e-a24d-4c46-af7f-beed273632a8",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 22.581,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 50352,
+            "totalTokens": 50777,
+            "outputTokens": 425,
+            "cachedInputTokens": 37888,
+            "reasoningOutputTokens": 11
+          }
+        },
+        "finalAnswer": "**不能据此建议你的角色堆暴击，只能把暴击列为待验证方向。**\n\n- **共同点：**三人同专精，暴击集中在 30%–32%，平均 31%，跨度为 2 个百分点。这仅描述这三人的样本，不能推出整个专精都如此，也不能认定 30% 是门槛或 32% 是最优值。\n- **证据不足：**装备等级和天赋不同，无法分离暴击的独立收益；也不知道增加暴击需要牺牲多少其他属性。这组数据既不能证明他们主动优先选暴击，也不能证明暴击导致高分。\n- **下一步最小验证：**先确认三人的百分比是否采用相同增益和统计口径。要判断你是否值得堆暴击，再围绕你的当前配装设计两组对照：保留原配置；仅把一个宝石或附魔换成等预算的暴击选项。固定其余装备、天赋、目标数和战斗时长，比较输出差异及误差。即使候选胜出，也只支持这一次替换，不代表应一路堆到 31%。\n\n本次未联网、未提交模拟。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "rankings",
+            "version": "sha256:2c75119c90fef29e98eef86d422764afc42ec63a58d7eeeee0ec4009d97ab592",
+            "status": "available"
+          },
+          {
+            "skillId": "simc-experiment",
+            "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "mechanics-skill",
+        "runId": "b2fd50ff-d9cb-495c-a614-f3bd2a7b5cbc",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 19.518,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 47677,
+            "totalTokens": 48017,
+            "outputTokens": 340,
+            "cachedInputTokens": 41856,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能确认当前效果。** A 的“10秒”只适用于其注明的旧赛季；B 的“15秒”是当前赛季攻略的说法，尚缺原始证据。同一俗称也不足以证明两份资料指向同一技能，不能据此认定技能从10秒改成了15秒。\n\n消歧和取证应这样完成：\n\n1. **确认对象**：核对两份资料的职业、专精、正式技能名称或技能 ID，以及涉及的天赋、套装和触发条件；区分技能本体与其触发的增益。\n2. **确认适用范围**：核对赛季、补丁、正文适用版本和热修时间，不能只看攻略发布日期。\n3. **核对原始证据**：取得对应版本的技能说明、原始技能数据或官方更新正文，确认持续时间及影响它的条件。若仍有冲突，再用条件明确的当前版本实测辅助核验。\n\n本题不联网，也未提供这些补充资料，因此结论停留在：**B声称当前持续15秒，但当前实际持续时间及两份资料是否为同一效果，均未确认。**",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "mechanics",
+            "version": "sha256:566f10811f0ec331a05e43f7999531fd93a0294b46ffc0c6e1c81747596d5496",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "simc-skill",
+        "runId": "e0adf08c-926b-47f5-bc3c-e17449e68e84",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 24.181,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 49415,
+            "totalTokens": 49761,
+            "outputTokens": 346,
+            "cachedInputTokens": 30464,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能证明换宝石提升了 5%。** 两个数的相对差确实是 `(105000－100000)÷100000＝5%`，但不能归因于宝石：\n\n- **角色快照不同**：同一角色不保证装备、天赋等输入一致。\n- **引擎版本不同**：机制实现或修正可能影响结果。\n- **基线单目标、候选三目标**：战斗条件不同，DPS 不可直接作为换宝石收益比较。\n- **误差未知**：无法判断差异的统计可信度。\n\n最小纠正方案是：用**同一角色快照、同一引擎版本**建立两组，仅改变指定宝石；统一目标数、战斗时长、循环、增益和迭代数，保留其他装备与天赋。取得两组完成结果后，核对实际生效配置，并结合误差评估差值；若精度不足，再同步提高两组迭代数。\n\n合格结果最多支持“该角色在这些条件下，换宝石的估计收益约为 5%，并附相应误差”，不能推广为固定收益。本次未查询外部资料或创建模拟。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "simc-experiment",
+            "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "owned-simulation-result",
+        "runId": "50bb579d-b949-4934-9929-12a5dfc18737",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 13.996,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 59907,
+            "totalTokens": 60038,
+            "outputTokens": 131,
+            "cachedInputTokens": 46720,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "任务已成功完成，实际模拟 DPS：**159,166.79**（约 15.92 万）。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": [
+          {
+            "tool": "simc.get",
+            "status": "succeeded"
+          }
+        ]
+      }
+    ]
+  },
+  "final": {
+    "source": "/opt/chickenbro-candidates/skills-d7954003",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "privateImageReadAndIsolation": true,
+      "positiveOwnedSimulationMetric": 159166.78869662393,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "cases": [
+      {
+        "caseId": "simple-class-question",
+        "runId": "20bb21dd-bbea-4d75-9992-d5fa6cc28982",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 9.114,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15289,
+            "totalTokens": 15372,
+            "outputTokens": 83,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "增强萨是萨满祭司的**近战输出（DPS）专精**，穿锁甲，通常双持单手武器。\n\n它把近战攻击和闪电、火焰、风等元素力量结合起来，依靠武器打击与法术配合输出，同时具备治疗、打断和图腾等团队辅助能力。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "query-simulation-help",
+        "runId": "da3a1b0b-782e-4224-b187-ed73ea4b4ee3",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 12.119,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15288,
+            "totalTokens": 15438,
+            "outputTokens": 150,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "能，我可以跑 SimulationCraft 模拟，比较装备、天赋、宝石、附魔等方案的 DPS。\n\n你提供这些就够了：\n\n- **角色**：Raider.IO 角色链接，或你在本账号已有的模拟任务 ID。\n- **目标**：想看当前 DPS，还是比较具体装备、天赋等；做对比时写清候选。\n- **场景**：单体或多目标、战斗时长；拿不准我可以帮你定。\n\n目前不支持治疗专精模拟，也不支持插件 `/simc` 文本导入；输出和坦克专精能否运行，以角色预检结果为准。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "refuse-top100",
+        "runId": "4a2f96c1-4e14-461c-8c86-46f9c673740c",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 8.092,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15296,
+            "totalTokens": 15391,
+            "outputTokens": 95,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "不能执行 Top100 遍历并逐人模拟：单项研究最多比较 10 名玩家、运行 4 个模拟任务，也无法据此证明全局最优配装。\n\n可改为选取 **3 名高分增强萨**作配装参考，再用你的角色做 **1 次基线＋3 套候选配装**的同条件模拟，找出候选中表现最好的一套。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "long-context-correction",
+        "runId": "576a0e06-28e8-4231-b494-b1aaba7b040d",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 6.467,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15828,
+            "totalTokens": 15863,
+            "outputTokens": 35,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "最后确认的是：\n\n- 角色：甲。\n- 时间范围：战斗最后 30 秒。\n- 装备限制：不换装备。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "wcl-skill",
+        "runId": "4ea4bf5d-e3c7-44f5-95e2-85c9b425c0f5",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 15.92,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 48073,
+            "totalTokens": 48329,
+            "outputTokens": 256,
+            "cachedInputTokens": 44544,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**窗口B溢出更多，但不能据此建议少按某技能。**\n\n- A（0—10秒）：溢出4点，平均0.4点/秒。\n- B（10—20秒）：溢出9点，平均0.9点/秒。\n- 两段时长相同，B比A多5点，是A的2.25倍；这只能说明B的溢出量更高，不能证明操作更差。\n\n缺少逐目标血量和施法事件，无法确定溢出来自哪个技能、当时是否需要治疗，以及少放该技能会影响什么。还需结合承伤、资源与冷却、可行替代收益，才能提出具体操作建议；**不能把多出的5点直接换算成应少按几次技能或有效治疗损失。**",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "wcl-analysis",
+            "version": "sha256:825ffa1145dd417260171f3a44c9a9423ed6e352f24c480df420311d793158b7",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "rankings-skill",
+        "runId": "184f18c6-34d7-453a-8847-8c8f6b55d79f",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 32.976,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 67187,
+            "totalTokens": 67631,
+            "outputTokens": 444,
+            "cachedInputTokens": 58496,
+            "reasoningOutputTokens": 34
+          }
+        },
+        "finalAnswer": "**不能据此建议你的角色堆暴击，只能把暴击列为待验证方向。**\n\n- **共同点：**三人同专精，暴击集中在30%～32%，平均31%，最大相差2个百分点。这只是这三人的配置共性，不能推出整个榜单的趋势，更不能认定31%是最佳值或门槛。\n- **证据限制：**装备等级和天赋不同，无法分离暴击的贡献；也不知道这些暴击来自主动选择，还是装备搭配附带。缺少其他属性和同条件输出表现，不能证明增加暴击优于增加其他属性。\n- **下一步最小验证：**先核对三人的暴击是否为相同增益状态，并查看宝石、附魔等可自由选择的位置是否一致选择暴击。即使一致，也只能说明配装偏好。要验证你的收益，最小方案是用你的同一套装备、天赋和战斗条件，比较原配置与“把少量另一副属性等量换成暴击”的配置，检查输出差异及误差；无需先扩充榜单样本。\n\n本次仅分析给定数据，未联网、未提交模拟。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "rankings",
+            "version": "sha256:2c75119c90fef29e98eef86d422764afc42ec63a58d7eeeee0ec4009d97ab592",
+            "status": "available"
+          },
+          {
+            "skillId": "simc-experiment",
+            "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "mechanics-skill",
+        "runId": "8f7ca198-696a-45ff-9731-fab6d7a8c126",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 19.913,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 47914,
+            "totalTokens": 48232,
+            "outputTokens": 318,
+            "cachedInputTokens": 44672,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能确认当前效果是10秒还是15秒。** A只能说明旧赛季资料写的是10秒；B提供了当前15秒的说法，但尚未核验。同一俗称也不能证明两份资料指向同一技能或效果，更不能据此断言“从10秒加强到15秒”。\n\n消歧和取证应按以下顺序完成：\n\n1. **确认对象**：对齐职业专精、赛季、天赋或套装条件，再用正式名称、技能 ID 或原始详情链接确认身份，区分技能本体和它触发的增益。\n2. **核对适用条件**：检查两份资料的正文、更新时间，以及持续时间是否包含天赋延长、刷新等条件。\n3. **核验当前数值**：取得对应版本的原始技能说明、官方更新或热修正文。若仍有冲突，再以条件明确的游戏内观察或测试辅助核验。\n\n本题不联网，也没有提供这些补充证据，因此结论只能是：**当前持续时间未确认，15秒是待核实说法。**",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "mechanics",
+            "version": "sha256:566f10811f0ec331a05e43f7999531fd93a0294b46ffc0c6e1c81747596d5496",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "simc-skill",
+        "runId": "5332536d-3de5-4317-bfea-8505fe8b5cd0",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 22.337,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 49706,
+            "totalTokens": 50073,
+            "outputTokens": 367,
+            "cachedInputTokens": 42112,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能证明换宝石提升 5%。** 两个数的算术差是 5,000 DPS，即 5%，但不能把差值归因于宝石：\n\n- **角色快照不同**：同一角色不代表装备、天赋和属性完全相同。\n- **引擎版本不同**：计算逻辑差异可能影响结果。\n- **目标数不同**：单目标与三目标不是同一战斗条件，不能直接比较收益。\n- **误差未知**：无法判断差值的统计可靠性。\n\n最小纠正方案：以**同一角色快照、同一引擎版本、同一目标数**建立两组，仅替换指定宝石；保持其他装备、天赋、输出循环、时长、增益及迭代数一致。核对实际生效配置，并取得两组 DPS 与误差，再计算收益；若差异仍落在误差范围内，两组同步提高迭代数。\n\n即使纠正后仍得到约 5%，也只能表述为“该角色在这组条件下，换宝石的估计收益约为 5%”。本次未查询外部资料，未创建新模拟。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [
+          {
+            "skillId": "simc-experiment",
+            "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "owned-simulation-result",
+        "runId": "c3eaf07c-edec-47b7-ad69-c8796560700f",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 12.218,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 60178,
+            "totalTokens": 60312,
+            "outputTokens": 134,
+            "cachedInputTokens": 46720,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "任务已成功完成。实际模拟 DPS：**159,166.79**（约 **15.92 万**）。",
+        "sseCompleted": true,
+        "observationBinding": null,
+        "skills": [],
+        "tools": [
+          {
+            "tool": "simc.get",
+            "status": "succeeded"
+          }
+        ]
+      }
+    ]
+  }
+}

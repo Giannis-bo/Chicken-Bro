@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-11",
+  "updatedAt": "2026-09-12",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "targetProduct": {
@@ -674,6 +674,27 @@
       "releaseRequired": false,
       "furtherSampling": "stopped",
       "rankingReversed": false
+    },
+    "agentSkills": {
+      "status": "live_verified",
+      "sourceCommit": "2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+      "plan": "docs/plans/2026-09-12-agent-skills.md",
+      "evidence": "artifacts/verification/2026-09-12-agent-skills/README.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "backendTests": {
+        "total": 802,
+        "passed": 801,
+        "skipped": 1
+      },
+      "finalCandidateModelCases": 5,
+      "liveModelCases": 3,
+      "runtimeFilesVerified": 144,
+      "publicWebFilesVerified": 13,
+      "corePromptBytes": 8438,
+      "manualUserAcceptance": "not_claimed",
+      "rollbackDrill": "not_run",
+      "efficiencyLimit": "Smaller standing prompt; complex cases incur workflow retrieval overhead, no universal latency improvement claimed."
     }
   },
   "miniRetirement": {

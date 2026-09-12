@@ -1,0 +1,149 @@
+{
+  "bound-final": {
+    "source": "/opt/chickenbro-candidates/skills-2294cb95",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "privateImageReadAndIsolation": true,
+      "positiveOwnedSimulationMetric": 159166.78869662393,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "cases": [
+      {
+        "caseId": "wcl-skill",
+        "runId": "0a5baebe-f22b-45c8-8013-edd6646bc662",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 17.597,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 48154,
+            "totalTokens": 48450,
+            "outputTokens": 296,
+            "cachedInputTokens": 42112,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**窗口 B 的溢出更多，但不能据此建议少按某技能。**\n\n| 窗口 | 时长 | 溢出 | 每秒溢出 |\n|---|---:|---:|---:|\n| A：0–10 秒 | 10 秒 | 4 点 | 0.4 点 |\n| B：10–20 秒 | 10 秒 | 9 点 | 0.9 点 |\n\nB 比 A 多溢出 5 点，是 A 的 2.25 倍。这只能说明 B 的溢出量更高，不能证明操作更差，也不能直接换算成应少放几次技能或损失多少有效治疗。\n\n缺少逐目标血量与施法事件，无法确定当时救治需求、溢出来源，以及少放该技能是否会影响治疗或后续衔接。建议少按某技能，还需要证明对应施法可避免，且替代操作收益更高。**现有摘要不足以支持这项建议。**",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [
+          {
+            "skillId": "wcl-analysis",
+            "version": "sha256:825ffa1145dd417260171f3a44c9a9423ed6e352f24c480df420311d793158b7",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "rankings-skill",
+        "runId": "ed0c8c08-adc0-4fba-9f42-cc839bfd477c",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 19.546,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 47550,
+            "totalTokens": 47909,
+            "outputTokens": 359,
+            "cachedInputTokens": 30720,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**这三人的暴击接近，但不足以建议你的角色堆暴击。**\n\n- **共同点：**同专精，暴击集中在 30%—32%，均值 31%，最大相差 2 个百分点。只能说明这三个样本的面板数值相近，不能据此认定 31% 是最佳值或需要达到的门槛。\n- **结论限制：**装备等级和天赋不同，无法单独分离暴击的作用；也没有其他属性、装备取舍和对应表现数据。暴击接近可能是装备搭配的结果，不能证明他们主动优先堆暴击，更不能证明你增加暴击就能提升。\n- **下一步最小验证：**先核对你与样本的天赋、装备等级及其他副属性，并检查样本可自由选择的宝石、附魔是否一致偏向暴击。这能初步判断有没有主动选择暴击的共同倾向；要确认你的实际收益，之后仍需在你的同一套角色配置与战斗条件下，比较一个具体的暴击替换方案。\n\n本次未联网，也未提交模拟。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [
+          {
+            "skillId": "rankings",
+            "version": "sha256:2c75119c90fef29e98eef86d422764afc42ec63a58d7eeeee0ec4009d97ab592",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "mechanics-skill",
+        "runId": "481933a1-67a0-4e91-af67-151f3cddebff",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 21.569,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 48013,
+            "totalTokens": 48347,
+            "outputTokens": 334,
+            "cachedInputTokens": 42112,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能确认当前效果。** A 的“10秒”只支持旧赛季描述；B 的“15秒”是当前攻略的说法，尚缺原始依据。同一俗称也不能证明两份资料指向同一技能或效果，因此不能断言“由10秒改成了15秒”。\n\n消歧和取证应这样完成：\n\n1. **确认对象**：对齐职业专精、赛季、天赋或套装条件，再用正式名称、技能 ID 或原始条目链接确认身份；还要区分技能本体与其触发的增益效果。\n2. **核对适用条件**：确认两份资料说的都是基础持续时间，还是包含天赋延长、刷新等条件，并检查发布日期与适用补丁。\n3. **补足原始证据**：核对对应版本的技能正文、官方更新或热修说明，确认是否支持15秒及其条件。若仍冲突，可在明确版本、天赋和刷新条件下实测，实测结论仅覆盖该条件。\n\n本次不联网，结论停留在：**当前攻略称15秒，但当前实际效果尚未核实。**",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [
+          {
+            "skillId": "mechanics",
+            "version": "sha256:566f10811f0ec331a05e43f7999531fd93a0294b46ffc0c6e1c81747596d5496",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "simc-skill",
+        "runId": "064508d6-d571-4569-a481-66d1ff62ade7",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 23.292,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 49795,
+            "totalTokens": 50175,
+            "outputTokens": 380,
+            "cachedInputTokens": 42112,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能证明换宝石提升 5%。** 两个数值的表面差为 5000 DPS，即 5%，但不能把差异归因于宝石：\n\n- **角色快照不同**：同一角色不保证装备、天赋等输入一致。\n- **引擎版本不同**：机制实现或修正可能影响结果。\n- **基线单目标、候选三目标**：战斗条件不同，DPS 无法直接作为换宝石收益比较。\n- **误差未知**：无法判断差异是否超出模拟的随机波动。\n\n最小纠正方案是重做一对受控实验：复用**同一角色快照、同一引擎版本、同一目标数**，统一时长、迭代数、循环及增益；只替换指定宝石，保持宝石数量及其他配置一致。完成后核对实际生效配置，并报告两组 DPS、误差和收益的不确定范围；精度不足时两组同步增加迭代。\n\n即使纠正后仍得到 5%，也只能称为**该场景下估计提升约 5%**，并附误差范围。本次未查询外部、未创建模拟。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [
+          {
+            "skillId": "simc-experiment",
+            "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "owned-simulation-result",
+        "runId": "9f13f6d4-ce2c-4394-8cd0-160b3a593489",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 15.836,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 60239,
+            "totalTokens": 60371,
+            "outputTokens": 132,
+            "cachedInputTokens": 46848,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "任务已成功完成，实际模拟 DPS：**159,166.79**（约 15.92 万）。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [],
+        "tools": [
+          {
+            "tool": "simc.get",
+            "status": "succeeded"
+          }
+        ]
+      }
+    ]
+  }
+}

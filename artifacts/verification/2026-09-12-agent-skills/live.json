@@ -1,0 +1,89 @@
+{
+  "live": {
+    "source": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+    "checks": {
+      "retiredBearerAndEndpointCsrf": true,
+      "qqAuthorizationUrl": true,
+      "privateImageReadAndIsolation": true,
+      "positiveOwnedSimulationMetric": 160820.55569451672,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "cases": [
+      {
+        "caseId": "live-capability-boundary",
+        "runId": "e9fff784-5c4e-4174-938b-4c1de26e9e95",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 8.445,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 15325,
+            "totalTokens": 15433,
+            "outputTokens": 108,
+            "cachedInputTokens": 0,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "能。给我 WCL 日志和你想看的战斗、角色，我可以分析伤害构成、治疗与过量、资源获取和消耗，以及施法顺序、技能覆盖和爆发配合；操作建议会结合当时战斗需求判断。\n\n**只问“怎么做”不会直接提交模拟。** 我会先解释方法；你明确要求跑模拟，或量化比较自己角色的具体方案，且条件齐备时，才会执行。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [],
+        "tools": []
+      },
+      {
+        "caseId": "live-wcl-skill",
+        "runId": "3f9d5730-6f75-4c0b-80ca-adc54effc82d",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 20.748,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 48049,
+            "totalTokens": 48331,
+            "outputTokens": 282,
+            "cachedInputTokens": 41856,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "**不能据此认定操作浪费，也不能直接建议换技能。**\n\n- **已知事实：**治疗过量 40%，只能说明在这份统计口径下，40% 的治疗量未转化为有效治疗；不代表 40% 的施法、蓝耗或时间可以省掉。\n- **证据缺口：**缺少目标血量、后续承伤与施法轴，无法判断施法时是否有治疗需求、是否在为即将到来的伤害做准备，也无法还原技能衔接。\n- **换技能的依据：**需要证明当时有可用的替代技能，资源、冷却和施法时间允许，且替换后能带来更高收益、不影响及时救治。目前这些条件均未证实。\n\n因此只能把 **40% 过量视为值得复查的信号**，不能定性为失误，更不能推算换技能后的收益。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [
+          {
+            "skillId": "wcl-analysis",
+            "version": "sha256:825ffa1145dd417260171f3a44c9a9423ed6e352f24c480df420311d793158b7",
+            "status": "available"
+          }
+        ],
+        "tools": []
+      },
+      {
+        "caseId": "owned-simulation-result",
+        "runId": "fdeaa6fa-6a49-4620-8bdf-c5361ba74f4b",
+        "runStatus": "succeeded",
+        "errorCode": "",
+        "elapsedSeconds": 16.172,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 64330,
+            "totalTokens": 64456,
+            "outputTokens": 126,
+            "cachedInputTokens": 26496,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "finalAnswer": "任务已成功完成，实际模拟 DPS 为 **160,820.56**。",
+        "sseCompleted": true,
+        "observationBinding": "exact_run_id",
+        "skills": [],
+        "tools": [
+          {
+            "tool": "simc.get",
+            "status": "succeeded"
+          }
+        ]
+      }
+    ]
+  }
+}

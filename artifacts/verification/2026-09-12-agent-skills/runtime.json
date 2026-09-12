@@ -1,0 +1,9 @@
+{
+  "sourceCommit": "2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+  "backend": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+  "web": "/var/www/chickenbro-web/releases/chat-return-0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67",
+  "runtimeFilesMatched": 144,
+  "publicWebFilesMatched": 13,
+  "recoverySnapshotVerified": true,
+  "rollbackDrill": false
+}
