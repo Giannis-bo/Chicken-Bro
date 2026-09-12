@@ -1,0 +1,34 @@
+{
+  "7648bcddeefc9f2e947501ce": {
+    "file": "current-1.json",
+    "caseId": "wcl-two-actors-window"
+  },
+  "106bc63dd6e99a431aa34a04": {
+    "file": "current-1.json",
+    "caseId": "simc-completed-pair"
+  },
+  "a3877e91b303a2dc2e53920d": {
+    "file": "current-2.json",
+    "caseId": "wcl-two-actors-window"
+  },
+  "553722a7eae5ce8f540eb15e": {
+    "file": "current-2.json",
+    "caseId": "simc-completed-pair"
+  },
+  "b2c5f8285c3895c357009b67": {
+    "file": "old-1.json",
+    "caseId": "wcl-two-actors-window"
+  },
+  "9712c675e34966be08c56c16": {
+    "file": "old-1.json",
+    "caseId": "simc-completed-pair"
+  },
+  "2e38f86d2956f84dd86ceb7c": {
+    "file": "old-2.json",
+    "caseId": "wcl-two-actors-window"
+  },
+  "9ceac899575cc055efecfd2e": {
+    "file": "old-2.json",
+    "caseId": "simc-completed-pair"
+  }
+}

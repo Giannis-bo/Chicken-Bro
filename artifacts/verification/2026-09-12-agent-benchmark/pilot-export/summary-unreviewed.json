@@ -1,0 +1,1174 @@
+{
+  "overall": {
+    "runCount": 4,
+    "pairedCount": 0,
+    "variants": {
+      "old": {
+        "runCount": 2,
+        "statusCounts": {
+          "succeeded": 2
+        },
+        "qualityCounts": {
+          "unreviewed": 2
+        },
+        "qualityPassRate": 0.0
+      },
+      "new": {
+        "runCount": 2,
+        "statusCounts": {
+          "succeeded": 2
+        },
+        "qualityCounts": {
+          "unreviewed": 2
+        },
+        "qualityPassRate": 0.0
+      }
+    },
+    "oldMedianMs": null,
+    "newMedianMs": null,
+    "pairedMedianDeltaMs": null,
+    "pairedMedianPercent": null
+  },
+  "categories": {
+    "simc": {
+      "runCount": 2,
+      "pairedCount": 0,
+      "variants": {
+        "old": {
+          "runCount": 1,
+          "statusCounts": {
+            "succeeded": 1
+          },
+          "qualityCounts": {
+            "unreviewed": 1
+          },
+          "qualityPassRate": 0.0
+        },
+        "new": {
+          "runCount": 1,
+          "statusCounts": {
+            "succeeded": 1
+          },
+          "qualityCounts": {
+            "unreviewed": 1
+          },
+          "qualityPassRate": 0.0
+        }
+      },
+      "oldMedianMs": null,
+      "newMedianMs": null,
+      "pairedMedianDeltaMs": null,
+      "pairedMedianPercent": null
+    },
+    "wcl": {
+      "runCount": 2,
+      "pairedCount": 0,
+      "variants": {
+        "old": {
+          "runCount": 1,
+          "statusCounts": {
+            "succeeded": 1
+          },
+          "qualityCounts": {
+            "unreviewed": 1
+          },
+          "qualityPassRate": 0.0
+        },
+        "new": {
+          "runCount": 1,
+          "statusCounts": {
+            "succeeded": 1
+          },
+          "qualityCounts": {
+            "unreviewed": 1
+          },
+          "qualityPassRate": 0.0
+        }
+      },
+      "oldMedianMs": null,
+      "newMedianMs": null,
+      "pairedMedianDeltaMs": null,
+      "pairedMedianPercent": null
+    }
+  },
+  "pairs": [],
+  "exclusions": [
+    {
+      "caseId": "simc_equipment",
+      "trial": 1,
+      "reason": "quality_not_pass",
+      "runs": [
+        {
+          "caseId": "simc_equipment",
+          "category": "simc",
+          "variant": "new",
+          "trial": 1,
+          "status": "succeeded",
+          "completeCase": true,
+          "expectedTurns": 1,
+          "completedTurns": 1,
+          "totalMs": 53679.394,
+          "quality": "unreviewed",
+          "turns": [
+            {
+              "status": "succeeded",
+              "errorCode": "",
+              "answer": "已完成 fixture 提交与结果比较：**“湛蓝凝视”替换第一饰品栏后，合成 DPS 提高 5,000（0.5%）**。\n\n| 配置 | 合成 DPS | 报告误差 |\n|---|---:|---:|\n| 原基线 | 1,000,000 | ±1,000 |\n| 湛蓝凝视 | 1,005,000 | ±1,200 |\n\n比较工具判定可比，差值超过其保守误差界限 2,200。范围为同一快照、321 装等同升级进度候选、单目标站桩 300 秒、10,000 次迭代，开启团队增益和嗜血。（依据：`fixture:simc.compare`）\n\n候选任务：`33333333-3333-4333-8333-333333333333`，已返回成功。\n\n全程仅使用本会话 fixture，未访问外网、未运行真实引擎；上述结果只说明固定合成资料中的这组对照，不代表真实游戏收益。",
+              "events": [
+                {
+                  "id": "primary-0:exec-dc93ba1a-1557-4062-a412-0cc8a77404cb",
+                  "type": "mcpToolCall",
+                  "name": "read_chickenbro_skill",
+                  "args": {
+                    "skillId": "simc-experiment"
+                  },
+                  "event": "start",
+                  "atMs": 17954.013988841325,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-dc93ba1a-1557-4062-a412-0cc8a77404cb",
+                  "type": "mcpToolCall",
+                  "name": "read_chickenbro_skill",
+                  "args": {
+                    "skillId": "simc-experiment"
+                  },
+                  "event": "end",
+                  "atMs": 17956.864682026207,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-03bcf7a7-9761-4f26-a981-6d8b9aeb3576",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "22222222-2222-4222-8222-222222222222"
+                  },
+                  "event": "start",
+                  "atMs": 17958.279904909432,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-03bcf7a7-9761-4f26-a981-6d8b9aeb3576",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "22222222-2222-4222-8222-222222222222"
+                  },
+                  "event": "end",
+                  "atMs": 17959.728363901377,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-e8d62408-f181-4762-befb-ed8f1c2de95d",
+                  "type": "mcpToolCall",
+                  "name": "query_simulation_options",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "kind": "items",
+                    "query": "湛蓝凝视"
+                  },
+                  "event": "start",
+                  "atMs": 23980.52815394476,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-e8d62408-f181-4762-befb-ed8f1c2de95d",
+                  "type": "mcpToolCall",
+                  "name": "query_simulation_options",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "kind": "items",
+                    "query": "湛蓝凝视"
+                  },
+                  "event": "end",
+                  "atMs": 23982.244800776243,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-45c03157-6c77-4ceb-be16-870c29bc44b7",
+                  "type": "mcpToolCall",
+                  "name": "preview_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 28865.6249307096,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-45c03157-6c77-4ceb-be16-870c29bc44b7",
+                  "type": "mcpToolCall",
+                  "name": "preview_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 28867.389286868274,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-ded5ec01-0d76-405c-8bc3-d2ff41f44ba5",
+                  "type": "mcpToolCall",
+                  "name": "submit_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 35096.89965471625,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-ded5ec01-0d76-405c-8bc3-d2ff41f44ba5",
+                  "type": "mcpToolCall",
+                  "name": "submit_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 35098.88218110427,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-21c162dc-131d-478e-8a9d-62927102ee14",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "33333333-3333-4333-8333-333333333333",
+                    "waitSeconds": 20
+                  },
+                  "event": "start",
+                  "atMs": 40339.904605876654,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-21c162dc-131d-478e-8a9d-62927102ee14",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "33333333-3333-4333-8333-333333333333",
+                    "waitSeconds": 20
+                  },
+                  "event": "end",
+                  "atMs": 40341.71092975885,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-c5ccf3be-fe27-4f84-b66f-6e2f6b90cd76",
+                  "type": "mcpToolCall",
+                  "name": "compare_simulation_jobs",
+                  "args": {
+                    "baselineJobId": "22222222-2222-4222-8222-222222222222",
+                    "variantJobId": "33333333-3333-4333-8333-333333333333"
+                  },
+                  "event": "start",
+                  "atMs": 44386.877092998475,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-c5ccf3be-fe27-4f84-b66f-6e2f6b90cd76",
+                  "type": "mcpToolCall",
+                  "name": "compare_simulation_jobs",
+                  "args": {
+                    "baselineJobId": "22222222-2222-4222-8222-222222222222",
+                    "variantJobId": "33333333-3333-4333-8333-333333333333"
+                  },
+                  "event": "end",
+                  "atMs": 44388.500303030014,
+                  "phase": "primary"
+                }
+              ],
+              "totalMs": 53679.394,
+              "runId": "3b41a6e9-792d-408c-ae5e-6ca65c73e447",
+              "turnIndex": 0,
+              "modelUsage": [
+                {
+                  "phase": "primary",
+                  "sessionId": "primary-0",
+                  "usage": {
+                    "inputTokens": 141141,
+                    "cachedInputTokens": 119040,
+                    "outputTokens": 840,
+                    "reasoningOutputTokens": 21,
+                    "totalTokens": 141981
+                  }
+                }
+              ],
+              "phaseEvents": [
+                {
+                  "phase": "primary",
+                  "event": "start",
+                  "atMs": 2.6377281174063683
+                },
+                {
+                  "phase": "primary",
+                  "event": "end",
+                  "atMs": 53609.60276471451
+                }
+              ],
+              "runtimeItemKinds": [
+                "agentMessage",
+                "mcpToolCall",
+                "reasoning",
+                "userMessage"
+              ],
+              "startupMs": 350.20702285692096,
+              "firstDraftMs": 46268.209271132946,
+              "timing": {
+                "totalMs": 53679.394,
+                "toolMs": 13.192215468734503,
+                "nonToolMs": 53666.201784531266,
+                "tools": {
+                  "read_chickenbro_skill": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 2.8506931848824024
+                  },
+                  "get_simulation_job": {
+                    "count": 2,
+                    "completedCount": 2,
+                    "unknownCount": 0,
+                    "inclusiveMs": 3.254782874137163
+                  },
+                  "query_simulation_options": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.7166468314826488
+                  },
+                  "preview_simulation": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.7643561586737633
+                  },
+                  "submit_simulation": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.9825263880193233
+                  },
+                  "compare_simulation_jobs": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.6232100315392017
+                  }
+                },
+                "toolCount": 7,
+                "unknownTools": [],
+                "repeatedQueries": [],
+                "issues": [],
+                "modelRoundTrips": null
+              }
+            }
+          ],
+          "source": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+          "coreSha256": "5371395db69edd75440429b570e419dc4f682ff0b6d1122b198867a98dc60742",
+          "fixtureSha256": "3824a9bd91997105b5263c35be9d936564d425b00dcfa0af46dce021ec80c0ed",
+          "rubric": [
+            "同snapshot11111111-1111-4111-8111-111111111111/runtime fixture-engine-v1，单目标300秒10000次。",
+            "基线1000000±1000，替换1005000±1200；+5000/+0.5%，保守误差2200，超过误差。",
+            "仅一个装备候选、固定装等321；回放数值不是实际SimulationCraft运行，也不是全局最优。"
+          ],
+          "requiredEvidence": [
+            "simc.baseline",
+            "simc.items",
+            "simc.preview",
+            "simc.submitted",
+            "simc.variant",
+            "simc.compare"
+          ],
+          "configuration": {
+            "model": "gpt-6-astra",
+            "model_reasoning_effort": "low"
+          },
+          "reviewId": "a5113578f9c3",
+          "acquiredEvidence": [
+            "simc.baseline",
+            "simc.compare",
+            "simc.items",
+            "simc.preview",
+            "simc.submitted",
+            "simc.variant"
+          ],
+          "fixtureErrors": []
+        },
+        {
+          "caseId": "simc_equipment",
+          "category": "simc",
+          "variant": "old",
+          "trial": 1,
+          "status": "succeeded",
+          "completeCase": true,
+          "expectedTurns": 1,
+          "completedTurns": 1,
+          "totalMs": 48769.01,
+          "quality": "unreviewed",
+          "turns": [
+            {
+              "status": "succeeded",
+              "errorCode": "",
+              "answer": "已完成 fixture 提交与对照，候选任务：`33333333-3333-4333-8333-333333333333`。\n\n同快照将 trinket1 换为321装等“湛蓝凝视”，沿用同升级进度、无宝石及附魔；对照条件为单目标、300秒、10,000次迭代，开启团队增益和嗜血。\n\n| 合成结果 | DPS | 报告误差 |\n|---|---:|---:|\n| 基线 | 1,000,000 | ±1,000 |\n| 湛蓝凝视 | 1,005,000 | ±1,200 |\n\nfixture 比较返回可比，差值 **+5,000（+0.5%）**，超过其保守误差界限2,200。候选返回中未列出基线的自定义循环，因此循环继承情况无法独立核实。\n\n以上仅是固定合成资料的有限对照结果，没有运行真实引擎，不能据此认定实际游戏换装收益。",
+              "events": [
+                {
+                  "id": "primary-0:exec-929aeb83-ff62-4427-83d7-6d3b02ce890c",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "22222222-2222-4222-8222-222222222222"
+                  },
+                  "event": "start",
+                  "atMs": 15913.04430924356,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-929aeb83-ff62-4427-83d7-6d3b02ce890c",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "22222222-2222-4222-8222-222222222222"
+                  },
+                  "event": "end",
+                  "atMs": 15914.89620693028,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-3f6f9437-64eb-483b-9262-ad40c71d5c63",
+                  "type": "mcpToolCall",
+                  "name": "query_simulation_options",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "kind": "items",
+                    "query": "湛蓝凝视"
+                  },
+                  "event": "start",
+                  "atMs": 15916.228875983506,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-3f6f9437-64eb-483b-9262-ad40c71d5c63",
+                  "type": "mcpToolCall",
+                  "name": "query_simulation_options",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "kind": "items",
+                    "query": "湛蓝凝视"
+                  },
+                  "event": "end",
+                  "atMs": 15917.465026024729,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-b48594ce-07ea-4fb4-a31d-f2a899046d3b",
+                  "type": "mcpToolCall",
+                  "name": "preview_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 20302.541454322636,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-b48594ce-07ea-4fb4-a31d-f2a899046d3b",
+                  "type": "mcpToolCall",
+                  "name": "preview_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 20304.13233395666,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-58f7a2e7-21fb-4738-bfe9-640388860f4b",
+                  "type": "mcpToolCall",
+                  "name": "submit_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 26764.203127939254,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-58f7a2e7-21fb-4738-bfe9-640388860f4b",
+                  "type": "mcpToolCall",
+                  "name": "submit_simulation",
+                  "args": {
+                    "baseJobId": "22222222-2222-4222-8222-222222222222",
+                    "scenario": {
+                      "equipmentOverrides": {
+                        "trinket1": {
+                          "itemId": 900002,
+                          "itemLevel": 321,
+                          "bonusIds": [
+                            12345
+                          ],
+                          "gems": [],
+                          "enchant": null
+                        }
+                      }
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 26766.223185230047,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-c71cc3e9-3d37-4fdd-9e8c-afa28b5fd67c",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "33333333-3333-4333-8333-333333333333",
+                    "waitSeconds": 20
+                  },
+                  "event": "start",
+                  "atMs": 31271.927640307695,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-c71cc3e9-3d37-4fdd-9e8c-afa28b5fd67c",
+                  "type": "mcpToolCall",
+                  "name": "get_simulation_job",
+                  "args": {
+                    "jobId": "33333333-3333-4333-8333-333333333333",
+                    "waitSeconds": 20
+                  },
+                  "event": "end",
+                  "atMs": 31273.729915264994,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-d5d19c0a-2737-4e0c-9898-064cf96e413b",
+                  "type": "mcpToolCall",
+                  "name": "compare_simulation_jobs",
+                  "args": {
+                    "baselineJobId": "22222222-2222-4222-8222-222222222222",
+                    "variantJobId": "33333333-3333-4333-8333-333333333333"
+                  },
+                  "event": "start",
+                  "atMs": 36441.40449212864,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-d5d19c0a-2737-4e0c-9898-064cf96e413b",
+                  "type": "mcpToolCall",
+                  "name": "compare_simulation_jobs",
+                  "args": {
+                    "baselineJobId": "22222222-2222-4222-8222-222222222222",
+                    "variantJobId": "33333333-3333-4333-8333-333333333333"
+                  },
+                  "event": "end",
+                  "atMs": 36443.35426436737,
+                  "phase": "primary"
+                }
+              ],
+              "totalMs": 48769.01,
+              "runId": "a85ba976-da14-480f-831c-9bb22b386238",
+              "turnIndex": 0,
+              "modelUsage": [
+                {
+                  "phase": "primary",
+                  "sessionId": "primary-0",
+                  "usage": {
+                    "inputTokens": 149482,
+                    "cachedInputTokens": 124800,
+                    "outputTokens": 675,
+                    "reasoningOutputTokens": 9,
+                    "totalTokens": 150157
+                  }
+                }
+              ],
+              "phaseEvents": [
+                {
+                  "phase": "primary",
+                  "event": "start",
+                  "atMs": 2.4712681770324707
+                },
+                {
+                  "phase": "primary",
+                  "event": "end",
+                  "atMs": 48732.2592693381
+                }
+              ],
+              "runtimeItemKinds": [
+                "agentMessage",
+                "mcpToolCall",
+                "reasoning",
+                "userMessage"
+              ],
+              "startupMs": 315.91517897322774,
+              "firstDraftMs": 40279.09559337422,
+              "timing": {
+                "totalMs": 48769.01,
+                "toolMs": 10.451031848788261,
+                "nonToolMs": 48758.558968151214,
+                "tools": {
+                  "get_simulation_job": {
+                    "count": 2,
+                    "completedCount": 2,
+                    "unknownCount": 0,
+                    "inclusiveMs": 3.654172644019127
+                  },
+                  "query_simulation_options": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.2361500412225723
+                  },
+                  "preview_simulation": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.5908796340227127
+                  },
+                  "submit_simulation": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 2.020057290792465
+                  },
+                  "compare_simulation_jobs": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 1.9497722387313843
+                  }
+                },
+                "toolCount": 6,
+                "unknownTools": [],
+                "repeatedQueries": [],
+                "issues": [],
+                "modelRoundTrips": null
+              }
+            }
+          ],
+          "source": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+          "coreSha256": "0be8630a5f86dac8119456b6d81e88799aa172878efdddf96d1bdcb7081c2762",
+          "fixtureSha256": "3824a9bd91997105b5263c35be9d936564d425b00dcfa0af46dce021ec80c0ed",
+          "rubric": [
+            "同snapshot11111111-1111-4111-8111-111111111111/runtime fixture-engine-v1，单目标300秒10000次。",
+            "基线1000000±1000，替换1005000±1200；+5000/+0.5%，保守误差2200，超过误差。",
+            "仅一个装备候选、固定装等321；回放数值不是实际SimulationCraft运行，也不是全局最优。"
+          ],
+          "requiredEvidence": [
+            "simc.baseline",
+            "simc.items",
+            "simc.preview",
+            "simc.submitted",
+            "simc.variant",
+            "simc.compare"
+          ],
+          "configuration": {
+            "model": "gpt-6-astra",
+            "model_reasoning_effort": "low"
+          },
+          "reviewId": "6433622e5352",
+          "acquiredEvidence": [
+            "simc.baseline",
+            "simc.compare",
+            "simc.items",
+            "simc.preview",
+            "simc.submitted",
+            "simc.variant"
+          ],
+          "fixtureErrors": []
+        }
+      ]
+    },
+    {
+      "caseId": "wcl_healing",
+      "trial": 1,
+      "reason": "quality_not_pass",
+      "runs": [
+        {
+          "caseId": "wcl_healing",
+          "category": "wcl",
+          "variant": "new",
+          "trial": 1,
+          "status": "succeeded",
+          "completeCase": true,
+          "expectedTurns": 1,
+          "completedTurns": 1,
+          "totalMs": 49638.923,
+          "quality": "unreviewed",
+          "turns": [
+            {
+              "status": "succeeded",
+              "errorCode": "",
+              "answer": "已定位：**雨（角色 ID 11）与云（角色 ID 22）**，均为欧服 silvermoon 的萨满。以下仅分析 fixture 返回的第 7 场完整 60 秒合成数据，不代表真实游戏表现。\n\n**雨比云多 20 万有效治疗，高 33.3%；差距主要来自治疗波的过量。**\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量总治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n技能条目返回的是**含过量总量**，扣除过量后得到：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差距 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n治疗波贡献了总差距的 **75%**，激流贡献 **25%**。两人的每项技能含过量总量相同，差别体现在转化为有效治疗的比例。\n\n这些汇总能确认差距落在哪个技能，但没有施法时序与目标缺血证据，不能据此认定云乱刷治疗波或建议减少施放。",
+              "events": [
+                {
+                  "id": "primary-0:exec-762f1cfb-dc79-458f-8050-ba75e15b69ea",
+                  "type": "mcpToolCall",
+                  "name": "read_chickenbro_skill",
+                  "args": {
+                    "skillId": "wcl-analysis"
+                  },
+                  "event": "start",
+                  "atMs": 13276.660861913115,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-762f1cfb-dc79-458f-8050-ba75e15b69ea",
+                  "type": "mcpToolCall",
+                  "name": "read_chickenbro_skill",
+                  "args": {
+                    "skillId": "wcl-analysis"
+                  },
+                  "event": "end",
+                  "atMs": 13278.797312173992,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-84f729bb-61ea-4425-aa0d-918bffdae259",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                    "options": {
+                      "view": "overview"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 19893.579493276775,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-84f729bb-61ea-4425-aa0d-918bffdae259",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                    "options": {
+                      "view": "overview"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 19895.002426113933,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-26fe5d3c-b5dc-4df1-8738-13b02ec7e67b",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 30390.887401998043,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-d46d813d-8753-4d6b-92e5-abb265487159",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 30390.93576092273,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-d46d813d-8753-4d6b-92e5-abb265487159",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 30392.359741032124,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-26fe5d3c-b5dc-4df1-8738-13b02ec7e67b",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 30393.169360235333,
+                  "phase": "primary"
+                }
+              ],
+              "totalMs": 49638.923,
+              "runId": "c3bb8cd3-7435-4737-aa2d-5e0f210875cb",
+              "turnIndex": 0,
+              "modelUsage": [
+                {
+                  "phase": "primary",
+                  "sessionId": "primary-0",
+                  "usage": {
+                    "inputTokens": 67639,
+                    "cachedInputTokens": 37504,
+                    "outputTokens": 739,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 68378
+                  }
+                }
+              ],
+              "phaseEvents": [
+                {
+                  "phase": "primary",
+                  "event": "start",
+                  "atMs": 2.700766082853079
+                },
+                {
+                  "phase": "primary",
+                  "event": "end",
+                  "atMs": 49570.30141400173
+                }
+              ],
+              "runtimeItemKinds": [
+                "agentMessage",
+                "mcpToolCall",
+                "userMessage"
+              ],
+              "startupMs": 346.6071612201631,
+              "firstDraftMs": 35889.778370969,
+              "timing": {
+                "totalMs": 49638.923,
+                "toolMs": 5.841341335326433,
+                "nonToolMs": 49633.081658664676,
+                "tools": {
+                  "read_chickenbro_skill": {
+                    "count": 1,
+                    "completedCount": 1,
+                    "unknownCount": 0,
+                    "inclusiveMs": 2.1364502608776093
+                  },
+                  "query_warcraftlogs_report": {
+                    "count": 3,
+                    "completedCount": 3,
+                    "unknownCount": 0,
+                    "inclusiveMs": 5.128871183842421
+                  }
+                },
+                "toolCount": 4,
+                "unknownTools": [],
+                "repeatedQueries": [],
+                "issues": [],
+                "modelRoundTrips": null
+              }
+            }
+          ],
+          "source": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+          "coreSha256": "5371395db69edd75440429b570e419dc4f682ff0b6d1122b198867a98dc60742",
+          "fixtureSha256": "3824a9bd91997105b5263c35be9d936564d425b00dcfa0af46dce021ec80c0ed",
+          "rubric": [
+            "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+            "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+            "不能由治疗量单独断言操作或团队价值优劣。"
+          ],
+          "requiredEvidence": [
+            "wcl.overview",
+            "healing.11",
+            "healing.22"
+          ],
+          "configuration": {
+            "model": "gpt-6-astra",
+            "model_reasoning_effort": "low"
+          },
+          "reviewId": "56e2d930c121",
+          "acquiredEvidence": [
+            "healing.11",
+            "healing.22",
+            "wcl.overview"
+          ],
+          "fixtureErrors": []
+        },
+        {
+          "caseId": "wcl_healing",
+          "category": "wcl",
+          "variant": "old",
+          "trial": 1,
+          "status": "succeeded",
+          "completeCase": true,
+          "expectedTurns": 1,
+          "completedTurns": 1,
+          "totalMs": 33906.602,
+          "quality": "unreviewed",
+          "turns": [
+            {
+              "status": "succeeded",
+              "errorCode": "",
+              "answer": "已定位：**雨是角色 ID 11，云是 ID 22**，均为欧服 silvermoon 的萨满。本次仅分析合成日志第 7 场、完整 60 秒的治疗统计。\n\n**雨的有效治疗比云高 20 万（33.3%），主要差距来自治疗波。**\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n技能条目的总量包含过量，以下已减去过量得到有效治疗；过量率按“过量÷含过量总量”计算。\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差距 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n两人的治疗波含过量总量均为 35 万，激流均为 65 万；**治疗波贡献了有效治疗差距的 75%**，激流贡献 25%。\n\n这些统计能确定差距的技能来源；尚未核对目标缺血和承伤窗口，不能据此判定云施法失误或建议少用治疗波。以上均为 fixture 合成证据，不代表真实游戏表现。",
+              "events": [
+                {
+                  "id": "primary-0:exec-73457c4a-5802-4be1-ad0c-6072ff1ca73e",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                    "options": {
+                      "view": "overview"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 13574.280138127506,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-73457c4a-5802-4be1-ad0c-6072ff1ca73e",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                    "options": {
+                      "view": "overview"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 13575.807576067746,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-74b414bb-3b50-4f06-9115-aa7ed10b02e0",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 18040.991765912622,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-0f2f0172-be22-4857-a73b-dbbb52c87723",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "start",
+                  "atMs": 18041.039946023375,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-0f2f0172-be22-4857-a73b-dbbb52c87723",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 18042.563275899738,
+                  "phase": "primary"
+                },
+                {
+                  "id": "primary-0:exec-74b414bb-3b50-4f06-9115-aa7ed10b02e0",
+                  "type": "mcpToolCall",
+                  "name": "query_warcraftlogs_report",
+                  "args": {
+                    "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                    "options": {
+                      "view": "healing"
+                    }
+                  },
+                  "event": "end",
+                  "atMs": 18043.357845861465,
+                  "phase": "primary"
+                }
+              ],
+              "totalMs": 33906.602,
+              "runId": "097144c9-fc5e-4d96-8f0e-02a60cf3c223",
+              "turnIndex": 0,
+              "modelUsage": [
+                {
+                  "phase": "primary",
+                  "sessionId": "primary-0",
+                  "usage": {
+                    "inputTokens": 74800,
+                    "cachedInputTokens": 54016,
+                    "outputTokens": 710,
+                    "reasoningOutputTokens": 0,
+                    "totalTokens": 75510
+                  }
+                }
+              ],
+              "phaseEvents": [
+                {
+                  "phase": "primary",
+                  "event": "start",
+                  "atMs": 3.5990681499242783
+                },
+                {
+                  "phase": "primary",
+                  "event": "end",
+                  "atMs": 33870.23041816428
+                }
+              ],
+              "runtimeItemKinds": [
+                "agentMessage",
+                "mcpToolCall",
+                "userMessage"
+              ],
+              "startupMs": 1635.8063449151814,
+              "firstDraftMs": 19761.001851875335,
+              "timing": {
+                "totalMs": 33906.602,
+                "toolMs": 3.893517889082432,
+                "nonToolMs": 33902.70848211092,
+                "tools": {
+                  "query_warcraftlogs_report": {
+                    "count": 3,
+                    "completedCount": 3,
+                    "unknownCount": 0,
+                    "inclusiveMs": 5.416847765445709
+                  }
+                },
+                "toolCount": 3,
+                "unknownTools": [],
+                "repeatedQueries": [],
+                "issues": [],
+                "modelRoundTrips": null
+              }
+            }
+          ],
+          "source": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+          "coreSha256": "0be8630a5f86dac8119456b6d81e88799aa172878efdddf96d1bdcb7081c2762",
+          "fixtureSha256": "3824a9bd91997105b5263c35be9d936564d425b00dcfa0af46dce021ec80c0ed",
+          "rubric": [
+            "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+            "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+            "不能由治疗量单独断言操作或团队价值优劣。"
+          ],
+          "requiredEvidence": [
+            "wcl.overview",
+            "healing.11",
+            "healing.22"
+          ],
+          "configuration": {
+            "model": "gpt-6-astra",
+            "model_reasoning_effort": "low"
+          },
+          "reviewId": "7e553a037af1",
+          "acquiredEvidence": [
+            "healing.11",
+            "healing.22",
+            "wcl.overview"
+          ],
+          "fixtureErrors": []
+        }
+      ]
+    }
+  ],
+  "percentConvention": "(new-old)/old*100; negative means faster"
+}

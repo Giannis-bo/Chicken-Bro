@@ -1,0 +1,5035 @@
+[
+  {
+    "reviewId": "02eeeb7674cf36dc02e6b06c",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "**首领乙第一名的治疗波记录比首领甲第一名多 1 次：3 次对 2 次。**\n\n范围为合成团本 **Live 12.0.1 正式服分区、史诗难度、世界元素萨 DPS 榜**，甲、乙各取第一名；已排除 PTR 12.0.2。\n\n| 首领 | 第一名角色（均为欧服 silvermoon） | 日志定位 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha | [战斗 7，角色 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta | [战斗 8，角色 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按角色名和服务器匹配，排除了 other-realm 的同名 Fixturealpha。两场均为 60 秒，整场施法统计完整；这些次数仅说明日志记录频次，不能据此判断操作优劣。\n\n以上仅依据本会话固定合成 fixture（资料时间：2026-09-12），未访问外网，不代表真实游戏榜单或实际引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.60000",
+      "casts.22.0.60000",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": null,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_batch",
+        "arguments": {
+          "queries": [
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "options": {
+                "view": "statistics",
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000
+              }
+            },
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "options": {
+                "view": "statistics",
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000
+              }
+            }
+          ]
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.60000",
+            "raid.actor11",
+            "wcl.overview",
+            "casts.22.0.60000",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.60000",
+            "fixture:raid.actor11",
+            "fixture:wcl.overview",
+            "fixture:casts.22.0.60000",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.11.0.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:raid.actor11",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.22.0.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:raid.actor22",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "results": [
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 7,
+                  "sourceId": 11,
+                  "fight": {
+                    "id": 7,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "Fixturealpha",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "Fixturebeta",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "statistics": {
+                    "complete": true,
+                    "metricsComplete": true,
+                    "casts": [
+                      {
+                        "abilityId": 77472,
+                        "count": 2
+                      }
+                    ],
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "observedThrough": 60000,
+                    "dataType": "Casts",
+                    "sourceId": 11,
+                    "eventCount": 2,
+                    "pagesRead": 1,
+                    "nextPageTimestamp": null,
+                    "intervalConvention": "[startTime,endTime)"
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.11.0.60000",
+                "raid.actor11"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.11.0.60000",
+                "fixture:raid.actor11"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "7",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            },
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 8,
+                  "sourceId": 22,
+                  "fight": {
+                    "id": 8,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "Fixturealpha",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "Fixturebeta",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "statistics": {
+                    "complete": true,
+                    "metricsComplete": true,
+                    "casts": [
+                      {
+                        "abilityId": 77472,
+                        "count": 3
+                      }
+                    ],
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "observedThrough": 60000,
+                    "dataType": "Casts",
+                    "sourceId": 22,
+                    "eventCount": 3,
+                    "pagesRead": 1,
+                    "nextPageTimestamp": null,
+                    "intervalConvention": "[startTime,endTime)"
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.22.0.60000",
+                "raid.actor22"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.22.0.60000",
+                "fixture:raid.actor22"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "8",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            }
+          ],
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "05644eb3614c15f422249003",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "首领乙榜首的治疗波记录比首领甲榜首多 **1 次**；两场均为 60 秒，因此分别为 **3 次/分钟、2 次/分钟**。\n\n范围：仅本会话合成资料，合成团本 **Live 12.0.1 分区（1）、史诗、世界元素萨 DPS 榜**，甲、乙各第一名；未混入 PTR 分区（2）。资料查询时间为 2026-09-12。\n\n| 首领 | 第一名角色（均为 EU silvermoon） | 日志定位 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha | [fight 7，actor 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta | [fight 8，actor 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按角色名、服务器和地区匹配，排除了 other-realm 的同名 Fixturealpha（actor 33）。次数来自未裁剪的整场施法表，仅说明这两份合成日志的记录差异，不据此判断操作优劣。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": 22,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "casts": {
+                "entries": [
+                  {
+                    "id": 77472,
+                    "name": "治疗波",
+                    "total": 3,
+                    "guid": 77472
+                  }
+                ],
+                "rowsTruncated": false
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "casts": {
+                "entries": [
+                  {
+                    "id": 77472,
+                    "name": "治疗波",
+                    "total": 2,
+                    "guid": 77472
+                  }
+                ],
+                "rowsTruncated": false
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "raid.actor11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:raid.actor11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "23c12d8d8b472e4cac2c25a2",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "首领乙榜首的治疗波记录为 **3 次**，比首领甲榜首的 **2 次多 1 次**。\n\n范围为合成团本 **Live 12.0.1 正式服、史诗、世界元素萨 DPS 榜**，甲、乙各取第 1 名；未混入 PTR 12.0.2。\n\n| 首领 | 榜首角色（均为 EU silvermoon） | 对应日志 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha | [第 7 场，角色 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta | [第 8 场，角色 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按角色名、服务器和地区匹配日志，排除了 other-realm 的同名 Fixturealpha。两场均为 60 秒，整场施法统计完整；这里比较的是日志施法次数，不能据此判断操作优劣。\n\n以上仅依据本会话固定合成 fixture（查询时间为 2026-09-12），不代表真实游戏榜单或引擎结果；未访问外网。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.60000",
+      "casts.22.0.60000",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "partition": 1,
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps",
+            "partition": 1
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "partition": 1,
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps",
+            "partition": 1
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": null,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.60000",
+            "raid.actor11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.60000",
+            "fixture:raid.actor11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": 22,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 3
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 3,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.0.60000",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.0.60000",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "60f2c5d5d43bf1b7fce2908f",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不足以证明精通收益最高；这份资料甚至没有提供两人的副属性数值。**\n\n合成“当前”赛季解析为 `fixture-season-1`，世界元素萨大秘境榜前两名如下：\n\n| 排名 | 角色 | 分数 | 返回的装备记录 | 已选天赋节点 |\n|---|---|---:|---|---|\n| 1 | Fixturealpha | 3500 | 饰品槽1：900001 | 101 |\n| 2 | Fixturebeta | 3480 | 饰品槽1：900002 | 101 |\n\n榜单依据：`fixture:mplus.rankings`。两人均为欧服 Silvermoon，角色快照时间为 **2026-09-10 UTC**；装备、天赋依据：`fixture:profile.alpha`、`fixture:profile.beta`。\n\n两份快照仅返回上述装备条目和天赋节点编号，没有名称、效果、完整配装或副属性面板，因此不能判断他们是否堆精通。即使两名榜首都堆精通，也只能说明样本的配置选择：排名还受操作、队伍和副本条件影响，无法证明精通的个人边际收益最高。\n\n要判断属性收益，需要固定角色、天赋与战斗场景，对等量属性替换做受控模拟并结合误差比较。本次仅查询了 **2 名合成角色**，未进行模拟，结论不代表实时榜单或真实引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "65b9b43a3979215a77139344",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不足以证明精通收益最高，甚至无法确认两人是否堆精通。**\n\n本次仅查询合成当前赛季 `fixture-season-1` 的世界元素萨大秘境前两名，结果如下：\n\n| 排名 | 角色 | 分数 | 返回的装备 | 返回的天赋 |\n|---|---|---:|---|---|\n| 1 | Fixturealpha | 3500 | 一个饰品，编号 900001 | 已选节点 101 |\n| 2 | Fixturebeta | 3480 | 一个饰品，编号 900002 | 已选节点 101 |\n\n榜单依据：`fixture:mplus.rankings`。两人的角色快照均为 **2026-09-10 UTC**，依据：`fixture:profile.alpha`、`fixture:profile.beta`。\n\n资料没有提供完整配装、饰品名称与效果、天赋节点名称或副属性数值，因此只能确认返回的饰品不同、天赋节点相同；快照也不等于取得排名时的配置。\n\n即使两人都选择精通，高排名与配装的关联也不能证明精通的边际收益最高。该结论需要固定角色、天赋和战斗条件，对精通与其他副属性做可比对照；本次没有这类证据，也没有真实引擎结果。以上均限于固定合成资料，不代表真实游戏榜单。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "692118240f3d6fd0edaa8824",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不足以证明精通收益最高，甚至无法确认两人是否主堆精通。**\n\n合成“当前”赛季解析为 `fixture-season-1`，世界元素萨大秘境榜前两名及已返回资料如下：\n\n| 排名 | 角色 | 分数 | 装备记录 | 已选天赋节点 |\n|---|---|---:|---|---|\n| 1 | Fixturealpha | 3500 | 饰品栏1：900001 | 101 |\n| 2 | Fixturebeta | 3480 | 饰品栏1：900002 | 101 |\n\n榜单依据：`fixture:mplus.rankings`。两人资料快照均为 **2026-09-10 UTC**，依据：`fixture:profile.alpha`、`fixture:profile.beta`。\n\n装备与天赋返回内容有限：只有上述饰品 ID 和天赋节点 ID，没有对应效果，也缺少副属性数据，不能据此补全整套配置或推算精通比例。\n\n即便两名榜首都选择精通，也只能说明样本的配置选择；排名还受操作、队伍和副本条件影响。判断精通的个人收益，需要同一角色、相同天赋与战斗条件下的属性对照模拟，并结合结果误差。\n\n本次仅查询了这两名合成样本，未执行模拟；结论不代表真实当前榜单或真实引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "70600e02e782fb7dbb314e64",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "**首领乙第一名的治疗波记录为3次，比首领甲第一名多1次。** 两场均为60秒，整场施法统计完整。\n\n范围：仅本次合成资料中的合成团本、正式服分区1（Live 12.0.1）、史诗难度、世界元素萨DPS榜，各首领第1名；未混入PTR分区2。资料时间为2026-09-12。\n\n| 首领 | 第一名角色 | 已匹配日志角色 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha，EU silvermoon | [fight 7 / actor 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta，EU silvermoon | [fight 8 / actor 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按角色名、服务器和地区匹配，排除了 other-realm 的同名 Fixturealpha。这里比较的是治疗波（77472）的日志施法次数，仅覆盖这两名玩家、两场战斗，不据此判断操作优劣。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.60000",
+      "casts.22.0.60000",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": null,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.60000",
+            "raid.actor11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.60000",
+            "fixture:raid.actor11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": 22,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 3
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 3,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.0.60000",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.0.60000",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "879bbfaa74447aff6b6019ba",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不能证明精通收益最高；这份资料甚至不足以确认两人偏重精通。**\n\n范围仅限合成当前赛季 `fixture-season-1` 的世界元素萨大秘境榜前两名，非实时游戏榜单：\n\n| 排名 | 角色 | 分数 | 返回的装备 | 返回的天赋 |\n|---|---|---:|---|---|\n| 1 | Fixturealpha（欧服 Silvermoon） | 3500 | 一个饰品条目，未提供名称或属性 | 一个已选节点，未提供名称或效果 |\n| 2 | Fixturebeta（欧服 Silvermoon） | 3480 | 一个不同的饰品条目，未提供名称或属性 | 与第一名相同的节点 |\n\n榜单依据：`fixture:mplus.rankings`。两人装备、天赋快照均为 **2026-09-10 UTC**，依据：`fixture:profile.alpha`、`fixture:profile.beta`。\n\n两份快照都缺少副属性，返回条目也不能当作完整配装或天赋树；快照不代表取得榜单分数时的配置。即使两人都堆精通，也只能说明这两个样本的选择，不能证明精通比急速、暴击、全能收益更高。\n\n判断属性收益需要针对具体角色和战斗条件做属性替换对照；本次没有这类证据，也没有实际引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "8f40b30192fc3b80d7c3cca6",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "首领乙第一名的治疗波记录为 **3 次**，比首领甲第一名的 **2 次多 1 次**。\n\n范围限定为合成团本 **Live 12.0.1 正式服、史诗难度、世界元素萨 DPS 榜**，甲、乙各取第一名，未混入 PTR。\n\n| 首领 | 第一名角色 | 对应日志 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha（EU-silvermoon） | [战斗 7，角色 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta（EU-silvermoon） | [战斗 8，角色 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按名字和服务器匹配角色，排除了其他服务器的同名 Fixturealpha。两场均统计完整的 0–60 秒施法记录；次数差异本身不能证明操作优劣。\n\n以上仅依据本会话固定合成 fixture，不代表真实游戏榜单或真实引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.60000",
+      "casts.22.0.60000",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": null,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.60000",
+            "raid.actor11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.60000",
+            "fixture:raid.actor11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": 22,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 3
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 3,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.0.60000",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.0.60000",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "aca30bac20c984a4174dc0ce",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不足以证明精通收益最高，甚至无法确认两人是否主堆精通。**\n\n本次仅查询合成资料中“当前赛季”解析出的 `fixture-season-1`，世界元素萨大秘境榜前两名：\n\n| 排名 | 角色 | 分数 | 装备与天赋读取结果 |\n|---|---|---:|---|\n| 1 | Fixturealpha | 3500 | 仅返回一件饰品记录；一个已选天赋节点 |\n| 2 | Fixturebeta | 3480 | 仅返回另一件饰品记录；与第一名相同的已选天赋节点 |\n\n来源：`fixture:mplus.rankings`、`fixture:profile.alpha`、`fixture:profile.beta`。\n\n两份角色快照均为 **2026-09-10 UTC**，缺少副属性数据，也没有装备、天赋的名称与效果或完整配置，不能据此补出配装方案；快照也不等于取得榜单分数时的配置。\n\n即使两人都堆精通，也只能说明这两个样本的选择，不能证明精通相较其他属性的收益最高。验证收益需要固定角色、天赋与战斗条件，进行属性替换对照；本次没有这样的证据，也没有执行模拟。以上结论仅针对固定合成资料，不代表实时榜单或真实引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "b4c25d8c9053cfe17b952c39",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查看合成团本正式服史诗元素萨DPS榜，首领甲和乙各取第一名，定位日志角色并比较治疗波次数；别混入PTR。"
+    ],
+    "rubric": [
+      "选择zone99、partition1正式服、difficulty5；encounter901和902各1人。",
+      "甲Fixturealpha(actor11)治疗波2次；乙Fixturebeta(actor22)3次；同名不同服actor33不是榜单角色。",
+      "两组各1人，次数受时长/遭遇影响，不推断按键或全榜习惯。"
+    ],
+    "answers": [
+      "首领乙第一名的治疗波记录比甲第一名多 **1 次**；两场均为60秒，分别为每分钟3次和2次。\n\n范围为合成团本**正式服 Live 12.0.1（分区1）、史诗、世界元素萨DPS榜**，甲、乙各取第一名，未混入PTR分区2。资料查询时间为2026-09-12 00:00 UTC。\n\n| 首领 | 第一名角色（地区／服务器） | 日志定位 | 治疗波次数 |\n|---|---|---|---:|\n| 甲 | Fixturealpha（EU／silvermoon） | [fight 7，actor 11](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 2 |\n| 乙 | Fixturebeta（EU／silvermoon） | [fight 8，actor 22](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22) | 3 |\n\n已按角色名和服务器匹配，排除了 other-realm 的同名 Fixturealpha（actor 33）。次数来自完整施法表中的治疗波（77472），仅说明日志记录频次，不据此判断操作优劣。\n\n以上仅为本次fixture的两名角色、两场战斗比较，不是真实游戏榜单或引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22",
+      "raid.catalog",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "raid.catalog",
+      "raid.901",
+      "raid.902",
+      "raid.actor11",
+      "raid.actor22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {},
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "id": 99,
+              "name": "合成团本",
+              "partitions": [
+                {
+                  "id": 1,
+                  "name": "Live 12.0.1"
+                },
+                {
+                  "id": 2,
+                  "name": "PTR 12.0.2"
+                }
+              ],
+              "encounters": [
+                {
+                  "id": 901,
+                  "name": "首领甲"
+                },
+                {
+                  "id": 902,
+                  "name": "首领乙"
+                }
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "raid.catalog"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.catalog"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.catalog",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z"
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 902,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 8
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+                  "sourceId": 22
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.902"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.902"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.902",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturebeta",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 8
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8",
+              "sourceId": 22,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 902,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_rankings",
+        "arguments": {
+          "zoneId": 99,
+          "encounterId": 901,
+          "partition": 1,
+          "difficulty": 5,
+          "className": "Shaman",
+          "specName": "Elemental",
+          "metric": "dps",
+          "limit": 1
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "warcraftlogs_rankings",
+          "facts": [
+            {
+              "rankings": [
+                {
+                  "rank": 1,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "report": {
+                    "code": "aB3dE5fG7hJ9kL2m",
+                    "fightID": 7
+                  },
+                  "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+                  "sourceId": 11
+                }
+              ],
+              "pagination": {
+                "nextPage": null
+              }
+            }
+          ],
+          "evidenceKeys": [
+            "raid.901"
+          ],
+          "evidenceRefs": [
+            "fixture:raid.901"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:raid.901",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "queriedAt": "2026-09-12T00:00:00Z",
+          "rankings": [
+            {
+              "rank": 1,
+              "name": "Fixturealpha",
+              "server": {
+                "name": "silvermoon",
+                "region": "eu"
+              },
+              "report": {
+                "code": "aB3dE5fG7hJ9kL2m",
+                "fightID": 7
+              },
+              "reportUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "sourceId": 11,
+              "identityStatus": "named",
+              "analysisEligible": true,
+              "className": "Shaman",
+              "specName": "Elemental"
+            }
+          ],
+          "scope": {
+            "zoneId": 99,
+            "encounterId": 901,
+            "partition": 1,
+            "difficulty": 5,
+            "className": "Shaman",
+            "specName": "Elemental",
+            "metric": "dps"
+          },
+          "pagination": {
+            "page": 1,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "skippedInvalid": 0,
+            "hasMore": false,
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 8,
+              "sourceId": 22,
+              "fight": {
+                "id": 8,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "casts": {
+                "entries": [
+                  {
+                    "id": 77472,
+                    "name": "治疗波",
+                    "total": 3,
+                    "guid": 77472
+                  }
+                ],
+                "rowsTruncated": false
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "raid.actor22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:raid.actor22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:8",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=8&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "8",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "Fixturealpha",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "Fixturebeta",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "casts": {
+                "entries": [
+                  {
+                    "id": 77472,
+                    "name": "治疗波",
+                    "total": 2,
+                    "guid": 77472
+                  }
+                ],
+                "rowsTruncated": false
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "raid.actor11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:raid.actor11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "ed1c1ba20963edd34e373088",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。查合成当前世界元素萨大秘境榜前两名，读两人的装备/天赋；他们是否足以证明精通收益最高？"
+    ],
+    "rubric": [
+      "两名有效匹配样本Fixturealpha/Fixturebeta，积分3500/3480，均Elemental。",
+      "两人都选节点101；饰品900001/900002分别出现，统计属性缺失不能算精通收益。",
+      "覆盖2人，榜单流行度不是个人模拟收益，不外推全部玩家。"
+    ],
+    "answers": [
+      "**不足以证明精通收益最高，资料甚至没有提供两人的副属性数值。**\n\n本次仅覆盖合成当前赛季 `fixture-season-1`、世界元素萨大秘境榜前两名：\n\n| 排名 | 角色 | 分数 | 返回的装备 | 返回的已选天赋 |\n|---|---|---:|---|---|\n| 1 | Fixturealpha | 3500 | 饰品槽1：900001 | 节点101 |\n| 2 | Fixturebeta | 3480 | 饰品槽1：900002 | 节点101 |\n\n来源：`fixture:mplus.rankings`、`fixture:profile.alpha`、`fixture:profile.beta`。两人装备/天赋快照均为 **2026年9月10日**；返回内容只有上述条目，没有完整配装、天赋名称或副属性面板。\n\n这些证据只支持“两人已返回的天赋节点相同、饰品不同”。即使能看到两人都堆精通，也只能说明样本的配装选择；排名还受操作、队伍和副本等因素影响，不能证明精通的因果收益最高。\n\n要判断个人收益，需要在同一角色、天赋及战斗条件下，对精通与其他属性做等量替换对照，并结合模拟误差判断。本次没有模拟结果，全部结论仅针对这份固定合成资料。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "requiredEvidence": [
+      "mplus.rankings",
+      "profile.alpha",
+      "profile.beta"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_raiderio_rankings",
+        "arguments": {
+          "className": "shaman",
+          "spec": "elemental",
+          "region": "world",
+          "season": "current",
+          "limit": 2
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio_rankings",
+          "facts": [
+            {
+              "season": "fixture-season-1",
+              "rankings": [
+                {
+                  "rank": 1,
+                  "score": 3500,
+                  "name": "Fixturealpha",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+                },
+                {
+                  "rank": 2,
+                  "score": 3480,
+                  "name": "Fixturebeta",
+                  "region": "eu",
+                  "realm": "silvermoon",
+                  "className": "Shaman",
+                  "spec": "Elemental",
+                  "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+                  "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+                }
+              ],
+              "nextPage": null,
+              "nextOffset": null
+            }
+          ],
+          "evidenceKeys": [
+            "mplus.rankings"
+          ],
+          "evidenceRefs": [
+            "fixture:mplus.rankings"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:mplus.rankings",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": [],
+          "rankings": [
+            {
+              "rank": 1,
+              "score": 3500,
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha"
+            },
+            {
+              "rank": 2,
+              "score": 3480,
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "url": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "profileUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+            }
+          ],
+          "season": "fixture-season-1",
+          "pagination": {
+            "nextPage": null,
+            "nextOffset": null
+          }
+        }
+      },
+      {
+        "tool": "query_raiderio_characters",
+        "arguments": {
+          "targets": [
+            "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+            "https://raider.io/characters/eu/silvermoon/Fixturebeta"
+          ]
+        },
+        "result": {
+          "status": "source_reference",
+          "sourceKey": "raiderio",
+          "facts": [
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturealpha",
+              "name": "Fixturealpha",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900001
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            },
+            {
+              "sourceUrl": "https://raider.io/characters/eu/silvermoon/Fixturebeta",
+              "name": "Fixturebeta",
+              "region": "eu",
+              "realm": "silvermoon",
+              "className": "Shaman",
+              "spec": "Elemental",
+              "snapshotDate": "2026-09-10T00:00:00Z",
+              "gear": {
+                "items": [
+                  {
+                    "slot": "trinket1",
+                    "itemId": 900002
+                  }
+                ]
+              },
+              "talents": {
+                "selectedNodes": [
+                  101
+                ]
+              },
+              "stats": null,
+              "missingFields": [
+                "secondaryStats"
+              ]
+            }
+          ],
+          "evidenceKeys": [
+            "profile.alpha",
+            "profile.beta"
+          ],
+          "evidenceRefs": [
+            "fixture:profile.alpha",
+            "fixture:profile.beta"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:profile.alpha",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:profile.beta",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  }
+]

@@ -1,0 +1,158 @@
+[
+  {
+    "reviewId": "0b8ac397cbebfd49552a3a56",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "2423c786c1849f6d5acb580a",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "25c516d56f48a572b86e03cf",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  },
+  {
+    "reviewId": "48f6a5c23e5dc52b7ae7ef71",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  },
+  {
+    "reviewId": "590519260f406e0c59e4adf9",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "72decbcf645f73ae2e1ffac8",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "81e707842d1b4671dd03be0b",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "a03af0caf6fb3bed2b766987",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  },
+  {
+    "reviewId": "abdc11d0f784cbdb1756818d",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  },
+  {
+    "reviewId": "da9a3fc1b5d05a10ede0543d",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  },
+  {
+    "reviewId": "ebc23850adeb1968ed4347bf",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "三份正文支持1000/1200/1500及正式服与PTR分区；追问按旧版时点判断，没有用后来的改动倒推旧攻略错误，范围明确为合成资料。"
+    ]
+  },
+  {
+    "reviewId": "f79e917f5a2862b04ab68604",
+    "quality": "pass",
+    "checks": {
+      "correctness": "pass",
+      "evidence": "pass",
+      "scope": "pass",
+      "completion": "pass"
+    },
+    "notes": [
+      "两个已读取详情页支持不同名称和物品ID、被动触发与主动20秒；未补造概率、持续时间或冷却，明确合成范围。"
+    ]
+  }
+]

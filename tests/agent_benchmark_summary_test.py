@@ -18,6 +18,16 @@ def run(variant, usage):
 
 
 class SummaryTests(unittest.TestCase):
+    def test_live_batch_export_preserves_child_evidence_without_private_fields(self):
+        live_spec = importlib.util.spec_from_file_location('live_export', ROOT/'scripts/export-agent-benchmark-live.py')
+        live = importlib.util.module_from_spec(live_spec)
+        live_spec.loader.exec_module(live)
+        child = {'facts': {'events': [{'timestamp': 1250001}]}, 'status': 'verified', 'owner': 'private'}
+        result = live.project_result({'status': 'verified', 'results': [child], 'token': 'secret'})
+        self.assertEqual(result['results'][0]['facts'], child['facts'])
+        self.assertNotIn('owner', result['results'][0])
+        self.assertNotIn('token', result)
+
     def test_unreviewed_answer_is_not_a_fast_pass(self):
         result = module.summarize([run('old', []), run('new', [])], [])
         self.assertEqual(result['overall']['pairedCount'], 0)

@@ -1,0 +1,11 @@
+{
+  "candidateUnrevokedActiveSessionsForFixtureOwners": 0,
+  "streamingRuns": 0,
+  "activeExecutions": 0,
+  "activeQueueJobs": 0,
+  "candidatePortsReleased": [
+    18890,
+    18794
+  ],
+  "database": "chickenbro_badcase_candidate_20260909"
+}

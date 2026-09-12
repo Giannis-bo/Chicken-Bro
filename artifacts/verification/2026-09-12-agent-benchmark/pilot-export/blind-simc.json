@@ -1,0 +1,66 @@
+[
+  {
+    "reviewId": "6433622e5352",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成基线任务22222222-2222-4222-8222-222222222222，同快照用“湛蓝凝视”替换trinket1，做有限对照。通过fixture模拟提交即可，不运行真实引擎。"
+    ],
+    "rubric": [
+      "同snapshot11111111-1111-4111-8111-111111111111/runtime fixture-engine-v1，单目标300秒10000次。",
+      "基线1000000±1000，替换1005000±1200；+5000/+0.5%，保守误差2200，超过误差。",
+      "仅一个装备候选、固定装等321；回放数值不是实际SimulationCraft运行，也不是全局最优。"
+    ],
+    "answers": [
+      "已完成 fixture 提交与对照，候选任务：`33333333-3333-4333-8333-333333333333`。\n\n同快照将 trinket1 换为321装等“湛蓝凝视”，沿用同升级进度、无宝石及附魔；对照条件为单目标、300秒、10,000次迭代，开启团队增益和嗜血。\n\n| 合成结果 | DPS | 报告误差 |\n|---|---:|---:|\n| 基线 | 1,000,000 | ±1,000 |\n| 湛蓝凝视 | 1,005,000 | ±1,200 |\n\nfixture 比较返回可比，差值 **+5,000（+0.5%）**，超过其保守误差界限2,200。候选返回中未列出基线的自定义循环，因此循环继承情况无法独立核实。\n\n以上仅是固定合成资料的有限对照结果，没有运行真实引擎，不能据此认定实际游戏换装收益。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "simc.baseline",
+      "simc.compare",
+      "simc.items",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant"
+    ],
+    "requiredEvidence": [
+      "simc.baseline",
+      "simc.items",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant",
+      "simc.compare"
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion. Do not infer speed or version. Equivalent complete evidence is acceptable; acquisition alone does not prove answer quality."
+  },
+  {
+    "reviewId": "a5113578f9c3",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成基线任务22222222-2222-4222-8222-222222222222，同快照用“湛蓝凝视”替换trinket1，做有限对照。通过fixture模拟提交即可，不运行真实引擎。"
+    ],
+    "rubric": [
+      "同snapshot11111111-1111-4111-8111-111111111111/runtime fixture-engine-v1，单目标300秒10000次。",
+      "基线1000000±1000，替换1005000±1200；+5000/+0.5%，保守误差2200，超过误差。",
+      "仅一个装备候选、固定装等321；回放数值不是实际SimulationCraft运行，也不是全局最优。"
+    ],
+    "answers": [
+      "已完成 fixture 提交与结果比较：**“湛蓝凝视”替换第一饰品栏后，合成 DPS 提高 5,000（0.5%）**。\n\n| 配置 | 合成 DPS | 报告误差 |\n|---|---:|---:|\n| 原基线 | 1,000,000 | ±1,000 |\n| 湛蓝凝视 | 1,005,000 | ±1,200 |\n\n比较工具判定可比，差值超过其保守误差界限 2,200。范围为同一快照、321 装等同升级进度候选、单目标站桩 300 秒、10,000 次迭代，开启团队增益和嗜血。（依据：`fixture:simc.compare`）\n\n候选任务：`33333333-3333-4333-8333-333333333333`，已返回成功。\n\n全程仅使用本会话 fixture，未访问外网、未运行真实引擎；上述结果只说明固定合成资料中的这组对照，不代表真实游戏收益。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "simc.baseline",
+      "simc.compare",
+      "simc.items",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant"
+    ],
+    "requiredEvidence": [
+      "simc.baseline",
+      "simc.items",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant",
+      "simc.compare"
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion. Do not infer speed or version. Equivalent complete evidence is acceptable; acquisition alone does not prove answer quality."
+  }
+]

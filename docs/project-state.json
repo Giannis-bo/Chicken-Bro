@@ -825,5 +825,17 @@
     "fullCorpusRun": false,
     "newSimcJobs": 0,
     "manualAcceptance": "not_claimed"
+  },
+  "agentPerformanceBenchmark": {
+    "status": "completed_target_not_met",
+    "evidence": "artifacts/verification/2026-09-12-agent-benchmark/README.md",
+    "harnessCommit": "a914a9762074ca9146f9082a428a38b2b59bb7b9",
+    "fixedRuns": 48,
+    "fixedUserTurns": 60,
+    "fixedQualityPassed": 48,
+    "candidateRuns": 8,
+    "pairedMedianPercent": 9.621309554253216,
+    "productRedeployment": false,
+    "manualUserAcceptance": "not_claimed"
   }
 }

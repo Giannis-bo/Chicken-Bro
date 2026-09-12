@@ -1,0 +1,571 @@
+[
+  {
+    "caseId": "simc_apl",
+    "category": "simc",
+    "variant": "new",
+    "trial": 1,
+    "status": "succeeded",
+    "completeCase": true,
+    "expectedTurns": 1,
+    "completedTurns": 1,
+    "totalMs": 43277.586,
+    "quality": "unreviewed",
+    "turns": [
+      {
+        "status": "succeeded",
+        "errorCode": "",
+        "answer": "已完成 fixture 提交与比较：开场样本顺序已互换，但 **没有明确 DPS 提升**。\n\n| 开场 | 合成 DPS | 报告误差 |\n|---|---:|---:|\n| 闪电箭→熔岩爆裂 | 1,000,000 | ±1,000 |\n| 熔岩爆裂→闪电箭 | 1,000,800 | ±1,200 |\n\n差值 **+800（+0.08%）**，落在保守合并误差 2,200 内。\n\n动作记录核对：\n- 原组：0 秒闪电箭，1.5 秒熔岩爆裂。\n- 改组：0 秒熔岩爆裂，1.5 秒闪电箭。\n\n两组使用同一快照及运行版本，均为单目标、300 秒、10,000 次迭代，开启团队增益和嗜血；保留了原任务其余循环——其合成配置仅为后续闪电箭。\n\n依据：`fixture:simc.baseline`、`fixture:simc.variant`、`fixture:simc.compare`。以上仅是固定合成资料及采样动作，未执行真实引擎，不能证明全部迭代顺序或真实游戏收益。",
+        "events": [
+          {
+            "id": "primary-0:exec-5e12d4e2-3c65-42c9-a6d4-8890e782f161",
+            "type": "mcpToolCall",
+            "name": "read_chickenbro_skill",
+            "args": {
+              "skillId": "simc-experiment"
+            },
+            "event": "start",
+            "atMs": 13243.290125858039,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-5e12d4e2-3c65-42c9-a6d4-8890e782f161",
+            "type": "mcpToolCall",
+            "name": "read_chickenbro_skill",
+            "args": {
+              "skillId": "simc-experiment"
+            },
+            "event": "end",
+            "atMs": 13246.309727896005,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-68b6f966-685c-4504-9b5f-41fe9f31db83",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "22222222-2222-4222-8222-222222222222"
+            },
+            "event": "start",
+            "atMs": 13248.753693886101,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-68b6f966-685c-4504-9b5f-41fe9f31db83",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "22222222-2222-4222-8222-222222222222"
+            },
+            "event": "end",
+            "atMs": 13250.764897093177,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-bb990be6-f0ed-4544-9cda-89185df58ca6",
+            "type": "mcpToolCall",
+            "name": "preview_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "start",
+            "atMs": 17954.11845482886,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-bb990be6-f0ed-4544-9cda-89185df58ca6",
+            "type": "mcpToolCall",
+            "name": "preview_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "end",
+            "atMs": 17955.789886880666,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-33d1d637-eef0-4171-97fa-595ae64fd992",
+            "type": "mcpToolCall",
+            "name": "submit_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "start",
+            "atMs": 24323.637743946165,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-33d1d637-eef0-4171-97fa-595ae64fd992",
+            "type": "mcpToolCall",
+            "name": "submit_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "end",
+            "atMs": 24326.43809914589,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-dc70d888-fa37-4d02-a27f-e2a9aec8b0a8",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "33333333-3333-4333-8333-333333333333",
+              "waitSeconds": 20
+            },
+            "event": "start",
+            "atMs": 27467.59770391509,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-dc70d888-fa37-4d02-a27f-e2a9aec8b0a8",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "33333333-3333-4333-8333-333333333333",
+              "waitSeconds": 20
+            },
+            "event": "end",
+            "atMs": 27469.41944397986,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-0bad009d-db1f-4703-a747-590e6ed0bcae",
+            "type": "mcpToolCall",
+            "name": "compare_simulation_jobs",
+            "args": {
+              "baselineJobId": "22222222-2222-4222-8222-222222222222",
+              "variantJobId": "33333333-3333-4333-8333-333333333333"
+            },
+            "event": "start",
+            "atMs": 31739.778155926615,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-0bad009d-db1f-4703-a747-590e6ed0bcae",
+            "type": "mcpToolCall",
+            "name": "compare_simulation_jobs",
+            "args": {
+              "baselineJobId": "22222222-2222-4222-8222-222222222222",
+              "variantJobId": "33333333-3333-4333-8333-333333333333"
+            },
+            "event": "end",
+            "atMs": 31741.388170979917,
+            "phase": "primary"
+          }
+        ],
+        "startedAt": "2026-09-12T03:00:47.311778+00:00",
+        "totalMs": 43277.586,
+        "finishedAt": "2026-09-12T03:01:30.589367+00:00",
+        "runId": "537f24ab-703a-4c3f-a394-c8a3d58a002d",
+        "turnIndex": 0,
+        "modelUsage": [
+          {
+            "phase": "primary",
+            "sessionId": "primary-0",
+            "usage": {
+              "inputTokens": 121890,
+              "cachedInputTokens": 100352,
+              "outputTokens": 717,
+              "reasoningOutputTokens": 16,
+              "totalTokens": 122607
+            }
+          }
+        ],
+        "phaseEvents": [
+          {
+            "phase": "primary",
+            "event": "start",
+            "atMs": 2.55877198651433
+          },
+          {
+            "phase": "primary",
+            "event": "end",
+            "atMs": 43236.435825936496
+          }
+        ],
+        "runtimeItemKinds": [
+          "agentMessage",
+          "mcpToolCall",
+          "reasoning",
+          "userMessage"
+        ],
+        "startupMs": 372.2152938134968,
+        "firstDraftMs": 36599.61560415104,
+        "timing": {
+          "totalMs": 43277.586,
+          "toolMs": 12.934347614645958,
+          "nonToolMs": 43264.65165238536,
+          "tools": {
+            "read_chickenbro_skill": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 3.0196020379662514
+            },
+            "get_simulation_job": {
+              "count": 2,
+              "completedCount": 2,
+              "unknownCount": 0,
+              "inclusiveMs": 3.832943271845579
+            },
+            "preview_simulation": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 1.671432051807642
+            },
+            "submit_simulation": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 2.800355199724436
+            },
+            "compare_simulation_jobs": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 1.6100150533020496
+            }
+          },
+          "toolCount": 6,
+          "unknownTools": [],
+          "repeatedQueries": [],
+          "issues": [],
+          "modelRoundTrips": null
+        }
+      }
+    ],
+    "source": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+    "coreSha256": "5371395db69edd75440429b570e419dc4f682ff0b6d1122b198867a98dc60742",
+    "fixtureSha256": "f386c9194448ca12fa288f88fe7d289a7af57bf8b81fe7d6dd7a84a2577122f4",
+    "rubric": [
+      "使用strict_sequence而非仅换优先级；保留其余lightning_bolt循环。",
+      "合成采样开场原lightning_bolt/lava_burst，变体lava_burst/lightning_bolt。",
+      "基线1000000±1000、变体1000800±1200，+800/+0.08%，在2200保守误差内，无明确提升。",
+      "同快照/环境；动作样本证明该合成样本顺序，不是所有战斗顺序保证或真实引擎测速。"
+    ],
+    "requiredEvidence": [
+      "simc.baseline",
+      "web.apl",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant",
+      "simc.compare"
+    ],
+    "configuration": {
+      "model": "gpt-6-astra",
+      "model_reasoning_effort": "low"
+    },
+    "reviewId": "3df461c7344a",
+    "acquiredEvidence": [
+      "simc.baseline",
+      "simc.compare",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant"
+    ],
+    "fixtureErrors": []
+  },
+  {
+    "caseId": "simc_apl",
+    "category": "simc",
+    "variant": "old",
+    "trial": 1,
+    "status": "succeeded",
+    "completeCase": true,
+    "expectedTurns": 1,
+    "completedTurns": 1,
+    "totalMs": 37593.823,
+    "quality": "unreviewed",
+    "turns": [
+      {
+        "status": "succeeded",
+        "errorCode": "",
+        "answer": "已完成 fixture 提交与对照：**样本中的起手顺序已反转，但收益差异处于报告误差内。**\n\n- 原组：0.0 秒闪电箭 → 1.5 秒熔岩爆裂。\n- 修改组：0.0 秒熔岩爆裂 → 1.5 秒闪电箭。\n- 完整保留资料中其余循环；两组使用同一快照、相同引擎与编译版本，单目标、300 秒、10,000 次迭代，团队增益和嗜血开启。\n- 合成 DPS：1,000,000 → 1,000,800，增加 **800（0.08%）**；合并误差界限为 2,200，无法据此判定新顺序更优。\n\n新任务：`33333333-3333-4333-8333-333333333333`。\n\n依据：`fixture:simc.baseline`、`fixture:simc.variant`、`fixture:simc.compare`。动作时间仅代表返回的合成样本；本次没有真实引擎执行，不构成实服收益结论。",
+        "events": [
+          {
+            "id": "primary-0:exec-820bd689-d9c3-4800-8435-1e51d2fdea62",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "22222222-2222-4222-8222-222222222222"
+            },
+            "event": "start",
+            "atMs": 10060.224179644138,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-820bd689-d9c3-4800-8435-1e51d2fdea62",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "22222222-2222-4222-8222-222222222222"
+            },
+            "event": "end",
+            "atMs": 10062.313000671566,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-398bc66d-52bc-4224-9aef-ed7924c7d485",
+            "type": "mcpToolCall",
+            "name": "preview_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "start",
+            "atMs": 16276.542137842625,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-398bc66d-52bc-4224-9aef-ed7924c7d485",
+            "type": "mcpToolCall",
+            "name": "preview_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "end",
+            "atMs": 16278.347563929856,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-396952c8-922e-4e7b-9b7b-560c53b4b666",
+            "type": "mcpToolCall",
+            "name": "submit_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "start",
+            "atMs": 20092.378753703088,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-396952c8-922e-4e7b-9b7b-560c53b4b666",
+            "type": "mcpToolCall",
+            "name": "submit_simulation",
+            "args": {
+              "baseJobId": "22222222-2222-4222-8222-222222222222",
+              "scenario": {
+                "actionLists": {
+                  "default": [
+                    "strict_sequence,name=opener:lava_burst:lightning_bolt",
+                    "lightning_bolt"
+                  ]
+                }
+              }
+            },
+            "event": "end",
+            "atMs": 20093.878323677927,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-dd5c06c7-e526-4391-a494-8a5b811cbf5a",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "33333333-3333-4333-8333-333333333333",
+              "waitSeconds": 20
+            },
+            "event": "start",
+            "atMs": 23033.36554672569,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-dd5c06c7-e526-4391-a494-8a5b811cbf5a",
+            "type": "mcpToolCall",
+            "name": "get_simulation_job",
+            "args": {
+              "jobId": "33333333-3333-4333-8333-333333333333",
+              "waitSeconds": 20
+            },
+            "event": "end",
+            "atMs": 23034.19830603525,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-e324e228-3e4c-463f-9fbc-038d6259ee12",
+            "type": "mcpToolCall",
+            "name": "compare_simulation_jobs",
+            "args": {
+              "baselineJobId": "22222222-2222-4222-8222-222222222222",
+              "variantJobId": "33333333-3333-4333-8333-333333333333"
+            },
+            "event": "start",
+            "atMs": 28092.929800972342,
+            "phase": "primary"
+          },
+          {
+            "id": "primary-0:exec-e324e228-3e4c-463f-9fbc-038d6259ee12",
+            "type": "mcpToolCall",
+            "name": "compare_simulation_jobs",
+            "args": {
+              "baselineJobId": "22222222-2222-4222-8222-222222222222",
+              "variantJobId": "33333333-3333-4333-8333-333333333333"
+            },
+            "event": "end",
+            "atMs": 28094.673201907426,
+            "phase": "primary"
+          }
+        ],
+        "startedAt": "2026-09-12T03:00:09.580991+00:00",
+        "totalMs": 37593.823,
+        "finishedAt": "2026-09-12T03:00:47.174813+00:00",
+        "runId": "a244f64a-2117-49bd-9110-22a94ec018ac",
+        "turnIndex": 0,
+        "modelUsage": [
+          {
+            "phase": "primary",
+            "sessionId": "primary-0",
+            "usage": {
+              "inputTokens": 148484,
+              "cachedInputTokens": 140288,
+              "outputTokens": 640,
+              "reasoningOutputTokens": 0,
+              "totalTokens": 149124
+            }
+          }
+        ],
+        "phaseEvents": [
+          {
+            "phase": "primary",
+            "event": "start",
+            "atMs": 2.699343953281641
+          },
+          {
+            "phase": "primary",
+            "event": "end",
+            "atMs": 37526.86979668215
+          }
+        ],
+        "runtimeItemKinds": [
+          "agentMessage",
+          "mcpToolCall",
+          "userMessage"
+        ],
+        "startupMs": 332.76882069185376,
+        "firstDraftMs": 29647.02006476,
+        "timing": {
+          "totalMs": 37593.823,
+          "toolMs": 7.969977334141731,
+          "nonToolMs": 37585.853022665855,
+          "tools": {
+            "get_simulation_job": {
+              "count": 2,
+              "completedCount": 2,
+              "unknownCount": 0,
+              "inclusiveMs": 2.9215803369879723
+            },
+            "preview_simulation": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 1.805426087230444
+            },
+            "submit_simulation": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 1.4995699748396873
+            },
+            "compare_simulation_jobs": {
+              "count": 1,
+              "completedCount": 1,
+              "unknownCount": 0,
+              "inclusiveMs": 1.7434009350836277
+            }
+          },
+          "toolCount": 5,
+          "unknownTools": [],
+          "repeatedQueries": [],
+          "issues": [],
+          "modelRoundTrips": null
+        }
+      }
+    ],
+    "source": "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd",
+    "coreSha256": "0be8630a5f86dac8119456b6d81e88799aa172878efdddf96d1bdcb7081c2762",
+    "fixtureSha256": "f386c9194448ca12fa288f88fe7d289a7af57bf8b81fe7d6dd7a84a2577122f4",
+    "rubric": [
+      "使用strict_sequence而非仅换优先级；保留其余lightning_bolt循环。",
+      "合成采样开场原lightning_bolt/lava_burst，变体lava_burst/lightning_bolt。",
+      "基线1000000±1000、变体1000800±1200，+800/+0.08%，在2200保守误差内，无明确提升。",
+      "同快照/环境；动作样本证明该合成样本顺序，不是所有战斗顺序保证或真实引擎测速。"
+    ],
+    "requiredEvidence": [
+      "simc.baseline",
+      "web.apl",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant",
+      "simc.compare"
+    ],
+    "configuration": {
+      "model": "gpt-6-astra",
+      "model_reasoning_effort": "low"
+    },
+    "reviewId": "6a722ad58daf",
+    "acquiredEvidence": [
+      "simc.baseline",
+      "simc.compare",
+      "simc.preview",
+      "simc.submitted",
+      "simc.variant"
+    ],
+    "fixtureErrors": []
+  }
+]

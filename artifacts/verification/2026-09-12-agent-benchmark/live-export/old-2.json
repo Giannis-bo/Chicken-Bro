@@ -1,0 +1,1867 @@
+{
+  "variant": "old",
+  "requestedCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+  "sourceHashes": {
+    "server/app/chickenbro/agent/AGENTS.md": "0be8630a5f86dac8119456b6d81e88799aa172878efdddf96d1bdcb7081c2762",
+    "server/app/chickenbro/codex_adapter.py": "26cea28ec960d27dc0fdec0666a8f6530b58d0cd01b660bc761cfa4b82e88932",
+    "server/chickenbro_native_mcp.py": "a6b301f58290743a2442cd25b6e8063b07a27d2998817df9b8d02630a1ed3838"
+  },
+  "fixtureSha256": "2a102a7005f6646a9a057f410a1d90407c1613eedebb52040ce2dacec7466d6a",
+  "modelProfile": {
+    "model": "gpt-6-astra",
+    "model_reasoning_effort": "low",
+    "model_provider": null,
+    "web_search": "live"
+  },
+  "checks": {
+    "positiveOwnedResultsAndSecondOwner404": true,
+    "noNewSimcJobs": true
+  },
+  "limitations": [
+    "Real upstream/cache state is not controlled. This is not the fixed replay benchmark.",
+    "HTTP elapsed includes server queue, model, tools, validation and SSE delivery; provider reasoning breakdown is unknown.",
+    "Tool receipt intervals include gateway work and may overlap; they exclude native search and local workflow reads.",
+    "Semantic quality requires manual review of answer and actual receipts. A succeeded run alone is not acceptance."
+  ],
+  "wclPreflight": {
+    "code": "LPV3pf4nM9yhKw1Y",
+    "fight": {
+      "id": 7,
+      "name": "Voidscar Arena",
+      "startTime": 9775927,
+      "endTime": 11292345,
+      "friendlyPlayers": [
+        481,
+        679,
+        3,
+        200,
+        480
+      ]
+    },
+    "actors": [
+      {
+        "id": 3,
+        "name": "Giannis",
+        "type": "Player",
+        "subType": "Shaman"
+      },
+      {
+        "id": 481,
+        "name": "Fusionbolt",
+        "type": "Player",
+        "subType": "Shaman"
+      }
+    ]
+  },
+  "fixture": {
+    "schemaVersion": 1,
+    "jobs": [
+      "d79e200d-554c-4290-907e-99ca3e3c8698",
+      "5364a742-cff1-4c05-bf5d-0406241e2378"
+    ],
+    "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "compilerRevision": "chickenbro-simc-compiler-v6",
+    "wcl": {
+      "code": "LPV3pf4nM9yhKw1Y",
+      "fightId": 7,
+      "actors": [
+        3,
+        481
+      ],
+      "relativeStartMs": 1250000,
+      "relativeEndMs": 1265000
+    }
+  },
+  "cases": [
+    {
+      "caseId": "wcl-two-actors-window",
+      "prompt": "查询公开日志 https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y?fight=7 。只比较本场actor 3 Giannis与actor 481 Fusionbolt，在战斗相对20:50到21:05的施法记录。先核对角色与战斗身份，用这个15秒窗口的施法事件比较频次和先后，列出关键相对时间；不遍历整场，不查榜单，不提交模拟。相同时间不能判定先后，缺少需求与替代收益证据时不要直接判定操作错误；取不到明确说明。",
+      "status": "completed",
+      "elapsedSeconds": 65.162885,
+      "runId": "bf00bb43-bbe3-44f1-a072-21d26c355cc9",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 100218,
+          "totalTokens": 101432,
+          "outputTokens": 1214,
+          "cachedInputTokens": 81408,
+          "reasoningOutputTokens": 84
+        }
+      },
+      "finalAnswer": "**这个 15 秒窗口内，Giannis 有 10 条 `cast` 记录，Fusionbolt 有 3 条；开始读条记录分别为 2 条、3 条。** 两人的窗口事件均已完整返回，无待续页。这是日志频次差异，不能直接视为按键次数或操作优劣。\n\n身份已核对：fight 7 为 **Voidscar Arena**，成功结束，时长 **25:16.418**；Giannis（actor 3）是国服白银之手的元素萨，Fusionbolt（actor 481）是国服凤凰之神的元素萨，均在本场参战。[本场资料](https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7)\n\n以下时间均为事件时间减去本场起点 **9,775,927 毫秒**。`cast` 与开始读条分开列；未返回名称的技能保留 ID。\n\n| 相对时间 | Giannis：事件／技能 | Fusionbolt：事件／技能 |\n|---|---|---|\n| 20:56.085 | 开始读条：闪电箭（188196） | |\n| 20:57.510 | cast：闪电箭 | |\n| 20:57.511 | cast：470057 | |\n| 20:57.745 | | cast：470057 |\n| 20:59.121 | | 开始读条：元素冲击（117014） |\n| 20:59.484 | 开始读条：191634 | |\n| 21:00.729 | | cast：元素冲击 |\n| 21:00.762 | cast：191634 | |\n| 21:00.763 | cast：闪电箭 | |\n| 21:01.933 | cast：闪电箭 | |\n| 21:02.444 | | 开始读条：熔岩爆裂（51505） |\n| 21:03.028 | cast：升腾（114050） | |\n| 21:03.029 | cast：灵魂行者的恩赐（79206） | |\n| 21:03.032 | cast：1293316 | |\n| 21:03.498 | cast：443454 | |\n| 21:03.788 | | cast：熔岩爆裂 |\n| 21:03.798 | | 开始读条：闪电箭 |\n| 21:04.194 | cast：熔岩爆裂 | |\n\n来源：[Giannis 施法事件](https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7&source=3)、[Fusionbolt 施法事件](https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7&source=481)。\n\n- **频次：**Giannis 的闪电箭有 3 条 cast，其余所列技能各 1 条；Fusionbolt 的 470057、元素冲击、熔岩爆裂各 1 条。Fusionbolt 在 **21:03.798** 开始的闪电箭，本窗口内没有对应 cast，不能据此认定取消施法。\n- **先后：**Giannis 的升腾记录在灵魂行者的恩赐前 **1 毫秒**，随后 **3 毫秒**出现 1293316。这只能确定日志记录顺序，不能证明按键顺序、宏绑定或触发关系；相同时间戳则无法区分先后。\n- **目标：**两人上述带明确目标的 cast 均指向 **targetID 794、实例 1**；其余为 `-1`，目标未明确。当前没有目标名称依据。\n\n没有查询当时需求与可行替代收益，因此这里不将频次、间隔或技能衔接判定为操作错误。",
+      "sseCompleted": true,
+      "secondOwner404": true,
+      "idempotentReplay": true,
+      "nativeObservations": [],
+      "nativeBinding": "unavailable_in_old_version",
+      "qualityStatus": "pending_manual_review",
+      "toolReceipts": [
+        {
+          "tool": "source.warcraftlogs",
+          "state": "completed",
+          "startedAt": "2026-09-12T11:40:06.712712+08:00",
+          "finishedAt": "2026-09-12T11:40:09.090500+08:00",
+          "result": {
+            "sourceKey": "warcraftlogs",
+            "status": "verified",
+            "facts": [
+              {
+                "view": "overview",
+                "casts": {
+                  "entries": [
+                    {
+                      "id": 481,
+                      "guid": 91717861,
+                      "name": "Fusionbolt",
+                      "type": "Shaman",
+                      "total": 1044,
+                      "activeTime": 1358233
+                    },
+                    {
+                      "id": 480,
+                      "guid": 91731963,
+                      "name": "阿橙捏",
+                      "type": "Paladin",
+                      "total": 862,
+                      "activeTime": 1301135
+                    },
+                    {
+                      "id": 679,
+                      "guid": 94832256,
+                      "name": "桃花别死",
+                      "type": "DeathKnight",
+                      "total": 1084,
+                      "activeTime": 1304795
+                    },
+                    {
+                      "id": 3,
+                      "guid": 109015493,
+                      "name": "Giannis",
+                      "type": "Shaman",
+                      "total": 930,
+                      "activeTime": 1216817
+                    },
+                    {
+                      "id": 200,
+                      "guid": 105411603,
+                      "name": "鱼不想游了",
+                      "type": "DeathKnight",
+                      "total": 1232,
+                      "activeTime": 1412833
+                    }
+                  ],
+                  "totalTime": 1516418,
+                  "rowsTruncated": false
+                },
+                "fight": {
+                  "id": "7",
+                  "kill": true,
+                  "name": "Voidscar Arena",
+                  "endTime": 11292345,
+                  "startTime": 9775927,
+                  "difficulty": 10
+                },
+                "actors": [
+                  {
+                    "id": 1,
+                    "name": "Chidorii",
+                    "type": "Player",
+                    "subType": "DemonHunter"
+                  },
+                  {
+                    "id": 2,
+                    "name": "我来朵蜜你了",
+                    "type": "Player",
+                    "subType": "Paladin"
+                  },
+                  {
+                    "id": 3,
+                    "name": "Giannis",
+                    "type": "Player",
+                    "subType": "Shaman"
+                  },
+                  {
+                    "id": 4,
+                    "name": "桀骜丶奥义",
+                    "type": "Player",
+                    "subType": "Mage"
+                  },
+                  {
+                    "id": 5,
+                    "name": "暗影君王",
+                    "type": "Player",
+                    "subType": "DeathKnight"
+                  },
+                  {
+                    "id": 72,
+                    "name": "平头丶哥",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 73,
+                    "name": "凊湫丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 74,
+                    "name": "愤怒的蟹",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 75,
+                    "name": "狠萌丶不無聊",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 76,
+                    "name": "仙人摘桃",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 77,
+                    "name": "Lovejace",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 78,
+                    "name": "气死俺老猪了",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 79,
+                    "name": "环佩叮当丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 80,
+                    "name": "封杀寻梦",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 81,
+                    "name": "窝妖烟牌",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 82,
+                    "name": "朔望月",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 83,
+                    "name": "闪电旋凬批",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 84,
+                    "name": "开心小龙",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 85,
+                    "name": "爱吃鱼的猫丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 86,
+                    "name": "丷小白菜",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 87,
+                    "name": "酱紫松",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 88,
+                    "name": "划衔举",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 89,
+                    "name": "丨猫猫牛丨",
+                    "type": "Player",
+                    "subType": "Shaman"
+                  },
+                  {
+                    "id": 90,
+                    "name": "圣辉的林登万",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 91,
+                    "name": "咔啤巴啦",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 92,
+                    "name": "Yif",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 93,
+                    "name": "Sweeth",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 94,
+                    "name": "呆萌小笨鸡丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 95,
+                    "name": "丶灬丨阿尼亚",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 96,
+                    "name": "天首丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 97,
+                    "name": "生吞玻璃渣",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 98,
+                    "name": "乔木乔木",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 99,
+                    "name": "艾露露灬",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 101,
+                    "name": "一顿吃五碗",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 104,
+                    "name": "Dadadai",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 105,
+                    "name": "蛋碎别拿去蒸",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 106,
+                    "name": "风梧",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 107,
+                    "name": "夕立丶丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 110,
+                    "name": "母猪产后护理",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 111,
+                    "name": "林染丨霜华",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 112,
+                    "name": "Ealyf",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 115,
+                    "name": "夏鈤丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 117,
+                    "name": "Hannibalfs",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 118,
+                    "name": "断灬水流",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 119,
+                    "name": "Mnmn",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 122,
+                    "name": "艾希月歌",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 123,
+                    "name": "期许",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 126,
+                    "name": "二丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 127,
+                    "name": "丶基米哈压库",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 128,
+                    "name": "伏尔甘沃坎",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 129,
+                    "name": "这波我扛不住",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 130,
+                    "name": "美缝探索者",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 131,
+                    "name": "Tammydz",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 132,
+                    "name": "法師不是奶媽",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 133,
+                    "name": "喵小琦",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 134,
+                    "name": "寂丶寞华尔兹",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 135,
+                    "name": "献出心脏吧三",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 136,
+                    "name": "殤之辰",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 137,
+                    "name": "華强",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 138,
+                    "name": "贝吉塔灬",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 140,
+                    "name": "丶陳清流",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 141,
+                    "name": "凋零染霜锋",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 142,
+                    "name": "零度雪碧",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 143,
+                    "name": "星河与你丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 144,
+                    "name": "一个大冰坨",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 145,
+                    "name": "母牛纯牛奶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 147,
+                    "name": "秋梦难寻",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 148,
+                    "name": "埃尔拉姆斯",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 149,
+                    "name": "情灬书",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 150,
+                    "name": "法力风暴",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 151,
+                    "name": "Chirsnice",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 152,
+                    "name": "死亡守护者",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 153,
+                    "name": "丨珍宝丨",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 154,
+                    "name": "莴笋尖尖丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 157,
+                    "name": "旺旺小小猪",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 158,
+                    "name": "么宝很哇塞哼",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 159,
+                    "name": "壹米玖捌",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 160,
+                    "name": "丶独断万古",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 161,
+                    "name": "丶别问",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 162,
+                    "name": "听说过你",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 163,
+                    "name": "小火苗儿丶",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 164,
+                    "name": "灬传教士灬",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 165,
+                    "name": "狮鹫号",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 166,
+                    "name": "一萱萱一",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 167,
+                    "name": "维以不永殇",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 168,
+                    "name": "喜多川海梦丷",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 169,
+                    "name": "刺血灬帝尅",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 170,
+                    "name": "夕城",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 171,
+                    "name": "黎明冫",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 172,
+                    "name": "八月一十",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 173,
+                    "name": "最後一页",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 174,
+                    "name": "猎丶獠牙伴行",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 175,
+                    "name": "丷随遇而安丷",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 176,
+                    "name": "张小勺",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 177,
+                    "name": "Baikaiwater",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 179,
+                    "name": "童羽吖",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 180,
+                    "name": "灬全村的希望",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 181,
+                    "name": "Tromly",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 182,
+                    "name": "业火焚心",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  },
+                  {
+                    "id": 183,
+                    "name": "踏丶歌",
+                    "type": "Player",
+                    "subType": "Unknown"
+                  }
+                ],
+                "damage": {
+                  "entries": [
+                    {
+                      "id": 480,
+                      "guid": 91731963,
+                      "name": "阿橙捏",
+                      "type": "Paladin",
+                      "total": 9258362,
+                      "activeTime": 1115538
+                    },
+                    {
+                      "id": 200,
+                      "guid": 105411603,
+                      "name": "鱼不想游了",
+                      "type": "DeathKnight",
+                      "total": 124793054,
+                      "activeTime": 1412020
+                    },
+                    {
+                      "id": 481,
+                      "guid": 91717861,
+                      "name": "Fusionbolt",
+                      "type": "Shaman",
+                      "total": 329967126,
+                      "activeTime": 1349477
+                    },
+                    {
+                      "id": 679,
+                      "guid": 94832256,
+                      "name": "桃花别死",
+                      "type": "DeathKnight",
+                      "total": 238332915,
+                      "activeTime": 1373360
+                    },
+                    {
+                      "id": 3,
+                      "guid": 109015493,
+                      "name": "Giannis",
+                      "type": "Shaman",
+                      "total": 291725900,
+                      "activeTime": 1201119
+                    }
+                  ],
+                  "totalTime": 1516418,
+                  "rowsTruncated": false
+                },
+                "fights": [
+                  {
+                    "id": "1",
+                    "kill": true,
+                    "name": "T'zala / Mchimba the Embalmer / ...",
+                    "endTime": 1237304,
+                    "startTime": 200,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "2",
+                    "kill": true,
+                    "name": "Kings' Rest",
+                    "endTime": 3544159,
+                    "startTime": 2162377,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "3",
+                    "kill": true,
+                    "name": "Murder Row",
+                    "endTime": 5295862,
+                    "startTime": 3841860,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "4",
+                    "kill": true,
+                    "name": "Temple of Sethraliss",
+                    "endTime": 7657408,
+                    "startTime": 6399177,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "5",
+                    "kill": false,
+                    "name": "Voidscar Arena",
+                    "endTime": 9437799,
+                    "startTime": 8232396,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "6",
+                    "kill": false,
+                    "name": "Voidscar Arena",
+                    "endTime": 9775691,
+                    "startTime": 9438036,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "7",
+                    "kill": true,
+                    "name": "Voidscar Arena",
+                    "endTime": 11292345,
+                    "startTime": 9775927,
+                    "difficulty": 10
+                  },
+                  {
+                    "id": "8",
+                    "kill": false,
+                    "name": "Scavenging Siphoid",
+                    "endTime": 11301536,
+                    "startTime": 11292385,
+                    "difficulty": ""
+                  }
+                ],
+                "fightId": "7",
+                "players": [
+                  {
+                    "id": 480,
+                    "name": "阿橙捏",
+                    "type": "Paladin",
+                    "specs": [
+                      {
+                        "spec": "Holy",
+                        "count": 1
+                      }
+                    ],
+                    "region": "CN",
+                    "server": "凤凰之神",
+                    "maxItemLevel": 288,
+                    "minItemLevel": 288
+                  },
+                  {
+                    "id": 481,
+                    "name": "Fusionbolt",
+                    "type": "Shaman",
+                    "specs": [
+                      {
+                        "spec": "Elemental",
+                        "count": 1
+                      }
+                    ],
+                    "region": "CN",
+                    "server": "凤凰之神",
+                    "maxItemLevel": 320,
+                    "minItemLevel": 320
+                  },
+                  {
+                    "id": 679,
+                    "name": "桃花别死",
+                    "type": "DeathKnight",
+                    "specs": [
+                      {
+                        "spec": "Unholy",
+                        "count": 1
+                      }
+                    ],
+                    "region": "CN",
+                    "server": "阿古斯",
+                    "maxItemLevel": 305,
+                    "minItemLevel": 305
+                  },
+                  {
+                    "id": 3,
+                    "name": "Giannis",
+                    "type": "Shaman",
+                    "specs": [
+                      {
+                        "spec": "Elemental",
+                        "count": 1
+                      }
+                    ],
+                    "region": "CN",
+                    "server": "白银之手",
+                    "maxItemLevel": 316,
+                    "minItemLevel": 316
+                  },
+                  {
+                    "id": 200,
+                    "name": "鱼不想游了",
+                    "type": "DeathKnight",
+                    "specs": [
+                      {
+                        "spec": "Blood",
+                        "count": 1
+                      }
+                    ],
+                    "region": "CN",
+                    "server": "神圣之歌",
+                    "maxItemLevel": 303,
+                    "minItemLevel": 303
+                  }
+                ],
+                "summary": "Returned fields only; consult queryScope, eventPage and limitations before drawing conclusions.",
+                "sourceId": null,
+                "queryMode": "server_configured_warcraftlogs_api",
+                "logVersion": 17,
+                "queryScope": "scoped_analysis",
+                "reportCode": "LPV3pf4nM9yhKw1Y",
+                "gameVersion": 1,
+                "reportTitle": "Mythic+ Season 2",
+                "reportWindow": {
+                  "endTime": 1788684868832,
+                  "startTime": 1788673495045
+                },
+                "versionScope": "WCL gameVersion/logVersion are format/product identifiers, not a verified patch number.",
+                "actorsTruncated": true,
+                "fightsTruncated": false,
+                "playersTruncated": false
+              }
+            ],
+            "evidenceRefs": [
+              "wcl.report",
+              "wcl.fight"
+            ],
+            "evidence": [
+              {
+                "id": "wcl:LPV3pf4nM9yhKw1Y:7",
+                "api": "warcraftlogs-v2-graphql",
+                "fightId": "7",
+                "checkedAt": "2026-09-12T03:40:09.051619+00:00",
+                "sourceUrl": "https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7",
+                "reportCode": "LPV3pf4nM9yhKw1Y",
+                "sourceName": "Warcraft Logs",
+                "sourceStatus": "verified"
+              }
+            ],
+            "limitations": [
+              "Casts count logged events, not manual button presses or GCD usage. Triggers and secondary effects can produce casts. Equal timestamps do not prove manual or triggered origin. Preserve counts; verify origin before recommending fewer casts.",
+              "Whole-fight tables/gear only; no events were requested. Use events for a sequence or statistics for an explicit actor/time window."
+            ]
+          }
+        },
+        {
+          "tool": "source.warcraftlogs_batch",
+          "state": "completed",
+          "startedAt": "2026-09-12T11:40:16.553032+08:00",
+          "finishedAt": "2026-09-12T11:40:18.770065+08:00",
+          "result": {
+            "sourceKey": "warcraftlogs",
+            "status": "verified",
+            "limitations": [
+              "Results retain input order and independent coverage; do not combine overlapping events as distinct events."
+            ],
+            "results": [
+              {
+                "sourceKey": "warcraftlogs",
+                "status": "verified",
+                "facts": [
+                  {
+                    "view": "events",
+                    "fight": {
+                      "id": "7",
+                      "kill": true,
+                      "name": "Voidscar Arena",
+                      "endTime": 11292345,
+                      "startTime": 9775927,
+                      "difficulty": 10
+                    },
+                    "events": [
+                      {
+                        "type": "begincast",
+                        "fight": 7,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "timestamp": 11032012,
+                        "abilityGameID": 188196
+                      },
+                      {
+                        "x": 46224,
+                        "y": 507582,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 0,
+                        "facing": -199,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 837260,
+                        "itemLevel": 316,
+                        "timestamp": 11033437,
+                        "spellPower": 3277,
+                        "attackPower": 1050,
+                        "versatility": 205,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 188196,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 500,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "x": 46224,
+                        "y": 507582,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 0,
+                        "facing": -199,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 837260,
+                        "itemLevel": 316,
+                        "timestamp": 11033438,
+                        "spellPower": 3277,
+                        "attackPower": 1050,
+                        "versatility": 205,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 470057,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 750,
+                            "type": 0,
+                            "amount": 249500
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "type": "begincast",
+                        "fight": 7,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "timestamp": 11035411,
+                        "abilityGameID": 191634
+                      },
+                      {
+                        "x": 46246,
+                        "y": 508518,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 17753,
+                        "facing": -226,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "avoidance": 453,
+                        "hitPoints": 660825,
+                        "itemLevel": 316,
+                        "timestamp": 11036689,
+                        "spellPower": 3351,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 191634,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "type": 11,
+                            "amount": 99
+                          }
+                        ]
+                      },
+                      {
+                        "x": 46246,
+                        "y": 508518,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 17753,
+                        "facing": -226,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 660825,
+                        "itemLevel": 316,
+                        "timestamp": 11036690,
+                        "spellPower": 3385,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 188196,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 500,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "x": 46303,
+                        "y": 509284,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 16983,
+                        "facing": -223,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 722203,
+                        "itemLevel": 316,
+                        "timestamp": 11037860,
+                        "spellPower": 3442,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 188196,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 500,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "x": 46198,
+                        "y": 510077,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 16214,
+                        "facing": -233,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 722203,
+                        "itemLevel": 316,
+                        "timestamp": 11038955,
+                        "spellPower": 3442,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 114050,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "type": 11,
+                            "amount": 149
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "x": 46198,
+                        "y": 510077,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 16214,
+                        "facing": -233,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "avoidance": 453,
+                        "hitPoints": 722203,
+                        "itemLevel": 316,
+                        "timestamp": 11038956,
+                        "spellPower": 3726,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 79206,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 7050,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ]
+                      },
+                      {
+                        "x": 46198,
+                        "y": 510077,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 16214,
+                        "facing": -233,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "avoidance": 453,
+                        "hitPoints": 722203,
+                        "itemLevel": 316,
+                        "timestamp": 11038959,
+                        "spellPower": 3726,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 1293316,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "type": 11,
+                            "amount": 149
+                          }
+                        ]
+                      },
+                      {
+                        "x": 46127,
+                        "y": 510493,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 16214,
+                        "facing": -257,
+                        "sourceID": 3,
+                        "targetID": -1,
+                        "avoidance": 453,
+                        "hitPoints": 756157,
+                        "itemLevel": 316,
+                        "timestamp": 11039425,
+                        "spellPower": 3763,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 443454,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "type": 11,
+                            "amount": 149
+                          }
+                        ]
+                      },
+                      {
+                        "x": 45928,
+                        "y": 511096,
+                        "type": "cast",
+                        "armor": 1483,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 15444,
+                        "facing": -356,
+                        "sourceID": 3,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 756157,
+                        "itemLevel": 316,
+                        "timestamp": 11040121,
+                        "spellPower": 3763,
+                        "attackPower": 1050,
+                        "versatility": 392,
+                        "maxHitPoints": 837260,
+                        "abilityGameID": 51505,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "type": 11,
+                            "amount": 163
+                          }
+                        ],
+                        "targetInstance": 1
+                      }
+                    ],
+                    "fightId": "7",
+                    "summary": "Returned fields only; consult queryScope, eventPage and limitations before drawing conclusions.",
+                    "sourceId": "3",
+                    "eventPage": {
+                      "count": 12,
+                      "limit": 200,
+                      "scope": "event sample only; tables are aggregated independently over the selected filters",
+                      "endTime": 11040927,
+                      "complete": true,
+                      "dataType": "Casts",
+                      "startTime": 11025927,
+                      "fieldsTruncated": false,
+                      "nextPageTimestamp": null
+                    },
+                    "queryMode": "server_configured_warcraftlogs_api",
+                    "logVersion": 17,
+                    "queryScope": "scoped_analysis",
+                    "reportCode": "LPV3pf4nM9yhKw1Y",
+                    "gameVersion": 1,
+                    "reportTitle": "Mythic+ Season 2",
+                    "eventSummary": {
+                      "casts": 10,
+                      "total": 12,
+                      "deaths": 0,
+                      "buffEvents": 0,
+                      "damageEvents": 0,
+                      "healingEvents": 0,
+                      "mechanicEvents": 2
+                    },
+                    "reportWindow": {
+                      "endTime": 1788684868832,
+                      "startTime": 1788673495045
+                    },
+                    "versionScope": "WCL gameVersion/logVersion are format/product identifiers, not a verified patch number."
+                  }
+                ],
+                "evidenceRefs": [
+                  "wcl.report",
+                  "wcl.fight",
+                  "wcl.events"
+                ],
+                "evidence": [
+                  {
+                    "id": "wcl:LPV3pf4nM9yhKw1Y:7",
+                    "api": "warcraftlogs-v2-graphql",
+                    "fightId": "7",
+                    "checkedAt": "2026-09-12T03:40:18.731487+00:00",
+                    "sourceUrl": "https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7&source=3",
+                    "reportCode": "LPV3pf4nM9yhKw1Y",
+                    "sourceName": "Warcraft Logs",
+                    "sourceStatus": "verified"
+                  }
+                ],
+                "limitations": [
+                  "Casts count logged events, not manual button presses or GCD usage. Triggers and secondary effects can produce casts. Equal timestamps do not prove manual or triggered origin. Preserve counts; verify origin before recommending fewer casts.",
+                  "Event-only response. Continue from nextPageTimestamp with the same endTime/dataType/source. Use overview for whole-fight tables/gear; omitted tables are unknown, not zero."
+                ]
+              },
+              {
+                "sourceKey": "warcraftlogs",
+                "status": "verified",
+                "facts": [
+                  {
+                    "view": "events",
+                    "fight": {
+                      "id": "7",
+                      "kill": true,
+                      "name": "Voidscar Arena",
+                      "endTime": 11292345,
+                      "startTime": 9775927,
+                      "difficulty": 10
+                    },
+                    "events": [
+                      {
+                        "x": 44195,
+                        "y": 509837,
+                        "type": "cast",
+                        "armor": 1531,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 0,
+                        "facing": -585,
+                        "sourceID": 481,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 861280,
+                        "itemLevel": 320,
+                        "timestamp": 11033672,
+                        "spellPower": 3393,
+                        "attackPower": 1050,
+                        "versatility": 344,
+                        "maxHitPoints": 861280,
+                        "abilityGameID": 470057,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 750,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "type": "begincast",
+                        "fight": 7,
+                        "sourceID": 481,
+                        "targetID": -1,
+                        "timestamp": 11035048,
+                        "abilityGameID": 117014
+                      },
+                      {
+                        "x": 44801,
+                        "y": 510364,
+                        "type": "cast",
+                        "armor": 1531,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 0,
+                        "facing": -628,
+                        "sourceID": 481,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 861280,
+                        "itemLevel": 320,
+                        "timestamp": 11036656,
+                        "spellPower": 3393,
+                        "attackPower": 1050,
+                        "versatility": 344,
+                        "maxHitPoints": 861280,
+                        "abilityGameID": 117014,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 175,
+                            "cost": 90,
+                            "type": 11,
+                            "amount": 114
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "type": "begincast",
+                        "fight": 7,
+                        "sourceID": 481,
+                        "targetID": -1,
+                        "timestamp": 11038371,
+                        "abilityGameID": 51505
+                      },
+                      {
+                        "x": 44579,
+                        "y": 511035,
+                        "type": "cast",
+                        "armor": 1531,
+                        "fight": 7,
+                        "mapID": 2573,
+                        "absorb": 0,
+                        "facing": -537,
+                        "sourceID": 481,
+                        "targetID": 794,
+                        "avoidance": 453,
+                        "hitPoints": 861280,
+                        "itemLevel": 320,
+                        "timestamp": 11039715,
+                        "spellPower": 3393,
+                        "attackPower": 1050,
+                        "versatility": 344,
+                        "maxHitPoints": 861280,
+                        "abilityGameID": 51505,
+                        "resourceActor": 1,
+                        "classResources": [
+                          {
+                            "max": 250000,
+                            "cost": 1250,
+                            "type": 0,
+                            "amount": 250000
+                          }
+                        ],
+                        "targetInstance": 1
+                      },
+                      {
+                        "type": "begincast",
+                        "fight": 7,
+                        "sourceID": 481,
+                        "targetID": -1,
+                        "timestamp": 11039725,
+                        "abilityGameID": 188196
+                      }
+                    ],
+                    "fightId": "7",
+                    "summary": "Returned fields only; consult queryScope, eventPage and limitations before drawing conclusions.",
+                    "sourceId": "481",
+                    "eventPage": {
+                      "count": 6,
+                      "limit": 200,
+                      "scope": "event sample only; tables are aggregated independently over the selected filters",
+                      "endTime": 11040927,
+                      "complete": true,
+                      "dataType": "Casts",
+                      "startTime": 11025927,
+                      "fieldsTruncated": false,
+                      "nextPageTimestamp": null
+                    },
+                    "queryMode": "server_configured_warcraftlogs_api",
+                    "logVersion": 17,
+                    "queryScope": "scoped_analysis",
+                    "reportCode": "LPV3pf4nM9yhKw1Y",
+                    "gameVersion": 1,
+                    "reportTitle": "Mythic+ Season 2",
+                    "eventSummary": {
+                      "casts": 3,
+                      "total": 6,
+                      "deaths": 0,
+                      "buffEvents": 0,
+                      "damageEvents": 0,
+                      "healingEvents": 0,
+                      "mechanicEvents": 3
+                    },
+                    "reportWindow": {
+                      "endTime": 1788684868832,
+                      "startTime": 1788673495045
+                    },
+                    "versionScope": "WCL gameVersion/logVersion are format/product identifiers, not a verified patch number."
+                  }
+                ],
+                "evidenceRefs": [
+                  "wcl.report",
+                  "wcl.fight",
+                  "wcl.events"
+                ],
+                "evidence": [
+                  {
+                    "id": "wcl:LPV3pf4nM9yhKw1Y:7",
+                    "api": "warcraftlogs-v2-graphql",
+                    "fightId": "7",
+                    "checkedAt": "2026-09-12T03:40:17.403093+00:00",
+                    "sourceUrl": "https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y#fight=7&source=481",
+                    "reportCode": "LPV3pf4nM9yhKw1Y",
+                    "sourceName": "Warcraft Logs",
+                    "sourceStatus": "verified"
+                  }
+                ],
+                "limitations": [
+                  "Casts count logged events, not manual button presses or GCD usage. Triggers and secondary effects can produce casts. Equal timestamps do not prove manual or triggered origin. Preserve counts; verify origin before recommending fewer casts.",
+                  "Event-only response. Continue from nextPageTimestamp with the same endTime/dataType/source. Use overview for whole-fight tables/gear; omitted tables are unknown, not zero."
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "simc-completed-pair",
+      "prompt": "读取我已有的两份模拟任务 d79e200d-554c-4290-907e-99ca3e3c8698 和 5364a742-cff1-4c05-bf5d-0406241e2378，核对是否同快照、引擎和场景控制条件，再使用比较工具报告实际DPS差值、百分比与误差边界；说明这两份实际改变了什么。只读取和比较已完成任务，不准备角色、不创建或重跑模拟、不查询攻略。",
+      "status": "completed",
+      "elapsedSeconds": 33.923759,
+      "runId": "750007ee-d864-442d-9b1d-885ecae53e1b",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 114019,
+          "totalTokens": 114719,
+          "outputTokens": 700,
+          "cachedInputTokens": 89344,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**第二份任务比第一份高 3,931.84 DPS（+2.4733%），超过比较工具给出的采样误差边界。**\n\n两份均已完成，核对为同一快照 `495ff88d-9953-4500-8f0f-cec544dda5b2`、同一引擎及编译版本。控制条件一致：Patchwerk、单目标、固定 300 秒、10,000 次迭代。两份有效配置校验均通过。\n\n| 任务（ID 前缀） | DPS | 报告采样误差 |\n|---|---:|---:|\n| 第一份 `d79e200d`（基线） | 158,973.34 | ±85.53 |\n| 第二份 `5364a742` | 162,905.18 | ±84.98 |\n\n比较工具将误差保守相加，得到差值边界 **±170.51 DPS**；即差值范围约为 **+3,761.33～+4,102.35 DPS**。这不是配对统计显著性检验。\n\n实际改变的是**两个饰品的物品及装等**：\n\n| 槽位 | 第一份 | 第二份 |\n|---|---|---|\n| 饰品 1 | 物品 249343，289 装等 | 物品 250214，321 装等 |\n| 饰品 2 | 物品 250144，289 装等 | 物品 273796，321 装等 |\n\n两组饰品均设置为无额外加成、无宝石、无附魔；其余装备、天赋和场景条件一致。因此，这是两套不同装等饰品组合的比较，不能单独归因为饰品效果差异。\n\n第一份有“机制实现尚未验证”的引擎提示，以上采样误差**不包含机制实现的不确定性**。本次仅读取并比较已有任务，未创建或重跑模拟。",
+      "sseCompleted": true,
+      "secondOwner404": true,
+      "idempotentReplay": true,
+      "nativeObservations": [],
+      "nativeBinding": "unavailable_in_old_version",
+      "qualityStatus": "pending_manual_review",
+      "toolReceipts": [
+        {
+          "tool": "simc.get",
+          "state": "completed",
+          "startedAt": "2026-09-12T11:41:05.403249+08:00",
+          "finishedAt": "2026-09-12T11:41:05.531023+08:00",
+          "result": {
+            "sourceKey": "simc",
+            "status": "succeeded",
+            "errorCode": null,
+            "facts": [
+              "Simulation job status: succeeded."
+            ],
+            "evidenceRefs": [
+              {
+                "jobId": "5364a742-cff1-4c05-bf5d-0406241e2378",
+                "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2"
+              }
+            ],
+            "limitations": [],
+            "jobId": "5364a742-cff1-4c05-bf5d-0406241e2378",
+            "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2",
+            "scenario": {
+              "maxTime": 300,
+              "fightStyle": "Patchwerk",
+              "iterations": 10000,
+              "desiredTargets": 1,
+              "varyCombatLength": 0.0,
+              "equipmentOverrides": {
+                "trinket1": {
+                  "gems": [],
+                  "itemId": 250214,
+                  "enchant": null,
+                  "bonusIds": [],
+                  "itemLevel": 321
+                },
+                "trinket2": {
+                  "gems": [],
+                  "itemId": 273796,
+                  "enchant": null,
+                  "bonusIds": [],
+                  "itemLevel": 321
+                }
+              }
+            },
+            "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+            "compilerRevision": "chickenbro-simc-compiler-v6",
+            "result": {
+              "metricName": "dps",
+              "metricValue": 162905.18174282458,
+              "metricError": 84.97979236559019,
+              "provenance": {
+                "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2",
+                "scenarioHash": "1fec0b817d0ff91959c6ec3bbb66a8ab739bb131e5068269c900dee96beece35",
+                "profileSha256": "9d60a27cc1ba5502462dc0eb3f68d2fc73c89250ff39f566092868c18a1622c5",
+                "sourceRevision": "2026-09-08T19:51:25.000Z",
+                "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+                "sourceRawSha256": "09792bec4af83a7f76f05b4597cdebe47e25d6dab2d47ccf0de9e58d68f5427a",
+                "compilerRevision": "chickenbro-simc-compiler-v6"
+              },
+              "effectiveConfig": {
+                "status": "verified",
+                "checked": [
+                  "talents",
+                  "equipmentItemIds",
+                  "overriddenItemLevels",
+                  "overriddenEnchantIds"
+                ],
+                "profileSha256": "9d60a27cc1ba5502462dc0eb3f68d2fc73c89250ff39f566092868c18a1622c5",
+                "overriddenEnchants": {
+                  "trinket1": null,
+                  "trinket2": null
+                },
+                "enchantEvidenceScope": "engine_reported_input_identity"
+              }
+            }
+          }
+        },
+        {
+          "tool": "simc.get",
+          "state": "completed",
+          "startedAt": "2026-09-12T11:41:05.560846+08:00",
+          "finishedAt": "2026-09-12T11:41:05.686821+08:00",
+          "result": {
+            "sourceKey": "simc",
+            "status": "succeeded",
+            "errorCode": null,
+            "facts": [
+              "Simulation job status: succeeded."
+            ],
+            "evidenceRefs": [
+              {
+                "jobId": "d79e200d-554c-4290-907e-99ca3e3c8698",
+                "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2"
+              }
+            ],
+            "limitations": [
+              "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+            ],
+            "jobId": "d79e200d-554c-4290-907e-99ca3e3c8698",
+            "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2",
+            "scenario": {
+              "maxTime": 300,
+              "fightStyle": "Patchwerk",
+              "iterations": 10000,
+              "desiredTargets": 1,
+              "varyCombatLength": 0.0,
+              "equipmentOverrides": {
+                "trinket1": {
+                  "gems": [],
+                  "itemId": 249343,
+                  "enchant": null,
+                  "bonusIds": [],
+                  "itemLevel": 289
+                },
+                "trinket2": {
+                  "gems": [],
+                  "itemId": 250144,
+                  "enchant": null,
+                  "bonusIds": [],
+                  "itemLevel": 289
+                }
+              }
+            },
+            "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+            "compilerRevision": "chickenbro-simc-compiler-v6",
+            "result": {
+              "metricName": "dps",
+              "metricValue": 158973.33937516273,
+              "metricError": 85.52757716633944,
+              "provenance": {
+                "snapshotId": "495ff88d-9953-4500-8f0f-cec544dda5b2",
+                "scenarioHash": "0dc2eed8c144091160d6ae77b7b5181324c3483adc57552d6c12a87ad726fbcd",
+                "profileSha256": "64e225f25fa34dac6aedf3847899775b12c1f80c44e3baa572f4beaf8b849592",
+                "sourceRevision": "2026-09-08T19:51:25.000Z",
+                "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+                "sourceRawSha256": "09792bec4af83a7f76f05b4597cdebe47e25d6dab2d47ccf0de9e58d68f5427a",
+                "compilerRevision": "chickenbro-simc-compiler-v6"
+              },
+              "effectiveConfig": {
+                "status": "verified",
+                "checked": [
+                  "talents",
+                  "equipmentItemIds",
+                  "overriddenItemLevels",
+                  "overriddenEnchantIds"
+                ],
+                "profileSha256": "64e225f25fa34dac6aedf3847899775b12c1f80c44e3baa572f4beaf8b849592",
+                "overriddenEnchants": {
+                  "trinket1": null,
+                  "trinket2": null
+                },
+                "enchantEvidenceScope": "engine_reported_input_identity"
+              }
+            }
+          }
+        },
+        {
+          "tool": "simc.compare",
+          "state": "completed",
+          "startedAt": "2026-09-12T11:41:09.878974+08:00",
+          "finishedAt": "2026-09-12T11:41:10.204926+08:00",
+          "result": {
+            "sourceKey": "simc",
+            "status": "ready",
+            "facts": [],
+            "evidenceRefs": [
+              {
+                "jobId": "d79e200d-554c-4290-907e-99ca3e3c8698"
+              },
+              {
+                "jobId": "5364a742-cff1-4c05-bf5d-0406241e2378"
+              }
+            ],
+            "limitations": [],
+            "comparison": {
+              "delta": 3931.842367661855,
+              "changes": {
+                "equipmentOverrides": {
+                  "after": {
+                    "trinket1": {
+                      "gems": [],
+                      "itemId": 250214,
+                      "enchant": null,
+                      "bonusIds": [],
+                      "itemLevel": 321
+                    },
+                    "trinket2": {
+                      "gems": [],
+                      "itemId": 273796,
+                      "enchant": null,
+                      "bonusIds": [],
+                      "itemLevel": 321
+                    }
+                  },
+                  "before": {
+                    "trinket1": {
+                      "gems": [],
+                      "itemId": 249343,
+                      "enchant": null,
+                      "bonusIds": [],
+                      "itemLevel": 289
+                    },
+                    "trinket2": {
+                      "gems": [],
+                      "itemId": 250144,
+                      "enchant": null,
+                      "bonusIds": [],
+                      "itemLevel": 289
+                    }
+                  }
+                }
+              },
+              "variant": 162905.18174282458,
+              "baseline": 158973.33937516273,
+              "controls": {
+                "maxTime": 300,
+                "fightStyle": "Patchwerk",
+                "iterations": 10000,
+                "desiredTargets": 1,
+                "varyCombatLength": 0.0
+              },
+              "deltaPct": 2.473271545477863,
+              "assessment": "higher",
+              "metricName": "dps",
+              "limitations": [
+                "Reported error bounds are summed conservatively; this is not a paired statistical significance test.",
+                "The engine reported simulation caveats (implementation_not_yet_verified). Reported sampling error does not include uncertainty in mechanics or their implementation."
+              ],
+              "variantJobId": "5364a742-cff1-4c05-bf5d-0406241e2378",
+              "baselineJobId": "d79e200d-554c-4290-907e-99ca3e3c8698",
+              "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+              "engineDiagnostics": {
+                "variant": [],
+                "baseline": [
+                  "implementation_not_yet_verified"
+                ]
+              },
+              "combinedErrorBound": 170.5073695319296
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

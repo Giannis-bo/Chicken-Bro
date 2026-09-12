@@ -1,0 +1,74 @@
+[
+  {
+    "reviewId": "18f4a4191c1e1d657ce1fc93",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["角色11/22定位与两份完整治疗表一致；80万/60万有效治疗、20%/40%过量率及治疗波15万差额均计算正确。", "明确合成60秒范围，未把治疗差距解释成操作优劣。"]
+  },
+  {
+    "reviewId": "19c61d51e63e1c5c319858df",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["已核对角色与完整治疗表；正确从含过量技能总量扣除过量，治疗波贡献75%、激流25%。", "过量率分母正确，未越过缺血和承伤证据边界提出施法调整。"]
+  },
+  {
+    "reviewId": "38901049e992426b80a157a1",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["两角色总量、HPS及技能有效治疗与已返回资料一致；20万总差距中治疗波贡献15万。", "完整回答角色、过量和主要技能差异，保留合成范围与不能据汇总归因的限制。"]
+  },
+  {
+    "reviewId": "3d91686c77f32e95ee1cb618",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["首轮完整统计支持前30秒雨1次；次轮确实重新查询30000至60000毫秒，分别返回雨1次、云2次。", "准确使用左闭右开窗口，未把空events数组误当零施法，明确统计不能证明按键习惯。"]
+  },
+  {
+    "reviewId": "4c3c6246d955ad8f808f1a9f",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["完整事件直接支持首轮5秒1次、修正后雨35秒1次及云40/55秒2次。", "两轮查询窗口与角色正确，合成范围清楚，没有沿用旧窗口或推断实际按键次数。"]
+  },
+  {
+    "reviewId": "538b1f889ba78d431969d41a",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["首轮及修正后的完整统计分别支持1次和1对2次；查询参数明确为新30000至60000毫秒窗口。", "没有把汇总统计冒充精确事件时刻，按键习惯的不可推断边界完整。"]
+  },
+  {
+    "reviewId": "5b848029c672e249202c8fb8",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["逐角色完整统计支持前30秒雨1次及后30秒雨1次、云2次；两轮均正确处理窗口。", "完成修正后的比较，明确仅是施法频次差异，不能推断连按、宏或长期习惯。"]
+  },
+  {
+    "reviewId": "6fae0de419511ff83466f525",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["角色定位、总有效治疗和各技能过量率均有完整表支持；治疗波15万差额及75%贡献正确。", "把差距限定为统计分解，明确不能据此认定目标选择或时机失误。"]
+  },
+  {
+    "reviewId": "7d4252c79962d30b20c87dae",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["已按角色核对两份治疗表，含过量总量相同、有效差额20万及技能差额15万/5万均正确。", "33.3%相对差异和过量率计算正确，未由统计差异断言施法错误。"]
+  },
+  {
+    "reviewId": "8f6141e2bfeb8287b53257ba",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["角色11/22、80万/60万有效治疗、20%/40%过量率及两技能贡献均与实际工具表一致。", "完整解答整场治疗比较，保留合成资料限制及不能判断操作错误的边界。"]
+  },
+  {
+    "reviewId": "b5f4c8a05922018d7f052011",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["首轮完整事件支持5秒1条；次轮批量返回的完整新窗口事件支持雨35秒1条、云40/55秒2条。", "批量结果是有效等价取证路径，比较与时间准确，未据记录评价操作合理性。"]
+  },
+  {
+    "reviewId": "ec84147832b5b54fbd45fd18",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "notes": ["两轮事件与批量子结果支持全部次数及5/35/40/55秒时刻；次轮参数确实采用修正窗口。", "未把缺少手动或触发来源字段解释成确定来源，保留施法记录不等于按键记录的结论。"]
+  }
+]

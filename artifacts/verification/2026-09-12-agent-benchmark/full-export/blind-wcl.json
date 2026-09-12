@@ -1,0 +1,5162 @@
+[
+  {
+    "reviewId": "18f4a4191c1e1d657ce1fc93",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨为 actor 11，云为 actor 22**，均为欧服 silvermoon 的萨满。范围仅限固定合成报告第 7 场、完整 60 秒，不代表真实游戏资料。\n\n**雨的有效治疗比云高 20 万（33.3%），主要差异来自治疗波。**\n\n| 指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量总治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n技能表中的总量**包含过量**，扣除后为：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差额 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n治疗波贡献了有效治疗差距的 **75%**，激流贡献 **25%**。两人的对应技能含过量总量相同，差距体现在过量部分；这些整场统计尚不能判定云的施法选择有误，需结合当时目标缺血和承伤才能给出操作建议。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "19c61d51e63e1c5c319858df",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：第 7 场中，**雨为 actor 11，云为 actor 22**，均是欧服 silvermoon 的萨满。本次仅分析 fixture 返回的这场 **60 秒合成日志**，治疗表完整、未截断，不代表真实游戏资料。\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量总治疗 | 100 万 | 100 万 |\n| 有效治疗 | **80 万** | **60 万** |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | **20%** | **40%** |\n\n过量率＝过量治疗÷含过量总治疗。技能表的总量包含过量，扣除后如下：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨比云多 | 雨／云过量率 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | **15 万** | 42.86%／85.71% |\n| 激流 | 60 万 | 55 万 | **5 万** | 7.69%／15.38% |\n\n**雨的有效治疗高出 20 万（33.3%），其中 75% 的差额来自治疗波，25% 来自激流。** 两人的对应技能含过量总量相同，统计差异来自过量部分不同。\n\n这些汇总能定位差异技能；尚未核对施法时的目标缺血和承伤窗口，因此不能据此认定云的治疗波使用失误或建议减少施放。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "38901049e992426b80a157a1",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨是 actor 11，云是 actor 22**，均为欧服 silvermoon 的萨满。范围仅限这份**固定合成日志第7场、完整60秒**，不代表真实游戏资料。\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 有效治疗 | 80万 | 60万 |\n| 有效HPS | 13,333 | 10,000 |\n| 含过量总治疗 | 100万 | 100万 |\n| 过量治疗 | 20万 | 40万 |\n| 过量率 | 20% | 40% |\n\n**雨的有效治疗高20万（33.3%），主要差异来自治疗波。** 技能表返回的是含过量总量，扣除过量后如下：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨比云多 | 雨／云过量率 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20万 | 5万 | 15万 | 42.9%／85.7% |\n| 激流 | 60万 | 55万 | 5万 | 7.7%／15.4% |\n\n治疗波贡献了有效治疗差距的 **75%**，激流贡献25%。两人的对应技能含过量总量相同，统计差异来自过量部分；现有整场汇总不能判定云的施法选择有误，还需对应目标的缺血和承伤窗口才能归因。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "3d91686c77f32e95ee1cb618",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "这份合成日志第 7 场中，“雨”在开战后 **0≤时间<30 秒**内，治疗波记录为 **1 次施法**；该窗口统计完整，不含恰好第 30 秒的事件。\n\n**不能据此推断按键习惯。** 施法记录不等于实际按键次数，单个 30 秒窗口也不足以判断连按、宏绑定或长期习惯。\n\n以上仅针对本次 fixture 合成资料，不代表真实游戏观测。",
+      "重新查询第 7 场 **30≤时间<60 秒**的完整统计，治疗波施法记录为：\n\n| 角色 | 次数 |\n|---|---:|\n| 雨 | 1 |\n| 云 | 2 |\n\n云比雨多 1 次。**不能据此推断按键习惯**：日志施法次数不等于实际按键次数，这个窗口也不足以判断连按、宏绑定或长期习惯。\n\n以上仅依据本次 fixture 合成资料的新窗口，未沿用前 30 秒结论，不代表真实游戏观测。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000,
+            "maxPages": 5
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 30000,
+                "observedThrough": 30000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "4c3c6246d955ad8f808f1a9f",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "在这份**合成日志**第7场中，雨（角色ID 11）前30秒记录了 **1次治疗波施法**，发生在开战后 **5.000秒**。该窗口的施法事件已完整返回。[日志范围](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11)\n\n**不能据此推断按键习惯。**这条记录只能证明日志记录了一次施法，无法判断实际按键次数、是否连按或使用宏，更不足以判断长期操作习惯。",
+      "仅看这份**合成日志第7场的30–60秒**，两人的施法事件均已完整返回：\n\n| 角色 | 治疗波施法记录 | 开战后时间 |\n|---|---:|---|\n| [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 1次 | 35.000秒 |\n| [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) | 2次 | 40.000秒、55.000秒 |\n\n云在该窗口比雨多1次治疗波记录。**不能据此推断按键习惯**：施法记录不等于实际按键次数，也不能证明连按、宏绑定或长期习惯。以上仅依据本次取得的合成资料，不沿用前30秒结论。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "events",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [
+                {
+                  "type": "cast",
+                  "timestamp": 5000,
+                  "sourceID": 11,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                }
+              ],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "events",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [
+                {
+                  "type": "cast",
+                  "timestamp": 35000,
+                  "sourceID": 11,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                }
+              ],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000",
+            "casts.11.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000",
+            "fixture:casts.11.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "events",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [
+                {
+                  "type": "cast",
+                  "timestamp": 40000,
+                  "sourceID": 22,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                },
+                {
+                  "type": "cast",
+                  "timestamp": 55000,
+                  "sourceID": 22,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                }
+              ],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.30000.60000",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "538b1f889ba78d431969d41a",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "这份[合成日志](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11)中，第 7 场“雨”在开战后 **0≤时间＜30 秒**的治疗波施法记录是 **1 次**，该窗口统计完整，不含恰好第 30 秒的事件。\n\n**不能据此推断按键习惯。**施法日志不等于实际按键记录，单个 30 秒窗口也不足以说明是否连按、使用宏或存在固定操作习惯。以上仅针对本次固定合成资料。",
+      "重新查询这份合成日志第 7 场，限定 **30≤战斗时间＜60 秒**，两人的治疗波统计均完整：\n\n| 玩家 | 治疗波施法记录 |\n|---|---:|\n| [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 1 次 |\n| [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) | 2 次 |\n\n云在这个窗口比雨多 1 次。**不能据此推断按键习惯**：施法记录不等于实际按键记录，这个短窗口的频次差异也不能证明连按、宏绑定或固定习惯。\n\n以上仅依据本次 fixture 返回的固定合成资料，未沿用前 30 秒结论。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000,
+            "maxPages": 5
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 30000,
+                "observedThrough": 30000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "5b848029c672e249202c8fb8",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "这份合成日志第 7 场中，雨在开战 **0 秒至不足 30 秒**内，记录了 **1 次治疗波施法**。该窗口统计完整，恰好第 30 秒的事件不计入。\n\n**不能据此推断按键习惯。** 施法记录不等于实际按键记录，单场 30 秒的一次施法也不足以判断连按、宏绑定或长期习惯。以上仅针对本次固定合成资料，不代表真实游戏观测。",
+      "重新查询第 7 场 **30 秒至不足 60 秒**的完整统计，治疗波施法记录为：\n\n- **雨：1 次**\n- **云：2 次**，比雨多 1 次。\n\n这只能说明该窗口的施法频次差异，**不能推断连按、宏绑定或长期按键习惯**；施法记录不等于实际按键记录。\n\n以上仅依据本次固定合成资料的新窗口，未沿用前 30 秒结论，不代表真实游戏观测。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000,
+            "maxPages": 5
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 0,
+                "endTime": 30000,
+                "observedThrough": 30000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 2
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 22,
+                "eventCount": 2,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "statistics",
+            "dataType": "Casts",
+            "startTime": 30000,
+            "endTime": 60000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "statistics": {
+                "complete": true,
+                "metricsComplete": true,
+                "casts": [
+                  {
+                    "abilityId": 77472,
+                    "count": 1
+                  }
+                ],
+                "startTime": 30000,
+                "endTime": 60000,
+                "observedThrough": 60000,
+                "dataType": "Casts",
+                "sourceId": 11,
+                "eventCount": 1,
+                "pagesRead": 1,
+                "nextPageTimestamp": null,
+                "intervalConvention": "[startTime,endTime)"
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "6fae0de419511ff83466f525",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨（角色 ID 11）和云（角色 ID 22）均为欧服 Silvermoon 的萨满**。范围为合成报告第 7 场、完整 60 秒，治疗汇总无截断。\n\n**雨比云多 20 万有效治疗，主要差距来自治疗波的过量。**\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量总治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n过量率按“过量÷含过量总治疗”计算；技能有效治疗按返回的含过量技能总量减去过量计算。\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差额 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n治疗波贡献了有效治疗差距的 **75%**，激流贡献 **25%**。两人的对应技能含过量总量相同，差异体现在有效治疗占比；这些汇总不能单独证明云选错目标或施法时机失误。\n\n以上仅为本会话固定合成资料的统计结论，不代表真实游戏表现或真实引擎结果。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "7d4252c79962d30b20c87dae",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨（角色 ID 11）和云（角色 ID 22）均为 EU–Silvermoon 的萨满**。以下仅分析固定合成日志第 7 场、完整 60 秒，治疗表无截断，不代表真实游戏表现。\n\n**雨的有效治疗比云高 20 万（33.3%），主要差异来自治疗波。**\n\n| 指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n过量率按“过量治疗 ÷ 含过量治疗”计算；技能表返回的是含过量数值，扣除过量后如下：\n\n| 技能 | 雨有效治疗／过量率 | 云有效治疗／过量率 | 雨的有效治疗领先 |\n|---|---:|---:|---:|\n| 治疗波 | 20 万／42.9% | 5 万／85.7% | 15 万 |\n| 激流 | 60 万／7.7% | 55 万／15.4% | 5 万 |\n\n治疗波贡献了有效治疗差距的 **75%**，激流贡献 25%。两人各技能的含过量治疗相同，统计差距全部体现为云的过量更多；但仅凭这些汇总，不能判定云选错目标或施法失误，还缺当时目标缺血与承伤证据。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "8f6141e2bfeb8287b53257ba",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：[雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11)（角色 ID 11）和[云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22)（角色 ID 22），均为欧服 Silvermoon 的萨满。\n\n**雨的有效治疗比云高 20 万，主要差距来自治疗波。** 范围为第 7 场完整 60 秒；仅依据本会话工具返回的固定合成资料，不代表真实游戏表现。\n\n| 整场指标 | 雨 | 云 |\n|---|---:|---:|\n| 含过量治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n过量率＝过量治疗÷含过量治疗。技能表返回的是含过量数值，扣除过量后：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差额 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n治疗波贡献了总差距的 **75%**，激流贡献 **25%**。两人各技能的含过量治疗相同，差异体现在实际转化为有效治疗的部分；仅凭这些汇总，不能判定云存在选错目标或施法时机错误。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 22,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 600000,
+                  "raw": 1000000,
+                  "overheal": 400000,
+                  "grossEffective": 600000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 10000.0,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 300000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 100000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.22"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.22"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "healing"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "healing": {
+                "complete": true,
+                "totalTimeMs": 60000,
+                "rowsTruncated": false,
+                "totals": {
+                  "effective": 800000,
+                  "raw": 1000000,
+                  "overheal": 200000,
+                  "grossEffective": 800000,
+                  "grossRaw": 1000000,
+                  "signedAdjustments": {
+                    "effective": 0,
+                    "raw": 0
+                  },
+                  "effectiveHps": 13333.333333333334,
+                  "rawHps": 16666.666666666668
+                },
+                "entries": [
+                  {
+                    "guid": 77472,
+                    "name": "治疗波",
+                    "total": 350000,
+                    "overheal": 150000
+                  },
+                  {
+                    "guid": 61295,
+                    "name": "激流",
+                    "total": 650000,
+                    "overheal": 50000
+                  }
+                ],
+                "coverage": "Paired effective/raw synthetic tables for identical fight and actor; entries are raw totals including overheal."
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "healing.11"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:healing.11"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "b5f4c8a05922018d7f052011",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "这份合成日志第7场中，雨（source=11）在开战后 **0–30秒有1条治疗波施放记录，时间为第5.000秒**；该窗口事件已完整返回。[日志来源](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11)\n\n**不能据此推断按键习惯。** 单条施放记录不能证明实际按键次数、连按或宏绑定，也不足以判断操作是否合理。以上仅针对本次固定合成资料。",
+      "仅看这份合成日志第7场 **30–60秒**，两人的施放事件均已完整返回：\n\n| 角色 | 治疗波施放记录 | 开战后时间 |\n|---|---:|---|\n| [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 1条 | 35.000秒 |\n| [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) | 2条 | 40.000、55.000秒 |\n\n云比雨多1条记录，**不能据此推断按键习惯**：这些记录不能证明连按、宏绑定或实际按键次数，也不足以判断谁的操作更合理。结论仅限本次固定合成资料的指定窗口。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "events",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [
+                {
+                  "type": "cast",
+                  "timestamp": 5000,
+                  "sourceID": 11,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                }
+              ],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_batch",
+        "arguments": {
+          "queries": [
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "options": {
+                "view": "events",
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "limit": 200
+              }
+            },
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "options": {
+                "view": "events",
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "limit": 200
+              }
+            }
+          ]
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000",
+            "casts.11.30000.60000",
+            "wcl.overview",
+            "casts.22.30000.60000",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000",
+            "fixture:casts.11.30000.60000",
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.11.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.11.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.22.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.22.30000.60000",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "results": [
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 7,
+                  "sourceId": 11,
+                  "fight": {
+                    "id": 7,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "雨",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "云",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [
+                    {
+                      "type": "cast",
+                      "timestamp": 35000,
+                      "sourceID": 11,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    }
+                  ],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 30000,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.11.30000.60000",
+                "casts.11.30000.60000"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.11.30000.60000",
+                "fixture:casts.11.30000.60000"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "7",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            },
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 7,
+                  "sourceId": 22,
+                  "fight": {
+                    "id": 7,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "雨",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "云",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [
+                    {
+                      "type": "cast",
+                      "timestamp": 40000,
+                      "sourceID": 22,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    },
+                    {
+                      "type": "cast",
+                      "timestamp": 55000,
+                      "sourceID": 22,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    }
+                  ],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 30000,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.22.30000.60000",
+                "casts.22.30000.60000"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.22.30000.60000",
+                "fixture:casts.22.30000.60000"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "7",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            }
+          ],
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  },
+  {
+    "reviewId": "ec84147832b5b54fbd45fd18",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 中雨前30秒治疗波放了几次，能推断按键习惯吗？",
+      "更正：只看30到60秒，比较雨和云；不要沿用前30秒结论。"
+    ],
+    "rubric": [
+      "前0-30秒雨治疗波1次；修正30-60秒雨1次、云2次。",
+      "窗口使用报告相对30000-60000毫秒；不能把施法次数当作按键习惯或因果。"
+    ],
+    "answers": [
+      "这份合成日志第7场中，雨（source=11）前30秒有 **1条治疗波施法记录**，发生在战斗开始后 **5.000秒**；该窗口事件已完整返回。[日志来源](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11)\n\n**不能据此推断按键习惯。** 施法记录不等于实际按键次数，这条事件也没有提供手动施放、自动触发或宏绑定的来源证据。结论仅限这份固定合成资料的指定窗口。",
+      "仅看这份**合成日志第7场30–60秒**，两人的施法事件均已完整返回：\n\n| 角色 | 治疗波施法记录 | 战斗相对时间 |\n|---|---:|---|\n| [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | 1条 | 35.000秒 |\n| [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) | 2条 | 40.000秒、55.000秒 |\n\n云比雨多1条记录，但**不能据此推断按键习惯**：这些事件没有提供手动施放、自动触发或宏绑定的来源证据，施法记录也不等于实际按键次数。以上只描述指定合成窗口，不沿用前30秒结论。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "casts.11.0.30000",
+      "casts.11.30000.60000",
+      "casts.22.30000.60000"
+    ],
+    "toolEvidence": [
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+          "options": {
+            "view": "events",
+            "dataType": "Casts",
+            "startTime": 0,
+            "endTime": 30000,
+            "limit": 100
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": 11,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "events": [
+                {
+                  "type": "cast",
+                  "timestamp": 5000,
+                  "sourceID": 11,
+                  "abilityGameID": 77472,
+                  "name": "治疗波"
+                }
+              ],
+              "eventPage": {
+                "dataType": "Casts",
+                "startTime": 0,
+                "endTime": 30000,
+                "complete": true,
+                "nextPageTimestamp": null
+              },
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.0.30000",
+            "casts.11.0.30000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.0.30000",
+            "fixture:casts.11.0.30000"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_report",
+        "arguments": {
+          "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+          "options": {
+            "view": "overview"
+          }
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [
+            {
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": 7,
+              "sourceId": null,
+              "fight": {
+                "id": 7,
+                "startTime": 0,
+                "endTime": 60000,
+                "kill": true
+              },
+              "players": [
+                {
+                  "id": 11,
+                  "name": "雨",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 22,
+                  "name": "云",
+                  "server": "silvermoon",
+                  "region": "eu",
+                  "type": "Shaman"
+                },
+                {
+                  "id": 33,
+                  "name": "Fixturealpha",
+                  "server": "other-realm",
+                  "region": "eu",
+                  "type": "Shaman"
+                }
+              ],
+              "sourceStatus": "verified",
+              "queryScope": "scoped_analysis",
+              "queryMode": "server_configured_warcraftlogs_api"
+            }
+          ],
+          "evidenceKeys": [
+            "wcl.overview"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview"
+          ],
+          "evidence": [
+            {
+              "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+              "sourceName": "Warcraft Logs fixture",
+              "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7",
+              "reportCode": "aB3dE5fG7hJ9kL2m",
+              "fightId": "7",
+              "sourceStatus": "verified",
+              "checkedAt": "2026-09-12T00:00:00Z"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "nextActions": []
+        }
+      },
+      {
+        "tool": "query_warcraftlogs_batch",
+        "arguments": {
+          "queries": [
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+              "options": {
+                "view": "events",
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "limit": 200
+              }
+            },
+            {
+              "target": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+              "options": {
+                "view": "events",
+                "dataType": "Casts",
+                "startTime": 30000,
+                "endTime": 60000,
+                "limit": 200
+              }
+            }
+          ]
+        },
+        "result": {
+          "status": "verified",
+          "sourceKey": "warcraftlogs",
+          "facts": [],
+          "evidenceKeys": [
+            "wcl.overview",
+            "casts.11.30000.60000",
+            "casts.11.30000.60000",
+            "wcl.overview",
+            "casts.22.30000.60000",
+            "casts.22.30000.60000"
+          ],
+          "evidenceRefs": [
+            "fixture:wcl.overview",
+            "fixture:casts.11.30000.60000",
+            "fixture:casts.11.30000.60000",
+            "fixture:wcl.overview",
+            "fixture:casts.22.30000.60000",
+            "fixture:casts.22.30000.60000"
+          ],
+          "evidence": [
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.11.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.11.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:wcl.overview",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.22.30000.60000",
+              "source": "synthetic corpus"
+            },
+            {
+              "ref": "fixture:casts.22.30000.60000",
+              "source": "synthetic corpus"
+            }
+          ],
+          "limitations": [
+            "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+          ],
+          "fixture": {
+            "synthetic": true,
+            "revision": "corpus-v1",
+            "engineExecuted": false
+          },
+          "results": [
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 7,
+                  "sourceId": 11,
+                  "fight": {
+                    "id": 7,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "雨",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "云",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [
+                    {
+                      "type": "cast",
+                      "timestamp": 35000,
+                      "sourceID": 11,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    }
+                  ],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 30000,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.11.30000.60000",
+                "casts.11.30000.60000"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.11.30000.60000",
+                "fixture:casts.11.30000.60000"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "7",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            },
+            {
+              "status": "verified",
+              "sourceKey": "warcraftlogs",
+              "facts": [
+                {
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": 7,
+                  "sourceId": 22,
+                  "fight": {
+                    "id": 7,
+                    "startTime": 0,
+                    "endTime": 60000,
+                    "kill": true
+                  },
+                  "players": [
+                    {
+                      "id": 11,
+                      "name": "雨",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 22,
+                      "name": "云",
+                      "server": "silvermoon",
+                      "region": "eu",
+                      "type": "Shaman"
+                    },
+                    {
+                      "id": 33,
+                      "name": "Fixturealpha",
+                      "server": "other-realm",
+                      "region": "eu",
+                      "type": "Shaman"
+                    }
+                  ],
+                  "events": [
+                    {
+                      "type": "cast",
+                      "timestamp": 40000,
+                      "sourceID": 22,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    },
+                    {
+                      "type": "cast",
+                      "timestamp": 55000,
+                      "sourceID": 22,
+                      "abilityGameID": 77472,
+                      "name": "治疗波"
+                    }
+                  ],
+                  "eventPage": {
+                    "dataType": "Casts",
+                    "startTime": 30000,
+                    "endTime": 60000,
+                    "complete": true,
+                    "nextPageTimestamp": null
+                  },
+                  "sourceStatus": "verified",
+                  "queryScope": "scoped_analysis",
+                  "queryMode": "server_configured_warcraftlogs_api"
+                }
+              ],
+              "evidenceKeys": [
+                "wcl.overview",
+                "casts.22.30000.60000",
+                "casts.22.30000.60000"
+              ],
+              "evidenceRefs": [
+                "fixture:wcl.overview",
+                "fixture:casts.22.30000.60000",
+                "fixture:casts.22.30000.60000"
+              ],
+              "evidence": [
+                {
+                  "id": "wcl:aB3dE5fG7hJ9kL2m:7",
+                  "sourceName": "Warcraft Logs fixture",
+                  "sourceUrl": "https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22",
+                  "reportCode": "aB3dE5fG7hJ9kL2m",
+                  "fightId": "7",
+                  "sourceStatus": "verified",
+                  "checkedAt": "2026-09-12T00:00:00Z"
+                }
+              ],
+              "limitations": [
+                "固定合成资料回放；不是实时游戏事实或真实引擎运行。"
+              ],
+              "fixture": {
+                "synthetic": true,
+                "revision": "corpus-v1",
+                "engineExecuted": false
+              },
+              "nextActions": []
+            }
+          ],
+          "nextActions": []
+        }
+      }
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion, each pass/fail. Do not infer speed or version. requiredEvidence is route triage, not a mandatory tool path. Accept equivalent complete returned evidence. Judge required implementation behavior from actual tool arguments/results, not whether the answer repeats technical keywords. Acquisition alone does not prove answer quality; preserve material omissions and contradictions."
+  }
+]

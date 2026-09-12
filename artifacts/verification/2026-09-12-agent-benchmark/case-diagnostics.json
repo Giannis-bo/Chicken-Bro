@@ -1,0 +1,52 @@
+{
+  "fixed": [
+    {
+      "caseId": "mechanics_alias",
+      "pairedMedianPercent": 27.04501628041629
+    },
+    {
+      "caseId": "mechanics_version",
+      "pairedMedianPercent": 4.149390017060715
+    },
+    {
+      "caseId": "rankings_mplus",
+      "pairedMedianPercent": 29.353078961222906
+    },
+    {
+      "caseId": "rankings_raid",
+      "pairedMedianPercent": 9.21448026841176
+    },
+    {
+      "caseId": "simc_apl",
+      "pairedMedianPercent": -24.368387822501848
+    },
+    {
+      "caseId": "simc_equipment",
+      "pairedMedianPercent": 10.02813884009467
+    },
+    {
+      "caseId": "wcl_healing",
+      "pairedMedianPercent": 16.762993114888612
+    },
+    {
+      "caseId": "wcl_timeline",
+      "pairedMedianPercent": 10.330590681255176
+    }
+  ],
+  "candidate": {
+    "wcl-two-actors-window": {
+      "current-1": 70.040413,
+      "current-2": 64.242332,
+      "old-1": 62.527932,
+      "old-2": 65.162885,
+      "pairedMedianPercent": 5.300952426055478
+    },
+    "simc-completed-pair": {
+      "current-1": 32.908066,
+      "current-2": 34.307882,
+      "old-1": 38.406566,
+      "old-2": 33.923759,
+      "pairedMedianPercent": -6.59212491320058
+    }
+  }
+}

@@ -1,0 +1,453 @@
+{
+  "overall": {
+    "runCount": 48,
+    "pairedCount": 24,
+    "variants": {
+      "old": {
+        "runCount": 24,
+        "statusCounts": {
+          "succeeded": 24
+        },
+        "qualityCounts": {
+          "pass": 24
+        },
+        "qualityPassRate": 1.0
+      },
+      "new": {
+        "runCount": 24,
+        "statusCounts": {
+          "succeeded": 24
+        },
+        "qualityCounts": {
+          "pass": 24
+        },
+        "qualityPassRate": 1.0
+      }
+    },
+    "oldMedianMs": 39621.028,
+    "newMedianMs": 41617.732,
+    "pairedMedianDeltaMs": 4219.6910000000025,
+    "pairedMedianPercent": 9.621309554253216,
+    "ratioOfMediansPercent": 5.039505789703402
+  },
+  "categories": {
+    "mechanics": {
+      "runCount": 12,
+      "pairedCount": 6,
+      "variants": {
+        "old": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        },
+        "new": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        }
+      },
+      "oldMedianMs": 32521.6295,
+      "newMedianMs": 37107.4995,
+      "pairedMedianDeltaMs": 4585.869999999999,
+      "pairedMedianPercent": 15.597203148738503,
+      "ratioOfMediansPercent": 14.100984700044016
+    },
+    "rankings": {
+      "runCount": 12,
+      "pairedCount": 6,
+      "variants": {
+        "old": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        },
+        "new": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        }
+      },
+      "oldMedianMs": 33260.8055,
+      "newMedianMs": 40576.3235,
+      "pairedMedianDeltaMs": 5942.205000000002,
+      "pairedMedianPercent": 19.283779614817334,
+      "ratioOfMediansPercent": 21.9944102075339
+    },
+    "simc": {
+      "runCount": 12,
+      "pairedCount": 6,
+      "variants": {
+        "old": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        },
+        "new": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        }
+      },
+      "oldMedianMs": 44204.2235,
+      "newMedianMs": 42802.147,
+      "pairedMedianDeltaMs": 1265.8044999999984,
+      "pairedMedianPercent": 3.275589765479877,
+      "ratioOfMediansPercent": -3.171815697656133
+    },
+    "wcl": {
+      "runCount": 12,
+      "pairedCount": 6,
+      "variants": {
+        "old": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        },
+        "new": {
+          "runCount": 6,
+          "statusCounts": {
+            "succeeded": 6
+          },
+          "qualityCounts": {
+            "pass": 6
+          },
+          "qualityPassRate": 1.0
+        }
+      },
+      "oldMedianMs": 45017.935,
+      "newMedianMs": 45624.902,
+      "pairedMedianDeltaMs": 5815.644,
+      "pairedMedianPercent": 13.546791898071895,
+      "ratioOfMediansPercent": 1.3482781917917963
+    }
+  },
+  "pairs": [
+    {
+      "caseId": "mechanics_alias",
+      "trial": 1,
+      "category": "mechanics",
+      "oldMs": 21709.415,
+      "newMs": 31657.975,
+      "deltaMs": 9948.559999999998,
+      "percent": 45.82601603958466
+    },
+    {
+      "caseId": "mechanics_alias",
+      "trial": 2,
+      "category": "mechanics",
+      "oldMs": 26229.244,
+      "newMs": 26874.998,
+      "deltaMs": 645.7540000000008,
+      "percent": 2.4619619231114735
+    },
+    {
+      "caseId": "mechanics_alias",
+      "trial": 3,
+      "category": "mechanics",
+      "oldMs": 28271.083,
+      "newMs": 35917.002,
+      "deltaMs": 7645.919000000002,
+      "percent": 27.04501628041629
+    },
+    {
+      "caseId": "mechanics_version",
+      "trial": 1,
+      "category": "mechanics",
+      "oldMs": 43199.275,
+      "newMs": 62406.286,
+      "deltaMs": 19207.011,
+      "percent": 44.46141978077178
+    },
+    {
+      "caseId": "mechanics_version",
+      "trial": 2,
+      "category": "mechanics",
+      "oldMs": 36772.176,
+      "newMs": 38297.996999999996,
+      "deltaMs": 1525.8209999999963,
+      "percent": 4.149390017060715
+    },
+    {
+      "caseId": "mechanics_version",
+      "trial": 3,
+      "category": "mechanics",
+      "oldMs": 48334.387,
+      "newMs": 45993.892,
+      "deltaMs": -2340.4950000000026,
+      "percent": -4.842297886181949
+    },
+    {
+      "caseId": "rankings_mplus",
+      "trial": 1,
+      "category": "rankings",
+      "oldMs": 33613.946,
+      "newMs": 32205.316,
+      "deltaMs": -1408.6300000000047,
+      "percent": -4.190611837122617
+    },
+    {
+      "caseId": "rankings_mplus",
+      "trial": 2,
+      "category": "rankings",
+      "oldMs": 27729.953,
+      "newMs": 35869.548,
+      "deltaMs": 8139.595000000001,
+      "percent": 29.353078961222906
+    },
+    {
+      "caseId": "rankings_mplus",
+      "trial": 3,
+      "category": "rankings",
+      "oldMs": 27731.842,
+      "newMs": 36767.287,
+      "deltaMs": 9035.444999999996,
+      "percent": 32.581481605152646
+    },
+    {
+      "caseId": "rankings_raid",
+      "trial": 1,
+      "category": "rankings",
+      "oldMs": 40640.545,
+      "newMs": 44385.36,
+      "deltaMs": 3744.8150000000023,
+      "percent": 9.21448026841176
+    },
+    {
+      "caseId": "rankings_raid",
+      "trial": 2,
+      "category": "rankings",
+      "oldMs": 32907.665,
+      "newMs": 47791.376,
+      "deltaMs": 14883.710999999996,
+      "percent": 45.22870583494756
+    },
+    {
+      "caseId": "rankings_raid",
+      "trial": 3,
+      "category": "rankings",
+      "oldMs": 43405.062,
+      "newMs": 46079.388,
+      "deltaMs": 2674.326000000001,
+      "percent": 6.1613228429439895
+    },
+    {
+      "caseId": "simc_apl",
+      "trial": 1,
+      "category": "simc",
+      "oldMs": 46305.472,
+      "newMs": 35021.575,
+      "deltaMs": -11283.897000000004,
+      "percent": -24.368387822501848
+    },
+    {
+      "caseId": "simc_apl",
+      "trial": 2,
+      "category": "simc",
+      "oldMs": 71015.161,
+      "newMs": 43315.898,
+      "deltaMs": -27699.26299999999,
+      "percent": -39.004717598260456
+    },
+    {
+      "caseId": "simc_apl",
+      "trial": 3,
+      "category": "simc",
+      "oldMs": 38394.243,
+      "newMs": 40740.431,
+      "deltaMs": 2346.1879999999946,
+      "percent": 6.11078072303703
+    },
+    {
+      "caseId": "simc_equipment",
+      "trial": 1,
+      "category": "simc",
+      "oldMs": 42102.975,
+      "newMs": 42288.396,
+      "deltaMs": 185.4210000000021,
+      "percent": 0.44039880792272307
+    },
+    {
+      "caseId": "simc_equipment",
+      "trial": 2,
+      "category": "simc",
+      "oldMs": 41524.651,
+      "newMs": 48698.724,
+      "deltaMs": 7174.073000000004,
+      "percent": 17.27666055519649
+    },
+    {
+      "caseId": "simc_equipment",
+      "trial": 3,
+      "category": "simc",
+      "oldMs": 46813.941,
+      "newMs": 51508.508,
+      "deltaMs": 4694.567000000003,
+      "percent": 10.02813884009467
+    },
+    {
+      "caseId": "wcl_healing",
+      "trial": 1,
+      "category": "wcl",
+      "oldMs": 33370.5,
+      "newMs": 40947.068,
+      "deltaMs": 7576.567999999999,
+      "percent": 22.704388606703525
+    },
+    {
+      "caseId": "wcl_healing",
+      "trial": 2,
+      "category": "wcl",
+      "oldMs": 33726.978,
+      "newMs": 39380.629,
+      "deltaMs": 5653.650999999998,
+      "percent": 16.762993114888612
+    },
+    {
+      "caseId": "wcl_healing",
+      "trial": 3,
+      "category": "wcl",
+      "oldMs": 38601.511,
+      "newMs": 38802.757,
+      "deltaMs": 201.24599999999919,
+      "percent": 0.5213422863161994
+    },
+    {
+      "caseId": "wcl_timeline",
+      "trial": 1,
+      "category": "wcl",
+      "oldMs": 57863.458,
+      "newMs": 63841.095,
+      "deltaMs": 5977.637000000002,
+      "percent": 10.330590681255176
+    },
+    {
+      "caseId": "wcl_timeline",
+      "trial": 2,
+      "category": "wcl",
+      "oldMs": 51434.359,
+      "newMs": 66511.05,
+      "deltaMs": 15076.691000000006,
+      "percent": 29.31248934199803
+    },
+    {
+      "caseId": "wcl_timeline",
+      "trial": 3,
+      "category": "wcl",
+      "oldMs": 52839.208,
+      "newMs": 50302.736000000004,
+      "deltaMs": -2536.4719999999943,
+      "percent": -4.800359611748902
+    }
+  ],
+  "exclusions": [],
+  "percentConvention": "(new-old)/old*100; negative means faster",
+  "diagnosticsOnQualityPassedPairs": {
+    "old": {
+      "pairedRunCount": 24,
+      "medians": {
+        "inputTokens": 105861.0,
+        "cachedInputTokens": 83776.0,
+        "outputTokens": 659.5,
+        "repairSessions": 0.0,
+        "toolMs": 6.899199448525906,
+        "toolCount": 4.0,
+        "skillReads": 0.0,
+        "startupMs": 355.5518335197121,
+        "repeatedQueries": 0.0,
+        "uncachedInputTokens": 21939.0,
+        "nonToolMs": 39614.01647722821,
+        "modelUsageComplete": 1.0
+      },
+      "totals": {
+        "inputTokens": 2675740,
+        "cachedInputTokens": 2173056,
+        "outputTokens": 15327,
+        "repairSessions": 0,
+        "toolMs": 157.20959985628724,
+        "toolCount": 102,
+        "skillReads": 0,
+        "startupMs": 10509.64448414743,
+        "repeatedQueries": 0,
+        "uncachedInputTokens": 502684,
+        "nonToolMs": 964379.8404001438,
+        "modelUsageComplete": 24
+      }
+    },
+    "new": {
+      "pairedRunCount": 24,
+      "medians": {
+        "inputTokens": 108327.5,
+        "cachedInputTokens": 83264.0,
+        "outputTokens": 766.5,
+        "repairSessions": 0.0,
+        "toolMs": 10.26097103022039,
+        "toolCount": 6.0,
+        "skillReads": 1.0,
+        "startupMs": 350.1000988762826,
+        "repeatedQueries": 0.0,
+        "uncachedInputTokens": 23702.5,
+        "nonToolMs": 41606.419512231994,
+        "modelUsageComplete": 1.0
+      },
+      "totals": {
+        "inputTokens": 2525023,
+        "cachedInputTokens": 1959040,
+        "outputTokens": 16944,
+        "repairSessions": 0,
+        "toolMs": 241.81173741817474,
+        "toolCount": 140,
+        "skillReads": 32,
+        "startupMs": 10323.92906025052,
+        "repeatedQueries": 0,
+        "uncachedInputTokens": 565983,
+        "nonToolMs": 1045363.4802625818,
+        "modelUsageComplete": 24
+      }
+    }
+  },
+  "fixtureHashes": {
+    "f386c9194448ca12fa288f88fe7d289a7af57bf8b81fe7d6dd7a84a2577122f4": 48
+  },
+  "timingIssues": [],
+  "qualityNotes": [
+    "Quality judgments were made without variant or timing fields.",
+    "Positive delta means slower. Only same-case/trial quality-pass pairs enter latency comparisons.",
+    "nonToolMs includes model service, network, validation and process overhead; it is not pure reasoning time.",
+    "Prompt cache state and model service load are observed, not controlled. No tail latency claim."
+  ]
+}

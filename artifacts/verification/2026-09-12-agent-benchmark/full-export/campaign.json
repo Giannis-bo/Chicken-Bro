@@ -1,0 +1,24 @@
+{
+  "plannedCount": 48,
+  "recordedCount": 48,
+  "missing": [],
+  "completeCaseCount": 48,
+  "stopped": null,
+  "sourceHashes": {
+    "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63": {
+      "server/app/chickenbro/agent/AGENTS.md": "5371395db69edd75440429b570e419dc4f682ff0b6d1122b198867a98dc60742",
+      "server/app/chickenbro/codex_adapter.py": "684f1f43b5c53ae9c63b83a2de6d45f77879bdc94669ce1375f074484163996b",
+      "server/chickenbro_native_mcp.py": "a7877d79f2e74cf2b9c2ae055469f8994242d53020e80874b4c21dfe841f9384"
+    },
+    "/opt/chickenbro-releases/badcase-b406fc9155a03edba9e95912713606736fb2a1bd": {
+      "server/app/chickenbro/agent/AGENTS.md": "0be8630a5f86dac8119456b6d81e88799aa172878efdddf96d1bdcb7081c2762",
+      "server/app/chickenbro/codex_adapter.py": "26cea28ec960d27dc0fdec0666a8f6530b58d0cd01b660bc761cfa4b82e88932",
+      "server/chickenbro_native_mcp.py": "a6b301f58290743a2442cd25b6e8063b07a27d2998817df9b8d02630a1ed3838"
+    }
+  },
+  "harnessHashes": {
+    "benchmark-chickenbro-agent.py": "d23cda2a63ab958772e9afe137ddd4bf00c04a87b5f338d316815a3b6406098d",
+    "agent_benchmark_fixtures.py": "f386c9194448ca12fa288f88fe7d289a7af57bf8b81fe7d6dd7a84a2577122f4",
+    "agent_benchmark_metrics.py": "89d029e8e134d679f83935a0fbfbc546f251b3262d1d24f4fa6b18c351002f68"
+  }
+}

@@ -4,6 +4,18 @@ import json
 from pathlib import Path
 
 
+def project_result(result):
+    out = {k: result[k] for k in ('sourceKey', 'status', 'errorCode', 'facts',
+        'evidenceRefs', 'evidence', 'limitations', 'comparison', 'jobId', 'snapshotId',
+        'scenario', 'runtimeRevision', 'compilerRevision', 'effectiveConfig') if k in result}
+    if isinstance(result.get('results'), list):
+        out['results'] = [project_result(child) for child in result['results'] if isinstance(child, dict)]
+    if isinstance(result.get('result'), dict):
+        out['result'] = {k: result['result'][k] for k in ('metricName', 'metricValue',
+            'metricError', 'dps', 'dpsError', 'provenance', 'effectiveConfig') if k in result['result']}
+    return out
+
+
 def project(report):
     out = {k: report[k] for k in ('variant', 'requestedCommit', 'sourceHashes', 'fixtureSha256',
            'modelProfile', 'checks', 'limitations', 'wclPreflight') if k in report}
@@ -19,12 +31,7 @@ def project(report):
         for receipt in case.get('toolReceipts', []):
             item = {k: receipt[k] for k in ('tool', 'state', 'startedAt', 'finishedAt')}
             result = receipt.get('result') or {}
-            item['result'] = {k: result[k] for k in ('sourceKey', 'status', 'errorCode', 'facts',
-                'evidenceRefs', 'evidence', 'limitations', 'comparison', 'jobId', 'snapshotId',
-                'scenario', 'runtimeRevision', 'compilerRevision', 'effectiveConfig') if k in result}
-            if isinstance(result.get('result'), dict):
-                item['result']['result'] = {k: result['result'][k] for k in ('metricName', 'metricValue',
-                    'metricError', 'dps', 'dpsError', 'provenance', 'effectiveConfig') if k in result['result']}
+            item['result'] = project_result(result)
             row['toolReceipts'].append(item)
         out['cases'].append(row)
     return out

@@ -1,0 +1,66 @@
+[
+  {
+    "reviewId": "9ceac899575cc055efecfd2e",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "两份成功get与ready比较回执支持同快照、引擎、编译和控制条件；DPS 158973.34/162905.18、差值3931.84、2.4733%及保守误差170.51均正确。列出两槽物品与289到321装等变化，明确非单一饰品效果归因、非配对显著性检验及机制实现不确定性。实际工具只有读取与比较，任务要求完整回答。",
+    "notes": "按实际回执核验，不以答案长度或额外调用数量评分。"
+  },
+  {
+    "reviewId": "a3877e91b303a2dc2e53920d",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "overview支持第7场、两名元素萨及服务器身份；两个完整Casts窗口均为11025927到11040927，减战斗起点9775927即20:50到21:05。10/3条cast与2/3条begincast、全部列出的相对时间及先后均符合原始事件。没有把窗口外完成缺失说成取消，也没有把毫秒级事件顺序当作按键或操作优劣；有限窗口频次与顺序比较已完成。",
+    "notes": "整场overview用于身份核对，不等于遍历整场事件；不因这一必要路径判范围失败。"
+  },
+  {
+    "reviewId": "9712c675e34966be08c56c16",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "get与compare证据一致，确认同快照、运行和编译身份及单目标固定300秒10000迭代；两份DPS、各自误差、+3931.84/+2.4733%与合并170.51正确。回答准确区分物品和装等同时改变，保留采样误差不含实现不确定性，不夸大成单一机制收益；没有创建、重跑或攻略查询。",
+    "notes": "任务核验、数值比较、误差与实际变化均已覆盖。"
+  },
+  {
+    "reviewId": "553722a7eae5ce8f540eb15e",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "两份成功结果及ready比较支持全部可比性判断，差值、百分比、保守误差与差值范围计算正确。共同控制条件和两槽完整物品/装等变化对应回执，指出无法拆分单件或纯装等收益，同时保留实现尚未验证提示；只有get和compare，没有越过只读限制。",
+    "notes": "未逐项复述两份单独误差不构成漏答，已准确给出题目要求的比较误差边界。"
+  },
+  {
+    "reviewId": "b2c5f8285c3895c357009b67",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "补齐后的batch子回执各自包含actor3/481完整15秒事件和null续页游标，支持10/3条cast、2/3条begincast及表中所有时间。191634到188196相隔1ms、114050/79206/1293316依次相隔1ms和3ms、两人51505相隔406ms均准确；目标794实例1与其余-1说明符合原事件。身份、窗口、频次和顺序已完成，未据此推断按键或操作错误。",
+    "notes": "初次盲审输入遗漏batch子结果；在相同reviewId补齐证据后复核。该导出缺失不计为模型失败，批量读取是有效等价取证路径。"
+  },
+  {
+    "reviewId": "2e38f86d2956f84dd86ceb7c",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "补齐后的两个batch子结果支持所述角色/范围、10/3条cast与2/3条读条、18条相对时间及目标范围。对升腾到恩赐1ms、随后1293316的3ms描述准确，末尾闪电箭仅有窗口内读条不被误判取消。没有以事件数等同按键次数，没有扩展为操作优劣或整场结论，完成限定窗口对比。",
+    "notes": "仅根据修复后的盲审输入核验批量事件；没有读取版本映射或耗时。"
+  },
+  {
+    "reviewId": "106bc63dd6e99a431aa34a04",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "原始get与compare支持两份完成、相同快照/引擎/编译、固定单目标300秒10000迭代。实际DPS、+3931.84、+2.4733%、±170.51及差值范围正确；准确说明双饰品及装等整体替换，不能拆成单件收益或等装等优劣，并保留机制实现的不确定性。仅读取和比较，问题要求完整覆盖。",
+    "notes": "差异表及限制与比较回执一致，无实质遗漏。"
+  },
+  {
+    "reviewId": "7648bcddeefc9f2e947501ce",
+    "qualityStatus": "pass",
+    "quality": "pass",
+    "checks": {"correctness": "pass", "evidence": "pass", "scope": "pass", "completion": "pass"},
+    "reason": "overview、两个完整事件页及actor3同窗口统计相互一致，支持身份、25:16.418场次时长、10/3施放和2/3读条。频次表与全部关键相对时间匹配事件，严格区分读条/施放、日志先后/按键或触发关系，并明确末尾读条缺少窗口内施放不能认定取消。没有新增模拟或榜单研究，限定任务已完成。",
+    "notes": "额外同窗口统计不扩张研究范围；没有因非唯一取证路径或回答篇幅判分。"
+  }
+]

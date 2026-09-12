@@ -1,0 +1,21 @@
+{
+  "harnessChecks": {
+    "benchmark-chickenbro-agent.py": {
+      "cloudMatchesLocalRaw": true,
+      "localMatchesCommittedLF": true
+    },
+    "agent_benchmark_fixtures.py": {
+      "cloudMatchesLocalRaw": true,
+      "localMatchesCommittedLF": true
+    },
+    "agent_benchmark_metrics.py": {
+      "cloudMatchesLocalRaw": true,
+      "localMatchesCommittedLF": true
+    }
+  },
+  "fixedRuns": 48,
+  "userTurns": 60,
+  "allModelProfilesMatched": true,
+  "fixtureErrors": 0,
+  "nativeWebOrExecEvents": 0
+}

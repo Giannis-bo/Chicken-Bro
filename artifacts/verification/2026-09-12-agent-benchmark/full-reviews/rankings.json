@@ -1,0 +1,74 @@
+[
+  {
+    "reviewId": "02eeeb7674cf36dc02e6b06c",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["正式服分区1、史诗及两个首领榜首匹配正确；批量整场统计完整支持角色11两次、角色22三次。", "排除异服同名角色，限定两份合成日志且不推断操作优劣。"]
+  },
+  {
+    "reviewId": "05644eb3614c15f422249003",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["榜单角色、服务器与战斗7/8匹配；未裁剪施法表支持2次和3次，60秒换算每分钟次数正确。", "明确正式服而非PTR及合成范围，没有将频次差异解释为操作优劣。"]
+  },
+  {
+    "reviewId": "23c12d8d8b472e4cac2c25a2",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["先取得正式服目录及各首领第一名，再按正确角色读取完整0至60000毫秒统计，2对3和差1次均有依据。", "已排除异服同名并限制为两场合成记录，不作因果外推。"]
+  },
+  {
+    "reviewId": "60f2c5d5d43bf1b7fce2908f",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["取得两名世界元素萨样本及对应快照，3500/3480、饰品900001/900002和节点101均正确。", "清楚区分缺失副属性与零值，说明榜单不足以证明精通收益且未声称真实模拟。"]
+  },
+  {
+    "reviewId": "65b9b43a3979215a77139344",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["榜单和双角色快照支持排名、分数、不同饰品及相同节点；未补造名称、效果或完整配装。", "指出快照不等于排名时配置，副属性缺失不足以判断精通收益，合成范围明确。"]
+  },
+  {
+    "reviewId": "692118240f3d6fd0edaa8824",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["两名角色分数、饰品栏1编号、节点101和快照日期与实际返回一致。", "正确拒绝从两名样本推算精通比例或最高收益，并说明受控比较及误差需求。"]
+  },
+  {
+    "reviewId": "70600e02e782fb7dbb314e64",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["正式服史诗两组榜首与日志角色绑定正确，完整整场统计支持治疗波2次和3次。", "明确各一人、两场60秒及排除异服同名，结论没有超出合成日志频次。"]
+  },
+  {
+    "reviewId": "879bbfaa74447aff6b6019ba",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["已实际读取两人装备和天赋；回答正确概括不同饰品、相同节点及3500/3480分。未复述编号不影响这项比较结论。", "明确返回不完整及副属性缺失，不把高排名或快照当作精通收益证据。"]
+  },
+  {
+    "reviewId": "8f40b30192fc3b80d7c3cca6",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["目录、榜单、角色身份和两个完整0至60秒统计一致，治疗波3对2及差1次正确。", "明确正式服、每首领一名和合成资料，未把次数差异升级为操作判断。"]
+  },
+  {
+    "reviewId": "aca30bac20c984a4174dc0ce",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["世界前两名与3500/3480分正确，双角色读取支持不同饰品及相同天赋节点的定性概括。", "未补全缺失配置，明确副属性缺失和快照边界，回答了为何不能证明精通最高收益。"]
+  },
+  {
+    "reviewId": "b4c25d8c9053cfe17b952c39",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["分区1史诗榜首与EU/silvermoon角色匹配，完整施法表2次和3次及每分钟换算正确。", "排除actor33，明确两名两场的合成范围，不从频次推断优劣。"]
+  },
+  {
+    "reviewId": "ed1c1ba20963edd34e373088",
+    "quality": "pass",
+    "checks": {"correctness":"pass","evidence":"pass","scope":"pass","completion":"pass"},
+    "notes": ["排名、分数、900001/900002饰品及节点101与两份已取得快照相符。", "区分样本选择与属性因果收益，副属性缺失、未模拟及合成范围交代完整。"]
+  }
+]

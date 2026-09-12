@@ -1,0 +1,54 @@
+[
+  {
+    "reviewId": "56e2d930c121",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨（角色 ID 11）与云（角色 ID 22）**，均为欧服 silvermoon 的萨满。以下仅分析 fixture 返回的第 7 场完整 60 秒合成数据，不代表真实游戏表现。\n\n**雨比云多 20 万有效治疗，高 33.3%；差距主要来自治疗波的过量。**\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量总治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n技能条目返回的是**含过量总量**，扣除过量后得到：\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差距 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n治疗波贡献了总差距的 **75%**，激流贡献 **25%**。两人的每项技能含过量总量相同，差别体现在转化为有效治疗的比例。\n\n这些汇总能确认差距落在哪个技能，但没有施法时序与目标缺血证据，不能据此认定云乱刷治疗波或建议减少施放。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion. Do not infer speed or version. Equivalent complete evidence is acceptable; acquisition alone does not prove answer quality."
+  },
+  {
+    "reviewId": "7e553a037af1",
+    "prompts": [
+      "这是固定合成资料基准，不是真实游戏资料或真实引擎结果。只调用本会话fixture工具取得资料，禁止外网/原生web访问。请基于取到的证据解答并明确范围。分析合成日志 https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7 的雨和云：有效治疗、过量率及主要差异技能，先定位角色。"
+    ],
+    "rubric": [
+      "雨(actor11)有效800000/原始1000000，过量20%；云(actor22)有效600000/原始1000000，过量40%。",
+      "雨多200000有效治疗；主要差异为治疗波200000对50000，贡献150000差距。",
+      "不能由治疗量单独断言操作或团队价值优劣。"
+    ],
+    "answers": [
+      "已定位：**雨是角色 ID 11，云是 ID 22**，均为欧服 silvermoon 的萨满。本次仅分析合成日志第 7 场、完整 60 秒的治疗统计。\n\n**雨的有效治疗比云高 20 万（33.3%），主要差距来自治疗波。**\n\n| 整场指标 | [雨](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=11) | [云](https://www.warcraftlogs.com/reports/aB3dE5fG7hJ9kL2m?fight=7&source=22) |\n|---|---:|---:|\n| 含过量治疗 | 100 万 | 100 万 |\n| 有效治疗 | 80 万 | 60 万 |\n| 有效 HPS | 13,333 | 10,000 |\n| 过量治疗 | 20 万 | 40 万 |\n| 过量率 | 20% | 40% |\n\n技能条目的总量包含过量，以下已减去过量得到有效治疗；过量率按“过量÷含过量总量”计算。\n\n| 技能 | 雨有效治疗 | 云有效治疗 | 雨／云过量率 | 有效差距 |\n|---|---:|---:|---:|---:|\n| 治疗波 | 20 万 | 5 万 | 42.9%／85.7% | 15 万 |\n| 激流 | 60 万 | 55 万 | 7.7%／15.4% | 5 万 |\n\n两人的治疗波含过量总量均为 35 万，激流均为 65 万；**治疗波贡献了有效治疗差距的 75%**，激流贡献 25%。\n\n这些统计能确定差距的技能来源；尚未核对目标缺血和承伤窗口，不能据此判定云施法失误或建议少用治疗波。以上均为 fixture 合成证据，不代表真实游戏表现。"
+    ],
+    "status": "succeeded",
+    "acquiredEvidence": [
+      "healing.11",
+      "healing.22",
+      "wcl.overview"
+    ],
+    "requiredEvidence": [
+      "wcl.overview",
+      "healing.11",
+      "healing.22"
+    ],
+    "instructions": "Judge factual correctness, evidence coverage, scope and completion. Do not infer speed or version. Equivalent complete evidence is acceptable; acquisition alone does not prove answer quality."
+  }
+]
