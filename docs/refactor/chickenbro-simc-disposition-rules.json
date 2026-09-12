@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "agent-performance-benchmark",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Retain authorized paired performance evaluation and quality evidence; no production behavior changes.",
+      "paths": ["docs/plans/2026-09-12-agent-performance-benchmark.md", "scripts/agent_benchmark_fixtures.py", "scripts/agent_benchmark_metrics.py", "scripts/benchmark-chickenbro-agent.py", "scripts/export-agent-benchmark.py", "scripts/prepare-agent-benchmark-live.py", "scripts/export-agent-benchmark-live.py", "scripts/summarize-agent-benchmark.py"],
+      "prefixes": ["artifacts/verification/2026-09-12-agent-benchmark/"]
+    },
+    {
       "id": "agent-skills-and-current-chat-evidence",
       "disposition": "keep",
       "category": "target-verification",

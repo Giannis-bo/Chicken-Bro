@@ -85,6 +85,7 @@ test('the root workspace and CI expose only retained product workflows', () => {
     'typecheck',
     'lint',
     'test:taro',
+    'test:agent-benchmark',
     'test:backend',
     'test:migration',
     'test:control',
