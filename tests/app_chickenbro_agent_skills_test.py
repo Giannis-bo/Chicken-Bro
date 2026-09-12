@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
+from uuid import UUID
 from unittest.mock import patch
 
 
@@ -172,6 +174,50 @@ class PackagedChickenbroSkillTest(unittest.TestCase):
                     with patch.object(loader, '_SKILLS_ROOT', fixture_root):
                         self.assertEqual(loader.read_chickenbro_skill({'skillId': skill_id})['content'],
                                          variant.decode('utf-8'))
+
+
+class ChickenbroJobRunIdentityTest(unittest.TestCase):
+    def test_two_jobs_bind_only_their_distinct_server_run_uuid(self):
+        adapter = importlib.import_module('server.app.chickenbro.codex_adapter')
+        self.assertTrue(hasattr(adapter, '_bind_job_run'))
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, run_id in [('one', UUID('12345678-1234-1234-1234-123456789abc')),
+                                 ('two', '87654321-1234-1234-1234-123456789ABC')]:
+                job = Path(tmp) / name
+                job.mkdir()
+                adapter._bind_job_run(job, SimpleNamespace(run_id=run_id, user_id='secret-owner', token='secret-token'))
+                self.assertEqual(json.loads((job / 'run-identity.json').read_text()),
+                                 {'runId': str(run_id).lower()})
+
+    def test_missing_and_invalid_context_never_write_identity_or_secrets(self):
+        adapter = importlib.import_module('server.app.chickenbro.codex_adapter')
+        self.assertTrue(hasattr(adapter, '_bind_job_run'))
+        with tempfile.TemporaryDirectory() as tmp:
+            job = Path(tmp)
+            for context in [None, SimpleNamespace(), *[SimpleNamespace(run_id=value) for value in
+                    [None, 123, [], 'run', '../secret', 'secret-token', '12345678123412341234123456789abc']]]:
+                adapter._bind_job_run(job, context)
+                self.assertEqual(list(job.iterdir()), [])
+
+    def test_stream_binds_before_spawning_runtime_and_fails_closed_on_write_error(self):
+        adapter = importlib.import_module('server.app.chickenbro.codex_adapter')
+        fixtures = importlib.import_module('app_chickenbro_codex_adapter_test')
+        run_id = '12345678-1234-1234-1234-123456789abc'
+        captured = []
+        def popen(*args, **kwargs):
+            captured.append(json.loads((Path(kwargs['cwd']) / 'run-identity.json').read_text()))
+            return fixtures.FakeProcess(fixtures.answer())
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = adapter.NativeCodexChatAdapter(jobs_dir=tmp, enabled=True, popen=popen)
+            output = list(runtime.stream(prompt='private prompt', timeout_seconds=2,
+                                         tool_context=SimpleNamespace(run_id=run_id)))
+            self.assertEqual(output[-1]['type'], 'completed')
+            self.assertEqual(captured, [{'runId': run_id}])
+            with patch.object(Path, 'write_text', side_effect=PermissionError('private path')):
+                with self.assertRaises(adapter.CodexUnavailable):
+                    list(runtime.stream(prompt='private prompt', timeout_seconds=2,
+                                        tool_context=SimpleNamespace(run_id=run_id)))
+            self.assertEqual(len(captured), 1)
 
 
 if __name__ == '__main__':

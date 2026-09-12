@@ -7,7 +7,7 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Retain authorized runtime workflow implementation and release evidence, including the currently linked Web release record.",
-      "paths": ["docs/plans/2026-09-12-agent-skills.md", "scripts/prepare-agent-skills-smoke.py"],
+      "paths": ["docs/plans/2026-09-12-agent-skills.md", "scripts/prepare-agent-skills-smoke.py", "scripts/prepare-agent-skills-release.py", "scripts/export-agent-skills-evidence.py"],
       "prefixes": ["artifacts/verification/2026-09-12-agent-skills/", "artifacts/verification/2026-09-11-chat-return-state/"]
     },
     {

@@ -223,6 +223,18 @@ def _load_agent_rules() -> str:
         raise CodexUnavailable("native Codex agent rules are unavailable") from None
 
 
+def _bind_job_run(job_dir: Path, tool_context) -> None:
+    """Bind local audit files to a server run without persisting user content."""
+    run_id = getattr(tool_context, 'run_id', None)
+    if not isinstance(run_id, (str, uuid.UUID)):
+        return
+    value = str(run_id)
+    if not re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', value):
+        return
+    (job_dir / 'run-identity.json').write_text(
+        json.dumps({'runId': str(uuid.UUID(value))}, separators=(',', ':')) + '\n', encoding='utf-8')
+
+
 _CODEX_ENV_ALLOWLIST = frozenset({
     "CI",
     "CODEX_HOME",
@@ -487,6 +499,7 @@ class NativeCodexChatAdapter:
         deadline = time.monotonic() + max(1, int(timeout_seconds))
         try:
             job_dir = self._new_job_dir()
+            _bind_job_run(job_dir, tool_context)
         except (OSError, ValueError):
             raise CodexUnavailable() from None
         command = [self._codex_bin, "-c", 'approval_policy="never"']
