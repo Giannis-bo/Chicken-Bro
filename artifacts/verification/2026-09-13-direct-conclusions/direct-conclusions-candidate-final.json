@@ -1,0 +1,202 @@
+{
+  "source": "/opt/chickenbro-candidates/direct-conclusions-20260913",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "positiveOwnedSimulationMetric": 159166.78869662393,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "death-review",
+      "runId": "bfeab625-c595-46fe-af5b-5ce571142b8b",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 25.388,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 49005,
+          "totalTokens": 49284,
+          "outputTokens": 279,
+          "cachedInputTokens": 27008,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "1. **4:53 双猎人死亡：持续掉血期间，救治和自保应在哪一跳介入？**  \n   两人几乎同时死亡，血量从 35 万逐跳降到 19 万、9 万、2 万，最后由持续伤害致死。优先回看这段跳伤中的治疗到达、自保和血瓶时机；将危险掉血时的报血、自保与定向救治安排前移，避免等到 2 万血才响应。\n\n2. **4:01、6:50 坦克死亡：普攻落下前，血线与减伤衔接如何？**  \n   两次均由普通攻击收尾。分别回看死亡前的连续承伤、治疗到达和减伤覆盖，确定危险普攻前的准备；据此明确坦克减伤、外部减伤及治疗接力的时机与负责人。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "potion-timing",
+      "runId": "307150e7-abdc-4488-a357-816d72a2fc3d",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 17.796,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 48963,
+          "totalTokens": 49196,
+          "outputTokens": 233,
+          "cachedInputTokens": 27008,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**最明确的改进是把治疗药水前移到6:15、下一跳毒伤之前。** 当时血量已低于下一跳伤害，药水可用且能正常操作，已经到了需要立即自救的时点；6:29复生后才喝，错过了死亡前的应急窗口。\n\n下次可以这样执行：\n\n- **叠到7层时就提高警觉**，重点盯住血量与下一跳伤害。\n- **血量不足以承受下一跳就立即喝药**，争取撑过这一跳。\n- 把药水放在顺手的快捷键，并让可用状态醒目，缩短危险出现后的反应时间。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "damage-comparison",
+      "runId": "f2b8334f-7e89-44e5-a6c1-50dbf002611e",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 20.219,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 49137,
+          "totalTokens": 49456,
+          "outputTokens": 319,
+          "cachedInputTokens": 45312,
+          "reasoningOutputTokens": 14
+        }
+      },
+      "finalAnswer": "1. **先保住连续输出，优先复盘死亡前的生存安排。**死亡到复生已经损失11.1秒，起来还要恢复图腾和增益。下一次提前安排危险阶段的站位、减伤和保命手段，减少这段中断，是最明确的提升方向。\n\n2. **重点检查H7元素冲击的伤害效率和增益覆盖。**你比对方少约9%的次数，但总伤害低约25%；按所给数据计算，平均每次约53.1万对64.7万，低约18%。下一次关注存活期间元素冲击与增益的配合，复盘时对照命中、暴击及增益覆盖。H5两项主要技能次数都略多，当前应优先检查每次施法的产出；323对321的装备差异也纳入比较。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "explicit-unknown",
+      "runId": "ce28f2b3-98a5-4ee5-8069-40e23e6d97c2",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 6.701,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 15525,
+          "totalTokens": 15570,
+          "outputTokens": 45,
+          "cachedInputTokens": 0,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "没有。现有事实只证明致死一击是普通攻击；缺少此前承伤、减伤和换坦记录，无法确定他是否漏开减伤或换坦失败。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": []
+    },
+    {
+      "caseId": "material-condition",
+      "runId": "acc3d919-a1ac-46be-b797-54dae14fcdc7",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 42.381,
+      "modelUsage": {
+        "repair": {
+          "inputTokens": 9148,
+          "totalTokens": 9327,
+          "outputTokens": 179,
+          "cachedInputTokens": 7040,
+          "reasoningOutputTokens": 82
+        },
+        "primary": {
+          "inputTokens": 50297,
+          "totalTokens": 50487,
+          "outputTokens": 190,
+          "cachedInputTokens": 45184,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**先别据此直接换 B。** 按你提供的摘要，B 的单目标结果更高，但这里没有可核验的模拟证据，数值和误差尚未独立验证，也缺少三目标结果。\n\n你只打三目标，目标数变化可能改变宝石收益排序。换装依据应是其余条件一致的三目标 A/B 对照；目前先保留原配置。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "simc-experiment",
+          "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "full-review",
+      "runId": "770f0e31-adca-43d6-a77d-551458e0d93c",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 30.871,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 49380,
+          "totalTokens": 49798,
+          "outputTokens": 418,
+          "cachedInputTokens": 42624,
+          "reasoningOutputTokens": 15
+        }
+      },
+      "finalAnswer": "**团队最该改：提前安排危险窗口的保命处理。**\n\n- **H5：**3:38两秒内连吃四次额外伤害，优先复盘这段连续承伤，明确对应机制的处理与减伤时机。\n- **H6：**4:53两人持续掉血死亡，下次提前安排治疗接应；坦克两次被普攻打死，重点检查死亡前的承伤与减伤衔接。\n- **H7：**6:09多人七层毒，随后你和队友接连死亡，应把这一段列为集中救治、个人保命的重点窗口，提前喊话。\n\n**你个人最该改：把药水前移到致死跳伤之前。**6:15你已低于下一跳伤害，药水可用且能操作，这时就该喝，争取撑过下一跳；实际6:29复生后才喝，错过了死亡前的救急窗口。\n\n输出优化放在随后：H5主要技能次数接近；元素冲击你40次、2123万，队友44次、2845万，平均每次约53.1万对64.7万。后续重点检查**单次伤害差异和输出连续性**，比较时纳入队友高2装等的装备差异。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "owned-simulation-result",
+      "runId": "0a93a189-a8ce-4557-8ca6-2411dd29457f",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 15.622,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 60789,
+          "totalTokens": 60921,
+          "outputTokens": 132,
+          "cachedInputTokens": 47232,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "任务已成功完成，实际模拟 DPS 为 **159,166.79**（约 **15.92 万**）。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded"
+        }
+      ]
+    }
+  ]
+}

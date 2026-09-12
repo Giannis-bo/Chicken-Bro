@@ -1,0 +1,66 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "positiveOwnedSimulationMetric": 159166.78869662393,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "potion-timing",
+      "runId": "9ba89bcd-5711-4fdc-ade6-d1b1e7881897",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 21.12,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 48223,
+          "totalTokens": 48478,
+          "outputTokens": 255,
+          "cachedInputTokens": 42112,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**这次最明确的改进是：治疗药水应在6:15的致死风险窗口使用。** 当时你的血量已扛不住下一跳，药水可用，也能正常操作，已经有明确的自救需求；6:29复生后才喝，错过了死亡前的救急窗口。\n\n下次把“持续掉血、当前血量低于下一跳伤害”作为立即喝药的触发条件。6:09叠到7层时就开始重点盯血，提前准备自救，避免到危险血线才找按键。\n\n仅凭这些事实，不能保证提前喝药一定存活，也不能认定7层是走位失误；但**6:15未及时使用可用药水，是有依据、可直接改进的一点。**",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:825ffa1145dd417260171f3a44c9a9423ed6e352f24c480df420311d793158b7",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "owned-simulation-result",
+      "runId": "a6a85a00-0b4e-44dc-b7a1-e6a909fd342f",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 16.71,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 60233,
+          "totalTokens": 60366,
+          "outputTokens": 133,
+          "cachedInputTokens": 49536,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "任务已成功完成，实际模拟 DPS 为 **159,166.79**（约 **15.92 万**）。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded"
+        }
+      ]
+    }
+  ]
+}
