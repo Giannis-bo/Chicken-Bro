@@ -1,4 +1,20 @@
-# G16 来源判断与排障回答质量：候选未发布
+# G16 来源判断与排障回答质量：已发布
+
+G16 已按 2026-09-14 用户调整后的范围闭环：来源有据、排障围绕用户目标；游戏内执行明确排除于验收，不作为发布阻塞。运行源码 `cdc7d262a203b23707a8932fd8318c0358316cb5`，仅修改 mechanics 一条通用规则。主分支已合入推送，API/Worker 已上线；Web、数据库、引擎和环境不变。
+
+- 无额外回放前缀的原例两次旧版为一过一败，新版两次通过；同版变体、独立留出、正常和权限八次通过。独立评审先盲审、后解盲，确认候选五类共 10 次通过。另推翻最初较容易原例的一次初审通过：当时错误假定已经安装 Clique；失败完整保留。
+- 隔离环境原例机制与正常路径共两条、线上一条真实 HTTP Chat 均完成，并经独立语义审查。历史答案持久化、幂等重放仅产生一个 run／一条助手消息、CSRF、图片及第二账号隔离通过。
+- 新鲜相关测试 82 通过、1 平台跳过，控制面 63 通过。144 份 Git 源码与候选一致，生产字节与 manifest 一致；13 份公网 Web 文件匹配。47.38 秒观察、10 次 readiness，最大 0.522 秒，API/Worker active，新增 error 日志为 0。
+- 本次补验新增 5 次产品模型，累计 29/32；报告总 token 1,684,904（缓存输入 1,145,856）。真实链路 8 次 native web 完成事件，独立复核 2 个原始来源页面，合计 10/12；没有 SimC。调用事件不当作正文读取成功，答案内容另与[原帖](https://us.forums.blizzard.com/en/wow/t/holy-bulwark-macro-broken-after-1205/2294794)及[Clique 作者说明](https://www.curseforge.com/wow/addons/clique)对照。
+
+身份、逐项证据与成本见 `source-binding.json`、`review.json`、`candidate.json`、`live.json`、`final-check.json`、`cost.json`。`frozen-release.json` 固定发布前证据哈希；原反馈与 CLI 历史账本未改写，当前报告 SHA 为 `27ce44fe61aaefd25c4ba70b809ba0078545ea2499cd0dfc459b637d4aa7294c`，独立发布状态另登记。
+
+恢复包为 root/0700 `/var/lib/chickenbro-g16-quality-20260914/`：精确 manifest、单文件 overlay、执行器及 root/0600 环境恢复快照已核验，旧 mechanics 文件复制恢复哈希验证通过。以 root 执行本批 `deploy.py manifest.json rollback`，在相同发布锁与全任务空闲门禁下恢复旧 `891f83b7` 并验证业务。旧版保留，未做生产回切演练。原始对话副本仍在私有目录，按原到期时间登记，不扩展保留时间或删除范围。
+
+本次沿用既有修正，没有针对成功答案追加特殊规则，也不把有限样本扩称所有提问均不会再失败。验证脚本曾漏传工作流 root、误用决定枚举，以及尚未上传 final-check 入口；均在控制面报错后纠正，未造成重复模型调用或生产切换。
+
+## 首次有界轮次历史记录（当时未发布，以下结论已由上述补验更新）
+
 
 状态：`validation_incomplete_budget_exhausted`。G16 保持未解决。实际军备宏在游戏客户端能否使用，仍是独立的未验证事项。
 

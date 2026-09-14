@@ -845,5 +845,16 @@
     "evidence": "artifacts/verification/2026-09-14-g15-decoder/README.md",
     "unresolved": "Full addon profile input fidelity and four exact ring comparisons remain unsupported and separate.",
     "userAccepted": false
+  },
+  "g16SourceCorrection": {
+    "status": "live_verified",
+    "sourceCommit": "cdc7d262a203b23707a8932fd8318c0358316cb5",
+    "evidence": "artifacts/verification/2026-09-14-g16-answer-quality/README.md",
+    "scope": "Source-supported correction and goal-preserving troubleshooting",
+    "gameClientExecution": "excluded_from_acceptance_by_user_2026-09-14",
+    "fixedAfterCases": 10,
+    "candidateCases": 2,
+    "liveCases": 1,
+    "manualUserAcceptance": "not_claimed"
   }
 }

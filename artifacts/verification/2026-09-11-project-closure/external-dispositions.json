@@ -41,6 +41,15 @@
       "evidenceSha256": "ec851d650dfb8a53b7939d5114896da8ae382f4068ad71a9b67fb0e05e1aad11",
       "action": "skip_released_decoder_scope_full_profile_and_four_comparisons_remain_separate",
       "manualUserAcceptance": "not_claimed"
+    },
+    "G16": {
+      "reportSha256": "27ce44fe61aaefd25c4ba70b809ba0078545ea2499cd0dfc459b637d4aa7294c",
+      "disposition": "externally_released_scoped",
+      "evidence": "artifacts/verification/2026-09-14-g16-answer-quality/README.md",
+      "evidenceSha256": "1d76d73caed643a4b28ce0ba00893fcfbd6dd8e13f684426abcdc54c1e018433",
+      "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "scope": "User-authorized source judgment and goal-preserving answer quality; game-client execution excluded from acceptance",
+      "manualUserAcceptance": "not_claimed"
     }
   },
   "newReportPolicy": "Fresh report hashes require current evidence and authorized scope; do not apply old disposition by group name alone."

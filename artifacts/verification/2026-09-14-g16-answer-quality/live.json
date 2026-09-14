@@ -1,0 +1,55 @@
+{
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-cdc7d262a203b23707a8932fd8318c0358316cb5",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "g16-original-mechanism",
+      "runId": "6517ec33-d7b1-4186-8ece-f3fe7e13388f",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 57.108,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 114189,
+          "totalTokens": 114785,
+          "outputTokens": 596,
+          "cachedInputTokens": 86528,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**之前把 `known` 宏当成可用结论，是我漏看了原帖的后续失败反馈。** 楼主在 Edit 3 后补充：大秘境里连续施放约 8 次，军备仍未切换。4 月 26 日的回复给出的替代办法是：用 **Divine Toll（圣洁鸣钟）** 的宏入口，回复者称它仍能随军备智能切换。[原帖后续](https://us.forums.blizzard.com/en/wow/t/holy-bulwark-macro-broken-after-1205/2294794/2)\n\n据此，你的 Clique 自定义宏建议改成下面这一行，直接针对鼠标所在的友方小队框架：\n\n```text\n/cast [@mouseover,help,nodead] 圣洁鸣钟\n```\n\n这是根据回帖方案改成的框架专用写法；军备切换的有效性依据是该玩家反馈。英文客户端把技能名换成 `Divine Toll`。\n\n脱战后输入 `/clique`，在 **Bind other → 自定义宏** 中替换旧内容，绑定原来的鼠标组合键，绑定集选 **friend（友方）**，并移除同组合键冲突的旧军备绑定。作者说明确认了自定义宏入口及 friend 绑定集的作用。[Clique 作者说明](https://www.curseforge.com/wow/addons/clique)\n\n直接在 ElvUI 小队框架上验证这条军备宏：观察是否给指定队友施放当前军备，以及切换后同一组合键是否能施放另一种军备。",
+      "sseCompleted": true,
+      "nativeObservations": [
+        {
+          "tool": "read_chickenbro_skill",
+          "sourceKey": "chickenbro_skill",
+          "status": "available",
+          "errorCode": "",
+          "reasonCode": "",
+          "elapsedMs": 0,
+          "factCount": 0,
+          "argumentsSha256": "b71bf3c0faa4d4798009be96dbfd69b66a355856dad78fce3152d8d383a75c88",
+          "evidenceRefs": [],
+          "evidence": [],
+          "limitations": [],
+          "skillId": "mechanics",
+          "version": "sha256:4c0e7d704c56f3a4c006db39e29c5bb47426b51393046dbe15ad67f8a85111a5"
+        }
+      ],
+      "toolObservations": []
+    }
+  ],
+  "nativeWebEvents": {
+    "6517ec33-d7b1-4186-8ece-f3fe7e13388f": {
+      "openPage": 2,
+      "search": 1
+    }
+  }
+}

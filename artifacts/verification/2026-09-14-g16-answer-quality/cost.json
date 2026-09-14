@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-14T03:24:23.425689+00:00",
+  "previousStageProductModels": 24,
+  "additionalProductModels": 5,
+  "additionalCeiling": 8,
+  "cumulativeProductModels": 29,
+  "cumulativeCeiling": 32,
+  "usage": {
+    "inputTokens": 1675321,
+    "cachedInputTokens": 1145856,
+    "outputTokens": 9583,
+    "reasoningOutputTokens": 565,
+    "totalTokens": 1684904
+  },
+  "nativeWebCompletedEvents": 8,
+  "independentSourcePageReads": 2,
+  "newSourceOperations": 10,
+  "sourceCeiling": 12,
+  "newSimcJobs": 0,
+  "independentEngineeringReview": "One subagent with blind semantic, code and actual-answer reviews; separate from product-model meter",
+  "missingCost": "Provider currency cost not supplied; not inferred as zero."
+}

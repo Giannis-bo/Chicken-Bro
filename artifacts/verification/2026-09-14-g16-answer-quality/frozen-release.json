@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-14T03:20:24.389256+00:00",
+  "sourceCommit": "cdc7d262a203b23707a8932fd8318c0358316cb5",
+  "integratedCommit": "6aabad6f46d41a3d892beb5b8d44e0e4bc529c76",
+  "groups": {
+    "G16": "27ce44fe61aaefd25c4ba70b809ba0078545ea2499cd0dfc459b637d4aa7294c"
+  },
+  "files": {
+    "manifest.json": "8c2d76d63e30c402cdf551388b08a4538f3312b439fcb447ae58f6783edcfa88",
+    "deploy.py": "d64b75ceec37053540842fb3f3a4417e7a6c06afbbd3bcee59823567703fb7a7",
+    "source-binding.json": "72a1ea54a695eb23eb58f597f7ce5da6108c095e11fadc25340ca70ca7fc5e0c",
+    "review.json": "8c002eba15d804363b80d0ff31a9cbc71c4429bf719251d123d30601fe7b6772",
+    "candidate.json": "0507bbf57df187bf3e4b2011238285fc69a81855b90a242e62976f5d3369650e",
+    "release-amendment.json": "fb7169644b8b2404607d5c41ff8c8bfa12d3ea52a222ad24a13e1e31524e5ca5",
+    "preregistration.json": "330ed3c9b4c8c6bb9ca35ff4c254efeff683ad158dd6d56121ee662afea272c2",
+    "harness-amendment.json": "2b0c50bade3d6501dffa59cc33e7a152f396db929571e84499cb7a8d751a2a0a",
+    "results-summary.json": "159bb55d0933cc061f25f5a7a23d612dce25fb83cde40edbeb6535d81fb440d2",
+    "release-envelope.json": "452cae00aeadc936cd0a981bf6039369a4b612e07ba53098039dec735792f9e3",
+    "smoke.py": "08469a735f6054f57cb2cbaec437056b39e2e1191dcfc1b2ef89d83dc97cd598"
+  },
+  "releasePath": "explicit-user-authorized scoped external release; does not rewrite CLI historical release ledger",
+  "status": "frozen_ready_for_promotion"
+}
