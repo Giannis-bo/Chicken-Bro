@@ -2,6 +2,15 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "direct-conclusions",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Retain authorized direct-answer rules, semantic acceptance and release evidence.",
+      "paths": ["docs/plans/2026-09-13-direct-conclusions.md"],
+      "prefixes": ["artifacts/verification/2026-09-13-direct-conclusions/"]
+    },
+    {
       "id": "agent-performance-benchmark",
       "disposition": "keep",
       "category": "target-verification",

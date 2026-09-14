@@ -1,0 +1,11 @@
+{
+  "source": "/opt/chickenbro-candidates/direct-conclusions-20260913",
+  "prompt": "我只打三目标副本。有人给我一份单目标宝石对比摘要，现在直接换B吗？不要运行新任务。",
+  "draft": "模拟结果B提升2%，直接换B。三目标配置应按相同条件的三目标对照选择。",
+  "validationErrors": [
+    "SIMULATION_BENEFIT_UNSUPPORTED"
+  ],
+  "finalAnswer": "先别仅凭单目标摘要换B；目前缺少相同条件下的三目标对照结果，无法判断B是否提升。三目标配置应按相同条件的三目标对照选择。",
+  "revalidated": true,
+  "externalTools": "disabled_by_repair_profile"
+}

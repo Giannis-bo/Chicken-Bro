@@ -1,0 +1,66 @@
+{
+  "source": "/opt/chickenbro-candidates/direct-conclusions-20260913",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "positiveOwnedSimulationMetric": 159166.78869662393,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "potion-timing",
+      "runId": "52531bf1-9dd3-4343-885b-4865c27c3636",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 28.816,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 49050,
+          "totalTokens": 49310,
+          "outputTokens": 260,
+          "cachedInputTokens": 42368,
+          "reasoningOutputTokens": 10
+        }
+      },
+      "finalAnswer": "**这次明确要改的是治疗药水用晚了，应前移到6:15的致命跳伤窗口。** 当时你的血量已低于下一跳伤害，药水可用且能正常操作，却到6:28复生后、6:29才喝。\n\n下次把6:09叠到7层作为警戒点，开始紧盯血量与每跳伤害；一旦出现6:15这种“血量撑不过下一跳”的状态，立即喝药，争取撑过下一跳。把喝药的触发条件设为**下一跳是否致命**，不要等到濒死后才反应。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "owned-simulation-result",
+      "runId": "0ea57625-8a57-44b4-b583-fb617ecc03ae",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 17.397,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 60787,
+          "totalTokens": 60924,
+          "outputTokens": 137,
+          "cachedInputTokens": 47232,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "任务已成功完成，实际模拟 DPS 为 **159,166.79**（约 **15.92 万**）。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded"
+        }
+      ]
+    }
+  ]
+}

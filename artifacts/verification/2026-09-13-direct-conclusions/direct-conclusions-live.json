@@ -1,0 +1,114 @@
+{
+  "source": "/opt/chickenbro-releases/badcase-730882f2aef78f4460295800065c5d82b7fb7d72",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "positiveOwnedSimulationMetric": 160820.55569451672,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "explicit-unknown",
+      "runId": "6c8ce321-f276-466d-bddd-2febdab07398",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 7.325,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 15634,
+          "totalTokens": 15689,
+          "outputTokens": 55,
+          "cachedInputTokens": 0,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "没有。已知事实只表明致死一击是普通攻击，尚未证明他漏开减伤或换坦失败。判断原因需要此前承伤、减伤使用及换坦记录，并结合当时的机制要求。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": []
+    },
+    {
+      "caseId": "material-condition",
+      "runId": "156198c0-5fa2-486a-b00c-feb7ee71ef07",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 16.18,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 50610,
+          "totalTokens": 50812,
+          "outputTokens": 202,
+          "cachedInputTokens": 45568,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**先别仅凭这份摘要直接换 B。** 单目标下 B 高出 2,000 DPS，约 **2%**，明显大于各自 0.1% 的报告误差，单目标优势清楚。\n\n你只打三目标，目标数变化可能改变技能伤害占比和宝石收益排序。换装应依据其余条件一致的三目标 A/B 对照；这份摘要尚未确定三目标谁更强。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "simc-experiment",
+          "version": "sha256:a9b06d376590f626fe0c54bf00b928d7414d56cad3bbe2cc7a9fc58213a19682",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "full-review",
+      "runId": "cd21477f-2e00-4b62-866c-dbb9bd154f53",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 22.418,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 49647,
+          "totalTokens": 50071,
+          "outputTokens": 424,
+          "cachedInputTokens": 42880,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**团队先处理集中死亡窗口，你个人最该把 H7 的药水前移到 6:15。**\n\n- **H5：**围绕 3:38 安排预警，优先减少两秒内连吃四次额外伤害的情况。主要技能次数已与同职业接近，复盘优先级放在这次致死承伤。\n- **H6：**把 4:53 持续掉血阶段列为重点救治窗口，提前分配治疗与减伤；坦克两次普攻致死，优先复盘死亡前的承伤与减伤衔接。\n- **H7：**6:09 多人七层毒，应立即报危险并组织救治、个人自保，覆盖随后连续跳伤；你和队友分别在 6:17、6:19 死亡，这个窗口值得统一安排。\n\n**你个人：**6:15 血量已低于下一跳伤害，且药水可用、能够操作，应当此时喝药，争取撑过下一跳；把这次 6:29 复生后才喝的药前移，是最明确的改进。\n\n输出放在生存之后：元素冲击少 4 次、总伤害少 722 万，下一步同时检查施放机会与单次伤害；比较时对齐装等、属性和战斗时长，尤其队友装等高 2 级。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [
+        {
+          "skillId": "wcl-analysis",
+          "version": "sha256:af7b490ef99c627265ddb192e07148c11f722e94910520a50f733717ce14abc3",
+          "status": "available"
+        }
+      ],
+      "tools": []
+    },
+    {
+      "caseId": "owned-simulation-result",
+      "runId": "51a8dd0c-d962-443c-8ab0-b1d49b2b18c6",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 17.473,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 65271,
+          "totalTokens": 65399,
+          "outputTokens": 128,
+          "cachedInputTokens": 47488,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "任务已完成（成功）。实际模拟 DPS：**160,820.56**。",
+      "sseCompleted": true,
+      "observationBinding": "exact_run_id",
+      "skills": [],
+      "tools": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded"
+        }
+      ]
+    }
+  ]
+}

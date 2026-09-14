@@ -1,5 +1,11 @@
 # Chickenbro 当前生产 Runbook
 
+## 2026-09-13 鸡哥直接结论表达
+
+API/Worker运行源码 `730882f2aef78f4460295800065c5d82b7fb7d72`，核心、WCL与答案修正提示词禁止无关防御性尾句。8文件同版overlay，未改数据库、引擎、环境和Web；144份后端实际清单、13份公网Web文件及线上4条业务验收通过。
+
+root/0700 `/var/lib/chickenbro-direct-conclusions-20260913/` 保留manifest、overlay、deploy.py和root/0600恢复快照。以root执行本批 `deploy.py manifest.json rollback`，在相同全任务空闲门禁下恢复旧2294cb95版本后核验业务；不覆盖数据库。旧版本保留，恢复材料已核验，未实际回切。[本批证据](../artifacts/verification/2026-09-13-direct-conclusions/README.md)。
+
 适用产品为 Web / QQ 登录、Chat、云端 SimC。历史迁移、双端切流和小程序发布过程归入[历史存档](chickenbro-simc-production-runbook-pre-mini-retirement.md)，不得重放六阶段脚本作为常规发布。
 
 ## 2026-09-11 Web 会话返回状态修复
