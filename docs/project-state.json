@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-12",
+  "updatedAt": "2026-09-14",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "targetProduct": {
@@ -837,5 +837,13 @@
     "pairedMedianPercent": 9.621309554253216,
     "productRedeployment": false,
     "manualUserAcceptance": "not_claimed"
+  },
+  "g15TalentDecoder": {
+    "status": "live_verified",
+    "scope": "inactive hero allocations in talent exports only",
+    "sourceCommit": "891f83b7b750058127a04c21970763c3c57e332a",
+    "evidence": "artifacts/verification/2026-09-14-g15-decoder/README.md",
+    "unresolved": "Full addon profile input fidelity and four exact ring comparisons remain unsupported and separate.",
+    "userAccepted": false
   }
 }

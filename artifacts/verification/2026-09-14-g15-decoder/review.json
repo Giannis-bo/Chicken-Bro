@@ -15,9 +15,11 @@
     "First resume selected unrelated older job; owner check returned 404; corrected via exact candidate snapshot ID. No new job created by resumes."
   ],
   "cost": {
-    "productModels": 1,
-    "cloudSimcJobs": 2,
+    "productModels": 2,
+    "cloudSimcJobs": 3,
     "providerCalls": 0
   },
-  "unresolved": "Full addon configuration import and four exact ring comparisons remain out of scope."
+  "unresolved": "Full addon configuration import and four exact ring comparisons remain out of scope.",
+  "liveAnswer": "Matches successful real cloud job, 335348.37 DPS and verified talent override; no new simulation requested by Chat.",
+  "liveProfileMatchesCandidate": true
 }

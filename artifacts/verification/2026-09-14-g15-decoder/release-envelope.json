@@ -1,0 +1,13 @@
+{
+  "manifestSha256": "07fff6fcf44c3ac5327eb374327587dc3d49e536a130dbad8158fa414f55ad0f",
+  "executorSha256": "a6d3ef6a05236b50e17b0e2d9f98ac876527b1093e1e9ffad0b4e7100d672085",
+  "sourceCommit": "891f83b7b750058127a04c21970763c3c57e332a",
+  "reportSha256": "06912e9900acd1a86707eded1e8989965b223dd3a20cea9f66960c50f3959a8b",
+  "integratedCommit": "b78359abe",
+  "targetFileCount": 144,
+  "environmentRecoverySnapshotValidated": true,
+  "oldDecoderCopyRestoreHashVerified": true,
+  "rollbackSwitchExercised": false,
+  "candidateVerified": true,
+  "status": "frozen_ready_for_promotion"
+}

@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlsplit,urlunsplit,unquote,parse_qs
 from uuid import uuid4
 import httpx,psycopg
+os.umask(0o077)
 from PIL import Image,ImageDraw,ImageFont
 p=argparse.ArgumentParser();p.add_argument('mode',choices=['candidate','production']);p.add_argument('source');p.add_argument('--remaining',action='store_true');p.add_argument('--label',required=True);p.add_argument('--before',action='store_true');p.add_argument('--resume-job');a=p.parse_args()
 prod_pid=subprocess.check_output(['systemctl','show','chickenbro-api','-p','MainPID','--value'],text=True).strip()

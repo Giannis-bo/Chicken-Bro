@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-09-11",
+  "asOf": "2026-09-14",
   "scope": "supplementary_scheduler_handoff_not_a_rewritten_cli_release_ledger",
   "groups": {
     "G7": {
@@ -32,6 +32,14 @@
       "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
       "evidenceSha256": "9ed87c05e22dcc788fa27de004c2de1578487e0fc4187d6846ae7d580cd93e31",
       "action": "skip_same_report_scope_do_not_reset_budget_or_redeploy",
+      "manualUserAcceptance": "not_claimed"
+    },
+    "G15": {
+      "reportSha256": "06912e9900acd1a86707eded1e8989965b223dd3a20cea9f66960c50f3959a8b",
+      "disposition": "externally_released_scoped",
+      "evidence": "artifacts/verification/2026-09-14-g15-decoder/README.md",
+      "evidenceSha256": "ec851d650dfb8a53b7939d5114896da8ae382f4068ad71a9b67fb0e05e1aad11",
+      "action": "skip_released_decoder_scope_full_profile_and_four_comparisons_remain_separate",
       "manualUserAcceptance": "not_claimed"
     }
   },

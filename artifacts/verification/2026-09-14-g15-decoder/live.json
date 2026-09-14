@@ -1,0 +1,68 @@
+{
+  "phase": "after",
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-891f83b7b750058127a04c21970763c3c57e332a",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "jobIdempotency": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "sourceSnapshotHash": "f17ee32fcfcaf2f450eeb52ab5789ea6abcb444752980d3734eae12fc7488a66",
+  "submittedJobId": "aa0cf6e2-51f8-4f31-ab69-825ea90a8ae8",
+  "job": {
+    "id": "aa0cf6e2-51f8-4f31-ab69-825ea90a8ae8",
+    "status": "succeeded",
+    "metric": 335348.3700829252,
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "compiler": "chickenbro-simc-compiler-v6",
+    "effectiveConfig": {
+      "status": "verified",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ],
+      "profileSha256": "18d6223f9070d3aed35e09e8e297a138801197d800947952b552fd6b75281e25"
+    },
+    "profileSha256": "18d6223f9070d3aed35e09e8e297a138801197d800947952b552fd6b75281e25"
+  },
+  "originalCompile": {
+    "status": "accepted"
+  },
+  "cases": [
+    {
+      "observationBinding": "exact_run_id",
+      "elapsedSeconds": 36.112,
+      "runId": "4bd189b0-5833-45ea-8425-10a5140812b4",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 61316,
+          "totalTokens": 61471,
+          "outputTokens": 155,
+          "cachedInputTokens": 47488,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "- 状态：已成功完成。\n- 实际模拟 DPS：**335,348.37**。\n- 天赋覆盖：**已使用**，且通过生效校验。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "aa0cf6e2-51f8-4f31-ab69-825ea90a8ae8",
+              "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b"
+            }
+          ]
+        }
+      ],
+      "sseCompleted": true,
+      "caseId": "g15-owned-result"
+    }
+  ]
+}
