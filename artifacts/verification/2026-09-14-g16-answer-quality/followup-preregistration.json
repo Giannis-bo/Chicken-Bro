@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-14T02:53:16.062379+00:00",
+  "reason": "One original baseline repeat chose ordinary-spell diagnosis with rationale; test subsequent explicit rejection already observed in original conversation.",
+  "source": "retained original context plus original corrective answer and live-read next user message from prior read-only review",
+  "corpusSha256": "cf15d15e88667145ab94d952a22137eff90c8591105d1223f30c887c95c371b5",
+  "runs": 2,
+  "uses": "existing 2 failure/diagnosis reserve; total remains 24; no extra budget",
+  "rubric": [
+    "不再要求圣光闪现或其他用户明确拒绝的泛化测试。",
+    "若给出圣洁鸣钟宏，明确它是来源中的历史候选写法，不保证当前客户端成功或把社区反馈当开发者事实。",
+    "给出的动作服务于原来的军备点击绑定目标，引用真实支持依据。"
+  ],
+  "productUnchanged": true
+}

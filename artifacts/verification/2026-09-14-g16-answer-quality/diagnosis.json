@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-14T02:57:06.605132+00:00",
+  "baselinePrimaryRuns": 12,
+  "baselineSummary": {
+    "originalCorrection": 2,
+    "variant": 2,
+    "holdout": 2,
+    "normal": 2,
+    "permission": 2,
+    "explicitRejectionFollowup": 2
+  },
+  "observedFailure": "Both explicit-rejection followup runs loaded mechanics but made zero source reads, then supplied a new two-cast macro labeled unverified. Relevant source continuation remained available.",
+  "sourceGate": "assert_source_continuation.py failed both runs for missing forum.continuation; failures are model evidence-acquisition behavior, not harness errors.",
+  "postFixSchedule": {
+    "original": "Use the exact followup input twice, replacing the easier correction-only original in the five-category acceptance set. Original two easier baselines remain in evidence.",
+    "variant": 2,
+    "independentHoldout": 2,
+    "normal": 2,
+    "permission": 2
+  },
+  "counts": {
+    "usedProductModels": 12,
+    "postFixModels": 10,
+    "realPipelineReserve": 2,
+    "totalMax": 24,
+    "simcJobs": 0
+  },
+  "fix": "One generic paragraph in mechanics only; no spell/addon/user/report-specific routing; no new tool or parser changes."
+}
