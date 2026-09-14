@@ -1,0 +1,365 @@
+{
+  "modelCalls": 24,
+  "usage": {
+    "inputTokens": 1211957,
+    "cachedInputTokens": 799616,
+    "outputTokens": 6934,
+    "reasoningOutputTokens": 485,
+    "totalTokens": 1218891
+  },
+  "simcJobs": 0,
+  "realUpstreamSourceCalls": 0,
+  "results": [
+    {
+      "path": "after-holdout-1/result.json",
+      "resultSha256": "fa67f9eaf7f3242871d5380ffc0a292ca6c505259972be1ee8ec7330528c4984",
+      "case": "holdout",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "holdout.continuation"
+      ],
+      "evidenceKeys": [
+        "holdout.continuation",
+        "holdout.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-holdout-2/result.json",
+      "resultSha256": "93866067d56859a7c6f027469a6491280cdecf35767589d61b4ee511bb991d7a",
+      "case": "holdout",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "holdout.continuation"
+      ],
+      "evidenceKeys": [
+        "holdout.continuation",
+        "holdout.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-normal-1/result.json",
+      "resultSha256": "21c1a19a051628a152756d7da6048ca8e4125ef2ea760c7ef4654b5b6d9a85af",
+      "case": "normal",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "clique.document"
+      ],
+      "evidenceKeys": [
+        "clique.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-normal-2/result.json",
+      "resultSha256": "f5ef5d72a538480ac170e22ad17b9255599dd4aa97aaed88a08a2f7af4a4f83c",
+      "case": "normal",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "clique.document"
+      ],
+      "evidenceKeys": [
+        "clique.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-permission-1/result.json",
+      "resultSha256": "435090db22a9bba15749bca211035a1f5947277442ecbe03051f4dff5b6d82bc",
+      "case": "permission",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [],
+      "evidenceKeys": [],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-permission-2/result.json",
+      "resultSha256": "deeb25ec96926c7bd7cc644351f09be602905698128aaa35e0f22b336033ef42",
+      "case": "permission",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [],
+      "evidenceKeys": [],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-variant-1/result.json",
+      "resultSha256": "8f064761fee755c207543af169b69233fbc71dcef2fd1417cc7dce9e41b1f448",
+      "case": "variant",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "variant.continuation"
+      ],
+      "evidenceKeys": [
+        "variant.continuation",
+        "variant.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "after-variant-2/result.json",
+      "resultSha256": "d82eff2701562458dfb63db8810d3d3f408c54670f6b3ae6cfb95d3d6ad366cd",
+      "case": "variant",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "variant.continuation"
+      ],
+      "evidenceKeys": [
+        "variant.continuation",
+        "variant.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-holdout-1/result.json",
+      "resultSha256": "2a24f8dcb1ed914c08adf11c4a50670488add450724ed4aa722a8c0de7ae46f3",
+      "case": "holdout",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "holdout.continuation"
+      ],
+      "evidenceKeys": [
+        "holdout.continuation",
+        "holdout.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-holdout-2/result.json",
+      "resultSha256": "526969efd8f23ef43f089ce83eef5af97d3f36afcd66bd4c9c64e94ddb246416",
+      "case": "holdout",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "holdout.continuation"
+      ],
+      "evidenceKeys": [
+        "holdout.continuation",
+        "holdout.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-normal-1/result.json",
+      "resultSha256": "ca20304c093d049477eb935cb4bbdad134a1f6e473c25934034ae5dbe1af4875",
+      "case": "normal",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "clique.document"
+      ],
+      "evidenceKeys": [
+        "clique.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-normal-2/result.json",
+      "resultSha256": "1ef61469f1f96b47360cb12426887a3ce8506a2bb777cac857ffe94c62402b18",
+      "case": "normal",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "clique.document"
+      ],
+      "evidenceKeys": [
+        "clique.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-original-1/result.json",
+      "resultSha256": "32976a8af994152d9ae777923b40ebbf69b82dfa7dc4ee882afac847a750390a",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "forum.continuation",
+        "forum.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-original-2/result.json",
+      "resultSha256": "2189124bc668d1061f9e3bfcd9650d18230ee69f9f592eb89bad87fd3b93b25a",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "clique.document",
+        "forum.continuation",
+        "forum.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-permission-1/result.json",
+      "resultSha256": "23d206ec13b1499294dceae3231a7276ec349f46fb88eb2dca3135f0ec10fe13",
+      "case": "permission",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [],
+      "evidenceKeys": [],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-permission-2/result.json",
+      "resultSha256": "235ac3efa9da2cdd65bbc462ee3ac6dc1d3c5c904e0d236d8ee22cb5ae5651b6",
+      "case": "permission",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [],
+      "evidenceKeys": [],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-variant-1/result.json",
+      "resultSha256": "8ba2fc659c69054c4e539d557fea769cba978d724c528ec6700f0cfd92ec3e30",
+      "case": "variant",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "variant.continuation"
+      ],
+      "evidenceKeys": [
+        "variant.continuation",
+        "variant.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "baseline-variant-2/result.json",
+      "resultSha256": "f40f4feb35794872c8b39373decd5b21b64c578879b8004327ee484b5998c8c5",
+      "case": "variant",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "variant.continuation"
+      ],
+      "evidenceKeys": [
+        "variant.continuation",
+        "variant.document"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "followup/after-first-r2/result.json",
+      "resultSha256": "591a47e5d9f4445a4199f741c3af80b0d7cf021922e48f17e6f854395defd637",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [],
+      "receiptGatePass": false
+    },
+    {
+      "path": "followup/after-original-2/result.json",
+      "resultSha256": "7007da76261e9830886abc04e3d7f6c85324b2c2b9f80e1985d5e58d35f2a0ab",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [],
+      "receiptGatePass": false
+    },
+    {
+      "path": "followup/first/result.json",
+      "resultSha256": "6e40cb85a0c28e5368f18ec3a160ae3fb7ea30807b1e1f8d9b559175e8947f07",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [],
+      "receiptGatePass": false
+    },
+    {
+      "path": "followup/second/result.json",
+      "resultSha256": "661994ca3de7d4e9fa989dd3fc9e82351f3620a6857ffe25b4fe2d7a27418127",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [],
+      "receiptGatePass": false
+    },
+    {
+      "path": "neutral/new/result.json",
+      "resultSha256": "b89b52932eed13420323e76ab609ee1366bf73488d4c080443605a19a6e794c9",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "forum.continuation",
+        "forum.document",
+        "search"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "neutral/old/result.json",
+      "resultSha256": "ccc9acdb1a39710057424d8fdaf9a9162e0f331196ba3dd16fd3bdc2f550c7a5",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "forum.continuation",
+        "forum.document",
+        "search"
+      ],
+      "receiptGatePass": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "at": "2026-09-14T03:06:18.302275+00:00",
+  "reason": "Model explicitly interpreted replay-added no-external-web wording as prohibiting research_public_web. Previous source-read gate is confounded. Preserve all failures; remove only test-added prefix for one baseline and one patched diagnosis, without increasing 24-call budget. No release acceptance from this pair.",
+  "used": 22,
+  "remaining": 2,
+  "corpusSha256": "945495bf05933546e0ce865e36b5e71c8e3d23d812b22ba1dbb8225b3473e4d4",
+  "productChange": "none"
+}
