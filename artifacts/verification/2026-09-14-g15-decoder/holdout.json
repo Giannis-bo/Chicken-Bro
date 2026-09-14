@@ -1,0 +1,13 @@
+{
+  "name": "MID2_Mage_Frost.simc",
+  "character": {
+    "classKey": "mage",
+    "specKey": "frost",
+    "level": 90
+  },
+  "talents": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsMmZmYmZGjZMziZmZmZMDEAAYmZmllZm2AAAAAAgNA2WGzMzAbzYmZYBAAgZ2AmBGwADD",
+  "withInactive": "CAEAAAAAAAAAAAAAAAAAAAAAAYGGLzMzsMmZmYmZGjZMziZmZmZMzgAAAzMzssMz0GAAAAAAsBw2yYmZGYbGzMDLAAAMzGwMwAGYYA",
+  "inactiveNode": 94632,
+  "category": "untouched_holdout",
+  "construction": "Insert one purchased full-rank non-choice node from inactive hero subtree into official Frost Mage export; no decoder execution on modified export before preregistration."
+}

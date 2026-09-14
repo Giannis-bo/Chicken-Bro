@@ -1,0 +1,30 @@
+{
+  "scope": "G15-A talent export decoder only; no full addon import or four ring comparisons",
+  "authorization": "2026-09-14 user approved splitting and independently verifying/releasing decoder fix",
+  "baseline": "3b98ae0b816fbbbc385552ba41945da35f57595f",
+  "samples": {
+    "original": "Existing G15 elemental export, retain active Farseer, ignore inactive purchased nodes",
+    "variant": "Existing Blood DK purchased inactive node fixture",
+    "holdout": {
+      "file": "holdout.json",
+      "sha256": "4b11ce3ba89bc81d4ab51ad671f830607128615fa12de175b04e34aed3157e3a"
+    },
+    "normal": "Official elemental export unchanged; malformed ranks/spec/runtime remain rejected",
+    "permission": "Second owner denied preview and job read/submission using first owner snapshot"
+  },
+  "paired": "deterministic decoder and HTTP preview before/after, identical pinned runtime/config/snapshots; model not involved in decoder comparison",
+  "business": "Candidate and live HTTP submit original export against dedicated test-owner supported snapshot; cloud worker terminal positive result and effective talent evidence; actual Chat readback with idempotent history and owner denial",
+  "budget": {
+    "newProductModelsMax": 4,
+    "newCloudSimcJobsMax": 6,
+    "newProviderCallsMax": 0,
+    "minutesMax": 60,
+    "priorProductModels": 0,
+    "priorSimcJobs": 0,
+    "parentRemainingModels": 24,
+    "parentRemainingSimcJobs": 24
+  },
+  "stop": "Stop on acceptance or fixed caps; retain failed attempts; no full profile substitution claim; no new dependencies or engine upgrade",
+  "observation": "45 seconds; no failed services/readiness, new error-level journal entries or failed smoke jobs; verify exact runtime and unchanged Web hashes",
+  "rollback": "Existing reviewed deploy executor with one-file allowlist, exact inventories, shared release lock, idle fence, previous directory and private recovery environment snapshot."
+}

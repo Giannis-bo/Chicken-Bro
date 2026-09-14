@@ -1,0 +1,55 @@
+[
+  {
+    "category": "original",
+    "inputSha256": "20a5d4d5fb6736861814000df979e80f7de89112ec36a48189c665adc4447577",
+    "before": {
+      "status": "rejected",
+      "code": "TALENT_BUILD_INVALID"
+    },
+    "after": {
+      "status": "accepted",
+      "entries": 80,
+      "resultSha256": "aa380cf3713dc4b62576e5e7d5cb4c0ca12f98037dfffb3121d8fca7203475d1"
+    }
+  },
+  {
+    "category": "variant",
+    "inputSha256": "9f74e866d5f5531bd54c93f916839682264ce75129d4d8aa1aba49b0065981fe",
+    "before": {
+      "status": "rejected",
+      "code": "TALENT_BUILD_INVALID"
+    },
+    "after": {
+      "status": "accepted",
+      "entries": 78,
+      "resultSha256": "92cce7ced8967c3bc73b02276818e403f4a64d05ddc91a2eae6b7a544b1f5fdb"
+    }
+  },
+  {
+    "category": "holdout",
+    "inputSha256": "5c97c2f9b034269cbaf2b3cc3e71e308002fd6204e536e98aaa6845f1fa6e0bf",
+    "before": {
+      "status": "rejected",
+      "code": "TALENT_BUILD_INVALID"
+    },
+    "after": {
+      "status": "accepted",
+      "entries": 77,
+      "resultSha256": "3b6c5ce7bc49819dda5bcfc0375d881289ec7ec9af4cf623c1865f3af425805c"
+    }
+  },
+  {
+    "category": "normal",
+    "inputSha256": "033bdec60bad5ee5b4aa4a0d85cfdfce15a342ed70e21a4a18eb0e272ea1acd3",
+    "before": {
+      "status": "accepted",
+      "entries": 80,
+      "resultSha256": "f4f5f2883e24c6b90fe4ee2e901e2c367fd125bf77f76ba901704ace3614eb98"
+    },
+    "after": {
+      "status": "accepted",
+      "entries": 80,
+      "resultSha256": "f4f5f2883e24c6b90fe4ee2e901e2c367fd125bf77f76ba901704ace3614eb98"
+    }
+  }
+]
