@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-14T03:11:43.961852+00:00",
+  "authorization": "User explicitly removes game-client validation from acceptance and requests remaining verification followed by release.",
+  "acceptance": "Source-supported, goal-preserving answers; paired repeats, related regression, isolated HTTP and live HTTP Chat plus owner isolation/idempotency and runtime/recovery evidence. No game-client proof required.",
+  "additionalModelMax": 8,
+  "previousModelCalls": 24,
+  "cumulativeModelMax": 32,
+  "newSimcMax": 0,
+  "newRealSourceMax": 12,
+  "stop": "Stop after repeat semantic failure or exhausted budget; preserve failures. No automatic expansion.",
+  "reuse": "Eight passed variant/holdout/normal/permission runs from unchanged cdc7d262 mechanics and same runtime; retain receipt and manual review.",
+  "schedule": [
+    "neutral old repeat2",
+    "neutral new repeat2",
+    "candidate original context",
+    "candidate normal",
+    "live original context"
+  ],
+  "reserve": 3
+}

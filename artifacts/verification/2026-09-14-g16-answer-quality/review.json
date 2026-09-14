@@ -1,0 +1,66 @@
+{
+  "at": "2026-09-14T03:19:42.657330+00:00",
+  "reviewer": "independent g16_release_review subagent; answers reviewed before version mapping",
+  "blindRows": {
+    "R00": "passed",
+    "R01": "passed",
+    "R02": "passed",
+    "R03": "failed",
+    "R04": "passed",
+    "R05": "passed",
+    "R06": "passed",
+    "R07": "passed",
+    "R08": "passed",
+    "R09": "passed",
+    "R10": "passed",
+    "R11": "passed",
+    "R12": "passed",
+    "R13": "passed",
+    "R14": "passed",
+    "R15": "passed",
+    "R16": "passed",
+    "R17": "passed",
+    "R18": "failed",
+    "R19": "passed",
+    "R20": "passed",
+    "R21": "passed"
+  },
+  "blindFailures": {
+    "R03": "baseline-original-1: assumes installed Clique; earlier preliminary pass overturned",
+    "R18": "neutral/old: unsupported double-cast replacement despite available source"
+  },
+  "acceptedCohort": {
+    "original": [
+      "neutral/new/result.json",
+      "neutral/new-repeat2/result.json"
+    ],
+    "variant": [
+      "after-variant-1/result.json",
+      "after-variant-2/result.json"
+    ],
+    "independentHoldout": [
+      "after-holdout-1/result.json",
+      "after-holdout-2/result.json"
+    ],
+    "normal": [
+      "after-normal-1/result.json",
+      "after-normal-2/result.json"
+    ],
+    "permission": [
+      "after-permission-1/result.json",
+      "after-permission-2/result.json"
+    ]
+  },
+  "acceptedAfter": 10,
+  "neutralBefore": "1 pass,1 fail; probabilistic failure, no universal prevention claim",
+  "candidateIndependentReview": "Both real HTTP cases pass against current original pages; native web counts prove invocations only",
+  "antiSpecialCase": "Only shared mechanics paragraph; no skill/addon/owner/question matching, permissions and budgets unchanged",
+  "sourceBinding": "All 144 Git server files match uploaded candidate; manifest overlay mechanics exact; other deployed differences newline-only",
+  "codeReview": "No blocking findings after source-binding receipt",
+  "localChecks": {
+    "total": 83,
+    "passed": 82,
+    "platformSkipped": 1
+  },
+  "gameClientAcceptance": "Excluded by explicit user instruction; no game execution claim"
+}

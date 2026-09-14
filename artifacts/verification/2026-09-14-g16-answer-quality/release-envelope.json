@@ -1,0 +1,12 @@
+{
+  "manifestSha256": "8c2d76d63e30c402cdf551388b08a4538f3312b439fcb447ae58f6783edcfa88",
+  "executorSha256": "d64b75ceec37053540842fb3f3a4417e7a6c06afbbd3bcee59823567703fb7a7",
+  "sourceCommit": "cdc7d262a203b23707a8932fd8318c0358316cb5",
+  "targetFileCount": 144,
+  "environmentRecoverySnapshotValidated": true,
+  "oldMechanicsCopyRestoreHashVerified": true,
+  "rollbackSwitchExercised": false,
+  "candidateVerified": true,
+  "reportSha256": "27ce44fe61aaefd25c4ba70b809ba0078545ea2499cd0dfc459b637d4aa7294c",
+  "status": "frozen_ready_for_promotion"
+}

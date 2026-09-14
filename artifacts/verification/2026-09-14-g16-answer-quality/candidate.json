@@ -1,0 +1,80 @@
+{
+  "mode": "candidate",
+  "source": "/opt/chickenbro-releases/badcase-cdc7d262a203b23707a8932fd8318c0358316cb5",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "cases": [
+    {
+      "caseId": "g16-original-mechanism",
+      "runId": "b6bc72ef-b9fa-4dac-ae21-9064796ab06e",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 51.492,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 93355,
+          "totalTokens": 93966,
+          "outputTokens": 611,
+          "cachedInputTokens": 70656,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**之前把 `known` 宏当成可靠方案，是我漏看了楼主后续反馈。**楼主在“最终宏”下面又补充：大秘境里施放约 8 次仍没切换到另一种军备。4 月 26 日的二楼随后提出：改用 `Divine Toll` 的鼠标指向宏，仍能自动切换。[原帖后续](https://us.forums.blizzard.com/en/wow/t/holy-bulwark-macro-broken-after-1205/2294794/2)\n\n按这条玩家反馈，你现在应尝试把 Clique 原绑定的自定义宏替换为：\n\n```text\n#showtooltip\n/cast [@mouseover,help,nodead] 圣洁鸣钟\n```\n\n简体客户端用“圣洁鸣钟”，英文客户端用 `Divine Toll`。这里采用的是回帖提出的**借该技能入口释放当前军备**的绕行办法；上面按你点击小队框架的用途，去掉了原回帖的非鼠标目标回退。\n\n脱战后在 `/clique` → **Bind other → 自定义宏**中替换文本，保留原来的鼠标组合键，绑定组设为 **friend（友方）或 default**，避免仅勾选 `ooc`（仅脱战）。作者说明确认了自定义宏入口及这些绑定组的作用。[Clique 作者说明](https://www.curseforge.com/wow/addons/clique)\n\n验证就直接点击 ElvUI 队友框架施放军备，观察两种军备状态下是否都能给到该队友，以及切换后同一组合键是否继续有效。",
+      "sseCompleted": true,
+      "nativeObservations": [
+        {
+          "tool": "read_chickenbro_skill",
+          "sourceKey": "chickenbro_skill",
+          "status": "available",
+          "errorCode": "",
+          "reasonCode": "",
+          "elapsedMs": 0,
+          "factCount": 0,
+          "argumentsSha256": "b71bf3c0faa4d4798009be96dbfd69b66a355856dad78fce3152d8d383a75c88",
+          "evidenceRefs": [],
+          "evidence": [],
+          "limitations": [],
+          "skillId": "mechanics",
+          "version": "sha256:4c0e7d704c56f3a4c006db39e29c5bb47426b51393046dbe15ad67f8a85111a5"
+        }
+      ],
+      "toolObservations": []
+    },
+    {
+      "caseId": "g16-normal",
+      "runId": "49f81dff-d7e8-400c-ac62-f8a3706e1327",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "elapsedSeconds": 39.414,
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 80607,
+          "totalTokens": 81054,
+          "outputTokens": 447,
+          "cachedInputTokens": 52608,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "**关键是把 Shift＋左键宏放进 `friend`（友方）绑定集，而不是仅放进 `ooc`（脱战）集。** 作者说明：`friend` 用于友方单位，`ooc` 进入战斗后就会失效；战斗中也无法修改绑定。[Clique 作者说明](https://www.curseforge.com/wow/addons/clique)\n\n1. **脱战后**输入 `/clique` 打开设置。\n2. 点击 **Bind other**，选择宏绑定，按弹窗提示填入你已有的宏，并将组合键设为 **Shift＋鼠标左键**，保存。\n3. 在该绑定的绑定集设置中选择 **friend**，取消 **ooc**。\n4. 对已注册到 Clique 的 ElvUI 队友框架，鼠标放在框架上，按住 **Shift** 再点左键即可触发；进入战斗后仍按这个组合使用。作者说明的框架生效条件是“已注册到 Clique”。[设置与绑定集说明](https://www.curseforge.com/wow/addons/clique)",
+      "sseCompleted": true,
+      "nativeObservations": [],
+      "toolObservations": []
+    }
+  ],
+  "nativeWebEvents": {
+    "b6bc72ef-b9fa-4dac-ae21-9064796ab06e": {
+      "openPage": 2,
+      "search": 1
+    },
+    "49f81dff-d7e8-400c-ac62-f8a3706e1327": {
+      "openPage": 1,
+      "search": 1
+    }
+  },
+  "nativeWebLimit": "Completed web events prove calls, not page content; cited claims separately checked against current original source pages."
+}

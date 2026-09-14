@@ -1,11 +1,11 @@
 {
-  "modelCalls": 24,
+  "modelCalls": 26,
   "usage": {
-    "inputTokens": 1211957,
-    "cachedInputTokens": 799616,
-    "outputTokens": 6934,
-    "reasoningOutputTokens": 485,
-    "totalTokens": 1218891
+    "inputTokens": 1387170,
+    "cachedInputTokens": 936064,
+    "outputTokens": 7929,
+    "reasoningOutputTokens": 565,
+    "totalTokens": 1395099
   },
   "simcJobs": 0,
   "realUpstreamSourceCalls": 0,
@@ -345,8 +345,43 @@
       "receiptGatePass": true
     },
     {
+      "path": "neutral/new-repeat2/result.json",
+      "resultSha256": "591d519ea3ec5bb73a1ec0fc608d1a493c1d057a88c935b358c8184ebddd6189",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g16-quality-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "clique.document",
+        "forum.continuation",
+        "forum.document",
+        "search"
+      ],
+      "receiptGatePass": true
+    },
+    {
       "path": "neutral/old/result.json",
       "resultSha256": "ccc9acdb1a39710057424d8fdaf9a9162e0f331196ba3dd16fd3bdc2f550c7a5",
+      "case": "original",
+      "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
+      "status": "succeeded",
+      "modelCalls": 1,
+      "requiredEvidence": [
+        "forum.continuation"
+      ],
+      "evidenceKeys": [
+        "forum.continuation",
+        "forum.document",
+        "search"
+      ],
+      "receiptGatePass": true
+    },
+    {
+      "path": "neutral/old-repeat2/result.json",
+      "resultSha256": "4719c4a5b6579e01961841a3622b86ac9c3fcc8e1de3d6eba6423fb2525f6660",
       "case": "original",
       "source": "/opt/chickenbro-candidates/g15-decoder-20260914",
       "status": "succeeded",
