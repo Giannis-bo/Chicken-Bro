@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-submission-quota-removal",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Retain authorized SimC count-cap removal, bounded acceptance, failures and recovery evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-09-14-simc-quota/"
+      ]
+    },
+    {
       "id": "direct-conclusions",
       "disposition": "keep",
       "category": "target-verification",

@@ -110,3 +110,9 @@ API/Worker运行源码 `b406fc9155a03edba9e95912713606736fb2a1bd`，9文件增�
 API/Worker运行源码2294cb95095a3822e1f4e2c43e225bf0bfdb2f63，8文件增量；144份后端及13份公网Web文件核验，Web保持chat-return-0f8b3ce9。核心规则与四份流程、读取器及MCP必须同release，禁止仅复制核心文件。run-identity.json只含run UUID，用于精确审计流程调用。
 
 私有root/0700包 `/var/lib/chickenbro-skills-release-20260912/` 保存manifest、overlay、deploy.py与root/0600恢复快照。恢复以root运行本批 `deploy.py manifest.json rollback`，使用相同空闲门禁恢复旧b406fc915并验证业务；不回滚数据库。旧版保留，恢复材料已核验，未实际回切演练。[发布与已知效率边界](../artifacts/verification/2026-09-12-agent-skills/README.md)。
+
+## 2026-09-14 取消 Chat SimC 次数上限
+
+运行源码 `22037c2a27c8db331e31d7a481425c97455f7c99`，四文件 overlay，API/Worker 同版；单轮与跨研究均不限新模拟次数，历史计数和幂等保留。Candidate 与线上第五次提交均得到真实正 DPS，并完成第二账号隔离与消息重放验证。Web、数据库结构和引擎未改变。[证据](../artifacts/verification/2026-09-14-simc-quota/README.md)。
+
+恢复包为 root/0700 `/var/lib/chickenbro-simc-quota-20260914/`，含固定 manifest、deploy.py、overlay 和 root/0600 恢复快照。以 root 运行本批 `deploy.py manifest.json rollback`，在共享发布锁及全任务空闲门禁下恢复旧 `cdc7d262`，随后核对业务。旧文件独立复制哈希核验通过；未进行生产回切演练。

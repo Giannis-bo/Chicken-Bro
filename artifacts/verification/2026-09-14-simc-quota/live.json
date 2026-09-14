@@ -1,0 +1,104 @@
+{
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-22037c2a27c8db331e31d7a481425c97455f7c99",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "fifthSubmissionSucceeded": true,
+    "secondOwnerSimulationDenied": true,
+    "historicalReservationsRetained": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "fixture": {
+    "historicalReservations": 4,
+    "syntheticConversation": true,
+    "newSimulationLimitForSmoke": 1
+  },
+  "cases": [
+    {
+      "runId": "4f36c21d-b9f3-4a0d-b74b-2dea079d9d18",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 166158,
+          "totalTokens": 166706,
+          "outputTokens": 548,
+          "cachedInputTokens": 129024,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "已完成重跑，仅新增这一个任务，复用原角色快照及其他配置。\n\n- 条件：61秒、100次迭代，单目标木桩。\n- **DPS：227,301.59**（约22.73万）。\n- 报告误差：±2,732.39（约1.20%）。\n- 新任务：`9a13a5e5-bc68-4bd5-aee5-c71598311f94`，状态：成功。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "aa0cf6e2-51f8-4f31-ab69-825ea90a8ae8",
+              "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b"
+            }
+          ]
+        },
+        {
+          "tool": "simc.preview",
+          "status": "ready",
+          "evidenceRefs": []
+        },
+        {
+          "tool": "simc.submit",
+          "status": "queued",
+          "evidenceRefs": [
+            {
+              "jobId": "9a13a5e5-bc68-4bd5-aee5-c71598311f94",
+              "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b"
+            }
+          ]
+        },
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "9a13a5e5-bc68-4bd5-aee5-c71598311f94",
+              "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b"
+            }
+          ]
+        }
+      ],
+      "sseCompleted": true,
+      "elapsedSeconds": 38.224
+    }
+  ],
+  "simulation": {
+    "id": "9a13a5e5-bc68-4bd5-aee5-c71598311f94",
+    "status": "succeeded",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 1,
+      "iterations": 100,
+      "maxTime": 61,
+      "talentOverrides": {
+        "string": "CYQALMl7AwW51MWzGneuHE3tPCAAAAzMbbzMGjZZZZMmhZAAAAgFzstZmZYzwCz2MTDNzCAMbzMzYmtFTbmZGjlZMzYGLWmZWGGzMLAADgZmZGDDD"
+      }
+    },
+    "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b",
+    "compilerRevision": "chickenbro-simc-compiler-v6",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "result": {
+      "metricName": "dps",
+      "metricValue": 227301.5926449991,
+      "provenance": {
+        "snapshotId": "5242fa39-c973-4b39-937e-01da3ebeac8b",
+        "sourceRevision": "2026-09-09T20:00:27.000Z",
+        "sourceRawSha256": "f17ee32fcfcaf2f450eeb52ab5789ea6abcb444752980d3734eae12fc7488a66",
+        "profileSha256": "b3eac9622910f6cc10b1ad5c079f86ea157c5d6aebe7e11d19cd821aef91d1a6",
+        "compilerRevision": "chickenbro-simc-compiler-v6",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "scenarioHash": "3451f1bbfacb69f4712f4d293aab20bad4f5e13c3bfcebd4a7f4d792ed8aa937"
+      }
+    }
+  }
+}

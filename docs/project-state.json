@@ -856,5 +856,26 @@
     "candidateCases": 2,
     "liveCases": 1,
     "manualUserAcceptance": "not_claimed"
+  },
+  "simcSubmissionQuotaRemoval": {
+    "status": "live_verified",
+    "sourceCommit": "22037c2a27c8db331e31d7a481425c97455f7c99",
+    "evidence": "artifacts/verification/2026-09-14-simc-quota/README.md",
+    "limits": {
+      "perTurn": null,
+      "perResearch": null
+    },
+    "historicalRecords": "retained",
+    "verification": {
+      "localBackendPassed": 135,
+      "postgresPassed": 13,
+      "controlPassed": 63,
+      "candidate": "fifth_submission_positive_dps_and_isolation_passed",
+      "live": "fifth_submission_positive_dps_and_isolation_passed",
+      "runtimeFilesMatched": 144,
+      "publicWebFilesMatched": 13
+    },
+    "manualUserAcceptance": "not_claimed",
+    "rollbackDrill": false
   }
 }

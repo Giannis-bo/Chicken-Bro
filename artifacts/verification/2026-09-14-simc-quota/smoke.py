@@ -57,7 +57,7 @@ import fcntl
 lock=open('/run/lock/chickenbro-candidate-validation.lock','a');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB) if a.mode=='candidate' else None
 with psycopg.connect(env['WOW_DATABASE_URL']) as c:
     if a.mode=='candidate':
-        owners=[r[0] for r in c.execute("SELECT DISTINCT j.user_id FROM simc.simulation_jobs j JOIN identity.user_identities i ON i.user_id=j.user_id WHERE j.status='succeeded' AND i.provider='qq' ORDER BY j.user_id LIMIT 2").fetchall()]
+        owners=[r[0] for r in c.execute("SELECT DISTINCT j.user_id FROM simc.simulation_jobs j JOIN identity.user_identities i ON i.user_id=j.user_id JOIN ops.job_queue q ON q.id=j.id AND q.aggregate_id=j.id WHERE j.status='succeeded' AND q.domain='simc' AND q.command_type='run_simulation' AND i.provider='qq' ORDER BY j.user_id LIMIT 2").fetchall()]
         assert len(owners)==2, 'existing candidate simulation owners required'
     else:
         owners=[r[0] for r in c.execute("SELECT user_id FROM identity.user_identities WHERE provider='qq' AND provider_subject LIKE 'simc-all-smoke-%%' ORDER BY user_id LIMIT 2").fetchall()]
@@ -134,7 +134,7 @@ with httpx.Client(base_url=base,timeout=510) as client:
         return record
     cid=create('simc-quota:continuation')
     with psycopg.connect(env['WOW_DATABASE_URL']) as c:
-        base_job=c.execute("SELECT id FROM simc.simulation_jobs WHERE user_id=%s AND status='succeeded' ORDER BY created_at DESC LIMIT 1",(owners[0],)).fetchone()[0]
+        base_job=c.execute("SELECT j.id FROM simc.simulation_jobs j JOIN ops.job_queue q ON q.id=j.id AND q.aggregate_id=j.id WHERE j.user_id=%s AND j.status='succeeded' AND q.domain='simc' AND q.command_type='run_simulation' ORDER BY j.created_at DESC LIMIT 1",(owners[0],)).fetchone()[0]
         before_jobs={str(row[0]) for row in c.execute('SELECT id FROM simc.simulation_jobs WHERE user_id=%s',(owners[0],)).fetchall()}
         c.execute("INSERT INTO chat.research_sessions(id,user_id,conversation_id,state,budget) VALUES (%s,%s,%s,'active',%s::jsonb)",(uuid4(),owners[0],cid,json.dumps({'submissions':['historical-fixture-'+str(n) for n in range(4)]})))
     report['fixture']={'historicalReservations':4,'syntheticConversation':True,'newSimulationLimitForSmoke':1}

@@ -2,6 +2,8 @@
 
 ## 已完成
 
+- Chat SimC 次数上限已取消（`22037c2a`）：单轮与跨轮均不限任务次数，保留历史记录、幂等和账号隔离；Candidate 与线上均验证历史四次后继续模拟成功。[发布记录](../artifacts/verification/2026-09-14-simc-quota/README.md)。
+
 - 鸡哥直接结论表达已发布（`730882f2`）：核心、WCL与答案修正路径禁止无关免责和预防性反驳；后端、控制面、Candidate及线上真实回答验收通过。[记录](plans/2026-09-13-direct-conclusions.md)。
 
 - 鸡哥复杂研究配对评测完成：48次固定运行全部质量通过，同题配对耗时中位增加9.62%，未达全面提速门槛；另有8条真实Candidate诊断。优先验证流程读取往返与缓存成本，未追加产品优化。[评测记录](../artifacts/verification/2026-09-12-agent-benchmark/README.md)。

@@ -1,0 +1,101 @@
+{
+  "mode": "candidate",
+  "source": "/opt/chickenbro-candidates/simc-quota-20260914",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "fifthSubmissionSucceeded": true,
+    "secondOwnerSimulationDenied": true,
+    "historicalReservationsRetained": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "fixture": {
+    "historicalReservations": 4,
+    "syntheticConversation": true,
+    "newSimulationLimitForSmoke": 1
+  },
+  "cases": [
+    {
+      "runId": "5dc36d14-c745-4370-a1e0-6d3d589038e5",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 161794,
+          "totalTokens": 162264,
+          "outputTokens": 470,
+          "cachedInputTokens": 136576,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "已完成重跑，**DPS：158,811.55**，报告误差约 ±1.06%。\n\n- 复用原任务角色快照及其他配置，单目标 Patchwerk，61 秒、100 次迭代。\n- 仅新增这一个任务：`a90ae377-a717-4f0b-b8db-69e166231209`\n- 任务状态：成功。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "6ab7a8c2-690f-4c24-a4a4-f6c2ff04810d",
+              "snapshotId": "dbbce84b-93c6-470d-838a-b9d9dc14445d"
+            }
+          ]
+        },
+        {
+          "tool": "simc.preview",
+          "status": "ready",
+          "evidenceRefs": []
+        },
+        {
+          "tool": "simc.submit",
+          "status": "queued",
+          "evidenceRefs": [
+            {
+              "jobId": "a90ae377-a717-4f0b-b8db-69e166231209",
+              "snapshotId": "dbbce84b-93c6-470d-838a-b9d9dc14445d"
+            }
+          ]
+        },
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "a90ae377-a717-4f0b-b8db-69e166231209",
+              "snapshotId": "dbbce84b-93c6-470d-838a-b9d9dc14445d"
+            }
+          ]
+        }
+      ],
+      "sseCompleted": true,
+      "elapsedSeconds": 37.742
+    }
+  ],
+  "simulation": {
+    "id": "a90ae377-a717-4f0b-b8db-69e166231209",
+    "status": "succeeded",
+    "scenario": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 1,
+      "iterations": 100,
+      "maxTime": 61
+    },
+    "snapshotId": "dbbce84b-93c6-470d-838a-b9d9dc14445d",
+    "compilerRevision": "chickenbro-simc-compiler-v6",
+    "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "result": {
+      "metricName": "dps",
+      "metricValue": 158811.55439738728,
+      "provenance": {
+        "snapshotId": "dbbce84b-93c6-470d-838a-b9d9dc14445d",
+        "sourceRevision": "2026-09-10T20:10:07.000Z",
+        "sourceRawSha256": "dc40057c574894a35f1ee69bb82971c09f5f85d38c3d08a4377797bc564e864f",
+        "profileSha256": "a7346aef339e5eaac9243a01bcf843b4f80f71b9dae35fbe1fcbd8a0c8485292",
+        "compilerRevision": "chickenbro-simc-compiler-v6",
+        "runtimeRevision": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+        "scenarioHash": "29082f1d398111327cbda67b1f073675c13c94d6bebc30ee8e63ad25762c1f2c"
+      }
+    }
+  }
+}

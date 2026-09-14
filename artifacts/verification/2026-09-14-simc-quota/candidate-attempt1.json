@@ -1,0 +1,50 @@
+{
+  "mode": "candidate",
+  "source": "/opt/chickenbro-candidates/simc-quota-20260914",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true
+  },
+  "fixture": {
+    "historicalReservations": 4,
+    "syntheticConversation": true,
+    "newSimulationLimitForSmoke": 1
+  },
+  "cases": [
+    {
+      "runId": "4a5cadb8-ca14-4160-9942-17e7c204ea43",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 109786,
+          "totalTokens": 110185,
+          "outputTokens": 399,
+          "cachedInputTokens": 89344,
+          "reasoningOutputTokens": 11
+        }
+      },
+      "finalAnswer": "本次未新增任务：原任务的场景配置缺失，预检返回 `SIMC_BASE_SCENARIO_UNAVAILABLE`，无法按“保留其他配置”重跑，因此没有新DPS结果。阻碍是配置缺失，并非4次模拟额度。\n\n请提供另一个保留完整配置的已有任务ID，我会只新增一次61秒、100次迭代的模拟并读取结果。",
+      "toolObservations": [
+        {
+          "tool": "simc.get",
+          "status": "succeeded",
+          "evidenceRefs": [
+            {
+              "jobId": "6cff994b-9265-436d-88c8-dd009ebbba73",
+              "snapshotId": "3406a0e1-6825-4f0b-af0f-06a2e3ae61ff"
+            }
+          ]
+        },
+        {
+          "tool": "simc.preview",
+          "status": "blocked",
+          "evidenceRefs": []
+        }
+      ],
+      "sseCompleted": true,
+      "elapsedSeconds": 40.944
+    }
+  ]
+}

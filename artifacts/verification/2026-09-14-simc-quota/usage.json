@@ -1,0 +1,42 @@
+{
+  "modelRequests": 3,
+  "actualSimulations": 2,
+  "runs": [
+    {
+      "evidence": "candidate-attempt1",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 109786,
+          "totalTokens": 110185,
+          "outputTokens": 399,
+          "cachedInputTokens": 89344,
+          "reasoningOutputTokens": 11
+        }
+      }
+    },
+    {
+      "evidence": "candidate",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 161794,
+          "totalTokens": 162264,
+          "outputTokens": 470,
+          "cachedInputTokens": 136576,
+          "reasoningOutputTokens": 0
+        }
+      }
+    },
+    {
+      "evidence": "live",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 166158,
+          "totalTokens": 166706,
+          "outputTokens": 548,
+          "cachedInputTokens": 129024,
+          "reasoningOutputTokens": 0
+        }
+      }
+    }
+  ]
+}
