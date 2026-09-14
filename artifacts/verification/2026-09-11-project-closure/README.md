@@ -6,7 +6,7 @@
 
 - 控制面从笼统 `in_progress` 改为 `delivered_with_followups`，G10 顶层实现/Candidate/live 更新到最终证据，历史失败与消耗保留。
 - 现有 `badcase` cron 已通过 Codex 自动化工具更新并读回，保留原时刻、独立会话、模型和执行范围。Agent 在扫描前消费原保留清单和两份固定逐文件哈希基线；未新增调度器、未部署确定性清理程序。配置接入不冒称到期执行完成。
-- 当前本地6个目标共10文件，云端7个目标共19文件已读回并生成私有基线。原清单SHA为 `2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902`；各自基线和精确操作规则见[运维入口](../../../docs/badcase-workflow-operations.md#联合私有副本到期处置)。尚未到期，未删除任何联合私有副本。
+- 当前本地6个目标共10文件，云端7个目标共19文件已读回并生成私有基线。原清单SHA为 `2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902`；各自基线和精确操作规则见[运维入口](../../../docs/badcase-workflow-operations-history-20260911.md#联合私有副本到期处置)。尚未到期，未删除任何联合私有副本。
 - 已移除11个完成工作区与8条功能分支；所有补丁均为main祖先或 `git cherry` 等价，无遗漏独有补丁。完整Git bundle经过独立bare仓库恢复、13个工作区提交可读；13份ignored验证日志/辅助材料已归档并逐文件校验。没有强推、历史改写或 `git clean`。
 - 主工作区58条未跟踪文件/目录记录及旧 `.worktrees/badcase-workflow` 未跟踪证据保留；不将原始私密资料提交仓库。私有恢复材料位于 `/Users/boyuan/.codex/badcase/chickenbro/closure-20260911/`，`before-cleanup.bundle`、`ignored-evidence.tar` 与清单可恢复原提交和日志。
 - CLI实时状态仍将G7/G10/G8/G9显示为approved；新增[报告哈希绑定交接](external-dispositions.json)，已加入现有调度前置核对，同一报告范围跳过重复执行，新报告独立评估。原CLI账本及failed记录未改写。

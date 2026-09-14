@@ -1,0 +1,19 @@
+{
+  "mode": "public-artifact-mocked-api",
+  "measurements": [
+    {
+      "text": "取消",
+      "width": 72,
+      "height": 40,
+      "radius": "8.0001px"
+    },
+    {
+      "text": "确认",
+      "width": 72,
+      "height": 40,
+      "radius": "8.0001px"
+    }
+  ],
+  "cancelAndEscapeNoWrite": true,
+  "confirmWrites": 1
+}

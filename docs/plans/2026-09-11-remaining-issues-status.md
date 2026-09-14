@@ -88,7 +88,7 @@
 
 ## 联合私有副本保留覆盖（2026-09-11 后续登记）
 
-本地 `persistent-research-20260911/retention.json` 与云端 `/var/lib/chickenbro-joint-research-20260911/retention.json` 已逐份只读核对，SHA相同、均0600，云端root所有。精确绝对路径及哈希见[现有保留流程登记](../badcase-workflow-operations.md#2026-09-11-联合发布私有副本保留登记)。原生到期1789639309.95872，G10及混合transport取更早1789611698.4364，不重新计时。
+本地 `persistent-research-20260911/retention.json` 与云端 `/var/lib/chickenbro-joint-research-20260911/retention.json` 已逐份只读核对，SHA相同、均0600，云端root所有。精确绝对路径及哈希见[现有保留流程登记](../badcase-workflow-operations-history-20260911.md#2026-09-11-联合发布私有副本保留登记)。原生到期1789639309.95872，G10及混合transport取更早1789611698.4364，不重新计时。
 
 清单覆盖的联合回执、题包、transport副本**尚未接入现有清理机制，未清理**。现有scan/prune只清本地raw问题包，云端图片retention只负责产品图片；不能把这些已有机制当成联合副本已被覆盖。本轮不创建定时任务或扩大删除范围；生产记录、回滚metadata/恢复快照、源码及发布manifest继续独立保护。
 

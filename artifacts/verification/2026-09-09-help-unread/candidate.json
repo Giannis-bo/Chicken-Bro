@@ -1,0 +1,22 @@
+{
+  "mode": "local-production-build-mocked-api",
+  "dots": [
+    {
+      "width": 5.984375,
+      "height": 5.984375,
+      "color": "rgb(229, 72, 77)",
+      "right": 1293.046875
+    },
+    {
+      "width": 5.984375,
+      "height": 5.984375,
+      "color": "rgb(229, 72, 77)",
+      "right": 1363.03125
+    }
+  ],
+  "independentRead": true,
+  "reloadPersists": true,
+  "multiTabSync": true,
+  "changedContentUnread": true,
+  "directFaqRead": true
+}

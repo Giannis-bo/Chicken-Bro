@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "b48816f1bf610da1fed8db08ccafad59fa13f42e",
+  "release": "changelog-b48816f1bf610da1fed8db08ccafad59fa13f42e",
+  "previousWeb": "/var/www/chickenbro-web/releases/feedback-ui-d7c10b0711e217251a7cbdc6f81c692317df342c",
+  "expectedBackend": "/opt/chickenbro-releases/simc-experiments-7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb",
+  "archiveSha256": "36c491f4648d02b154faf3436d4185d2eead8506671fcdf9dbe929192668e760",
+  "files": {
+    "brand/gugu-v1-16.png": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998",
+    "brand/gugu-v1-32.png": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5",
+    "brand/gugu-v1.ico": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d",
+    "chunk/200.js": "7da2a91eca7677252178947790e1e5addb63b77fae31150bf2237bcd96be53f5",
+    "chunk/200.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/477.js": "c3310dcce8c7411044cf537ca61ed2cd055ae0aa462330e077a7f3f67c8ed44f",
+    "css/app.css": "f47f53677e820aa2383aebf42eb9c0373cf8956bd88ced8934bbf21edde56d52",
+    "index.html": "2b69db723f19e2ee5bd4b5194bc94f324023275416a868ee20008f6b0faa0e3e",
+    "js/7.js": "f4f38a1be9c0c703e1e9a2e8e40d5e673165f0ce53e0efd991a1a9611114aa89",
+    "js/7.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "js/app.js": "2f92d31164ecc1f54638b97113cacf838ebb41445607d5d253488ee6caf20607",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+  }
+}

@@ -1,0 +1,450 @@
+{
+  "verifiedAt": "2026-09-09T02:22:01.314012+00:00",
+  "target": "wow-lighthouse",
+  "backupDirectory": "/var/lib/chickenbro/codex-config-backups/20260909T021430Z",
+  "configs": [
+    {
+      "path": "/home/ubuntu/.codex/config.toml",
+      "sha256": "b9a821ae4a9bc5cb1286c26e4b1ce7abc08f80bd9307ab4ae5a1fc4114847e00",
+      "model": "gpt-6-astra",
+      "reasoningEffort": "low",
+      "removedTrustRecords": 29,
+      "disabledSkills": 6,
+      "disabledPlugins": 8,
+      "apps": false,
+      "remotePlugin": false,
+      "otherValuesPreserved": true
+    },
+    {
+      "path": "/home/ubuntu/.codex/chickenbro-native.config.toml",
+      "sha256": "5aa7f70987a78d63ffc37900723a6ebe0484f534943ebcf7f7db2739af526587",
+      "model": "gpt-6-astra",
+      "reasoningEffort": "low",
+      "removedTrustRecords": 0,
+      "disabledSkills": 6,
+      "disabledPlugins": 8,
+      "apps": false,
+      "remotePlugin": false,
+      "otherValuesPreserved": true
+    },
+    {
+      "path": "/home/ubuntu/.codex/chickenbro-candidate.config.toml",
+      "sha256": "4ac93c507c54622603c6b0c7e8a0b5395eed2589468c71f7c3ac819945d2deb0",
+      "model": "gpt-6-astra",
+      "reasoningEffort": "low",
+      "removedTrustRecords": 0,
+      "disabledSkills": 6,
+      "disabledPlugins": 8,
+      "apps": false,
+      "remotePlugin": false,
+      "otherValuesPreserved": true
+    },
+    {
+      "path": "/home/ubuntu/.codex/chickenbro-production.config.toml",
+      "sha256": "60d99690f98921146b8602cf31896be346fa65c8cdc083174cd36f1f32132608",
+      "model": "gpt-6-astra",
+      "reasoningEffort": "low",
+      "removedTrustRecords": 0,
+      "disabledSkills": 6,
+      "disabledPlugins": 8,
+      "apps": false,
+      "remotePlugin": false,
+      "otherValuesPreserved": true
+    }
+  ],
+  "smokes": {
+    "test": {
+      "profile": "chickenbro-production",
+      "effective": {
+        "model": "gpt-6-astra",
+        "reasoningEffort": "low",
+        "approvalPolicy": "never",
+        "sandbox": {
+          "type": "readOnly",
+          "networkAccess": false
+        },
+        "instructionSources": []
+      },
+      "skills": [
+        {
+          "name": "imagegen",
+          "enabled": false
+        },
+        {
+          "name": "openai-docs",
+          "enabled": false
+        },
+        {
+          "name": "plugin-creator",
+          "enabled": false
+        },
+        {
+          "name": "review-agent",
+          "enabled": false
+        },
+        {
+          "name": "skill-creator",
+          "enabled": false
+        },
+        {
+          "name": "skill-installer",
+          "enabled": false
+        }
+      ],
+      "skillErrors": 0,
+      "pluginsConfigured": [
+        {
+          "id": "creative-production@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "deep-research-work@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "figma@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "github@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "openai-templates@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "plugin-management@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "product-design@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "superpowers@openai-curated-remote",
+          "enabled": false
+        }
+      ],
+      "mcpConfigured": [
+        "chickenbro_toolbox"
+      ],
+      "features": {
+        "apps": false,
+        "remote_plugin": false
+      },
+      "mcpServers": [
+        {
+          "name": "chickenbro_toolbox",
+          "toolNames": [
+            "prepare_simulation",
+            "research_public_web",
+            "submit_simulation",
+            "query_warcraftlogs_report",
+            "get_simulation_job",
+            "query_raiderio_characters",
+            "query_raiderio_rankings",
+            "query_raiderio_character",
+            "list_simulation_jobs"
+          ]
+        }
+      ],
+      "durationSeconds": 6.3,
+      "eventTypes": [
+        "completed",
+        "delta"
+      ],
+      "completed": true,
+      "answer": "我是炸鸡队长，叫我鸡哥就行，是帮你研究魔兽世界职业配装、分析战斗日志和运行 SimC 模拟的 AI 队友。",
+      "productRulesSha256": "add99722f42cda7569e50b32883b89c0d9fe41d9a622640c6a6cad3e225a4ce5",
+      "status": "pass",
+      "service": "test",
+      "pidBefore": "1093232",
+      "pidAfter": "1096343",
+      "readiness": {
+        "status": "ready",
+        "requestId": "a4584f79-6f0d-4974-962c-6c76b1b9be66",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      },
+      "pidBeforeTask": "494803"
+    },
+    "production": {
+      "profile": "chickenbro-production",
+      "effective": {
+        "model": "gpt-6-astra",
+        "reasoningEffort": "low",
+        "approvalPolicy": "never",
+        "sandbox": {
+          "type": "readOnly",
+          "networkAccess": false
+        },
+        "instructionSources": []
+      },
+      "skills": [
+        {
+          "name": "imagegen",
+          "enabled": false
+        },
+        {
+          "name": "openai-docs",
+          "enabled": false
+        },
+        {
+          "name": "plugin-creator",
+          "enabled": false
+        },
+        {
+          "name": "review-agent",
+          "enabled": false
+        },
+        {
+          "name": "skill-creator",
+          "enabled": false
+        },
+        {
+          "name": "skill-installer",
+          "enabled": false
+        }
+      ],
+      "skillErrors": 0,
+      "pluginsConfigured": [
+        {
+          "id": "creative-production@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "deep-research-work@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "figma@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "github@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "openai-templates@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "plugin-management@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "product-design@openai-curated-remote",
+          "enabled": false
+        },
+        {
+          "id": "superpowers@openai-curated-remote",
+          "enabled": false
+        }
+      ],
+      "mcpConfigured": [
+        "chickenbro_toolbox"
+      ],
+      "features": {
+        "apps": false,
+        "remote_plugin": false
+      },
+      "mcpServers": [
+        {
+          "name": "chickenbro_toolbox",
+          "toolNames": [
+            "query_raiderio_rankings",
+            "prepare_simulation",
+            "query_raiderio_characters",
+            "list_simulation_jobs",
+            "research_public_web",
+            "submit_simulation",
+            "get_simulation_job",
+            "query_raiderio_character",
+            "query_warcraftlogs_report"
+          ]
+        }
+      ],
+      "durationSeconds": 6.05,
+      "eventTypes": [
+        "completed",
+        "delta"
+      ],
+      "completed": true,
+      "answer": "我是炸鸡队长，叫我鸡哥就行，你的魔兽世界 AI 队友，能帮你研究职业配装、副本打法、分析战斗日志和跑 SimC 模拟。",
+      "productRulesSha256": "1924a7351be530b7b7dfac60c13f942fa9eb21bd0eaf2be6c25ae7236a6f7efc",
+      "status": "pass",
+      "service": "production",
+      "pidBefore": "1094521",
+      "pidAfter": "1096837",
+      "readiness": {
+        "status": "ready",
+        "requestId": "e97beb29-1ee9-421a-af98-c0fb9a8cdb00",
+        "components": {
+          "database": {
+            "status": "ready",
+            "code": ""
+          },
+          "worker": {
+            "status": "ready",
+            "code": ""
+          },
+          "codex": {
+            "status": "ready",
+            "code": ""
+          },
+          "raiderio": {
+            "status": "ready",
+            "code": ""
+          },
+          "warcraftlogs": {
+            "status": "ready",
+            "code": ""
+          },
+          "simc": {
+            "status": "ready",
+            "code": ""
+          },
+          "wechat_mini": {
+            "status": "ready",
+            "code": ""
+          }
+        }
+      },
+      "pidBeforeTask": "750420"
+    }
+  },
+  "health": {
+    "production": {
+      "status": "ready",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    "test": {
+      "status": "ready",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    "public": {
+      "status": "ready",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "wechat_mini": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    }
+  },
+  "productRulesUnchanged": true,
+  "binaryVersion": "codex-cli 0.153.4",
+  "codexBinarySha256": "56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da",
+  "status": "live_verified"
+}

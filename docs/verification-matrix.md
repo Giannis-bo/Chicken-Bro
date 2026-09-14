@@ -1,58 +1,34 @@
-# Chickenbro Verification Matrix
+# 验证矩阵
 
-状态：当前执行权威
-
-当前验证以 Web-only / QQ 重构为准；历史验证另见[存档](verification-matrix-pre-mini-retirement.md)。验证等级相互独立：本地通过不代表 candidate，通过 candidate 不代表生产切流，生产可用也不代表真实用户已接受。
+按变更影响选择验证，遵循当前 AGENTS.md；不把历史迁移或小程序退役验收变成每次发布的必跑流程。命令见[开发指南](development.md)，生产步骤见[Runbook](chickenbro-simc-production-runbook.md)，Badcase 另须满足[泛化门禁](plans/2026-09-08-badcase-workflow.md#通用修复与泛化验收必须满足)。
 
 ## 证据等级
 
-| 等级 | 能证明 | 不能证明 |
+| 等级 | 证明范围 |
+| --- | --- |
+| local_verified | 指定源码的本地合同、测试及受影响构建 |
+| candidate_verified | 指定隔离环境的受影响业务与恢复准备 |
+| live_verified | 指定生产身份的真实业务与制品核验 |
+| user_accepted | 用户明确完成约定范围的实际验收 |
+| recovery_verified | 恢复材料在隔离环境恢复并核对，或明确记录的业务回退验证 |
+
+各等级独立记录，不能互相替代。记录实际 commit/build/runtime、条件、结果与未覆盖范围；skipped、partial、blocked、HTTP 200、服务运行及 SimC 退出码 0 均不能代替业务通过。备份可恢复与应用回退后业务恢复也分别说明。
+
+## 按影响选择检查
+
+| 影响 | 本地与隔离验证 | 真实环境验收 |
 | --- | --- | --- |
-| `local_verified` | 当前 commit 的合同、代码、测试和构建通过 | 云端数据、真实 QQ 登录、生产流量 |
-| `candidate_verified` | 隔离 DB/API/Worker/Web 与回滚通过 | 已切生产、用户已接受 |
-| `live_verified` | 指定生产 identity 的业务 smoke 通过 | 用户实际体验已完成 |
-| `user_accepted` | 用户明确完成真实 Web 验收 | 自动替代备份、恢复或清理证据 |
-| `recovery_verified` | 独立介质可恢复为可核对的隔离副本 | 当前线上业务体验 |
+| 文档/配置控制面 | 语法、链接、owner/保留规则与相关控制面检查；运行配置另验实际加载 | 仅影响运行配置时核对对应 runtime 与业务 |
+| QQ/会话 | provider 校验、浏览器 state、时效/取消/重放/并发、Cookie/CSRF/Origin、Bearer 拒绝、真实 PostgreSQL 持久化 | 已登记 callback 的真实授权、取消重试、刷新/退出/401 恢复、第二账号隔离 |
+| Chat/图片/反馈 | 幂等、账号单回复、SSE UTF-8/错误/结束/取消/超时、断连与 Worker 故障语义、图片 owner、反馈写入及历史读回 | 真实回答终态、历史、受影响工具、图片与账号隔离；不以工具调用完成代替答案正确 |
+| 研究/工具 | 参数、预算、来源完整性、窗口/过滤、跨轮复用及注入边界；真实前后语义按任务预注册 | 当前条件下真实回答、工具回执与限制说明；不把有限样本扩称全场景 |
+| SimC | 快照、预检、有效配置、幂等/队列/租约、结果读取与 owner；云端引擎语义 | 正指标、来源与引擎/输入身份、场景差异、对照条件；治疗拒绝及故障如实呈现 |
+| Web | 相关组件/API 合同、typecheck、lint、H5 build，实际导航和可交互状态 | 公网制品哈希与受影响路径；无 Mini 产品页面或微信登录入口 |
+| 运营后台 | 唯一管理员、空配置/测试身份/普通用户拒绝；北京时间、366 天限制、去重、补零、分母、null 与异常结果的 PostgreSQL 验证 | 本人可读、第二账号 403、匿名 401、聚合 SQL 对账及公网制品 |
+| 迁移/删除/恢复 | 独立测试库、版本兼容、精确依赖及活动引用、独立恢复核验 | 明确授权的清单、保留数据前后核对、失败恢复；不得覆盖生产新写入 |
 
-`skipped`、`partial`、`blocked`、dry-run、HTTP 200、systemd active、Candidate 或 SimC return code 0 都不是成功等级。
+## 数据库与执行边界
 
-## Web-only / QQ 当前验收
+数据库测试使用独立 UTF8 测试库，按入口配置 `WOW_PG_TEST_DSN_V2` 或 `WOW_ADMIN_TEST_DSN`；不得指向生产或共享业务库。未配置造成跳过时单列，不能称数据库验证完成。反馈数据库用例为 `tests.app_chat_feedback_postgres_test`，旧请求未带 `includeFeedback` 时保持合同。
 
-- 本地：QQ provider 数据校验、浏览器 state 绑定、超时/取消/重放/并发消费拒绝、Cookie/CSRF/Origin、旧微信身份拒绝及第二账号隔离；真实 PostgreSQL 的 QQ identity 和 login attempt 持久化验证。
-- Web：明确点击 QQ 登录后授权跳转；取消或失败可重试；回到站点后显示账号并访问自己的 Chat/SimC；刷新、退出、401 恢复正常。构建产物不包含可运行的小程序产品页面，也不出现微信扫码或小程序推广入口。
-- 退役：WeApp 构建/预览/上传不再是交付步骤，旧微信和 Mini HTTP 登录入口不可用；残余 Mini 源码、微信 provider 与原生传输分支移除；历史证据保留。
-- 真实环境：QQ 应用审核、AppID/回调配置、真实 QQ 登录、业务成功及第二用户隔离分别验证。保存密钥、配置存在和本地模拟 provider 测试不冒充真实登录成功。
-- 新部署使用可回滚的独立版本；历史无备份授权不适用。旧测试数据清理必须绑定本轮精确清单、零活动引用和独立恢复验证；QQ 账号不受影响。
-
-## 本地验证入口
-
-```bash
-npm run test:control
-npm run test:backend
-npm run test:migration
-npm run test:ops
-npm run test:taro
-npm run typecheck
-npm run lint
-npm run build:h5
-git diff --check
-```
-
-本地不能安装或运行 SimulationCraft。SimC 语义结果只在云端受控 runtime 上验证。
-
-回答解决情况反馈的真实数据库与 API 用例为 `tests.app_chat_feedback_postgres_test`，纳入 `test:migration`；须配置独立 UTF8 `WOW_PG_TEST_DSN_V2`。UI 验证 Web 页面提交、重新打开历史恢复；旧客户端不请求 `includeFeedback` 时必须保持原合同。
-
-
-## 小程序清理验收
-
-- Web 登录、退出、CSRF、旧 Bearer 拒绝、两个独立浏览器的同账号历史与第二账号隔离均回归。
-- 流式回复验证 UTF-8 分块、错误、取消、结束与超时；不再通过 Mini mock 验证已删除的实现。
-- 删除文件须原先受 Git 跟踪且无 WIP，保留清单；不删除未跟踪预览图或其他任务证据。
-- 数据先按 provider/owner 生成清单，检查 Chat execution、SimC 和队列活动；备份独立恢复并比对后方可事务清理，保留用户及业务逐行核验。
-- 未执行生产清理、真实 QQ 或发布时明确记录未执行，不替换为本地通过。
-
-## 运营后台
-
-- 唯一真实 QQ owner 允许读取；空配置、普通用户、固定测试账号、已撤销会话和 Bearer 拒绝。不能通过 query/body/header 覆盖服务端 owner；跨账号返回不泄露管理员标识。
-- 北京时间起止、366 天限制、区间活跃用户去重、每日补零、反馈分母、无样本 null、有效 SimC 结果和已知模拟身份排除需 PostgreSQL 验证。
-- 本地 `tests.app_admin_test`、`tests.app_admin_postgres_test`（独立 `WOW_ADMIN_TEST_DSN`）、`web-admin.test.tsx`，以及 typecheck/lint/H5 build；生产验证本人浏览器、第二账号 403、无会话 401、聚合 SQL 对账和公网产物。
+SimC 只在云端受控环境运行，不本地安装。历史 Mini 清理、双端迁移与逐次验证细节见[历史矩阵](verification-matrix-history-20260911.md)，仅在相应历史审计需要时读取。新删除始终使用本次授权和恢复材料。

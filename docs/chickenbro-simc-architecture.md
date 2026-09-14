@@ -1,76 +1,54 @@
-# Chickenbro 当前架构
+# Chickenbro 架构
 
-依据 2026-09-09 仓库实现整理。当前只提供 Web Chat 与 SimC，QQ 网站登录已上线；本轮移除残余小程序源码的部署状态另见[清理计划](plans/2026-09-09-mini-retirement.md)。
+本文描述仓库实现与边界，不作为部署状态证明。当前产品仅含 Web Chat 与云端 SimC，使用 QQ 登录；各项交付状态见[项目状态](project-state.json)，职责与测试归属见[项目 owners](project-owner-map.json)和[后端 owners](backend-owner-map.json)。
 
-## 客户端与传输
+## 客户端、身份与数据
 
-`apps/mini-taro/src/app.tsx` 挂载 React WebApp，Taro H5 使用单一 `pages/web/index` 入口。`/` 是对话，`/simc` 是模拟，`/?view=faq` 是 FAQ；旧短路径仅作为 Web URL 兼容入口，不挂载小程序页面。
+Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web/index` 入口承载 `/` 对话、`/simc` 模拟、`/admin` 运营页与 `/?view=faq`。内部旧目录名不表示保留 Mini 产品。
 
-依赖方向为 UI → typed API client → HTTP route → application → domain / port → repository / adapter。Domain 不依赖 FastAPI、Taro 或具体外部 provider。客户端使用显式 `web` 或受限 `public` auth context，普通请求使用 Taro H5 request，SSE 使用浏览器 fetch；不再提供 Mini Bearer、微信运行环境或原生分块请求分支。
+依赖方向为 UI → typed API client → HTTP route → application → domain/port → repository/adapter。Domain 不依赖 FastAPI、Taro 或外部 provider；客户端显式使用 `web` 或受限 `public` context，普通请求使用 Taro H5 request，SSE 使用浏览器 fetch。
 
-## 身份
+QQ 登录通过浏览器绑定、短时、一次性 state 和固定 callback 校验 provider/appid/openid，再映射到内部 `identity.users.id`。服务端签发 Secure、HttpOnly、SameSite=Lax Session；写请求检查 Origin/Host 与 CSRF，Bearer 不作为生产认证。授权码、AppKey 和 provider token 不进入日志、业务记录或公开响应；昵称和头像有界清理，头像限受信 HTTPS QQ 域名。不自动关联旧微信账号。
 
-QQ 登录由 `identity.qq_application` 与 `integrations.qq_connect` 实现：同源 POST 创建随机 state 和 HttpOnly 浏览器绑定，浏览器跳转 QQ 官方授权，固定 callback 校验 state、绑定、时效和 AppID，再由数据库原子消费尝试。provider/appid/openid 映射到 `identity.users.id`，签发 Web Session 和 CSRF Cookie。
+PostgreSQL 使用 `identity`、`chat`、`simc`、`ops` schema。业务查询由服务端 Principal 注入 owner，请求体不能选择所有权；队列与审计也纳入相应数据生命周期。历史迁移保留追溯，不作为重新迁移或删除的授权。
 
-授权码、AppKey 和 QQ token 只在服务器 provider 边界短暂使用，不写日志、业务表或公开响应。QQ 昵称与头像经过有界清理；头像只允许受信 HTTPS QQ 域名。默认 Cookie 使用 Secure、HttpOnly（Session）、SameSite=Lax 和 Path=/；写请求检查精确 Origin/Host 与 CSRF。Bearer 请求拒绝，QQ 登录不会自动关联旧微信账号。
+## Chat 与研究
 
-## Chat
+`server/app/chickenbro` 拥有会话、消息、运行、图片及工具结果，执行账号级单回复和请求幂等。`chat.executions` 持久化调度，独立 Worker 使用 lease、阶段和工具结果处理故障；断开 API 连接不主动取消生成，不盲重放副作用。图片和历史读取均 owner-scoped。
 
-`server/app/chickenbro` 拥有会话、消息、运行、图片和工具结果。路由从 Principal 注入 owner；账号级单回复与请求幂等在服务端执行。Web 可读取历史、流式进展、耗时、回答反馈以及归档会话。
+研究由服务端在消息入场时关联，正常追问继续当前研究，显式新研究切开旧对象、消息与图片范围。模型先判断目标与规模，明确无界查询先拒绝；陌生术语结合职业、赛季和配置检索，先复用证据，再补能改变结论的缺口。
 
-生成使用 `chat.executions` 持久化调度和独立 Worker；API 断开不主动取消生成。Worker 通过租约、阶段和工具结果记录处理故障，不盲目重放副作用。图片存储与读取 owner-scoped，归档和保留策略由服务端执行。
+| 约束 | 范围与含义 |
+| --- | --- |
+| 10 名玩家、3 场战斗、3 个比较组 | 同研究跨轮累计的范围边界 |
+| SimC 任务次数 | 单轮及跨轮均不限次数；保留提交记录与幂等复用，状态上限和剩余 null 表示不限次数 |
+| 48 次来源子查询、20,000 事件请求单位、360 秒 | 单 run 执行保护；同 run 重建不刷新，正常追问不永久耗尽研究资格 |
+| 历史成本 | 失败与跨轮消耗保留；缺失模型 usage 记 unknown，子查询数不等于全部 HTTP 往返 |
+| 未覆盖范围 | 不承诺跨独立研究账号总配额，原生网页不冒充后备网页五来源硬计量 |
+
+WCL 参数在预留上游工作前校验；统计保留窗口、过滤、层级及完整性。治疗视图配对有效/含过量表，保留负数调整与父子边界，按战斗时长归一；只有必要窗口补事件。日志频次、样本或同步事件不直接证明按键习惯、完整时序或动作缺席。
+
+历史证据按账号、对话和研究投影，区分报告、战斗、角色、视图、窗口及过滤条件；未知过滤不冒充精确同查询。各视图保持自身完整性，partial 不升级为 verified，裁剪明确标记。已完成战斗的成功 overview/healing 可在同账号同对话 6 小时内复用，TTL 取原记录且仍检查范围，跨账号不共享。
+
+通用证据投影最多 12 条、每条约 3.8KB，优先属性并跨视图保留；研究上下文最多 24KB，保留用户原目标、修正及必要相邻助手选项的身份、顺序和遗漏。助手建议与外部资料不成为用户授权。0010 迁移增量保存工作量、模型 usage 和请求元信息，primary/repair 阶段分别记账。
+
+模拟声明检查只使用本 run 当前 owner 实际返回的任务与对照证据，对可识别的完成、DPS/HPS 和百分比声明进行有限核对，错误进入既有一次无工具修复。假设、条件及无法对应的自然语言不冒充已验证；固定语义评测区分真实 trace、人工 rubric 与未运行项，离线合同检查不产生语义通过。
 
 ## SimC 与 Worker
 
-`server/app/simulation` 拥有 Raider.IO 来源快照、校验、compiler、任务、attempt 和结果。`server/app/worker` 负责 PostgreSQL 队列 claim、lease、心跳和 handler dispatch。SimulationCraft 仅在云端运行；结果必须有正业务指标与来源信息，不能用进程退出码代替成功。
+`server/app/simulation` 拥有 Raider.IO 快照、预检、compiler、任务、attempt 和结果；`server/app/worker` 负责 PostgreSQL 队列 claim、lease、心跳和 dispatch。引擎仅在云端运行，成功须有正业务指标与完整来源。输出/坦克支持由运行配置和 readiness 控制，治疗拒绝；WCL 用于研究和历史天赋恢复，不用于新角色导入。
 
-WCL 适配器用于战斗研究及历史天赋恢复，不恢复 WCL 新角色导入。输出和坦克专精受运行配置与 readiness 控制，治疗明确拒绝。新任务和装备对照保留原快照与结果。
+任务及对照保留原始快照。`preview_simulation` 执行只读编译预检，`query_simulation_options` 提供引擎绑定选项，`compare_simulation_jobs` 核对同快照、引擎/compiler 与控制参数后计算差异及保守误差。天赋覆盖校验节点、点数门槛和英雄树；连续编辑保留已有有效配置，未覆盖资料拒绝执行。候选装备的假设版本须明示，制造/特殊版本不能从装等推定。
 
-### 场景实验（已发布，compiler v5）
+`scenario.actionLists` 为完整自定义 APL：default 必填，子列表有界；省略沿用，提供则整组替换。拒绝换行、路径/顶层选项注入及缺失/递归引用。预检仅证明可编译，云端校验实际语义；结果核对有效装备、天赋，并以 profile hash 绑定最多 512 条动作样本。APL 是优先级，样本与包装动作不能证明内部施放顺序。Web 通过 scenarioVersion=4 接收新字段，旧请求保留既有合同；实际 compiler 版本按运行核对。
 
-任务工具返回 owner-scoped 原来源、角色、有效装备与天赋。`preview_simulation` 复用 application 的只读编译预检，`query_simulation_options` 查询引擎绑定的节点选项/物品名称，`compare_simulation_jobs` 校验同快照、同引擎/compiler、同控制参数后计算差异与保守误差判断。
+## 运营后台
 
-compiler v5 增加 `talentOverrides`，不改原始快照；`baseJobId` 连续修改保留之前的有效配置。版本绑定的连线资料校验跨节点分配、点数门槛和英雄树；资料无法覆盖的配置拒绝执行。装备查询可从已观察到的升级 bonus 生成同进度饰品候选，并明确它是假设版本；未覆盖的制造/特殊物品版本仍需可靠资料。v5 Worker 要求真实报告核对天赋、装备 ID 和覆盖装等；历史编译版本保留原行为。Web 通过 `scenarioVersion=3` 读取天赋场景，旧客户端保持旧字段合同。实施与剩余资料缺口见[场景实验计划](plans/2026-09-09-simc-scenario-experiments.md)。
+`server/app/admin` 提供只读 QQ 用户、Chat/SimC 聚合。`WOW_ADMIN_USER_ID` 只接受一个经真实 QQ 会话核验的内部 UUID，空值拒绝所有访问，测试身份不得成为管理员；每请求检查会话与权限并审计，响应不缓存。`/admin/access` 只返回当前账号自己的核验标识和权限。
 
-## 数据与所有权
+统计使用北京时间区间与只读快照事务：活跃用户按提问/模拟提交去重，成功率排除进行中与取消，缺有效指标或来源的 SimC 成功状态计作异常失败；排除已知验收模拟身份，不推算页面访问或费用。
 
-PostgreSQL 当前 schema 为 `identity`、`chat`、`simc`、`ops`。所有用户业务查询从内部 `user_id` 限定所有权；请求体不能选择 owner。`ops.job_queue` 包含任务引用，`ops.audit_events` 保留操作审计；清理不能只删除用户而遗漏队列、运行及图片。
-
-历史 migration 不改写，旧微信 schema 只作为已应用迁移与恢复兼容结构保留；本轮数据清理以精确清单及新恢复证据执行，不与 QQ 数据合并。
-
-当前职责与检查入口见[项目 owners](project-owner-map.json)、[后端 owners](backend-owner-map.json)和[验证矩阵](verification-matrix.md)。[旧双端架构](chickenbro-simc-architecture-pre-mini-retirement.md)仅供追溯。
-
-## 运营统计后台
-
-`/admin` 是只读运营页面；`server/app/admin/application.py` 管理唯一管理员和北京时间查询范围，`repository.py` 在只读快照事务中聚合当前 QQ 用户的 Chat/SimC。`WOW_ADMIN_USER_ID` 只能配置一个经真实 QQ 会话核验的内部 UUID，空值拒绝所有人，固定测试账号及已知模拟身份不得成为管理员。每次统计请求检查 Web session 和服务端权限并记录审计，响应禁止缓存。`/admin/access` 只返回当前账号自己的核验标识和权限。
-
-累计用户截至所选结束日，活跃用户以提问/模拟提交去重；成功率不含进行中或取消，SimC 缺少有效指标/来源的成功状态单列异常并计入失败分母；反馈和任务状态是查询时的当前值。统计排除已知验收模拟身份，不包含页面访问量或推算费用。
-
-### 自定义施法（compiler v6，已发布）
-
-`scenario.actionLists` 表示完整的自定义 APL：default 必填，可含 precombat 和有界子列表；省略字段沿用原配置，提供字段则整组替换，不与旧列表部分合并。预检只证明结构可编译；云端引擎负责技能/表达式语义校验，未知技能不能成为成功结果。拒绝换行、路径/顶层选项注入、缺失或递归列表引用，保留角色快照和其他参数。
-
-v6 结果继续核对有效装备/天赋，并保存带 profile hash 的 `actionEvidence`，仅投影报告采样迭代中最多 512 个条目的技能名、ID 和相对时间；不公开原始报告路径或目标数据。APL 是优先级，不能仅凭列表顺序推断施放顺序；strict_sequence 在当前引擎 JSON 中可能只显示包装动作，应使用可核对的条件式动作或明确缺少内部时间证据。Web 通过 scenarioVersion=4 接收新场景字段，旧客户端不接收该字段。
-
-Chat 对陌生玩家术语先结合职业、赛季和配置检索；无关搜索结果须在现有预算内换词/来源，只有仍无法消歧时才追问。不固化俗称映射或套装效果。验证与未覆盖范围见[本轮记录](../artifacts/verification/2026-09-10-custom-apl/README.md)。生产 API/Worker 已同时启用 v6，发布源码与公网验收见[发布记录](../artifacts/verification/2026-09-10-custom-apl/release/README.md)。
-
-## 有限研究的执行与证据（2026-09-11）
-
-研究范围由服务端在消息入场时关联：10名玩家、3场战斗、3个比较组跨轮累计。SimC 单轮及跨轮不限任务次数，保留历史记录与幂等，状态上限和剩余 null 表示不限次数。48次来源子查询、20,000事件请求单位和360秒是单个服务端run的执行保护；同run重建不刷新，正常用户追问可继续同一有限范围，历史累计成本不清零。没有新增按账号每日研究配额。原生搜索仍保留现有检索合同，不冒充已纳入后备网页五来源硬计量。
-
-模型先判断目标与规模，明确无界Top100/全量采样先拒绝；有限问题先复用已有证据，再补能改变结论的缺口。WCL参数本地校验发生在预留上游工作前，非法参数返回可纠正错误。`healing`视图配对读取有效/含过量治疗表，保留负数调整项、父子项边界及完整性，按战斗时长归一；只对必要窗口补事件。
-
-历史证据按账号、对话和当前研究投影，首个研究兼容旧持久化建立前的记录；显式新研究不自动继承旧对象。属性、装备优先于治疗汇总有界投影，嵌套命中细节不挤占属性；内容作为不可信资料。已完成战斗的成功overview/healing可在同账号同对话6小时内按规范化报告/战斗/角色/视图/窗口复用，原记录固定TTL，复用仍检查范围，记录0次新增上游。跨账号不共享。
-
-0010迁移增量保存research_runs.work、agent_runs.model_usage和tool_results.request_json。模型usage保留input/output/cached/reasoning/total及primary/repair阶段；缺失为unknown，不推算历史token费用。来源次数是受控子查询计数，不等于全部HTTP往返数。
-
-## 通用研究证据与上下文（2026-09-11）
-
-历史投影复用现有WCL视图，按报告/战斗/角色/视图/窗口/过滤条件区分来源；整场casts/damage/gear的范围与事件窗口独立。治疗、伤害、施法、资源统计及有界事件样本保留各自完整性；partial不升级为verified，样本不证明完整时序或缺席。最多12条约3.8KB记录，优先属性并跨视图保留，超量与历史49条探测明确标记遗漏。旧记录缺少事件过滤信息时不合并为精确同查询。
-
-`researchContext`从持久用户消息投影原目标与修正，并保留相邻助手选项用于指代；最多24KB，返回身份、顺序和遗漏标记，不把助手建议当用户授权。显式新研究切开旧消息和图片范围；正常追问保留当前研究。服务端状态同时给出跨轮范围已用/剩余与单run执行额度。
-
-SimC网关只收集本run当前账号实际返回的任务与对照证据；最终回答对明确模拟完成、DPS/HPS和对照百分比的可识别声明进行有限检查，错误进入原有一次无工具修复。假设、条件说明、日志指标与无明确对应关系的自然语言不冒充已验证；这不是完整因果/语义验证。固定20题评测把真实trace、人工rubric与未运行项分别记录，默认离线检查不调用模型，也不能产生语义通过。
+[验证矩阵](verification-matrix.md) · [开发指南](development.md) · [架构整理前记录](chickenbro-simc-architecture-history-20260911.md)
 
 ## 按需研究流程（2026-09-12，已发布）
 

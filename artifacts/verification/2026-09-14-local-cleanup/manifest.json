@@ -1,0 +1,455 @@
+{
+  "date": "2026-09-14",
+  "scope": "local_uncommitted_documentation_and_historical_artifacts_only",
+  "baseCommit": "53aef4774e986146b744f0a47723c54aff4cd952",
+  "backupDirectory": "/Users/boyuan/.codex/backups/chickenbro/2026-09-14-local-cleanup",
+  "archive": "workspace-before.tar.gz",
+  "archiveSha256": "482b0f7c81ee93fd2d382595289efbd8128e0c8d8f6e189d76a793a5d0f884a7",
+  "restoreVerifiedFiles": 112,
+  "retainedArtifacts": [
+    "artifacts/verification/2026-09-09-changelog/README.md",
+    "artifacts/verification/2026-09-09-changelog/candidate.json",
+    "artifacts/verification/2026-09-09-changelog/live.json",
+    "artifacts/verification/2026-09-09-changelog/manifest.json",
+    "artifacts/verification/2026-09-09-changelog/promotion.json",
+    "artifacts/verification/2026-09-09-cloud-codex-cleanup/report.json",
+    "artifacts/verification/2026-09-09-feedback-button-ui/README.md",
+    "artifacts/verification/2026-09-09-feedback-button-ui/browser.json",
+    "artifacts/verification/2026-09-09-feedback-button-ui/candidate-app.json",
+    "artifacts/verification/2026-09-09-feedback-button-ui/live-app.json",
+    "artifacts/verification/2026-09-09-feedback-button-ui/manifest.json",
+    "artifacts/verification/2026-09-09-feedback-button-ui/promotion.json",
+    "artifacts/verification/2026-09-09-help-unread/README.md",
+    "artifacts/verification/2026-09-09-help-unread/candidate.json",
+    "artifacts/verification/2026-09-09-help-unread/live.json",
+    "artifacts/verification/2026-09-09-help-unread/manifest.json",
+    "artifacts/verification/2026-09-09-help-unread/promotion.json",
+    "artifacts/verification/2026-09-09-help-unread/staged.json",
+    "artifacts/verification/2026-09-11-research-feedback-diagnosis/README.md"
+  ],
+  "removedFromWorkspace": [
+    {
+      "path": "artifacts/qq-connect/chickenbro-logo-100x100.png",
+      "size": 16452,
+      "sha256": "32fd7a21ac60c5c07843b879938f234387080f856dfa25e772133c2d24e59134",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/build.json",
+      "size": 423,
+      "sha256": "cc52bd81cc5355a6f2870f57f7574bad134917a74f88747d138f40e44c2a3081",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/button-build.json",
+      "size": 423,
+      "sha256": "e12d75edc14faf49d02f91d6327002b11d4b5a4ba40d05ad59298006308e84ef",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/button-preview-info.json",
+      "size": 130,
+      "sha256": "df2e9449dfde9c9ea5c8e89fa8df2fff4049723e2afaad0cbc30df9fce939adf",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/button-preview.png",
+      "size": 48167,
+      "sha256": "4e08524174c5ab70b1c2e29ec46556feb00330fd40b11231fc5fde808467defe",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/composer-build.json",
+      "size": 423,
+      "sha256": "607c0760e2f0e9ce95cea78dc5b5682b41464355639e12019c639c9dd1e45d72",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/composer-preview-info.json",
+      "size": 130,
+      "sha256": "00e0ac9d9166482221151b435400b0fe3b997649ff819b143e7e1b50f80111cb",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/composer-preview.png",
+      "size": 47329,
+      "sha256": "82590251f1162bfdbc623fe69b691428e95243f4dfac72599cec19b7a99fdf2a",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/preview-info.json",
+      "size": 130,
+      "sha256": "58f6ccec8cdfec7599a96e0b10d56ac0224fc6657cab33e727d321640867c680",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/preview.png",
+      "size": 47329,
+      "sha256": "1741fd3bc9dd9ad248fa4ed24a274b76082f1cfa2f2b144ac382cfe60f4ba10d",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/stream-build.json",
+      "size": 423,
+      "sha256": "6343c919bbad1db7caf429c3b46d4d199c6b1c85d9eefcf6c6ac05086ac67b27",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/stream-preview-info.json",
+      "size": 130,
+      "sha256": "71896707a65e0502ae5ef35e8ececc57118423b32ab8b240523bed2e049f7c62",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-mini-keyboard/stream-preview.png",
+      "size": 47857,
+      "sha256": "295d8a06453d0c87ab8dc639f98a6b2c23e066b2b6c6158a616d13d7604900c4",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-powered-by/preview-info.json",
+      "size": 130,
+      "sha256": "dff0666056241a4d896a66a6c823d26a5581c559369fad5be43f46b84c089272",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-powered-by/preview-revised-info.json",
+      "size": 130,
+      "sha256": "8aed24feccf33254e44e76969e8cda4ae1c62b7c8ea7139c1433087a39be382f",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-powered-by/preview-revised.png",
+      "size": 47407,
+      "sha256": "2531e7932d9dd13b79d3f6a39bc7bbad5b34fb9c7d0e28337ae04ba5e01bfa0d",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-powered-by/preview.png",
+      "size": 47224,
+      "sha256": "e92f61b35c6d8ab7a7ad7458267520bfa56f1ed1385e00f862a88326e0f2158b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-simc-raider-only/preview-info.json",
+      "size": 130,
+      "sha256": "8aed24feccf33254e44e76969e8cda4ae1c62b7c8ea7139c1433087a39be382f",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-simc-raider-only/preview.png",
+      "size": 46107,
+      "sha256": "997a8039753b473900238d39ac1d693b0c5a1b7d75ea2badda3945ee53b67e14",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-08-v1-close/mini-upload-1.0.0-final.json",
+      "size": 130,
+      "sha256": "125eb522657ca438dfdb6b9460b21d9de342520171fcb16cb5edfb25d5e998c3",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g1/harness.py",
+      "size": 2715,
+      "sha256": "f9ab3063030f32501fe13cf8c78060dbdd132105dff9752fa788b76e6d2a94c8",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g1/live-display-fix.jsonl",
+      "size": 6642,
+      "sha256": "d03124aceeafcda7f7027bf53db904b96af0b9015e8daa9299f9524015eff673",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g1/live.jsonl",
+      "size": 8128,
+      "sha256": "731689ce88cb019e780660856704f7df977abfe5e5a60bc246bfb8c1fa1bac82",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/answer.md",
+      "size": 5064,
+      "sha256": "65af8c50c1629fbdb6a9aa343a58747cc654d1bb239e9eed68ee269bc4e25185",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/detach-answer.md",
+      "size": 5444,
+      "sha256": "c264f7dd71a763b4d3999d8f5ef9737d7b4409f81b8d2162bb667bfb9fa10612",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/detach-harness.py",
+      "size": 5701,
+      "sha256": "1cd1851763120654ef662fe4e6ee6e9ea292be962cf7ac8c7fe2535a814c26f6",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/detach-replay.jsonl",
+      "size": 15902,
+      "sha256": "54e1a7d24c325f4351e11478b0e1dd9dd1dfbfbb6af3f9949ceb0b5b8e1627b5",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/harness.py",
+      "size": 4199,
+      "sha256": "9a2e5bf8cd26c2d9303342e23d68a54bdf46bde63ec29a76a31dc88ca9434b9c",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g2/replay.jsonl",
+      "size": 7783,
+      "sha256": "07457f3f14c97e56f6669dfcccb59116f15c80d2e791247b4b202bee335ef10b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/baseline-answers.md",
+      "size": 3681,
+      "sha256": "79a5976e6a8022cc3d5ebf083ab0748c4b796857a4ffe96fe79b8e12d6097f1b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/baseline-harness.py",
+      "size": 3593,
+      "sha256": "5f33010508ff2e58d3b5a8feb6229d43b4ebd7b89ae91678198f50bbc23d1eee",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/baseline.jsonl",
+      "size": 4019,
+      "sha256": "ff74a3076d31ff70c0197de3c8ed925e283f60b7925b7700b6d2dcb89059b076",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/candidate-answers.md",
+      "size": 3490,
+      "sha256": "ca3278c0666274191f8a0ad34673836b21914d7e0d72450f5a9b09ef6704050e",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/candidate-harness.py",
+      "size": 17113,
+      "sha256": "f0598f11de1884096ff5ad3ae87ec819393f11c63570204588c4949cc781ea62",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/candidate.jsonl",
+      "size": 3821,
+      "sha256": "e6ec0968379ee625407a60e813bc5baf22548862868e28d27455e3db6860222a",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/original-answer.md",
+      "size": 3356,
+      "sha256": "47f8e4e7b479f958073105b9754fd8ebb460f60b6c608d871068e758b213f974",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/original-harness.py",
+      "size": 18101,
+      "sha256": "4a55d06e7df57eacae9dbf505a6f306a2eb841d2f64ca186cf3937e657aeef1e",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g3/original.jsonl",
+      "size": 4409,
+      "sha256": "6d39f54db4f508738e271a88375899a8046fabcfa035ed33ed44c6902d683294",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/boundary-probe.py",
+      "size": 1215,
+      "sha256": "f5d00427d922f170812ca6846b65e1d2d7b595e95994ef03e2e38c42ea936c3b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/boundary.jsonl",
+      "size": 656,
+      "sha256": "460272b0975ed69bb065fd4014a86919dd647aaa5bc2de2890a2da3b9b982126",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/candidate-harness.py",
+      "size": 74686,
+      "sha256": "e11dfc9d138f3b027d2db242346fa60d945fe9d24c5affa079f735a9757cbad6",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/candidate.jsonl",
+      "size": 2781,
+      "sha256": "d152e89c1b19bbb7f2f6ab71662e18ca9b69305236c0646c570c369d42ee29b9",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/combined-answers.md",
+      "size": 758,
+      "sha256": "189fc555bf90ff1656268756c2e98d7a5030e79885869f47367bfcca411f4ffa",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/combined-harness.py",
+      "size": 108066,
+      "sha256": "db15dc190c606e2cd7abcab47dcdd62e56b60c3d2e55612fed8ff86b32437484",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/combined.jsonl",
+      "size": 2204,
+      "sha256": "38f69e5356d299e613cd299cdea6767aef9430143bc5697eb3dfb79e976a36ea",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/discovery-probe.py",
+      "size": 1700,
+      "sha256": "63da9b29ee7c74f9f87b211b5cc0b4eebb27bede9440a05b507ede4e1f9c1638",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/discovery.jsonl",
+      "size": 1449,
+      "sha256": "b58cf423b5009e82bfeafb0b0027351ac2bb115ed4320a3d56d8452d27f2ddf4",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/identity-check.json",
+      "size": 755,
+      "sha256": "810d08051dd69854a3afa6646749fdc7c937ab9dd8d4b9a81939564756cb8bfc",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/membership-probe.py",
+      "size": 2577,
+      "sha256": "62fc93b03654b92bda08cf695389f4a5180b148981fbb8bf6e4cdb590718236d",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/membership.jsonl",
+      "size": 1078,
+      "sha256": "a624e9eb5ac27460069e57efb6c76000a82896430fa75e3f9a6c736265aca276",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/probe.jsonl",
+      "size": 101585,
+      "sha256": "f2a2adcf695700bb3244645680573de168088511c720fe2bcae7e9060448cc0e",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-g5/probe.py",
+      "size": 1648,
+      "sha256": "7ae9b3cb8e8e648890620b98b0f6f453d41964531868b143f928d319cd4aeaad",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-badcase-inventory/scans/1200.json",
+      "size": 558,
+      "sha256": "526688ee7f236ea6bc820df09c8ba4c671c8ae2b891f8e330aee89021eedabd1",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/candidate-desktop.png",
+      "size": 216279,
+      "sha256": "71cdd68b519b08705671a563a08df137153c1936f3f2b92749a9ab8b98dc3ea4",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/candidate-mobile.png",
+      "size": 101891,
+      "sha256": "8413647afd78451a2c074a340e37b3a50f22173fcd61d509346fd0adb17bb5c4",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/live-desktop.png",
+      "size": 216266,
+      "sha256": "d79051a8890a569d7db14dbf20a7e89f68641a2d02f1d70f2184d28e5f3497fe",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/live-mobile.png",
+      "size": 101891,
+      "sha256": "8413647afd78451a2c074a340e37b3a50f22173fcd61d509346fd0adb17bb5c4",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/publish.py",
+      "size": 2363,
+      "sha256": "9a111f80e8d8bc62216e435faf9d1a4a87008bbc27ea894b649b03343b72cc07",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-changelog/verify.cjs",
+      "size": 2427,
+      "sha256": "8ebe19220002ca01ce69363ec926097cf3d229cbb0dd48dc9c88c79b24fca9dc",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-feedback-button-ui/after-390.png",
+      "size": 15901,
+      "sha256": "d1f582e9363d30abfe14710aff67e28939abdaa91a93464fde83016e9fba0a48",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-feedback-button-ui/app-verify.cjs",
+      "size": 3021,
+      "sha256": "53943d7945511cf90f4e3b0a8e131f5d41d8006d097a984f62d74cde75c9c5fc",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-feedback-button-ui/live-app.png",
+      "size": 289885,
+      "sha256": "54262109241c4521bc612bf1cf39f75a4eb81774d4512d64fb40d93910dee83b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-feedback-button-ui/publish.py",
+      "size": 2248,
+      "sha256": "80d49a5ff5b3e282044f8839787d8031aa39d7081a1a8ffd699680dbea5e1e37",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-feedback-button-ui/verify.cjs",
+      "size": 2106,
+      "sha256": "4c116aaccb805ea52b39250da9071350b0a52c71803e7e31e67086c12dd1f0ed",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-help-unread/candidate-unread.png",
+      "size": 64537,
+      "sha256": "708ccf030ebb45e823ff5e9aa5d534492751e0b538960ccff8d919f1d4086b98",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-help-unread/live-read.png",
+      "size": 47186,
+      "sha256": "7ec8e19f933540df8fb042df757da79a39b5511bab42e29aecc3651ca7de3bc0",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-help-unread/live-unread.png",
+      "size": 268349,
+      "sha256": "39a021d2e500b7fc9ea011f6cffdc2e02d4505cd73e7f2b4f0424a2c5c105c6b",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-help-unread/publish.py",
+      "size": 2248,
+      "sha256": "a488398ffa88619f46ef08b012791f66a4f40d4b9d8fd38f58956efe7de375dd",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-09-help-unread/verify.cjs",
+      "size": 3582,
+      "sha256": "11513bdca60fcd2adadba3bffd6ed7ba914f04815c44b350cd72ef4b729c68af",
+      "tracked": false
+    },
+    {
+      "path": "artifacts/verification/2026-09-10-branch-inventory/inventory.json",
+      "size": 3263,
+      "sha256": "ff2fb2a67829733ee7f0b1d2c06781b71fa83b7b60c894328eca8bff726dc086",
+      "tracked": false
+    }
+  ],
+  "activeFileReferences": 0,
+  "cloudChanges": false,
+  "productSourceChanges": false
+}

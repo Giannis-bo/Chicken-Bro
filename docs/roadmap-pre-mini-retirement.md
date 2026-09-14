@@ -34,7 +34,7 @@
 ## 1.0 后续更新
 
 - `已完成 / 后端已发布`：G2 持久化任务与独立 Worker，API 重启继续生成，Worker 中断明确失败且不重放副作用。已保留 QQ 与图片输入；476 后端、102 PG、62 控制面和公网看图/来源查询回归通过。运行源码 `08404a091`，见 [发布证据](../artifacts/verification/2026-09-09-g2-durable/README.md)。
-- `已完成 / 云端配置已验证`：2026-09-09 云端 Codex 统一切换 Astra/low，移除 29 条旧信任记录，禁用通用技能、账号插件及 Apps/远程插件加载；测试和正式 API 已重启，实际会话仅保留 9 个业务 MCP 工具并完成真实回复，公网与两端 readiness 正常。产品提示词与认证保持原样，详见 [配置与回滚](chickenbro-simc-production-runbook.md#当前-codex-配置与精简2026-09-09) 和 [验证记录](../artifacts/verification/2026-09-09-cloud-codex-cleanup/report.json)。
+- `已完成 / 云端配置已验证`：2026-09-09 云端 Codex 统一切换 Astra/low，移除 29 条旧信任记录，禁用通用技能、账号插件及 Apps/远程插件加载；测试和正式 API 已重启，实际会话仅保留 9 个业务 MCP 工具并完成真实回复，公网与两端 readiness 正常。产品提示词与认证保持原样，详见 [配置与回滚](chickenbro-simc-production-runbook-history-20260911.md#当前-codex-配置与精简2026-09-09) 和 [验证记录](../artifacts/verification/2026-09-09-cloud-codex-cleanup/report.json)。
 
 - `已完成 / 后端与 Web 已发布`：[鸡哥截图提问](plans/2026-09-09-chat-images.md)：源码 `72e6224f2` 整合已发布的 Badcase 修复，真实图片输入、断线继续回答、私有历史、隔离与幂等通过候选及公网验证；Web 27 文件哈希一致。Mini 本轮按用户要求免验，未上传；人工产品验收单独保留。见 [发布记录](../artifacts/verification/2026-09-09-chat-images/deployment/README.md)。
 - `已完成 / 后端已发布`：Badcase G1/G2/G3/G5 通用修复已上线，运行源码 `913d901c7`；444 项后端、62 项控制面、9 项 PostgreSQL 测试通过。Candidate 与正式公网均验证断线继续落库、跨端历史、账号互斥、用户隔离、幂等及来源查询/治疗判断。该次未覆盖的 G2 进程重启与耗时问题已由后续独立 Worker 发布处理；见 [发布记录](../artifacts/releases/2026-09-09-badcase/README.md)。

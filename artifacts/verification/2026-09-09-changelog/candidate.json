@@ -1,0 +1,9 @@
+{
+  "mode": "candidate-artifact-mocked-read-api",
+  "entries": 5,
+  "newItems": 6,
+  "desktopAndMobile": true,
+  "escapeCloses": true,
+  "noApiWrites": true,
+  "pageErrors": []
+}

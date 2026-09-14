@@ -2,6 +2,22 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "local-documentation-and-evidence-cleanup-20260914",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Retain reviewed documentation cleanup decisions, recovery manifest and referenced historical acceptance summaries.",
+      "prefixes": [
+        "artifacts/verification/2026-09-14-local-cleanup/",
+        "artifacts/verification/2026-09-09-changelog/",
+        "artifacts/verification/2026-09-09-feedback-button-ui/",
+        "artifacts/verification/2026-09-09-help-unread/"
+      ],
+      "paths": [
+        "artifacts/verification/2026-09-11-research-feedback-diagnosis/README.md"
+      ]
+    },
+    {
       "id": "simc-submission-quota-removal",
       "disposition": "keep",
       "category": "target-verification",
@@ -573,6 +589,15 @@
       "reason": "These are the bounded architecture, operations, ownership, verification, and cleanup authorities for the rebuilt product.",
       "paths": [
         "docs/README.md",
+        "docs/badcase-evidence-contract.md",
+        "docs/badcase-workflow-operations.md",
+        "docs/badcase-workflow-operations-history-20260911.md",
+        "docs/chickenbro-simc-architecture-history-20260911.md",
+        "docs/chickenbro-simc-production-runbook-history-20260911.md",
+        "docs/roadmap-history-20260911.md",
+        "docs/verification-matrix-history-20260911.md",
+        "docs/plans/README-history-20260911.md",
+        "docs/plans/2026-09-08-badcase-workflow-history.md",
         "docs/backend-owner-map.json",
         "docs/chickenbro-simc-architecture.md",
         "docs/chickenbro-simc-production-runbook.md",
