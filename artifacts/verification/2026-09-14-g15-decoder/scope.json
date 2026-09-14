@@ -10,9 +10,9 @@
       "sha256": "4b11ce3ba89bc81d4ab51ad671f830607128615fa12de175b04e34aed3157e3a"
     },
     "normal": "Official elemental export unchanged; malformed ranks/spec/runtime remain rejected",
-    "permission": "Second owner denied preview and job read/submission using first owner snapshot"
+    "permission": "Second owner denied snapshot read, job submission and job read"
   },
-  "paired": "deterministic decoder and HTTP preview before/after, identical pinned runtime/config/snapshots; model not involved in decoder comparison",
+  "paired": "deterministic decoder before/after plus HTTP job compilation boundary on identical supported snapshot, runtime and model settings; no model involved in parser comparison",
   "business": "Candidate and live HTTP submit original export against dedicated test-owner supported snapshot; cloud worker terminal positive result and effective talent evidence; actual Chat readback with idempotent history and owner denial",
   "budget": {
     "newProductModelsMax": 4,

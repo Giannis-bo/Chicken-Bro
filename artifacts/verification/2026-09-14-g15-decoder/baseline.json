@@ -1,0 +1,37 @@
+{
+  "phase": "before",
+  "mode": "candidate",
+  "source": "/opt/chickenbro-releases/badcase-730882f2aef78f4460295800065c5d82b7fb7d72",
+  "checks": {
+    "retiredBearerAndEndpointCsrf": true,
+    "qqAuthorizationUrl": true,
+    "privateImageReadAndIsolation": true,
+    "jobIdempotency": null,
+    "ownerIsolation": true,
+    "idempotentReplay": false
+  },
+  "sourceSnapshotHash": "f17ee32fcfcaf2f450eeb52ab5789ea6abcb444752980d3734eae12fc7488a66",
+  "originalCompile": {
+    "status": "rejected",
+    "code": "TALENT_BUILD_INVALID"
+  },
+  "submittedJobId": "98891e0e-a6e1-4d95-9437-5521e51aeee3",
+  "job": {
+    "id": "98891e0e-a6e1-4d95-9437-5521e51aeee3",
+    "status": "succeeded",
+    "metric": 347232.50282641983,
+    "runtime": "simc:managed:f50a2121bf894570146507496f3e113bff68e445:69b3e5fb56f3b7149fa239059cb510f1924ef5cd6690db718812df4d938172da",
+    "compiler": "chickenbro-simc-compiler-v6",
+    "effectiveConfig": {
+      "status": "verified",
+      "checked": [
+        "talents",
+        "equipmentItemIds",
+        "overriddenItemLevels"
+      ],
+      "profileSha256": "2e939c7498490a5b836f93977b994d0b653522c77765492e0d5c16baf1c35bd1"
+    },
+    "profileSha256": "2e939c7498490a5b836f93977b994d0b653522c77765492e0d5c16baf1c35bd1"
+  },
+  "cases": []
+}

@@ -1,0 +1,23 @@
+{
+  "scope": "decoder-only",
+  "fiveCategories": {
+    "original": "local before rejected/after accepted and real candidate HTTP/worker success",
+    "variant": "Blood DK deterministic before/after",
+    "independentHoldout": "new Frost Mage fixture preregistered and hash bound before first evaluation",
+    "normal": "exact decoder output unchanged; old backend normal cloud task succeeded; affected regressions passed",
+    "permission": "candidate snapshot read, foreign snapshot submit, job read, image and Chat denied to second owner"
+  },
+  "modelPairing": "Not applicable to deterministic parser mechanism; one current model result-read smoke independently checked against tool and database. No claim of model quality optimization.",
+  "antiSpecialCase": "Reviewed one shared decoder change; no question/owner/spec/report/answer matching; active ranks/tree/spec/runtime validation retained.",
+  "candidateAnswer": "Matches successful job and rounded DPS; reports talent override verified; no invented four-way comparison.",
+  "failuresRetained": [
+    "Smoke initially expected HTTP 201 instead of actual 202; task ran once and succeeded.",
+    "First resume selected unrelated older job; owner check returned 404; corrected via exact candidate snapshot ID. No new job created by resumes."
+  ],
+  "cost": {
+    "productModels": 1,
+    "cloudSimcJobs": 2,
+    "providerCalls": 0
+  },
+  "unresolved": "Full addon configuration import and four exact ring comparisons remain out of scope."
+}
