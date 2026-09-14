@@ -74,9 +74,9 @@ class PostgresResearchBudget:
             source = data.get('source', {})
             used = {key:len(source.get(key, [])) for key in ('players','fights','groups')}
             used['simulations'] = len(data.get('submissions', []))
-            limits = {'players':10,'fights':3,'groups':3,'simulations':4}
+            limits = {'players':10,'fights':3,'groups':3,'simulations':None}
             return {'state': state, 'scopeUsed':used, 'scopeLimits':limits,
-                    'scopeRemaining':{key:max(0,limit-used[key]) for key,limit in limits.items()},
+                    'scopeRemaining':{key:(None if limit is None else max(0,limit-used[key])) for key,limit in limits.items()},
                     'executionRemaining':{'sourceCalls':max(0,48-work.get('calls',0)), 'eventUnits':max(0,20000-work.get('events',0))},
                     'sourceCalls': source.get('calls', 0),
                     'turnSourceCalls':work.get('calls',0), 'turnEventUnits':work.get('events',0),
@@ -139,8 +139,6 @@ class PostgresResearchBudget:
             submissions = data.setdefault('submissions', [])
             if key in submissions:
                 return None
-            if len(submissions) >= 4:
-                return blocked('simulations (maximum 4 per research)')
             submissions.append(key)
             self._save(cur,identity,data)
             return None

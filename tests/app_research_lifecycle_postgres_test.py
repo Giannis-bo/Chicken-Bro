@@ -82,7 +82,8 @@ class ResearchPostgresTest(unittest.TestCase):
             self.assertIsNone(first.reserve_simulation(str(n)))
         second = self.store(self.admit())
         self.assertIsNone(second.reserve_simulation('0'))
-        self.assertEqual(second.reserve_simulation('4')['errorCode'], 'RESEARCH_BUDGET_EXCEEDED')
+        self.assertIsNone(second.reserve_simulation('4'))
+        self.assertEqual(second.status()['simulations'], 5)
 
     def test_other_owner_cannot_load_research(self):
         run = self.admit()

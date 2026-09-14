@@ -426,8 +426,6 @@ class SimulationToolGateway:
                     key = hashlib.sha256(f"{identity}:{snapshot_id}:{digest}".encode()).hexdigest()
                     if run.submissions.get(key) is not None:
                         return _job_packet(self._application.read_job(principal, run.submissions[key]))
-                    if key not in run.submissions and len(run.submissions) >= 4:
-                        return _blocked("SIMC_JOB_BUDGET_EXCEEDED")
                     if run.research_budget is not None:
                         error = run.research_budget.reserve_simulation(key)
                         if error:

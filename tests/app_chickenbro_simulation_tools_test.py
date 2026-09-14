@@ -231,7 +231,7 @@ class SimulationToolGatewayTest(unittest.TestCase):
                 self.assertEqual(packet["status"], "blocked")
         self.assertEqual(len(self.queue.calls), 0)
 
-    def test_budget_shared_between_capabilities_and_idempotent_retry(self):
+    def test_submissions_beyond_four_share_idempotency_between_capabilities(self):
         snapshot = self.prepare()
         token2 = self.gateway.issue_capability(self.context)
         first = self.submit(snapshot["snapshotId"])
@@ -239,9 +239,9 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.assertEqual(first["jobId"], repeated["jobId"])
         for targets in (2, 3, 4):
             self.assertEqual(self.submit(snapshot["snapshotId"], {"desiredTargets": targets})["status"], "queued")
-        rejected = self.submit(snapshot["snapshotId"], {"desiredTargets": 5}, token2)
-        self.assertEqual(rejected["errorCode"], "SIMC_JOB_BUDGET_EXCEEDED")
-        self.assertEqual(len(self.queue.calls), 4)
+        fifth = self.submit(snapshot["snapshotId"], {"desiredTargets": 5}, token2)
+        self.assertEqual(fifth["status"], "queued")
+        self.assertEqual(len(self.queue.calls), 5)
         self.assertEqual(self.submit(snapshot["snapshotId"])["jobId"], first["jobId"])
 
     def test_concurrent_retries_enqueue_once_and_prepare_budget_is_bounded(self):
@@ -296,7 +296,7 @@ class SimulationToolGatewayTest(unittest.TestCase):
         self.assertEqual(rejected["errorCode"], "SIMC_PREPARE_BUDGET_EXCEEDED")
         self.assertEqual(len(self.repository.snapshots), 0)
 
-    def test_uncertain_submission_retains_budget_and_retries_idempotently(self):
+    def test_uncertain_submission_retains_identity_and_retries_idempotently(self):
         snapshot_id = self.prepare()["snapshotId"]
         original = self.application.submit
         def lost_response(*args, **kwargs):
@@ -308,9 +308,9 @@ class SimulationToolGatewayTest(unittest.TestCase):
             self.assertEqual(packet["status"], "blocked")
             self.assertNotIn("PRIVATE_DATABASE_CONNECTION", json.dumps(packet))
         self.application.submit = original
-        self.assertEqual(self.submit(snapshot_id, {"desiredTargets": 5})["errorCode"], "SIMC_JOB_BUDGET_EXCEEDED")
+        self.assertEqual(self.submit(snapshot_id, {"desiredTargets": 5})["status"], "queued")
         self.assertEqual(self.submit(snapshot_id)["status"], "queued")
-        self.assertEqual(len(self.queue.calls), 4)
+        self.assertEqual(len(self.queue.calls), 5)
 
 
 if __name__ == "__main__":
