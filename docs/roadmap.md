@@ -4,6 +4,8 @@
 
 ## 已完成
 
+- 云端 SimC 已更新至 `ac0f3a3` / `12.1.0.69814`：匹配的天赋、装备与中文目录同步发布，英雄树免费点兼容修复；Candidate 与线上各3个真实任务通过，旧引擎恢复副本验证通过。[验证记录](../artifacts/verification/2026-09-15-simc-update/README.md)。
+
 - Chat SimC 次数上限已取消（`22037c2a`）：单轮与跨轮均不限任务次数，保留历史记录、幂等和账号隔离；Candidate 与线上均验证历史四次后继续模拟成功。[发布记录](../artifacts/verification/2026-09-14-simc-quota/README.md)。
 
 - 通用研究证据与语义优化已完成限定验证与发布；固定20题未全跑，详见[任务记录](plans/2026-09-11-research-generalization.md)。

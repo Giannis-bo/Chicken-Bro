@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "057378afc7b30e904b6bdd333283c93867dfb4b0",
+  "backend": "/opt/chickenbro-releases/badcase-057378afc7b30e904b6bdd333283c93867dfb4b0",
+  "web": "/var/www/chickenbro-web/releases/chat-return-0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67",
+  "runtimeFilesMatched": 147,
+  "publicWebFilesMatched": 13,
+  "recoverySnapshotVerified": true,
+  "rollbackDrill": false,
+  "observation": {
+    "seconds": 54.22,
+    "readinessSamples": 10,
+    "maxReadinessSeconds": 0.263,
+    "errorJournalEntries": 0,
+    "servicesActive": true
+  }
+}

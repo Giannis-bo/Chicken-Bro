@@ -5,5 +5,6 @@
   "cloudPython": "/opt/chickenbro-runtime/bin/python",
   "newDependenciesInstalled": false,
   "localFastapiTests": "not_available_in_system_python; executed with existing cloud runtime",
-  "manualAcceptance": false
+  "manualAcceptance": false,
+  "controlTests": 63
 }

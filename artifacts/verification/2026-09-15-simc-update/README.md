@@ -14,6 +14,13 @@
 
 ## 发布与恢复
 
-当前为 Candidate 验证完成，尚待生产切换。使用本目录的固定manifest执行器，在共享发布锁和SimC锁下获取全任务空闲门禁；同时切换后端与引擎并重启API/Worker。切换前对旧引擎进行独立复制、哈希和模拟核验；旧后端和Web保留。线上计划3个同范围任务，45秒观察、10次readiness、错误日志及公网Web哈希核对。生产回切演练和人工QQ登录不在本次验证范围。
+已发布到生产，运行源码 `057378afc7b30e904b6bdd333283c93867dfb4b0`。使用本目录的固定manifest执行器，在共享发布锁和SimC锁下获取全任务空闲门禁；同时切换后端与引擎并重启API/Worker。旧引擎独立恢复副本已完成哈希和正DPS模拟核验；旧后端和Web保留。线上3个同范围任务均已通过，正DPS、有效天赋/配置、幂等和第二账号隔离得到实际回执。稳定性与147份后端/13份公网Web制品核验结果见[最终核验](final-check.json)。生产回切演练和人工QQ登录不在本次验证范围。
 
 证据：[引擎](engine-smoke.json)、[Candidate](candidate.json)、[天赋与中文读回](candidate-talents.json)、[测试](test-results.json)、[目录构建](catalog-build.json)。原始报告与源码/构建保存在云端私有目录 `/var/lib/chickenbro-simc-update-20260915/` 及对应 `/opt/wow-simc/work/update-ac0...`，无到期自动删除。
+
+## 线上结果
+
+- [线上3任务](live.json)：单体251179.19、多目标826393.13、选择节点替换241695.01 DPS；100 iterations/60秒，仅用于业务验收，不据此给配装结论。
+- [恢复验证](recovery-check.json)：旧引擎独立副本实际输出226841.29 DPS，哈希相同；未切回生产。
+- [源码核对](local-source-parity.json)：147份文件一致，其中2份原有文件仅LF/CRLF不同；[发布manifest](manifest.json)绑定精确生产字节。
+- 合计10次新引擎模拟（4次直接引擎、3次Candidate、3次线上）和1次旧引擎恢复模拟；无模型请求、无新依赖安装。保留失败及原始消耗。

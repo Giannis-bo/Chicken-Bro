@@ -60,3 +60,9 @@ API/Worker运行源码2294cb95095a3822e1f4e2c43e225bf0bfdb2f63，8文件增量�
 运行源码 `22037c2a27c8db331e31d7a481425c97455f7c99`，四文件 overlay，API/Worker 同版；单轮与跨研究均不限新模拟次数，历史计数和幂等保留。Candidate 与线上第五次提交均得到真实正 DPS，并完成第二账号隔离与消息重放验证。Web、数据库结构和引擎未改变。[证据](../artifacts/verification/2026-09-14-simc-quota/README.md)。
 
 恢复包为 root/0700 `/var/lib/chickenbro-simc-quota-20260914/`，含固定 manifest、deploy.py、overlay 和 root/0600 恢复快照。以 root 运行本批 `deploy.py manifest.json rollback`，在共享发布锁及全任务空闲门禁下恢复旧 `cdc7d262`，随后核对业务。旧文件独立复制哈希核验通过；未进行生产回切演练。
+
+## 2026-09-15 SimC 引擎与绑定目录更新
+
+运行源码 `057378afc7b30e904b6bdd333283c93867dfb4b0`，引擎 `ac0f3a3c7ff9e521137c0ca1760d548330c697f3` / `12.1.0.69814`。9文件overlay包含英雄树免费点兼容修复、更新器私有权限修正及匹配目录；API/Worker同版，Web保持原制品。新任务使用新引擎，历史结果保留原始runtime身份；跨引擎比较继续拒绝。
+
+恢复包 root/0700 `/var/lib/chickenbro-simc-update-20260915/` 保存manifest、engine-manifest、deploy.py、overlay和root/0600环境快照。以root运行 `/opt/chickenbro-runtime/bin/python /var/lib/chickenbro-simc-update-20260915/deploy.py /var/lib/chickenbro-simc-update-20260915/manifest.json rollback`，在共享发布锁、引擎锁和全任务空闲门禁下同时恢复旧后端22037c2a与旧引擎f50a2121。旧引擎独立副本已核对哈希并实际模拟成功；生产回切演练未执行。原始源码、构建与报告保留，不设置自动清理。[本批证据](../artifacts/verification/2026-09-15-simc-update/README.md)。

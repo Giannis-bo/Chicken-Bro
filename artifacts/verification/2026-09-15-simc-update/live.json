@@ -1,0 +1,135 @@
+{
+  "phase": "after",
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-057378afc7b30e904b6bdd333283c93867dfb4b0",
+  "checks": {
+    "realQueueWorkerPositiveMetrics": true,
+    "sourceAndEngineIdentity": true,
+    "effectiveConfigVerified": true,
+    "idempotency": true,
+    "secondOwnerIsolation": true,
+    "unauthenticatedDenied": true,
+    "scenarioDifference": true,
+    "talentChoiceChangeVerified": true,
+    "localizedNewBuild": true
+  },
+  "runtime": {
+    "status": "available",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69814",
+    "build": "69814",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c"
+  },
+  "lastJobId": "223574a7-8e10-4ebe-b468-af47d8a56675",
+  "cases": [
+    {
+      "case": "single",
+      "localizationStatus": "partial",
+      "localizationRevision": "398d643452de149bc00091369f158b22bfe75c2d5c930836fdb67ab07ab133f0",
+      "jobId": "0471d131-ea97-437c-8b73-40a4622c733a",
+      "targets": 1,
+      "dps": 251179.18944011605,
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    },
+    {
+      "case": "multi",
+      "localizationStatus": "partial",
+      "localizationRevision": "398d643452de149bc00091369f158b22bfe75c2d5c930836fdb67ab07ab133f0",
+      "jobId": "89e7b362-271f-43bc-a688-ed8ed996c264",
+      "targets": 5,
+      "dps": 826393.1329110453,
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    },
+    {
+      "case": "talent",
+      "localizationStatus": "partial",
+      "localizationRevision": "398d643452de149bc00091369f158b22bfe75c2d5c930836fdb67ab07ab133f0",
+      "jobId": "223574a7-8e10-4ebe-b468-af47d8a56675",
+      "targets": 1,
+      "dps": 241695.0073130198,
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

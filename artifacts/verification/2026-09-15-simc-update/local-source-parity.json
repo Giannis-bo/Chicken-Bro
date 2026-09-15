@@ -1,0 +1,9 @@
+{
+  "sourceCommit": "057378afc7b30e904b6bdd333283c93867dfb4b0",
+  "files": 147,
+  "newlineOnlyDifferences": [
+    "server/app/chickenbro/agent_skills.py",
+    "server/app/chickenbro/codex_adapter.py"
+  ],
+  "otherDifferences": []
+}

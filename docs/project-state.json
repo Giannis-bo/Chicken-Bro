@@ -879,11 +879,39 @@
     "rollbackDrill": false
   },
   "simcRuntimeUpdate": {
-    "status": "candidate_verified",
+    "status": "live_verified",
     "engineSourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
     "previousEngineSourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
     "gameBuild": "12.1.0.69814",
     "evidence": "artifacts/verification/2026-09-15-simc-update/README.md",
-    "productionDeployed": false
+    "productionDeployed": true,
+    "sourceCommit": "057378afc7b30e904b6bdd333283c93867dfb4b0",
+    "localTalentSourceTests": 49,
+    "cloudRelatedTests": 231,
+    "updaterTests": 8,
+    "controlTests": 63,
+    "candidateJobs": 3,
+    "liveJobs": 3,
+    "engineProfileRuns": 4,
+    "independentRecoveryRuns": 1,
+    "localizationStatus": "partial",
+    "manualUserAcceptance": false,
+    "productionRollbackDrill": false,
+    "verification": {
+      "sourceCommit": "057378afc7b30e904b6bdd333283c93867dfb4b0",
+      "backend": "/opt/chickenbro-releases/badcase-057378afc7b30e904b6bdd333283c93867dfb4b0",
+      "web": "/var/www/chickenbro-web/releases/chat-return-0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67",
+      "runtimeFilesMatched": 147,
+      "publicWebFilesMatched": 13,
+      "recoverySnapshotVerified": true,
+      "rollbackDrill": false,
+      "observation": {
+        "seconds": 54.22,
+        "readinessSamples": 10,
+        "maxReadinessSeconds": 0.263,
+        "errorJournalEntries": 0,
+        "servicesActive": true
+      }
+    }
   }
 }
