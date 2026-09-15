@@ -3,7 +3,7 @@ import json
 import unittest
 from unittest.mock import patch
 from pathlib import Path
-from server.app.simulation.wcl_talents import reconstruct_fight_talents
+from server.app.simulation.wcl_talents import reconstruct_fight_talents, _catalog
 
 FIXTURES = Path(__file__).parent / 'fixtures/simc'
 
@@ -12,14 +12,14 @@ class WclTalentReconstructionTest(unittest.TestCase):
     def setUp(self):
         self.details = json.loads((FIXTURES / 'giannis_raiderio_details.json').read_text())['characterDetails']['character']
         self.tree = json.loads((FIXTURES / 'giannis_wcl_report.json').read_text())['data']['reportData']['report']['events']['data'][0]['talentTree']
-        self.expected = json.loads((FIXTURES / 'giannis_wcl_engine_export.json').read_text())['talents']
+        self.expected = json.loads((FIXTURES / 'giannis_wcl_engine_export_69814.json').read_text())['talents']
 
     def test_matches_independent_cloud_engine_export_including_apex_and_choices(self):
         code, proof = reconstruct_fight_talents(self.tree, 262, self.details, "elemental")
         self.assertEqual(code, self.expected)
         self.assertEqual(proof['entryCount'], 80)
         self.assertEqual(proof['heroSubTreeId'], 56)
-        self.assertEqual(proof['gameBuild'], '12.1.0.69299')
+        self.assertEqual(proof['gameBuild'], '12.1.0.69814')
 
     def test_log_order_and_current_talent_export_are_irrelevant(self):
         self.details.pop('talentLoadout')
@@ -55,3 +55,15 @@ class WclTalentReconstructionTest(unittest.TestCase):
     def test_missing_catalog_fails_closed_without_source_request_crash(self):
         with patch('server.app.simulation.wcl_talents._catalog', side_effect=FileNotFoundError):
             self.assertIsNone(reconstruct_fight_talents(self.tree, 262, self.details, "elemental"))
+
+    def test_new_engine_hero_grants_only_require_selected_subtree(self):
+        catalog, traits = _catalog()
+        traits = copy.deepcopy(traits)
+        for trait in traits:
+            if trait['tree'] == 3 and trait['row'] == 1:
+                trait['starterSpecs'] = list(trait['specs'])
+        with patch('server.app.simulation.wcl_talents._catalog', return_value=(catalog, traits)):
+            result = reconstruct_fight_talents(self.tree, 262, self.details, 'elemental')
+            self.assertIsNotNone(result)
+            without_starter = [e for e in self.tree if e['id'] != 117485]
+            self.assertIsNone(reconstruct_fight_talents(without_starter, 262, self.details, 'elemental'))

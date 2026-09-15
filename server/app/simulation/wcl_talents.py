@@ -62,7 +62,8 @@ def reconstruct_fight_talents(tree, spec_id, details, spec_key):
         return None
     budgets = {1: 0, 2: 0, 3: 0, 4: 0}
     for t in traits:
-        granted = spec_id in t["starterSpecs"] or (
+        granted = (spec_id in t["starterSpecs"] and (
+            t["tree"] != 3 or t["subTreeId"] == hero)) or (
             t["tree"] == 3 and t["subTreeId"] == hero and t["row"] == 1 and t["col"] == 1)
         rank = chosen.get(t["entryId"], 0)
         if granted and not rank:
@@ -71,11 +72,19 @@ def reconstruct_fight_talents(tree, spec_id, details, spec_key):
             continue
         if t["tree"] not in budgets or (t["tree"] == 3 and t["subTreeId"] != hero):
             return None
-        budgets[t["tree"]] += rank - int(granted)
-    # Full level-90 allocation, excluding baseline/free points. Reject truncated
+        # Hero allocations include their initial node. Newer engine data marks
+        # that node as granted; the complete tree still contains 14 ranks.
+        budgets[t["tree"]] += rank - int(granted and t["tree"] != 3)
+    # Full level-90 allocation, excluding class/spec free points. Reject truncated
     # logs rather than silently filling missing selections with defaults.
     if budgets != {1: 34, 2: 34, 3: 14, 4: 1}:
         return None
+    # SimC adds every spec-granted hero root to its export, including inactive
+    # subtrees. Preserve that wire representation only after validating the
+    # recorded active allocation; the hero selector controls effective talents.
+    for t in traits:
+        if t["tree"] == 3 and spec_id in t["starterSpecs"]:
+            chosen.setdefault(t["entryId"], 1)
     bits = []
     def put(width, value):
         bits.extend((value >> i) & 1 for i in range(width))
@@ -124,7 +133,7 @@ def reconstruct_fight_talents(tree, spec_id, details, spec_key):
     code = "".join(_ALPHABET[sum(bit << i for i, bit in enumerate(bits[p:p+6]))]
                    for p in range(0, len(bits), 6))
     return code, {
-        "method": "recorded-entries-to-blizzard-v2", "entryCount": len(chosen),
+        "method": "recorded-entries-to-blizzard-v2", "entryCount": len(tree),
         "specId": spec_id, "heroSubTreeId": hero, "gameBuild": catalog["build"],
         "catalogRuntimeRevision": catalog["revision"], "catalogSourceSha256": catalog["sourceSha256"],
     }

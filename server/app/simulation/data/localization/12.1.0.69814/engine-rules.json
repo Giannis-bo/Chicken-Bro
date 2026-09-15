@@ -1,0 +1,172 @@
+{
+  "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+  "build": "12.1.0.69814",
+  "syntheticAbilities": {
+    "auto_attack_mh": {
+      "text": "主手自动攻击",
+      "allowedIds": [
+        null
+      ]
+    },
+    "auto_attack_oh": {
+      "text": "副手自动攻击",
+      "allowedIds": [
+        null,
+        1
+      ]
+    },
+    "main_hand": {
+      "text": "主手自动攻击",
+      "allowedIds": [
+        null,
+        1
+      ]
+    },
+    "offhand": {
+      "text": "副手自动攻击",
+      "allowedIds": [
+        null,
+        2
+      ]
+    },
+    "melee": {
+      "text": "自动攻击",
+      "allowedIds": [
+        null
+      ]
+    },
+    "melee_main_hand": {
+      "text": "主手自动攻击",
+      "allowedIds": [
+        null
+      ]
+    },
+    "melee_off_hand": {
+      "text": "副手自动攻击",
+      "allowedIds": [
+        null
+      ]
+    },
+    "cat_melee": {
+      "text": "猎豹形态自动攻击",
+      "allowedIds": [
+        null
+      ]
+    },
+    "bear_melee": {
+      "text": "熊形态自动攻击",
+      "allowedIds": [
+        null
+      ]
+    }
+  },
+  "legacyAliases": {
+    "elemental_blast": "元素冲击",
+    "lava_burst": "熔岩爆裂",
+    "ancestor:_lava_burst": "先祖：熔岩爆裂",
+    "ancestor:_elemental_blast": "先祖：元素冲击",
+    "primal_fire_elemental:_fire_blast": "原始火元素：火焰冲击",
+    "primal_storm_elemental:_stormfury": "原始风暴元素：风暴怒火",
+    "primal_storm_elemental:_wind_gust": "原始风暴元素：呼啸狂风",
+    "primal_fire_elemental:_meteor": "原始火元素：流星",
+    "primal_fire_elemental:_immolate": "原始火元素：献祭",
+    "primal_storm_elemental:_call_lightning": "原始风暴元素：召唤闪电",
+    "ancestral_swiftness": "先祖迅捷",
+    "call_of_the_ancestors": "先祖的召唤",
+    "elemental_blast_critical_strike": "元素冲击：爆击",
+    "elemental_blast_haste": "元素冲击：急速",
+    "elemental_blast_mastery": "元素冲击：精通",
+    "fire_elemental": "火元素",
+    "fireblood": "烈焰之血",
+    "flowing_elements": "元素奔涌",
+    "lava_surge": "熔岩奔腾",
+    "lights_potential": "圣光潜力",
+    "master_of_the_elements": "元素宗师",
+    "overcharge_tier": "过载！",
+    "purging_flames": "净化烈焰",
+    "storm_elemental": "风暴元素",
+    "stormkeeper": "风暴守护者",
+    "tidal_insight": "潮汐洞察",
+    "wind_gust": "呼啸狂风",
+    "call_lightning": "召唤闪电",
+    "flask_of_the_magisters": "魔导师合剂",
+    "debilitating_venom_crit": "衰弱毒液（爆击）",
+    "debilitating_venom_haste": "衰弱毒液（急速）",
+    "debilitating_venom_mastery": "衰弱毒液（精通）",
+    "debilitating_venom_vers": "衰弱毒液（全能）",
+    "empowering_venom_crit": "强化毒液（爆击）",
+    "empowering_venom_haste": "强化毒液（急速）",
+    "empowering_venom_mastery": "强化毒液（精通）",
+    "empowering_venom_vers": "强化毒液（全能）",
+    "arc_discharge": "弧形放电",
+    "arcanoweave_insight": "奥纹洞察",
+    "ascendance": "升腾",
+    "blood_fury": "血性狂怒",
+    "converging_storms": "汇聚风暴",
+    "crackling_surge": "爆裂涌动",
+    "crash_lightning": "毁灭闪电",
+    "critical_ritual": "爆击仪式",
+    "devoured_strength": "噬灭之力",
+    "doom_winds": "毁灭之风",
+    "echoing_roar": "回响咆哮",
+    "flurry": "乱舞",
+    "hasty_ritual": "仓促仪式",
+    "lightning_strikes": "闪电打击",
+    "maelstrom_weapon": "漩涡武器",
+    "masterful_ritual": "精通仪式",
+    "potion_of_recklessness": "鲁莽药水",
+    "short_circuit": "电涌熔断",
+    "static_accumulation": "静电积聚",
+    "storm_unleashed": "风暴释放",
+    "stormblast": "风暴轰击",
+    "stormsurge": "风暴喷涌",
+    "tempest": "狂风怒号",
+    "unlimited_power": "无穷力量",
+    "venomcursed_mastery": "毒咒精通",
+    "versatile_ritual": "全能仪式",
+    "voracious_heart_of_ulatek": "乌拉特克贪婪之心",
+    "xathuuxs_last_roar": "萨祖克斯的最后咆哮",
+    "arcane_intellect": "奥术智慧",
+    "battle_shout": "战斗怒吼",
+    "blessing_of_the_bronze": "青铜龙的祝福",
+    "flask_of_the_blood_knights": "血骑士合剂",
+    "lightning_shield": "闪电之盾",
+    "mark_of_the_wild": "野性印记",
+    "power_word_fortitude": "真言术：韧",
+    "skyfury": "天怒",
+    "voidtouched": "虚触",
+    "well_fed": "进食充分",
+    "windfury_weapon": "风怒武器",
+    "thorims_invocation": "托里姆的祈咒",
+    "fire_nova": "火焰新星",
+    "ride_the_lightning": "驾驭雷电",
+    "windstrike": "风切",
+    "stormstrike": "风暴打击",
+    "lightning_bolt": "闪电箭",
+    "windfury_attack": "风怒攻击",
+    "voltaic_blaze": "流电炽焰",
+    "lightning_rod": "引雷针",
+    "flametongue_attack": "火舌攻击",
+    "windlash": "狂风鞭笞",
+    "devour_morsel": "吞噬残块",
+    "flame_shock": "烈焰震击",
+    "lava_lash": "熔岩猛击",
+    "venomfang": "毒牙",
+    "chain_lightning": "闪电链",
+    "doom_winds_damage": "毁灭之风",
+    "windlash_offhand": "副手狂风鞭笞",
+    "bloodlust": "嗜血",
+    "main_hand": "主手自动攻击",
+    "offhand": "副手自动攻击",
+    "melee": "自动攻击",
+    "lightning_wolf:_melee": "幽灵狼：自动攻击",
+    "movement": "移动",
+    "potion_of_recklessness_crit": "鲁莽药水（爆击）",
+    "potion_of_recklessness_penalty_vers": "鲁莽药水（全能降低）"
+  },
+  "provenance": [
+    "artifacts/releases/2026-09-06-simc-workbench/zh-cn-terms.json",
+    "artifacts/releases/2026-09-06-simc-workbench/elemental-zh-cn-terms.json"
+  ],
+  "note": "Legacy labels retain query-time verified names and do not assert historical spell identity. Synthetic auto-attack IDs are engine-local markers, not game spell IDs."
+}

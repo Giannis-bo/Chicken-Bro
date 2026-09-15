@@ -1,0 +1,14 @@
+{
+  "phase": "after",
+  "mode": "candidate",
+  "source": "/opt/chickenbro-candidates/simc-update-20260915",
+  "checks": {},
+  "runtime": {
+    "status": "available",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69814",
+    "build": "69814",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c"
+  }
+}

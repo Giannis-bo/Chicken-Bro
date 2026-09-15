@@ -1,0 +1,42 @@
+[
+  {
+    "case": "enhancement",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "binarySha256": "67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "profileSha256": "d13b3b31f18ccba0069cbf8620f51022a7496983e7fbae8c740db2237e169fd5",
+    "reportSha256": "c04084a3e4c7fdc582680c320391545966a614b1d8a2107d8a4277ae3df015a5",
+    "dps": 533189.9535053084,
+    "gameBuild": "12.1.0.69814",
+    "normalized": true
+  },
+  {
+    "case": "protection",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "binarySha256": "67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "profileSha256": "58300f5ba3c0e2a9c1fd4c662f5aec9173473a1a3c20a51441db147213990a28",
+    "reportSha256": "c59e3dfb030bea14dcfa791d1bf2f40aa081be406e52f19f152f34425b7a0446",
+    "dps": 208628.66684139118,
+    "gameBuild": "12.1.0.69814",
+    "normalized": true
+  },
+  {
+    "case": "affliction",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "binarySha256": "67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "profileSha256": "eddbfa8ed48aec64237bc473d8ce61dc68c3fe812aef67ffc0a3d62593522ab6",
+    "reportSha256": "7b1f00e7000063d52e743a1d69eb8fea4744995d3407dd521a07d70c5e41aa2e",
+    "dps": 307104.8401506943,
+    "gameBuild": "12.1.0.69814",
+    "normalized": true
+  },
+  {
+    "case": "independent",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "binarySha256": "67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "profileSha256": "8444833f12e77c4143b29add2c4103b62bc4a818f7b97c915d4ed507c3adcef9",
+    "reportSha256": "9d3cc5e24d814b3c9d1865d991673af753ae22ae71b1f32080110256d78cbbc0",
+    "dps": 237997.99543173204,
+    "gameBuild": "12.1.0.69814",
+    "normalized": true
+  }
+]

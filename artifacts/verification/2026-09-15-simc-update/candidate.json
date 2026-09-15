@@ -1,0 +1,91 @@
+{
+  "phase": "after",
+  "mode": "candidate",
+  "source": "/opt/chickenbro-candidates/simc-update-20260915",
+  "checks": {
+    "realQueueWorkerPositiveMetrics": true,
+    "sourceAndEngineIdentity": true,
+    "effectiveConfigVerified": true,
+    "idempotency": true,
+    "secondOwnerIsolation": true,
+    "unauthenticatedDenied": true,
+    "scenarioDifference": true
+  },
+  "runtime": {
+    "status": "available",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69814",
+    "build": "69814",
+    "sourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c"
+  },
+  "cases": [
+    {
+      "jobId": "65948de3-eddd-44ea-802c-a371f279f397",
+      "targets": 1,
+      "dps": 241085.2760188269,
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    },
+    {
+      "jobId": "9eab1646-7ab2-46f4-8715-49ed032d33c4",
+      "targets": 5,
+      "dps": 808269.0962578498,
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

@@ -87,6 +87,9 @@ PY
 }
 
 remove_work_directory() {
+  # Retain this task build/source as verification and recovery evidence.
+  return 0
+
   if [[ -z "${WORK_DIR}" ]]; then
     return 0
   fi
@@ -200,6 +203,9 @@ adopt_current_release() {
 }
 
 switch_current_release() {
+  # Preparation only: promotion is performed later under the application idle fence.
+  return 0
+
   local release_dir="$1"
   local previous_commit="$2"
   local current_commit=""
@@ -441,7 +447,7 @@ PY
   cmake -S "${source_dir}" -B "${build_dir}" -DBUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
   cmake --build "${build_dir}" --target simc --parallel "${BUILD_PARALLELISM}"
 
-  built_simc="$(find "${build_dir}" -type f -name simc -perm -100 -print -quit)"
+  built_simc="$(find "${build_dir}" -type f -name simc -perm -111 -print -quit)"
   [[ -n "${built_simc}" ]] || die "failed to locate the built SimulationCraft binary"
   smoke_simc_binary "${built_simc}" \
     || die "newly built SimulationCraft binary failed the semantic smoke test"
@@ -479,7 +485,7 @@ recorded_archive_sha = archive_sha if re.fullmatch(r"[0-9a-f]{64}", archive_sha)
 print(json.dumps({
     "mode": "apply",
     "mutationAuthorized": True,
-    "status": "updated",
+    "status": "prepared_not_promoted",
     "sourceRepository": "simulationcraft/simc",
     "previousCommit": previous_commit,
     "targetCommit": target_commit,

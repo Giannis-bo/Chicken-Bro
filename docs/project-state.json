@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-14",
+  "updatedAt": "2026-09-15",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "targetProduct": {
@@ -877,5 +877,13 @@
     },
     "manualUserAcceptance": "not_claimed",
     "rollbackDrill": false
+  },
+  "simcRuntimeUpdate": {
+    "status": "candidate_verified",
+    "engineSourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "previousEngineSourceCommit": "f50a2121bf894570146507496f3e113bff68e445",
+    "gameBuild": "12.1.0.69814",
+    "evidence": "artifacts/verification/2026-09-15-simc-update/README.md",
+    "productionDeployed": false
   }
 }

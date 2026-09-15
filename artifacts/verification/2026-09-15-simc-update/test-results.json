@@ -1,0 +1,9 @@
+{
+  "localTalentSourceTests": 49,
+  "localUpdaterTests": 8,
+  "cloudRelatedTests": 231,
+  "cloudPython": "/opt/chickenbro-runtime/bin/python",
+  "newDependenciesInstalled": false,
+  "localFastapiTests": "not_available_in_system_python; executed with existing cloud runtime",
+  "manualAcceptance": false
+}

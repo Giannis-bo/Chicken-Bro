@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-runtime-update-20260915",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "simc",
+      "reason": "Retain authorized runtime update, source identities, bounded smoke, failures and recovery evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-09-15-simc-update/"
+      ]
+    },
+    {
       "id": "local-documentation-and-evidence-cleanup-20260914",
       "disposition": "keep",
       "category": "target-verification",

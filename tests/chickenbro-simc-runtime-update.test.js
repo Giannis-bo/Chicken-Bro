@@ -192,3 +192,21 @@ test('legacy retirement protects the replacement updater and names it in the man
     assert.equal(resource.replacement, 'chickenbro-simc-runtime-update.service (manual, content-addressed)')
   }
 })
+
+test('build discovery accepts a private executable created with umask 077', () => {
+  const os = require('node:os')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'simc-discovery-'))
+  try {
+    const binary = path.join(dir, 'simc')
+    fs.writeFileSync(binary, 'fixture', { mode: 0o700 })
+    const statement = fs.readFileSync(scriptPath, 'utf8').split('\n')
+      .find((line) => line.trimStart().startsWith('built_simc='))
+    const result = spawnSync('bash', ['-c', `${statement}\nprintf '%s' "$built_simc"`], {
+      env: { ...process.env, build_dir: dir }, encoding: 'utf8',
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(result.stdout, binary)
+  } finally {
+    fs.rmSync(dir, { recursive: true })
+  }
+})

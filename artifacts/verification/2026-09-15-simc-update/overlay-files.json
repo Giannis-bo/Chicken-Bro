@@ -1,0 +1,11 @@
+[
+  "server/app/simulation/wcl_talents.py",
+  "server/app/simulation/data/trait-labels-12.1.0.json",
+  "server/app/simulation/data/item-variants-12.1.0.json",
+  "server/app/simulation/data/trait-paths-12.1.0.json",
+  "server/app/simulation/data/traits-12.1.0.json",
+  "server/app/simulation/data/localization/12.1.0.69814/catalog.json.gz",
+  "server/app/simulation/data/localization/12.1.0.69814/engine-rules.json",
+  "server/app/simulation/data/localization/12.1.0.69814/manifest.json",
+  "server/chickenbro_simc_runtime_update.sh"
+]

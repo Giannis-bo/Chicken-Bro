@@ -1,5 +1,6 @@
 import json
 import unittest
+from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from uuid import UUID, uuid4
@@ -374,7 +375,8 @@ class SimulationExperimentTest(unittest.TestCase):
         result=self.gateway.execute(self.token,'compare',{'baselineJobId':a['jobId'],'variantJobId':a['jobId']})
         self.assertEqual(result['errorCode'],'SIMC_COMPARISON_SAME_JOB')
 
-    def test_item_search_uses_engine_names_when_localization_is_missing(self):
+    @patch('server.app.chickenbro.simulation_tools.catalog_for_build', return_value=None)
+    def test_item_search_uses_engine_names_when_localization_is_missing(self, _catalog):
         from tests.app_simulation_talent_editor_test import RUNTIME
         from copy import deepcopy
         source=self.prepare();sid=UUID(source['snapshotId'])

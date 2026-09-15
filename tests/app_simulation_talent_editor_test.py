@@ -2,10 +2,11 @@ import copy
 import json
 import unittest
 from pathlib import Path
+from server.app.simulation.wcl_talents import _catalog
 from server.app.simulation.talent_editor import TalentEditError, decode_talents, edit_talents, talent_options
 
 FIXTURES = Path(__file__).parent / 'fixtures/simc'
-RUNTIME = 'simc:managed:f50a2121bf894570146507496f3e113bff68e445:' + 'a' * 64
+RUNTIME = 'simc:managed:' + _catalog()[0]['revision'] + ':' + 'a' * 64
 
 class TalentEditorTest(unittest.TestCase):
     def setUp(self):

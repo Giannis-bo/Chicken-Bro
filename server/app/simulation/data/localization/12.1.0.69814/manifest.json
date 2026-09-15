@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "build": "12.1.0.69814",
+  "locale": "zhCN",
+  "sha256": "398d643452de149bc00091369f158b22bfe75c2d5c930836fdb67ab07ab133f0",
+  "retrievedAt": 1789458625.339795,
+  "sources": [
+    {
+      "table": "SpellName",
+      "locale": "zhCN",
+      "url": "https://wago.tools/db2/SpellName/csv?build=12.1.0.69814&locale=zhCN",
+      "sha256": "8286ecee98a014084cc577221d074db77be92533bc866302c97833b279a28445",
+      "contentDisposition": "attachment; filename=\"SpellName.12.1.0.69814.csv\"; filename*=UTF-8''SpellName.12.1.0.69814.csv"
+    },
+    {
+      "table": "SpellName",
+      "locale": "enUS",
+      "url": "https://wago.tools/db2/SpellName/csv?build=12.1.0.69814&locale=enUS",
+      "sha256": "99629cf0bc20d889d80df64d9be7dbd9be1498f958055e6f74de83be33927bc5",
+      "contentDisposition": "attachment; filename=\"SpellName.12.1.0.69814.csv\"; filename*=UTF-8''SpellName.12.1.0.69814.csv"
+    },
+    {
+      "table": "Creature",
+      "locale": "zhCN",
+      "url": "https://wago.tools/db2/Creature/csv?build=12.1.0.69814&locale=zhCN",
+      "sha256": "70e617c7e47a812afb8f318cbbd77d6269e2b0dfbcabf56d230aa33bba97ebf1",
+      "contentDisposition": "attachment; filename=\"Creature.12.1.0.69814.csv\"; filename*=UTF-8''Creature.12.1.0.69814.csv"
+    },
+    {
+      "table": "Creature",
+      "locale": "enUS",
+      "url": "https://wago.tools/db2/Creature/csv?build=12.1.0.69814&locale=enUS",
+      "sha256": "d2916803767e4db8f9505338e427e061e4db9b4f3e2473315681c028f68849a6",
+      "contentDisposition": "attachment; filename=\"Creature.12.1.0.69814.csv\"; filename*=UTF-8''Creature.12.1.0.69814.csv"
+    },
+    {
+      "table": "ItemSparse",
+      "locale": "zhCN",
+      "url": "https://wago.tools/db2/ItemSparse/csv?build=12.1.0.69814&locale=zhCN",
+      "sha256": "9374e3f700ac88baa8ad7afe2ea13cffe02c92fa389ad5ea1f6a43360ddee335",
+      "contentDisposition": "attachment; filename=\"ItemSparse.12.1.0.69814.csv\"; filename*=UTF-8''ItemSparse.12.1.0.69814.csv"
+    }
+  ],
+  "counts": {
+    "spells": 320217,
+    "creatures": 21358,
+    "items": 174449
+  },
+  "ambiguousOrUntranslatedAliases": 69121,
+  "engineRulesSha256": "85334e9c3f061ef810c2168a3cd13dd680d9af96bbcd183ea426165f2cd2f3a2"
+}

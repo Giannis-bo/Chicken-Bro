@@ -1,0 +1,19 @@
+{
+  "buildPreparation": {
+    "failure": "private mode 0700 rejected by find -perm -111",
+    "compileSucceeded": true,
+    "productionChanged": false,
+    "resolution": "owner execute bit discovery; sealed the existing compiled artifact"
+  },
+  "catalogCompatibility": {
+    "changedStarterRows": 43,
+    "failure": "free hero roots altered allocation validation and canonical export",
+    "resolution": "validate active subtree and 14 total hero ranks; include spec-granted inactive roots only in canonical encoding",
+    "independentCloudExportMatched": true
+  },
+  "candidateReadback": {
+    "failure": "smoke omitted reportLocale=zhCN; localization field absent",
+    "simulationSucceeded": true,
+    "resolution": "read back and replay same completed job with locale parameter; no additional simulation"
+  }
+}
