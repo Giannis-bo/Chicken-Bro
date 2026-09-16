@@ -55,7 +55,7 @@ export default function WebHeaderActions({ adminHref, accountLabel, onLogout, fa
 
   return (
     <div className={styles['actions']}>
-      <a className={styles['helpLink']} href="https://github.com/boyuan19910222-ui/Chicken-Bro"
+      <a className={styles['helpLink']} href="https://github.com/Giannis-bo/Chicken-Bro"
         target="_blank" rel="noopener noreferrer" aria-label="GitHub 仓库（在新标签页打开）">GitHub</a>
       <a className={styles['helpLink']} href={faqHref} aria-current={faqActive ? 'page' : undefined}
         aria-label={unread.faq ? 'FAQ（有更新）' : 'FAQ'}
