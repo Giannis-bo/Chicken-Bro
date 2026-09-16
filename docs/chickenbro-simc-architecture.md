@@ -4,11 +4,11 @@
 
 ## 客户端、身份与数据
 
-Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web/index` 入口承载 `/` 对话、`/simc` 模拟、`/admin` 运营页与 `/?view=faq`。内部旧目录名不表示保留 Mini 产品。
+Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web/index` 入口承载 `/` 对话、`/simc` 模拟、`/admin` 运营页与 `/?view=faq`。
 
 依赖方向为 UI → typed API client → HTTP route → application → domain/port → repository/adapter。Domain 不依赖 FastAPI、Taro 或外部 provider；客户端显式使用 `web` 或受限 `public` context，普通请求使用 Taro H5 request，SSE 使用浏览器 fetch。
 
-QQ 登录通过浏览器绑定、短时、一次性 state 和固定 callback 校验 provider/appid/openid，再映射到内部 `identity.users.id`。服务端签发 Secure、HttpOnly、SameSite=Lax Session；写请求检查 Origin/Host 与 CSRF，Bearer 不作为生产认证。授权码、AppKey 和 provider token 不进入日志、业务记录或公开响应；昵称和头像有界清理，头像限受信 HTTPS QQ 域名。不自动关联旧微信账号。
+QQ 登录通过浏览器绑定、短时、一次性 state 和固定 callback 校验 provider/appid/openid，再映射到内部 `identity.users.id`。服务端签发 Secure、HttpOnly、SameSite=Lax Session；写请求检查 Origin/Host 与 CSRF，Bearer 不作为生产认证。授权码、AppKey 和 provider token 不进入日志、业务记录或公开响应；昵称和头像有界清理，头像限受信 HTTPS QQ 域名。
 
 PostgreSQL 使用 `identity`、`chat`、`simc`、`ops` schema。业务查询由服务端 Principal 注入 owner，请求体不能选择所有权；队列与审计也纳入相应数据生命周期。历史迁移保留追溯，不作为重新迁移或删除的授权。
 
@@ -48,7 +48,7 @@ WCL 参数在预留上游工作前校验；统计保留窗口、过滤、层级�
 
 统计使用北京时间区间与只读快照事务：活跃用户按提问/模拟提交去重，成功率排除进行中与取消，缺有效指标或来源的 SimC 成功状态计作异常失败；排除已知验收模拟身份，不推算页面访问或费用。
 
-[验证矩阵](verification-matrix.md) · [开发指南](development.md) · [架构整理前记录](chickenbro-simc-architecture-history-20260911.md)
+[验证矩阵](verification-matrix.md) · [开发指南](development.md)
 
 ## 按需研究流程（2026-09-12，已发布）
 

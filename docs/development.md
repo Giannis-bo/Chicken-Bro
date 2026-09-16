@@ -6,7 +6,7 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| `apps/mini-taro/src` | Taro H5 / React Web；保留目录名称，Mini 产品入口退役 |
+| `apps/mini-taro/src` | Taro H5 / React Web |
 | `packages/api-client/src` | typed API、Web Cookie 与 public 传输 |
 | `packages/domain/src` | Chat、SimC 与登录合同 |
 | `server/app` | 身份、聊天、模拟、Worker 与 HTTP 适配 |
@@ -39,4 +39,4 @@ npm run dev:h5
 
 QQ 应用使用 `WOW_QQ_APPID`、`WOW_QQ_APP_KEY`、`WOW_QQ_REDIRECT_URI` 三个服务端配置。正式 callback 固定为 `https://www.chickenbro.cloud/api/v2/auth/qq/callback`。AppKey 不得编译进 Web、写入源码或打印到日志。只有已登记的 HTTPS callback 才能参与真实 QQ 授权；localhost 测试使用受控 fake provider，不伪称真实登录。
 
-小程序 build/dev/refresh 和微信上传不再是当前工作流。小程序专用源码与测试已移除；历史 migration 与 release evidence 仅用于追溯。H5 产物不得挂载 Mini 页面。构建前后检查实际产物，Web 预览、部署和真实 QQ 验收分别记录。
+构建前后检查实际 H5 产物，Web 预览、部署和真实 QQ 验收分别记录。

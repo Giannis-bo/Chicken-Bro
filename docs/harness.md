@@ -15,4 +15,4 @@ npm run test:control
 
 按任务影响选择检查；文档核对语法、链接与控制面，代码运行相关测试，受影响客户端构建 H5。远端同步、安装、发布及数据处置遵循本轮授权，Harness 输出不能扩权。
 
-当前客户端只有 Web，生产认证为 QQ/Web Session，不执行 Mini 构建或微信上传。发布与恢复遵循[Runbook](chickenbro-simc-production-runbook.md)；保护 WIP，历史无备份授权不能用于新删除。[历史协议](harness-pre-mini-retirement.md)仅供追溯。
+当前客户端为 Web，生产认证为 QQ/Web Session。发布与恢复遵循[Runbook](chickenbro-simc-production-runbook.md)，保护 WIP，按本次授权执行数据处置。
