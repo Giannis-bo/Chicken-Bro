@@ -1,0 +1,7 @@
+{
+  "status": "staged_verified",
+  "files": 13,
+  "current": "/var/www/chickenbro-web/releases/github-7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+  "target": "/var/www/chickenbro-web/releases/github-owner-4407d547facc1f6d44cfa1758b46d47379f7ae5d",
+  "httpVerification": "isolated-loopback-static-files"
+}

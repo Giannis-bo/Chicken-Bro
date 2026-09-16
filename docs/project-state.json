@@ -698,13 +698,14 @@
     },
     "githubHeader": {
       "status": "live_verified",
-      "sourceCommit": "7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+      "sourceCommit": "4407d547facc1f6d44cfa1758b46d47379f7ae5d",
       "scope": "web_header_external_link",
-      "evidence": "artifacts/verification/2026-09-16-github-header/README.md",
+      "evidence": "artifacts/verification/2026-09-16-github-owner/README.md",
       "publicWebFilesMatched": 13,
       "browserVerification": "public_artifact_with_isolated_api_fixture",
       "manualUserAcceptance": "not_claimed",
-      "rollbackDrill": false
+      "rollbackDrill": false,
+      "repositoryUrl": "https://github.com/Giannis-bo/Chicken-Bro"
     }
   },
   "miniRetirement": {

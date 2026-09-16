@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "4407d547facc1f6d44cfa1758b46d47379f7ae5d",
+  "publicFilesMatched": 13,
+  "readiness": [
+    "ready",
+    "ready",
+    "ready"
+  ],
+  "web": "/var/www/chickenbro-web/releases/github-owner-4407d547facc1f6d44cfa1758b46d47379f7ae5d",
+  "backendUnchanged": true,
+  "services": [
+    "active",
+    "active"
+  ]
+}
