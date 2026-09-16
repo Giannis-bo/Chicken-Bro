@@ -1,0 +1,129 @@
+{
+  "sourceCommit": "7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+  "publicFilesMatched": 13,
+  "files": [
+    "brand/gugu-v1-16.png",
+    "brand/gugu-v1-32.png",
+    "brand/gugu-v1.ico",
+    "chunk/31.js",
+    "chunk/322.js",
+    "chunk/322.js.LICENSE.txt",
+    "css/app.css",
+    "index.html",
+    "js/325.js",
+    "js/325.js.LICENSE.txt",
+    "js/app.js",
+    "js/app.js.LICENSE.txt",
+    "static/images/web/assets/gu-gu-mascot.png"
+  ],
+  "readiness": [
+    {
+      "status": "ready",
+      "requestId": "2c046c52-5cd6-4975-a6b6-0093ab3a51dc",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "qq_connect": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    {
+      "status": "ready",
+      "requestId": "d74bf062-ce10-43a8-a282-eed8facaa303",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "qq_connect": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    },
+    {
+      "status": "ready",
+      "requestId": "4f736e89-784e-4cf5-8b28-c1c17c893d07",
+      "components": {
+        "database": {
+          "status": "ready",
+          "code": ""
+        },
+        "worker": {
+          "status": "ready",
+          "code": ""
+        },
+        "codex": {
+          "status": "ready",
+          "code": ""
+        },
+        "raiderio": {
+          "status": "ready",
+          "code": ""
+        },
+        "warcraftlogs": {
+          "status": "ready",
+          "code": ""
+        },
+        "simc": {
+          "status": "ready",
+          "code": ""
+        },
+        "qq_connect": {
+          "status": "ready",
+          "code": ""
+        }
+      }
+    }
+  ],
+  "web": "/var/www/chickenbro-web/releases/github-7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+  "backendUnchanged": true,
+  "services": [
+    "active",
+    "active"
+  ]
+}

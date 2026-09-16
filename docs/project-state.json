@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-15",
+  "updatedAt": "2026-09-16",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "targetProduct": {
@@ -695,6 +695,16 @@
       "manualUserAcceptance": "not_claimed",
       "rollbackDrill": "not_run",
       "efficiencyLimit": "Smaller standing prompt; complex cases incur workflow retrieval overhead, no universal latency improvement claimed."
+    },
+    "githubHeader": {
+      "status": "live_verified",
+      "sourceCommit": "7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+      "scope": "web_header_external_link",
+      "evidence": "artifacts/verification/2026-09-16-github-header/README.md",
+      "publicWebFilesMatched": 13,
+      "browserVerification": "public_artifact_with_isolated_api_fixture",
+      "manualUserAcceptance": "not_claimed",
+      "rollbackDrill": false
     }
   },
   "miniRetirement": {

@@ -1,0 +1,7 @@
+{
+  "status": "promote_complete",
+  "web": "/var/www/chickenbro-web/releases/github-7cb12c79bdc6c0c16d9c064e66a0242359db1ea1",
+  "backend": "/opt/chickenbro-releases/badcase-057378afc7b30e904b6bdd333283c93867dfb4b0",
+  "previousPreserved": true,
+  "sourceCommit": "7cb12c79bdc6c0c16d9c064e66a0242359db1ea1"
+}
