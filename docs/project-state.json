@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-16",
+  "updatedAt": "2026-09-17",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "targetProduct": {
@@ -645,7 +645,20 @@
         "cloudSimc": 2,
         "simcCeiling": 2
       },
-      "scopeLimit": "Native web retains its existing contract rather than gateway five-page hard accounting; no account-wide multi-research quota."
+      "scopeLimit": "Native web retains its existing contract rather than gateway five-page hard accounting; no account-wide multi-research quota.",
+      "playerIdentityFix": {
+        "status": "live_verified",
+        "sourceCommit": "5ba5ff6ce689c1d95bf954022d3abb2f475ed6b3",
+        "evidence": "artifacts/verification/2026-09-17-research-player-identity/README.md",
+        "scope": "Existing sampled players reuse quota across RIO realm slugs and WCL compact realm names, including persisted research.",
+        "candidate": "real_chat_wcl_damage_table_and_owner_isolation_passed",
+        "live": "real_chat_wcl_damage_table_and_owner_isolation_passed",
+        "localTests": 67,
+        "postgresTests": 14,
+        "releaseHelperTests": 23,
+        "manualUserAcceptance": "not_claimed",
+        "rollbackDrill": false
+      }
     },
     "trinketMechanismStudy": {
       "asOf": "2026-09-11",

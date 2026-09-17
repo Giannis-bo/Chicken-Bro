@@ -1,0 +1,9 @@
+{
+  "deploy.py": "dd9b9178a8dae225b57601d82af41146adbaeaeec5ea44dba02a04edf4f76a21",
+  "prepare-release.py": "63413cf8d9b045c9e9bc3240055cfa0147feb4c8bab9c1acd81acd52ef357e16",
+  "smoke.py": "9b1d832c2b92ea30cf85834b2614e8c54c30aac17d17639974dc8ba823758ac6",
+  "final-check.py": "1f074aebda11045c57a331360b1957f440c3b57e5a5a104eabf499f5dd98f7bb",
+  "export.py": "f2039dfc90a22aadf719d2e140ae8c1b799650568e8285559dff0f090bda71b5",
+  "validate-smoke.py": "17456a465b4f499401d28a1becc3fa9274c4f6ac69f6a22bc46863abfbef4480",
+  "manifest.json": "f1ee7d6aea6ad82c9ffcecb7afb7576b907a0b75d5f400583de08d0b621f01ea"
+}

@@ -1,0 +1,75 @@
+{
+  "sourceCommit": "5ba5ff6ce689c1d95bf954022d3abb2f475ed6b3",
+  "localRelatedTests": {
+    "passed": 67,
+    "failed": 0
+  },
+  "cloudIsolatedPostgresTests": {
+    "passed": 14,
+    "failed": 0,
+    "database": "chickenbro_badcase_candidate_20260909"
+  },
+  "releaseHelperRegressionTests": {
+    "passed": 23,
+    "failed": 0
+  },
+  "productionBudgetLocalReplay": {
+    "before": "RESEARCH_BUDGET_EXCEEDED",
+    "after": "admitted",
+    "playersAfter": 10,
+    "newPlayerStillBlocked": true
+  },
+  "candidateSemanticReview": {
+    "passed": true,
+    "totalDamage": 677955875,
+    "topThree": [
+      {
+        "name": "Immolation Aura",
+        "damage": 174171501,
+        "percent": 25.69
+      },
+      {
+        "name": "Demonsurge",
+        "damage": 87720299,
+        "percent": 12.94
+      },
+      {
+        "name": "Essence Break",
+        "damage": 63788111,
+        "percent": 9.41
+      }
+    ]
+  },
+  "candidateHarnessCorrection": {
+    "initialAssertion": "sourceId integer comparison",
+    "actualSourceIdType": "string",
+    "revalidatedSavedReceipt": true,
+    "additionalModelRequests": 0
+  },
+  "liveSemanticReview": {
+    "passed": true,
+    "totalDamage": 677955875,
+    "topThree": [
+      {
+        "name": "Immolation Aura",
+        "damage": 174171501,
+        "percent": 25.69
+      },
+      {
+        "name": "Demonsurge",
+        "damage": 87720299,
+        "percent": 12.94
+      },
+      {
+        "name": "Essence Break",
+        "damage": 63788111,
+        "percent": 9.41
+      }
+    ],
+    "runId": "697318ff-a578-4251-8f75-948dcd3192ca"
+  },
+  "controlTests": {
+    "passed": 63,
+    "failed": 0
+  }
+}

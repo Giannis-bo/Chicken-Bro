@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "research-player-identity-release-20260917",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "chickenbro_chat",
+      "reason": "Retain authorized player identity quota fix, Candidate/live source receipts, exact release manifest and recovery evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-09-17-research-player-identity/"
+      ]
+    },
+    {
       "id": "simc-runtime-update-20260915",
       "disposition": "keep",
       "category": "target-verification",

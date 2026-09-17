@@ -1,0 +1,292 @@
+{
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/badcase-5ba5ff6ce689c1d95bf954022d3abb2f475ed6b3",
+  "checks": {
+    "selectedPlayerSourceRead": true,
+    "damageTableReturned": true,
+    "playerCountRemainsTen": true,
+    "ownerIsolation": true,
+    "idempotentReplay": true
+  },
+  "fixture": {
+    "preexistingPlayerCount": 10,
+    "syntheticConversation": true,
+    "legacyRealmSpellings": [
+      "bleeding-hollow",
+      "bleedinghollow"
+    ],
+    "note": "Nine placeholder reservations plus the already researched Shadarek; not ten actual ranking queries."
+  },
+  "cases": [
+    {
+      "runId": "697318ff-a578-4251-8f75-948dcd3192ca",
+      "runStatus": "succeeded",
+      "errorCode": "",
+      "modelUsage": {
+        "primary": {
+          "inputTokens": 103818,
+          "totalTokens": 104406,
+          "outputTokens": 588,
+          "cachedInputTokens": 76288,
+          "reasoningOutputTokens": 0
+        }
+      },
+      "finalAnswer": "已读取 Shadarek 在第 10 场红玉新生法池的 overview 技能伤害表。按原表独立条目排序，前三项为：\n\n| 伤害来源 | 总伤害 | 占比 |\n|---|---:|---:|\n| 献祭光环（Immolation Aura） | 174,171,501 | 25.69% |\n| 恶魔涌动（Demonsurge） | 87,720,299 | 12.94% |\n| 精华破碎（Essence Break） | 63,788,111 | 9.41% |\n\n完整伤害表合计 **677,955,875**，前三项贡献 **48.04%**。这场伤害构成以献祭光环为首，单项约占四分之一；恶魔涌动与精华破碎也是主要来源，三项合计接近一半。[战斗来源](https://www.warcraftlogs.com/reports/pXVZNkL2Hf8g7a6d#fight=10&source=472)",
+      "sseCompleted": true,
+      "elapsedSeconds": 45.223,
+      "sourceCalls": [
+        {
+          "operation": "source.warcraftlogs",
+          "status": "verified",
+          "errorCode": null
+        }
+      ]
+    }
+  ],
+  "damageTables": [
+    {
+      "reportCode": "pXVZNkL2Hf8g7a6d",
+      "fightId": "10",
+      "sourceId": "472",
+      "damage": {
+        "entries": [
+          {
+            "guid": 1302265,
+            "name": "Omnium Folio",
+            "type": 110,
+            "total": 1844668,
+            "uptime": 1088555,
+            "hitCount": 223,
+            "tickCount": 1414
+          },
+          {
+            "guid": 188499,
+            "name": "Blade Dance",
+            "type": 127,
+            "uses": 58,
+            "total": 9672837,
+            "hitCount": 926,
+            "tickCount": 0
+          },
+          {
+            "guid": 232893,
+            "name": "Felblade",
+            "type": 4,
+            "uses": 54,
+            "total": 799632,
+            "hitCount": 54,
+            "tickCount": 0
+          },
+          {
+            "guid": 210152,
+            "name": "Death Sweep",
+            "type": 127,
+            "uses": 185,
+            "total": 38060808,
+            "hitCount": 3970,
+            "tickCount": 0
+          },
+          {
+            "guid": 200166,
+            "name": "Metamorphosis",
+            "type": 124,
+            "uses": 12,
+            "total": 714092,
+            "uptime": 26159,
+            "hitCount": 70,
+            "tickCount": 0
+          },
+          {
+            "guid": 1297908,
+            "name": "Font of Venomous Rage",
+            "type": 8,
+            "uses": 7,
+            "total": 33008088,
+            "uptime": 14054,
+            "hitCount": 135,
+            "tickCount": 35
+          },
+          {
+            "guid": 258920,
+            "name": "Immolation Aura",
+            "type": 4,
+            "uses": 46,
+            "total": 174171501,
+            "hitCount": 9672,
+            "tickCount": 0
+          },
+          {
+            "guid": 342857,
+            "name": "Glaive Tempest",
+            "type": 127,
+            "total": 38548717,
+            "hitCount": 13572,
+            "tickCount": 0
+          },
+          {
+            "guid": 370965,
+            "name": "The Hunt",
+            "type": 124,
+            "uses": 24,
+            "total": 31874439,
+            "uptime": 162185,
+            "hitCount": 24,
+            "tickCount": 488
+          },
+          {
+            "guid": 452416,
+            "name": "Demonsurge",
+            "type": 126,
+            "total": 87720299,
+            "hitCount": 1446,
+            "tickCount": 0
+          },
+          {
+            "guid": 1,
+            "name": "Melee",
+            "type": 1,
+            "uses": 1463,
+            "total": 11372257,
+            "hitCount": 1278,
+            "tickCount": 0
+          },
+          {
+            "guid": 207685,
+            "name": "Sigil of Misery",
+            "type": 1,
+            "uses": 3,
+            "total": 0,
+            "uptime": 2051,
+            "hitCount": 0,
+            "tickCount": 0
+          },
+          {
+            "guid": 258860,
+            "name": "Essence Break",
+            "type": 127,
+            "uses": 46,
+            "total": 63788111,
+            "hitCount": 669,
+            "tickCount": 0
+          },
+          {
+            "guid": 201427,
+            "name": "Annihilation",
+            "type": 127,
+            "uses": 265,
+            "total": 12504702,
+            "hitCount": 528,
+            "tickCount": 0
+          },
+          {
+            "guid": 1306604,
+            "name": "Guillotine",
+            "type": 1,
+            "total": 12565869,
+            "hitCount": 114,
+            "tickCount": 0
+          },
+          {
+            "guid": 162794,
+            "name": "Chaos Strike",
+            "type": 127,
+            "uses": 280,
+            "total": 10635990,
+            "hitCount": 551,
+            "tickCount": 0
+          },
+          {
+            "guid": 179057,
+            "name": "Chaos Nova",
+            "type": 124,
+            "uses": 8,
+            "total": 341135,
+            "uptime": 23185,
+            "hitCount": 54,
+            "tickCount": 0
+          },
+          {
+            "guid": 1287949,
+            "name": "Eye Beam",
+            "type": 124,
+            "total": 31347684,
+            "hitCount": 1359,
+            "tickCount": 0
+          },
+          {
+            "guid": 198793,
+            "name": "Vengeful Retreat",
+            "type": 1,
+            "uses": 60,
+            "total": 204963,
+            "hitCount": 190,
+            "tickCount": 0
+          },
+          {
+            "guid": 203796,
+            "name": "Demon Blades",
+            "type": 32,
+            "total": 6150256,
+            "hitCount": 1278,
+            "tickCount": 0
+          },
+          {
+            "guid": 258883,
+            "name": "Trail of Ruin",
+            "type": 124,
+            "total": 20560006,
+            "hitCount": 1200,
+            "tickCount": 0
+          },
+          {
+            "guid": 185123,
+            "name": "Throw Glaive",
+            "type": 1,
+            "uses": 73,
+            "total": 654608,
+            "hitCount": 190,
+            "tickCount": 0
+          },
+          {
+            "guid": 453177,
+            "name": "Burning Blades",
+            "type": 4,
+            "total": 35295838,
+            "uptime": 1532988,
+            "hitCount": 0,
+            "tickCount": 1308
+          },
+          {
+            "guid": 198013,
+            "name": "Eye Beam",
+            "type": 124,
+            "uses": 58,
+            "total": 52315867,
+            "hitCount": 3576,
+            "tickCount": 0
+          },
+          {
+            "guid": 391191,
+            "name": "Burning Wound",
+            "type": 124,
+            "total": 3573236,
+            "uptime": 1533705,
+            "hitCount": 0,
+            "tickCount": 1038
+          },
+          {
+            "guid": 192611,
+            "name": "Fel Rush",
+            "type": 127,
+            "uses": 21,
+            "total": 230272,
+            "hitCount": 21,
+            "tickCount": 0
+          }
+        ],
+        "totalTime": 1625988,
+        "rowsTruncated": false
+      }
+    }
+  ]
+}
