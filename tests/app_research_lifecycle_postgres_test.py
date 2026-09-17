@@ -53,6 +53,25 @@ class ResearchPostgresTest(unittest.TestCase):
         self.assertEqual(result['errorCode'], 'RESEARCH_BUDGET_EXCEEDED')
         self.assertEqual(service.calls, [])
 
+    def test_followup_reuses_legacy_rio_and_wcl_identity_in_persisted_research(self):
+        from psycopg.types.json import Jsonb
+        first = self.store(self.admit())
+        state = {'players':['character:us:bleeding-hollow:shadarek'] + [
+            f'character:us:illidan:p{n}' for n in range(9)],
+            'report_actors':{'AAAAAAAAAAAAAAAA:10:472':'character:us:bleedinghollow:shadarek'}}
+        with self.connect() as conn:
+            conn.execute('UPDATE chat.research_sessions SET budget=%s WHERE id=%s',
+                         (Jsonb({'source':state}), first.research_id))
+        second = self.store(self.admit('继续看这个玩家的伤害构成'))
+        self.assertEqual(second.research_id, first.research_id)
+        url = 'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=10&source=472'
+        self.assertIsNone(second.reserve('warcraftlogs', url, {'view':'overview'})[0])
+        self.assertEqual(second.status()['scopeUsed']['players'], 10)
+        third = self.store(self.admit('继续看技能事件'))
+        self.assertIsNone(third.reserve('warcraftlogs', url, {'view':'events'})[0])
+        self.assertEqual(third.reserve('warcraftlogs', url.replace('472','999'),
+                                      {'view':'overview'})[0]['errorCode'], 'RESEARCH_BUDGET_EXCEEDED')
+
     def test_explicit_lifecycle_does_not_guess_from_keywords(self):
         first = self.store(self.admit('研究'))
         first.reserve('raiderio_rankings', 'rankings', {'limit': 10})

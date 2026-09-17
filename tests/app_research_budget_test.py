@@ -126,6 +126,23 @@ class ResearchBudgetTest(unittest.TestCase):
         self.service.query = lambda *a, **kw: {'status':'source_reference','rankings':[{'name':f'p{n}','server':{'name':'realm','region':'us'},'reportUrl':url} for n in range(10)],'facts':[]}
         self.query('warcraftlogs_rankings', encounterId=1, limit=10)
         self.blocked(self.query('warcraftlogs', url+'&source=999', view='events'))
+
+    def test_top10_rio_player_can_read_wcl_details_with_compact_realm_name(self):
+        url = 'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=10'
+        urls = ['https://raider.io/characters/us/bleeding-hollow/Shadarek'] + [
+            f'https://raider.io/characters/us/illidan/p{n}' for n in range(9)]
+        self.service.query = lambda *a, **kw: {'status':'source_reference', 'facts':[
+            {'character':{'url':target}} for target in urls]}
+        self.query('raiderio_rankings', limit=10)
+        self.service.query = lambda *a, **kw: {'status':'verified', 'facts':[{
+            'reportCode':'AAAAAAAAAAAAAAAA', 'fightId':10, 'players':[
+                {'id':472, 'name':'Shadarek', 'server':'BleedingHollow', 'region':'US'},
+                {'id':49, 'name':'Other', 'server':'Illidan', 'region':'US'}]}]}
+        self.assertEqual(self.query('warcraftlogs', url, view='overview')['status'], 'verified')
+        self.assertEqual(self.query('warcraftlogs', url+'&source=472', view='overview')['status'], 'verified')
+        self.assertEqual(self.query('warcraftlogs', url+'&source=472', view='events')['status'], 'verified')
+        self.blocked(self.query('warcraftlogs', url+'&source=49', view='overview'))
+
     def test_requerying_live_rank_positions_cannot_replace_counted_players(self):
         self.service.query = lambda *a, **kw: {'status':'source_reference','facts':[{'character':{'url':f'https://raider.io/characters/us/realm/old{n}'}} for n in range(10)]}
         self.query('raiderio_rankings', limit=10)

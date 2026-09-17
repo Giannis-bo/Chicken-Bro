@@ -19,7 +19,17 @@ def blocked(dimension):
 
 
 def character_key(region, realm, name):
-    return 'character:' + ':'.join(unquote(str(v)).strip().casefold().replace(' ', '-') for v in (region, realm, name))
+    region, realm, name = (unquote(str(v)).strip().casefold().replace(' ', '-')
+                           for v in (region, realm, name))
+    # WCL report tables use compact realm names (BleedingHollow), while RIO
+    # uses slugs (bleeding-hollow). Only normalize realm separators: region
+    # and character name, including accents, must still match independently.
+    return 'character:' + ':'.join((region, realm.replace('-', ''), name))
+
+
+def _restored_character_key(key):
+    parts = key.split(':', 3)
+    return character_key(*parts[1:]) if len(parts) == 4 and parts[0] == 'character' else key
 
 
 def profile_key(url):
@@ -61,6 +71,14 @@ class ResearchBudget:
             if key == 'started' or key not in state:
                 continue
             budget.__dict__[key] = set(state[key]) if isinstance(default, set) else copy.deepcopy(state[key])
+        # Existing research survives deployments. Normalize all identity
+        # references together, preserving anonymous reservations and counters.
+        budget.players = {_restored_character_key(key) for key in budget.players}
+        budget.slots = {slot: _restored_character_key(key) for slot, key in budget.slots.items()}
+        budget.report_actors = {actor: _restored_character_key(key)
+                                for actor, key in budget.report_actors.items()}
+        budget.report_players = {scope: {_restored_character_key(key): name for key, name in players.items()}
+                                 for scope, players in budget.report_players.items()}
         return budget
 
     def reserve_scope(self, provider, target, options, *, ended=False):
