@@ -89,6 +89,9 @@ export default function WebSimcReport({ job, onBack, onRefresh, refreshing }: Pr
     </> : null}
 
     <section className={styles['card']}><h3>本次模拟配置</h3>{scenario ? <dl className={styles['scenarioGrid']}>
+      {scenario.measurement && <div><dt>阶段实验</dt><dd>从指定状态开始，统计 {scenario.measurement.durationSeconds} 秒；详细状态与条件验证见对应对话。</dd></div>}
+      {scenario.initialState?.resources && <div><dt>初始资源</dt><dd>{Object.entries(scenario.initialState.resources).map(([name, value]) => `${name}：${value === 'max' ? '满值' : value}`).join('；')}</dd></div>}
+      {scenario.initialState?.buffs && <div><dt>初始增益</dt><dd>{Object.entries(scenario.initialState.buffs).map(([name, value]) => `${name}：${value.stacks} 层，${value.remainingSeconds === 'full' ? '完整持续时间' : `${value.remainingSeconds} 秒`}`).join('；')}</dd></div>}
       <div><dt>战斗类型</dt><dd>{simcFightStyles[scenario.fightStyle as keyof typeof simcFightStyles] ?? '未记录战斗类型'}</dd></div>
       <div><dt>目标数</dt><dd>{simcNumber(scenario.desiredTargets)}</dd></div>
       <div><dt>迭代上限</dt><dd>{simcNumber(scenario.iterations)}</dd></div>

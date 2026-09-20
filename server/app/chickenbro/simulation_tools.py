@@ -179,6 +179,11 @@ def _job_packet(view: SimulationJobView) -> dict:
         if report is not None:
             result['buffedAttributes'] = deepcopy(report['attributes'])
             result['attributeEvidenceScope'] = 'engine_reported_raid_buffed_snapshot_not_a_boss_phase'
+        phase = view.result.result.get("phaseEvidence")
+        if isinstance(phase,dict) and phase.get("profileSha256")==view.result.profile_sha256 and phase.get("scenarioHash")==job.scenario_hash:
+            result["phaseEvidence"] = deepcopy(phase)
+            limitations.extend(phase.get("limitations",[]))
+            result['attributeEvidenceScope'] = 'engine_reported_phase_start_snapshot'
         evidence = view.result.result.get("actionEvidence")
         if isinstance(evidence, dict) and evidence.get("profileSha256") == view.result.profile_sha256:
             result["actionEvidence"] = deepcopy(evidence)
@@ -275,6 +280,18 @@ class SimulationToolGateway:
         caps = self._application.capabilities()
         if arguments.get("kind") == "talents":
             options = talent_options(source["character"], source["talents"], caps.runtime_revision, query)
+        elif arguments.get("kind") == "effects":
+            from server.app.simulation.wcl_talents import _catalog
+            catalog = _catalog()[0]
+            if not caps.runtime_revision.startswith("simc:managed:"+catalog["revision"]+":"):
+                return _blocked("TALENT_CATALOG_RUNTIME_MISMATCH")
+            names = catalog_for_build(catalog['build'])
+            rules = names.data.get('engineRules', {}).get('legacyAliases', {}) if names else {}
+            rows = [{"token":k,"name":v} for k,v in rules.items()
+                    if query.casefold() in k.casefold() or query.casefold() in v.casefold()]
+            options = {"effects":rows[:30],"hasMore":len(rows)>30,"gameBuild":catalog['build'],
+                       "phaseCompilerRevision":"chickenbro-simc-compiler-v7",
+                       "limitations":["Partial engine-name index only; existence and initial-state support require a cloud phase preflight. Names do not prove this actor owns an effect."]}
         elif arguments.get("kind") == "items":
             from server.app.simulation.wcl_talents import _catalog
             catalog = _catalog()[0]
@@ -420,7 +437,7 @@ class SimulationToolGateway:
                                        changes=changes, profileSha256=compiled.profile_sha256, scenarioHash=compiled.scenario_hash,
                                        compilerRevision=compiled.compiler_revision, runtimeRevision=compiled.runtime_revision,
                                        facts=["Configuration compiled without enqueueing a simulation."],
-                                       limitations=["Custom APL syntax checks are not engine execution or proof of the intended order. Inspect result actionEvidence.sample after running.", "Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
+                                       limitations=["Preview is compilation only. Phase states and assertions are verified by actual cloud execution; unsupported or mismatched states fail. Custom APL syntax checks are not engine execution or proof of the intended order. Inspect result actionEvidence.sample after running.", "Equipment identifiers and syntax are checked; verify game slot, upgrade track and unique-equipped rules from item sources before submission."])
                     digest = scenario_hash(scenario)
                     identity = run.research_budget.research_id if run.research_budget is not None else run.context.run_id
                     key = hashlib.sha256(f"{identity}:{snapshot_id}:{digest}".encode()).hexdigest()

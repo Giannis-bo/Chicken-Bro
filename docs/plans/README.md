@@ -6,6 +6,7 @@
 
 | 状态 | 范围 | 入口 |
 | --- | --- | --- |
+| 正在推进 | 通用阶段初始状态、窗口统计与 Giannis 验证发布 | [实施计划](2026-09-20-phase-state-simulation.md) |
 | 正在推进 | Badcase 通用修复、限定验证与条件发布 | [工作流](2026-09-08-badcase-workflow.md)、[执行说明](../badcase-workflow-operations.md) |
 | 正在推进 | 已登记私有副本的保留与到期处置 | [保留流程](../badcase-workflow-operations.md#保留与独立处置对账) |
 | 后续 | 模拟资料与机制证据补齐 | [跟进条件](2026-09-11-remaining-issues-status.md) |

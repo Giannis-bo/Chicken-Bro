@@ -1,0 +1,853 @@
+{
+  "phase": "after",
+  "mode": "candidate",
+  "source": {
+    "url": "https://raider.io/characters/cn/silver-hand/Giannis",
+    "revision": "2026-09-20T03:19:33.000Z",
+    "sha256": "3cd5aa769f0f6c5b3d2218118e9e1e8f6db21c59633e5f3fd8024e2d342c455f"
+  },
+  "checks": {
+    "chatGatewayReadCompareOptions": true,
+    "realQueueWorker": true,
+    "sourceAndEngineIdentity": true,
+    "effectiveConfigVerified": true,
+    "idempotency": true,
+    "secondOwnerIsolation": true,
+    "unauthenticatedDenied": true,
+    "allIterationsVerified": true
+  },
+  "cases": [
+    {
+      "case": "light",
+      "jobId": "4a96549f-2c9c-41ec-a178-b7e123364f6e",
+      "scenario": {
+        "iterations": 32,
+        "bloodlust": true,
+        "raidBuffs": true,
+        "measurement": {
+          "durationSeconds": 20,
+          "actions": [
+            {
+              "action": "elemental_blast",
+              "buff": "master_of_the_elements"
+            }
+          ]
+        },
+        "initialState": {
+          "resources": {
+            "maelstrom": "max"
+          },
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remainingSeconds": "full"
+            }
+          }
+        },
+        "actionLists": {
+          "default": [
+            "potion,name=lights_potential_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "assertions": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ]
+        }
+      },
+      "phase": {
+        "dps": {
+          "max": 404251.2894100422,
+          "min": 238031.36196701252,
+          "mean": 310181.61131395254,
+          "error95": 13774.42553464987
+        },
+        "damage": {
+          "max": 8085025.788200844,
+          "min": 4760627.23934025,
+          "mean": 6203632.22627905,
+          "error95": 275488.5106929974
+        },
+        "status": "satisfied",
+        "actions": [
+          {
+            "buff": "master_of_the_elements",
+            "casts": {
+              "max": 7,
+              "min": 6,
+              "mean": 6.09375,
+              "error95": 0.10957160656148893
+            },
+            "action": "elemental_blast",
+            "withBuff": {
+              "max": 5,
+              "min": 3,
+              "mean": 4.09375,
+              "error95": 0.287509245063048
+            }
+          }
+        ],
+        "assertions": [
+          {
+            "kind": "openingActions",
+            "expected": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "observed": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "satisfied": true
+          }
+        ],
+        "executions": [
+          {
+            "seed": 1020635766,
+            "stage": "discovery",
+            "reportSha256": "3263e9fd661fc12c450f8cf23a9b3a9e8fb12f97eed21aa859802584ad012e36",
+            "profileSha256": "bb85b6be53138ff0c7c76fd9c9265bb0e4dcc62cfae7fe2e1188274a3ed33f14"
+          },
+          {
+            "seed": 1020635767,
+            "stage": "measurement",
+            "reportSha256": "fd2370c6b6a4e0819249748ed048eec458ad18b3fef75edc90f33e768051feeb",
+            "profileSha256": "ad91c20aa53049b6088535107bb813c9fd829ae9e1b43b14d8b3a67e6167f846"
+          },
+          {
+            "seed": 1020635768,
+            "stage": "measurement",
+            "reportSha256": "4e4673a5a6cf9f884737761dd2e394a5727fae93c78aa591d0b411b4b733e8e9",
+            "profileSha256": "548f530d1cd179acb803a031746f920a03c543d6301a502a18d6a11dc027c688"
+          },
+          {
+            "seed": 1020635769,
+            "stage": "measurement",
+            "reportSha256": "1f9716dff2e4332a375f810d8cf921ae8b05c1d428dcaa9d04d59853137075d6",
+            "profileSha256": "855ab496351459e6b50f23447299a6074475e8d0771a6937f4bf083a27378f5d"
+          },
+          {
+            "seed": 1020635770,
+            "stage": "measurement",
+            "reportSha256": "b2858b09de6def48b9a616422b663df235dc131df81ede049958865ab6f6a5b9",
+            "profileSha256": "7cb860ab4279de02510839b9f019504fccbeae90ba60ba8b33e303f7de159301"
+          },
+          {
+            "seed": 1020635771,
+            "stage": "measurement",
+            "reportSha256": "03de59f07524b2d81c864b3b2490ce0f09927d5d251fc6d7ad39c4acb7b400eb",
+            "profileSha256": "c7eccc31fa8e342fe2c7e7a2afab23d7a01420343922da392f0b4052509b0197"
+          },
+          {
+            "seed": 1020635772,
+            "stage": "measurement",
+            "reportSha256": "0fb669b9766163886e961d672bdd40346eb02f5ef1302b79c0e4d967e2c82440",
+            "profileSha256": "ce8327c46ca055f3785a96700175b9186826811981a74b9175b1bfdc845472d8"
+          },
+          {
+            "seed": 1020635773,
+            "stage": "measurement",
+            "reportSha256": "ceb4c37232612a420907d1548be2380eaa13ad5b3b0b7db729f744579de8c90a",
+            "profileSha256": "b6c961b100e9d0bbbae9aff160ab7c8c58982e0f456984981d20df61bf4fb8d2"
+          },
+          {
+            "seed": 1020635774,
+            "stage": "measurement",
+            "reportSha256": "929180d4947c9f21ddcda6a3dbc819c095ac2bc97b591b8fadfdf0eeb05ad6ac",
+            "profileSha256": "78fd9ea856b467d6d4a2bca3fd58fd991bda589d0a17c3d65e2c5e031371d04d"
+          },
+          {
+            "seed": 1020635775,
+            "stage": "measurement",
+            "reportSha256": "abae37298b1a083b49b85f0d53f0a231a326a192401d80a1c68260d5e272498c",
+            "profileSha256": "f7c5a12d9e5c0d6c2fae6085eb9163032064066eb8119d28ed46d3c42ec15600"
+          },
+          {
+            "seed": 1020635776,
+            "stage": "measurement",
+            "reportSha256": "eb6c664818606888acc0bac036f558a45f91a54ac9caa075b2d85b062364697e",
+            "profileSha256": "400033b5876072b048a6bdb5ca8c2f36323c8652efd9d70da65640d22d5c7053"
+          },
+          {
+            "seed": 1020635777,
+            "stage": "measurement",
+            "reportSha256": "1e45f1399f3c233f99c98fb6a3f7aede1b6b71979a67bf3c1a55f7c9bdaa5b1a",
+            "profileSha256": "7e843072ddb9bc817036a4c5efd0ca28cc1d4fd072781e5506f1d86ee846a2b6"
+          },
+          {
+            "seed": 1020635778,
+            "stage": "measurement",
+            "reportSha256": "7a88c06e19e8ab8009846e9155eedc4a21280344f48535eb147155089e48925a",
+            "profileSha256": "72d40c7f0b89c86bc0fe2bc22696efad30aeec4b80aaf1aef7457f44e03c460c"
+          },
+          {
+            "seed": 1020635779,
+            "stage": "measurement",
+            "reportSha256": "7e304ed900f44a750a353565115bbe9ee42587b201f3d47fc3ebe0122be6af8f",
+            "profileSha256": "2f42094f782904019587e1f167d9a3c8ef7d3b115cc26cbb272e2d023f5c4098"
+          },
+          {
+            "seed": 1020635780,
+            "stage": "measurement",
+            "reportSha256": "881647553b4e5106f116a577f069a750054fec017e0013b69ca311a85036dea5",
+            "profileSha256": "3b33ef67ae6d9d00c5df736425d212094129109fa08295765592c5121a736799"
+          },
+          {
+            "seed": 1020635781,
+            "stage": "measurement",
+            "reportSha256": "9005767545cb5fb45acfedc149b7c460d9338c81ef8fc504cc39d2e404827cd3",
+            "profileSha256": "27df7e65d4fb97a28667e8be9cd97e1ff85d254255cd342699a859f3a7a2f922"
+          },
+          {
+            "seed": 1020635782,
+            "stage": "measurement",
+            "reportSha256": "f36afdf449249f95c8c4db18e58a47fb2d85fc8728f9f807357dbd083dd09ac1",
+            "profileSha256": "a28653c26cdaa7b8160e66fb2a8b8c0794a37420886dac86495cc4742f884360"
+          },
+          {
+            "seed": 1020635783,
+            "stage": "measurement",
+            "reportSha256": "fc1ee5077e9349fe944f1e1f07bd7b4d29cbc92918016a021147da182e36aa13",
+            "profileSha256": "bb173e6f1290b7de5efe4ff8ff34f7e006534ec291cf7d5e94d41c3c9f27e798"
+          },
+          {
+            "seed": 1020635784,
+            "stage": "measurement",
+            "reportSha256": "834f3c0c559fab90b9be964c5609bae198d172210677aa67592b012909faec80",
+            "profileSha256": "5b0b1e4a68af7367dba465b87b89a3a0ea8ff1597d5ee917903d7b477d1b42f7"
+          },
+          {
+            "seed": 1020635785,
+            "stage": "measurement",
+            "reportSha256": "c44eaeaabaa7790b0652aae811682571abda513c410c4cd05fd3a6376eb86631",
+            "profileSha256": "76b9686c1ba94ac0ac26e08afab54616b5f25eb82a74ad3b775db32386c6e57a"
+          },
+          {
+            "seed": 1020635786,
+            "stage": "measurement",
+            "reportSha256": "072b0184290c2a8cc9fb71d326f16e5a2f79abed26f9e12df4a509c07624964b",
+            "profileSha256": "14e4770b2017d410cdf64a007c31bf4952fc72f2c59201053a9fff946947bf0e"
+          },
+          {
+            "seed": 1020635787,
+            "stage": "measurement",
+            "reportSha256": "240f9736f3d19c11569401fe7cb564b79d22976d5bf5efa9a63d83c8495b5393",
+            "profileSha256": "99b2eb10a4e533f9763726e24b789fa5d61f4c29d48663969b043fa72cc357f3"
+          },
+          {
+            "seed": 1020635788,
+            "stage": "measurement",
+            "reportSha256": "21257dd46f3e9dd12f40e8e3887ae2740505ecaf899aa24924266635edadaeb5",
+            "profileSha256": "35f505acf60a52922a397cba61a1044ff21cfafcae92fac70cc67dc75ae809d1"
+          },
+          {
+            "seed": 1020635789,
+            "stage": "measurement",
+            "reportSha256": "423afc161b5d09eab8b2380fe88fa5da47466dc3de4786478f388c1a029eaf1d",
+            "profileSha256": "ba078bb8cb818d1c38773e854b8e50f7e483b6f74c523b9b1efce214ed88dcd7"
+          },
+          {
+            "seed": 1020635790,
+            "stage": "measurement",
+            "reportSha256": "b48a08b633040999cb843da5a891da21589560dd8dd588de07cfead3c120ccf6",
+            "profileSha256": "5ad386391dc634b1f67ea876f8d2c505bf698a744f9f203137ff68749ab0a219"
+          },
+          {
+            "seed": 1020635791,
+            "stage": "measurement",
+            "reportSha256": "932073d35658a1d39e5b50dc396d4cb7fb8069977a45844b106e194e6fe43560",
+            "profileSha256": "1d6f256cbb6f7b70e500d36f9f76092f5fcb72143d22a6becf91d11623b192b9"
+          },
+          {
+            "seed": 1020635792,
+            "stage": "measurement",
+            "reportSha256": "eb283f807a1a5a5329452cd3e8822134ff1983f57f20622ef7adedb83ec57fc2",
+            "profileSha256": "75a5841bd1d1ff44469cdd63b7a88de14a37a1636a7ed806b9df053ce02748b2"
+          },
+          {
+            "seed": 1020635793,
+            "stage": "measurement",
+            "reportSha256": "7fddd1ce8114c4433b2675e4aaaaa0ab1dea16eda693b66535b5fbadcd2edc99",
+            "profileSha256": "fceb141336995da2d0ec05f49c87542dcc9e6c26e2af7c88b4c8617ad7f77479"
+          },
+          {
+            "seed": 1020635794,
+            "stage": "measurement",
+            "reportSha256": "39cb5bb064ee9168ea8b2488bd7f81ce76507ce5a0d7b81b055310f34f1efba8",
+            "profileSha256": "2f7075e5843a6cb67522e9b15cdcd22ad044a4af2f77798dd6cf53e027b1303d"
+          },
+          {
+            "seed": 1020635795,
+            "stage": "measurement",
+            "reportSha256": "1397ec0856939af85eb7be30680e926bc7ba285cfa80c425a44ff91fc729d908",
+            "profileSha256": "ffcb7128b6a0967a8157db69fa3f6de78a82dd8267fe742400f135e480ddb5a0"
+          },
+          {
+            "seed": 1020635796,
+            "stage": "measurement",
+            "reportSha256": "e271414f84ee10f2c944c2a4ca6890d147fd271ef110513ed1b24363db297d9b",
+            "profileSha256": "bdbaf1d6ba770a74510f9cf6fdb99c59e5c83820db4647d23071e2a857612551"
+          },
+          {
+            "seed": 1020635797,
+            "stage": "measurement",
+            "reportSha256": "a7c8b304760307a8243d51b72f8fecbf2b0d02f5c28c0ba89c61ed3a7d96b6c7",
+            "profileSha256": "d8c88c787a1d95bf7b47d77ef1c8181a12d5d328a36e80d3a9473f72c73cd056"
+          },
+          {
+            "seed": 1020635798,
+            "stage": "measurement",
+            "reportSha256": "c4209c579ab6d723549b795a8882e386c1ca99fef596dfa05e19221a6c57adf9",
+            "profileSha256": "fb87a7d20486fb0823814b7ee527c69c01e61a539aeb367b9b237a7041b03d02"
+          }
+        ],
+        "iterations": 32,
+        "limitations": [
+          "Statistics cover every independent iteration; displayed action sequence is only the first iteration.",
+          "withBuff counts buff presence at action execution, not confirmed damage amplification or buff consumption.",
+          "Native precombat state restoration is experimental; hidden counters, pets, DoTs and proc history are not restored.",
+          "Opening order checks the first occurrences among listed actions; other actions may occur between them.",
+          "This is a fixed-time target experiment; encounter-specific damage modifiers are not modeled."
+        ],
+        "initialState": {
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remains": 20.0,
+              "spellId": 1300219
+            }
+          },
+          "cooldowns": {},
+          "resources": {
+            "maelstrom": {
+              "value": 175.0,
+              "maximum": 175.0
+            }
+          }
+        },
+        "scenarioHash": "175737316bd2f0c91f504961fbd5515cd6d16e42f57315e7508596b32486920e",
+        "profileSha256": "8e1b6a42541f724c7409bc5ad8c036b4b4210bc4fdf99152fcde5598b7f3a61d",
+        "elapsedSeconds": 5.92,
+        "durationSeconds": 20,
+        "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+        "sampleTruncated": false,
+        "failedIterations": 0,
+        "resourceOverflow": {
+          "mana": {
+            "max": 49277.59999999998,
+            "min": 47425.91999999996,
+            "mean": 48645.664999999964,
+            "error95": 124.13252636429938
+          },
+          "maelstrom": {
+            "max": 17.0,
+            "min": 11.0,
+            "mean": 13.90625,
+            "error95": 0.7713072516712096
+          }
+        },
+        "allInitialStatesVerified": true
+      },
+      "metric": 310181.61131395254,
+      "compilerRevision": "chickenbro-simc-compiler-v7",
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "profileSha256": "8e1b6a42541f724c7409bc5ad8c036b4b4210bc4fdf99152fcde5598b7f3a61d"
+    },
+    {
+      "case": "reckless",
+      "jobId": "741a09fb-8bab-4068-a833-f90bd4395be7",
+      "scenario": {
+        "iterations": 32,
+        "bloodlust": true,
+        "raidBuffs": true,
+        "measurement": {
+          "durationSeconds": 20,
+          "actions": [
+            {
+              "action": "elemental_blast",
+              "buff": "master_of_the_elements"
+            }
+          ]
+        },
+        "initialState": {
+          "resources": {
+            "maelstrom": "max"
+          },
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remainingSeconds": "full"
+            }
+          }
+        },
+        "actionLists": {
+          "default": [
+            "potion,name=potion_of_recklessness_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "assertions": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ],
+          "requiredBuffs": [
+            "potion_of_recklessness_Crit"
+          ]
+        }
+      },
+      "phase": {
+        "dps": {
+          "max": 353102.9057790845,
+          "min": 251431.70978819608,
+          "mean": 310194.65748973936,
+          "error95": 8946.707377640767
+        },
+        "damage": {
+          "max": 7062058.115581689,
+          "min": 5028634.195763921,
+          "mean": 6203893.149794787,
+          "error95": 178934.14755281532
+        },
+        "status": "satisfied",
+        "actions": [
+          {
+            "buff": "master_of_the_elements",
+            "casts": {
+              "max": 7,
+              "min": 6,
+              "mean": 6.0625,
+              "error95": 0.09099426645244052
+            },
+            "action": "elemental_blast",
+            "withBuff": {
+              "max": 5,
+              "min": 3,
+              "mean": 4,
+              "error95": 0.28193542285652984
+            }
+          }
+        ],
+        "assertions": [
+          {
+            "kind": "openingActions",
+            "expected": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "observed": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "satisfied": true
+          },
+          {
+            "buff": "potion_of_recklessness_Crit",
+            "kind": "requiredBuff",
+            "satisfied": true
+          }
+        ],
+        "executions": [
+          {
+            "seed": 1020635766,
+            "stage": "discovery",
+            "reportSha256": "1928196949aed8a70fed6eb48cda04fe94cb0776186f6fb34ebd632d860a69c7",
+            "profileSha256": "7b90c3f26faebe1d8c45722ac3329be1950062c13cf9495d99ee55249ccb1fba"
+          },
+          {
+            "seed": 1020635767,
+            "stage": "measurement",
+            "reportSha256": "2f84bb6ab54a053cc75cb233d0842f65ededd5d2fb902381ad502d7fbbf8d3db",
+            "profileSha256": "9b3a5816d4fe1cd9a2cea3c53dbb61fa07c0083f1dae6998502ac7ca4bab7a1e"
+          },
+          {
+            "seed": 1020635768,
+            "stage": "measurement",
+            "reportSha256": "20d5d206086486915f84747b0a8cce7a9c6c82fd8f2f3c9bfe6ed2beac156103",
+            "profileSha256": "2c22f3f700bd36ecf076c6f9a9f12b785c62e4d493d34626d9518a807cb36634"
+          },
+          {
+            "seed": 1020635769,
+            "stage": "measurement",
+            "reportSha256": "ce1491ab1be9dea9a1be54a9d616abb4cd115cd9bbbd8b1660344e984a8fb793",
+            "profileSha256": "6f6009641d53f5f3c98f0e005058d57fb02ecbcb74cafbf3e98e54bf5eb05047"
+          },
+          {
+            "seed": 1020635770,
+            "stage": "measurement",
+            "reportSha256": "3e52408bc7734e0bb6f8826ae73d97026b0ed899ba83598b119f436c3799e440",
+            "profileSha256": "497b45885635062ae97cf4a50f9ae7402de30f2893e50317c3a97d368727ee04"
+          },
+          {
+            "seed": 1020635771,
+            "stage": "measurement",
+            "reportSha256": "08572f0ed7d34b8af09a81ace1aed1d4cb78a210bdbc8b13ee784b6286d520ef",
+            "profileSha256": "28519f21e94643d36e26fb7d494b91b80142ae0792439943e884955c50985993"
+          },
+          {
+            "seed": 1020635772,
+            "stage": "measurement",
+            "reportSha256": "d1e50239fe0e4af6129621f4c79e34669d78c44bd898aaf53e261c04a23fbed4",
+            "profileSha256": "a32945da7e5dea64a1b21fd99223566d74cb6628546c45b868546dd6ee71a264"
+          },
+          {
+            "seed": 1020635773,
+            "stage": "measurement",
+            "reportSha256": "858e20693596740c2e02dfe10b84d2087b7c8d2b7a77234b5e4f17421b8d6e5e",
+            "profileSha256": "8cd59dc64a53564ad72b38e0cad318364b700f6fbbf3cc442137bf8f4640c5d9"
+          },
+          {
+            "seed": 1020635774,
+            "stage": "measurement",
+            "reportSha256": "75fd28eec66b32c41787ac979e26337bd6c5ab37c4bc25014d393ce40394a71f",
+            "profileSha256": "95301d59ee1afd0ac58ea6bc0aa99506e3b1afd053917c915afb223c4ba03ad9"
+          },
+          {
+            "seed": 1020635775,
+            "stage": "measurement",
+            "reportSha256": "5ef6d7c8d51a8e5238a5fd6798455786336632b2b94fa966e07c054ce357d9c8",
+            "profileSha256": "23e8f8e962cd290fe4170e54c3cf325826bf143ad1d180eb1b59bb3427998a8b"
+          },
+          {
+            "seed": 1020635776,
+            "stage": "measurement",
+            "reportSha256": "55f75ee54fda7f28768e3c5a605b5c3a616c5ec26476734a003d3936dd299840",
+            "profileSha256": "874070188545cf8108dd62e2691c5c65b9acd7aab05b270afb1489db6fa1ba44"
+          },
+          {
+            "seed": 1020635777,
+            "stage": "measurement",
+            "reportSha256": "48df19b860d692c1e2887299d6d521aa9f5d217cd223af93ec55e0a77bfaed12",
+            "profileSha256": "d2b3dee4624e348ee4542303df57182268dba17f83c85a2c6b65beec345c42d4"
+          },
+          {
+            "seed": 1020635778,
+            "stage": "measurement",
+            "reportSha256": "2101ceb3ad8f2ef6fa9242be92117fe1f52eba9a234527f9c56454da76dbcc0f",
+            "profileSha256": "ec9138de4bb978b03f7118d361b90b618e7c0872c16ae354040b32647f273f40"
+          },
+          {
+            "seed": 1020635779,
+            "stage": "measurement",
+            "reportSha256": "2e9582a2d64fd4268f32ad6209c9c99cecc612125609656a520da94520d8b317",
+            "profileSha256": "dce8b34949b8f35a28378c00a89dac1cf9cc50d69621b3256cd3a759471e94d7"
+          },
+          {
+            "seed": 1020635780,
+            "stage": "measurement",
+            "reportSha256": "7211674c39f244071228ee603fb5e614a5664a4e25a669cde84a7c0cbdc3e85a",
+            "profileSha256": "b1c89c19841d231315256aac61bd9503a8c2ebe84dc49d649193bf0136fd8a17"
+          },
+          {
+            "seed": 1020635781,
+            "stage": "measurement",
+            "reportSha256": "c0148e70ebd5e3619940c8c0329184834d0f6b81e3648c0427383bcaca68e928",
+            "profileSha256": "7be3f23b9d80eb30d640c1e4d4b932257cd6cd192adca7e4bef052d071fc5622"
+          },
+          {
+            "seed": 1020635782,
+            "stage": "measurement",
+            "reportSha256": "947a27e90d3cf47190cba4f880fd497b025a116fd9e97d6e74cd1d8052f33a0f",
+            "profileSha256": "5b9abe7b7c576140d08bdc0a6d02c7228eb291bbeddd4591498e3a51dc36b196"
+          },
+          {
+            "seed": 1020635783,
+            "stage": "measurement",
+            "reportSha256": "380bfb15319d921420841cdec43491846489e1ecd90f6f62f41d039cd1ac030a",
+            "profileSha256": "c5a0d533bbcd12ad421530d4894d90583d6e690ebdb6d107b8a8b6668295dbb1"
+          },
+          {
+            "seed": 1020635784,
+            "stage": "measurement",
+            "reportSha256": "4d66d7f583b28bf64713d476e4a3cba9aab170af730f9f3f5cf45f74f74e8fc9",
+            "profileSha256": "6e700fd937b9cb103051c393bceae4e9af6a4071897487294a6522b12b5e1dcb"
+          },
+          {
+            "seed": 1020635785,
+            "stage": "measurement",
+            "reportSha256": "7ad9d7be9fbd974bad3c12072f160ef70539fed866c07cdb512201f271f46195",
+            "profileSha256": "63e69a1a606541a5e56ec6e07195f0f6f1eb6e7efd3910fe58918a2973b3fa82"
+          },
+          {
+            "seed": 1020635786,
+            "stage": "measurement",
+            "reportSha256": "d20dc8f05758d1c723c93ca457059b608bb381495911b8e6e476868142cdd218",
+            "profileSha256": "e237d8ac7102aa18d03610d55dfae6a50a4fe6dbc99aa3a97ef814f8e460a014"
+          },
+          {
+            "seed": 1020635787,
+            "stage": "measurement",
+            "reportSha256": "a6559309821bd1b198888ebd4bc62e99098562fe05acc40f9a64454f1e821373",
+            "profileSha256": "c92157b12f73215547d3d4769ea3995c71ecc1c673b83efcc33d952338b5cc6e"
+          },
+          {
+            "seed": 1020635788,
+            "stage": "measurement",
+            "reportSha256": "1cd6a13e1f1dd45b8731f272a6481f35ccb2ec0faebdca7e490ee965791f8db6",
+            "profileSha256": "7279e7ffdbee92a278f84507bd57113284799bca23b8042608e6e95c90f3c500"
+          },
+          {
+            "seed": 1020635789,
+            "stage": "measurement",
+            "reportSha256": "8bb6e7e9e2006152b2ee518518d3f812aea44738ec721de19694474e208e8f3d",
+            "profileSha256": "95052a93a84e41eb87230fe6b7373e39f4180a3507c2004137bda60ae4c0d3c3"
+          },
+          {
+            "seed": 1020635790,
+            "stage": "measurement",
+            "reportSha256": "b4a12ed43907175a9e75f8ce2e1bddf755a8661e14edc61317c13dbffe65748a",
+            "profileSha256": "3bf723265a389c8f199b7cce508f8f1915103600e5c47b231b54c4f1c7029474"
+          },
+          {
+            "seed": 1020635791,
+            "stage": "measurement",
+            "reportSha256": "94ed893ae78e732f978ed046e237895b315eb1cd5485a10a032f87772c95abe3",
+            "profileSha256": "f2da7e5a5a4bc46d5f8e2a6227f0f8685222da0e7118ed4f58556c66e50543e1"
+          },
+          {
+            "seed": 1020635792,
+            "stage": "measurement",
+            "reportSha256": "47e8c428c97783548d7db4ec50eea1e5978fc15cf38a6621f572927428d729b3",
+            "profileSha256": "237e33c500acddae36dd2ded0fb12122261195bc6cdfafffe15f2c3d58ef216e"
+          },
+          {
+            "seed": 1020635793,
+            "stage": "measurement",
+            "reportSha256": "d4c16c2d6979b76167cb4476d224743973691d589b9394c03dba85f27235906a",
+            "profileSha256": "cc1ebf8fa33df9408a46620c91a0f2aa45f0aa17f15ca95b5eb7bfcb11ad418e"
+          },
+          {
+            "seed": 1020635794,
+            "stage": "measurement",
+            "reportSha256": "2c6ca7dff818020f81c0ec6147f8fd3b3087487a337e8c77046c7aa683b8ff62",
+            "profileSha256": "4bb7334ce066a321c2c197404b1eebbf8ce178357beb14233a203246838e6379"
+          },
+          {
+            "seed": 1020635795,
+            "stage": "measurement",
+            "reportSha256": "29d430f3ed6c991a5ffce96d920f8ca627bfe53feed9d4f903857fd4bfb4cedb",
+            "profileSha256": "66888d9a3d47163c7fe6c77dd64c608cd1aab5a849fe5f9a6aa0bb265f1a194d"
+          },
+          {
+            "seed": 1020635796,
+            "stage": "measurement",
+            "reportSha256": "4ff7c9902eb2190dd0346de422a926800e89003f13a00f269cb5c85e2105c955",
+            "profileSha256": "2620e520ccceaa8613cb1fbc1930cd2e8548d4425cfb31d539562966c5d8513a"
+          },
+          {
+            "seed": 1020635797,
+            "stage": "measurement",
+            "reportSha256": "b3062571327a780c8d34b6d717756b828d9d8e9b24492abb26b18d749d1f751a",
+            "profileSha256": "7e953a8e6c1f7a9dda62222b9c617c121d615b9dbbe5721876ccc93d6049669c"
+          },
+          {
+            "seed": 1020635798,
+            "stage": "measurement",
+            "reportSha256": "37ca312c551fac7fca2d3c28367dd80583a5adbbc5ebf8e792ad161daf37cbf8",
+            "profileSha256": "cbe2e3c33cec3642a8cc623b0f97c9fa9a70b7698a17a71a54b326bd979d77b7"
+          }
+        ],
+        "iterations": 32,
+        "limitations": [
+          "Statistics cover every independent iteration; displayed action sequence is only the first iteration.",
+          "withBuff counts buff presence at action execution, not confirmed damage amplification or buff consumption.",
+          "Native precombat state restoration is experimental; hidden counters, pets, DoTs and proc history are not restored.",
+          "Opening order checks the first occurrences among listed actions; other actions may occur between them.",
+          "This is a fixed-time target experiment; encounter-specific damage modifiers are not modeled."
+        ],
+        "initialState": {
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remains": 20.0,
+              "spellId": 1300219
+            }
+          },
+          "cooldowns": {},
+          "resources": {
+            "maelstrom": {
+              "value": 175.0,
+              "maximum": 175.0
+            }
+          }
+        },
+        "scenarioHash": "1573c54b3d1193c3631bc100e68a569b0732f1f5d9bff7db0581133bff7496a6",
+        "profileSha256": "1d74d4e358bd7cf538eb594111aef3163495102ca9f79575cbafa3f08ef40ac7",
+        "elapsedSeconds": 6.309,
+        "durationSeconds": 20,
+        "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+        "sampleTruncated": false,
+        "failedIterations": 0,
+        "resourceOverflow": {
+          "mana": {
+            "max": 49377.439999999966,
+            "min": 46669.91999999997,
+            "mean": 48517.774999999965,
+            "error95": 225.70064193830774
+          },
+          "maelstrom": {
+            "max": 20.0,
+            "min": 11.0,
+            "mean": 14.0,
+            "error95": 1.0919311974292862
+          }
+        },
+        "allInitialStatesVerified": true
+      },
+      "metric": 310194.65748973936,
+      "compilerRevision": "chickenbro-simc-compiler-v7",
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "profileSha256": "1d74d4e358bd7cf538eb594111aef3163495102ca9f79575cbafa3f08ef40ac7"
+    }
+  ],
+  "negative": {
+    "jobId": "1a42adae-2666-463c-9967-b02af31b7bef",
+    "code": "SIMC_PHASE_EXECUTION_FAILED"
+  },
+  "comparison": {
+    "baselineJobId": "4a96549f-2c9c-41ec-a178-b7e123364f6e",
+    "variantJobId": "741a09fb-8bab-4068-a833-f90bd4395be7",
+    "metricName": "dps",
+    "baseline": 310181.61131395254,
+    "variant": 310194.65748973936,
+    "delta": 13.046175786817912,
+    "deltaPct": 0.0042059797586173255,
+    "combinedErrorBound": 22721.13291229064,
+    "assessment": "within_reported_error",
+    "changes": {
+      "actionLists": {
+        "before": {
+          "default": [
+            "potion,name=lights_potential_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "after": {
+          "default": [
+            "potion,name=potion_of_recklessness_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        }
+      },
+      "assertions": {
+        "before": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ]
+        },
+        "after": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ],
+          "requiredBuffs": [
+            "potion_of_recklessness_Crit"
+          ]
+        }
+      }
+    },
+    "controls": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 1,
+      "iterations": 32,
+      "varyCombatLength": 0.0,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 20,
+      "initialState": {
+        "resources": {
+          "maelstrom": "max"
+        },
+        "buffs": {
+          "flowing_elements": {
+            "stacks": 2,
+            "remainingSeconds": "full"
+          }
+        },
+        "cooldowns": {}
+      },
+      "measurement": {
+        "durationSeconds": 20,
+        "actions": [
+          {
+            "action": "elemental_blast",
+            "buff": "master_of_the_elements"
+          }
+        ]
+      }
+    },
+    "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "engineDiagnostics": {
+      "baseline": [],
+      "variant": []
+    },
+    "limitations": [
+      "Reported error bounds are summed conservatively; this is not a paired statistical significance test."
+    ]
+  },
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0,
+  "negativeZeroOverflow": {
+    "passed": true,
+    "code": "SIMC_PHASE_ASSERTION_FAILED"
+  },
+  "ownershipNegative": {
+    "removedSlots": [
+      "head",
+      "shoulder",
+      "chest",
+      "hands",
+      "legs"
+    ],
+    "initialSnapshotPresent": false,
+    "rawSha256": "19241531da712b1366520a8bb8551ab438d054489d0fc8808118da52ca9d84cf"
+  },
+  "openerOnly": {
+    "overflow": 11,
+    "sources": {
+      "Lava Burst": 8,
+      "Lava Burst Overload": 3
+    },
+    "rawSha256": "ad2378e0d6d8d261c3bf49c42918a1eba8af099ada5095d90962585a678aa4a0"
+  }
+}

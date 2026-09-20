@@ -27,7 +27,7 @@ describe('formal SimC client', () => {
     for (const auth of [{ kind: 'web' as const, csrfToken: 'mini' }, { kind: 'web' as const, csrfToken: 'csrf' }]) {
       await client.getJob('job-one', { auth, workbench: true, localizedReport: true })
     }
-    expect(transport.requests.map(call => call.path)).toEqual(Array(2).fill('/api/v2/simc/jobs/job-one?view=workbench&scenarioVersion=5&reportLocale=zhCN'))
+    expect(transport.requests.map(call => call.path)).toEqual(Array(2).fill('/api/v2/simc/jobs/job-one?view=workbench&scenarioVersion=6&reportLocale=zhCN'))
   })
   it('allows bounded multi-provider source reads without extending ordinary requests', async () => {
     const transport = new RecordingTransport()
@@ -45,7 +45,7 @@ describe('formal SimC client', () => {
     const auth = { kind: 'web' as const, csrfToken: 'csrf' }
     const scenario = { fightStyle: 'HeavyMovement', desiredTargets: 2, iterations: 1000, maxTime: 240, varyCombatLength: .2, targetError: .5, raidBuffs: true, bloodlust: false }
     await client.createJob({ snapshotId: 'snapshot-one', scenario }, { auth, workbench: true, idempotencyKey: 'workbench-create-1' })
-    expect(transport.requests[0]?.path).toBe('/api/v2/simc/jobs?view=workbench&scenarioVersion=5')
+    expect(transport.requests[0]?.path).toBe('/api/v2/simc/jobs?view=workbench&scenarioVersion=6')
     expect(transport.requests[0]?.options.data).toEqual({ snapshotId: 'snapshot-one', scenario })
     await client.getRuntime({ auth })
     expect(transport.requests[1]?.path).toBe('/api/v2/simc/runtime')

@@ -2,6 +2,20 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "phase-state-simulation-20260920",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "simc",
+      "reason": "Retain generic phase simulation contract, authorized Giannis acceptance and exact release evidence.",
+      "paths": [
+        "docs/plans/2026-09-20-phase-state-simulation.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-20-phase-state-probe/",
+        "artifacts/verification/2026-09-20-phase-state-release/"
+      ]
+    },
+    {
       "id": "research-player-identity-release-20260917",
       "disposition": "keep",
       "category": "target-verification",

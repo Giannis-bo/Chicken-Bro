@@ -1,3 +1,4 @@
+import { isSimulationPhase, type SimulationPhaseState, type SimulationPhaseMeasurement, type SimulationPhaseAssertions } from './simc-phase'
 export interface SimulationCharacter {
   name: string
   className: string
@@ -7,6 +8,9 @@ export interface SimulationCharacter {
 }
 
 export interface SimulationScenario {
+  initialState?: SimulationPhaseState
+  measurement?: SimulationPhaseMeasurement
+  assertions?: SimulationPhaseAssertions
   fightStyle?: string
   desiredTargets?: number
   iterations?: number
@@ -76,7 +80,8 @@ export function isSimulationCharacter(v: unknown): v is SimulationCharacter {
     && maybe(v['level'], n => num(n, 1000) && Number.isInteger(n))
 }
 export function isSimulationScenario(v: unknown): v is SimulationScenario {
-  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses'].includes(k))) return false
+  if (!obj(v) || Object.keys(v).some(k => !['fightStyle', 'desiredTargets', 'iterations', 'maxTime', 'varyCombatLength', 'targetError', 'raidBuffs', 'bloodlust', 'gemOverrides', 'equipmentOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses', 'initialState', 'measurement', 'assertions'].includes(k))) return false
+  if (!isSimulationPhase(v)) return false
   if ('fightStyle' in v && !['Patchwerk', 'HecticAddCleave', 'LightMovement', 'HeavyMovement'].includes(String(v['fightStyle']))) return false
   for (const [key, min, max] of [['desiredTargets', 1, 20], ['iterations', 1, 10000], ['maxTime', 20, 600]] as const) {
     if (key in v && !(num(v[key], max) && Number.isInteger(v[key]) && v[key] >= min)) return false

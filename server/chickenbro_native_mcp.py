@@ -20,9 +20,11 @@ from pathlib import Path
 try:
     from .chickenbro_public_web_research import build_public_web_research_tool_result
     from .app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
+    from .app.simulation.phase_schema import PHASE_SCHEMAS
 except ImportError:
     from chickenbro_public_web_research import build_public_web_research_tool_result
     from app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
+    from app.simulation.phase_schema import PHASE_SCHEMAS
 
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
@@ -234,6 +236,7 @@ _EQUIPMENT_ITEM_SCHEMA = {"type": "object", "additionalProperties": False,
         "enchant": {"type": ["integer", "null"], "minimum": 1, "maximum": 2147483647},
     }}
 _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties": {
+    **PHASE_SCHEMAS,
     "fightStyle": {"type": "string", "maxLength": 64},
     "desiredTargets": {"type": "integer", "minimum": 1, "maximum": 20},
     "iterations": {"type": "integer", "minimum": 1, "maximum": 10000},
@@ -268,7 +271,7 @@ _SCENARIO_SCHEMA = {"type": "object", "additionalProperties": False, "properties
 }}
 for _name, _description, _required, _properties, _read_only in [
     ("query_simulation_options", "Resolve runtime-bound talent node/entry choices (English/Chinese names, ranks, selected state) or item names to IDs for an owned snapshot/base job. kind=items returns item identity and sameUpgradeVariants when a source upgrade bonus is verified. Use the candidate only for the same upgrade progress and disclose its assumption; other variants require source research. An empty talents query returns the spec tree. Use this proactively when the user asks for talent optimization without candidates; guides suggest candidates, simulations establish gains.",
-     ["kind"], {"snapshotId":_UUID_SCHEMA,"baseJobId":_UUID_SCHEMA,"kind":{"enum":["talents","items"]},"query":{"type":"string","maxLength":120}}, True),
+     ["kind"], {"snapshotId":_UUID_SCHEMA,"baseJobId":_UUID_SCHEMA,"kind":{"enum":["talents","items","effects"]},"query":{"type":"string","maxLength":120}}, True),
     ("preview_simulation", "Compile and validate an immutable scenario edit without enqueueing. Exactly one of snapshotId/baseJobId. Returns effective character/talents/gear, actual changes, scenario/profile hashes and runtime identity. Resolve blockers before submission. Compilation is not measured performance; item syntax is not proof of legal upgrade/slot rules.",
      ["scenario"], {"snapshotId":_UUID_SCHEMA,"baseJobId":_UUID_SCHEMA,"scenario":_SCENARIO_SCHEMA}, True),
     ("compare_simulation_jobs", "Compare two owned completed jobs from the SAME snapshot, runtime/compiler and control parameters. Returns DPS difference/percent and conservative reported-error assessment, plus variant changes. Different environments, pending jobs and absent provenance are not comparable. Within error means no clear gain; refine BOTH jobs with identical increased iterations within budget. Never claim global optimum from limited candidates.",

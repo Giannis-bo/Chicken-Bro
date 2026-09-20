@@ -5,7 +5,7 @@ from server.app.simulation.compiler import normalize_scenario
 from server.app.simulation.application import SimulationApplicationError, validated_simulation_result_provenance
 from server.app.simulation.diagnostics import public_engine_diagnostics, engine_diagnostic_limitations
 
-_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses'}
+_VARIANT_FIELDS = {'equipmentOverrides', 'gemOverrides', 'talentOverrides', 'actionLists', 'food', 'statBonuses', 'assertions'}
 
 def merge_scenario(base, patch):
     if not isinstance(patch, dict):
@@ -48,11 +48,16 @@ def compare_jobs(baseline, variant):
     controls=lambda s:{k:v for k,v in s.items() if k not in _VARIANT_FIELDS}
     if controls(baseline.scenario)!=controls(variant.scenario): fail('SIMC_COMPARISON_CONTROLS_MISMATCH')
     if baseline.result.primary_metric_name != variant.result.primary_metric_name: fail('SIMC_COMPARISON_METRIC_MISMATCH')
-    if a.compiler_revision in {'chickenbro-simc-compiler-v5', 'chickenbro-simc-compiler-v6'}:
+    if a.compiler_revision in {'chickenbro-simc-compiler-v5', 'chickenbro-simc-compiler-v6', 'chickenbro-simc-compiler-v7'}:
         for view in (baseline,variant):
             proof=view.result.result.get('effectiveConfig', {})
             if proof.get('status')!='verified' or proof.get('profileSha256')!=view.result.profile_sha256:
                 fail('SIMC_EFFECTIVE_CONFIG_MISMATCH')
+    if 'measurement' in baseline.scenario:
+        for view in (baseline,variant):
+            proof=view.result.result.get('phaseEvidence',{})
+            if (proof.get('status')!='satisfied' or proof.get('profileSha256')!=view.result.profile_sha256
+                    or proof.get('scenarioHash')!=view.job.scenario_hash):fail('SIMC_PHASE_EVIDENCE_MISSING')
     av,bv=baseline.result.primary_metric_value, variant.result.primary_metric_value
     errors=[v.result.result.get('metricError') for v in (baseline,variant)]
     bounded=all(type(e) in (float,int) and isfinite(e) and e>=0 for e in errors)
