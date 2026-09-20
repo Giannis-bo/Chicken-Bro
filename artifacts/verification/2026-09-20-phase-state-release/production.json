@@ -1,0 +1,538 @@
+{
+  "phase": "after",
+  "mode": "production",
+  "source": {
+    "url": "https://raider.io/characters/cn/silver-hand/Giannis",
+    "revision": "2026-09-20T03:19:33.000Z",
+    "sha256": "3cd5aa769f0f6c5b3d2218118e9e1e8f6db21c59633e5f3fd8024e2d342c455f"
+  },
+  "checks": {
+    "chatGatewayReadCompareOptions": true,
+    "realQueueWorker": true,
+    "sourceAndEngineIdentity": true,
+    "effectiveConfigVerified": true,
+    "idempotency": true,
+    "secondOwnerIsolation": true,
+    "unauthenticatedDenied": true,
+    "allIterationsVerified": true
+  },
+  "cases": [
+    {
+      "case": "light",
+      "jobId": "ab38ecf5-ad49-4f62-8c0b-47cfe3f99ae9",
+      "scenario": {
+        "iterations": 8,
+        "bloodlust": true,
+        "raidBuffs": true,
+        "measurement": {
+          "durationSeconds": 20,
+          "actions": [
+            {
+              "action": "elemental_blast",
+              "buff": "master_of_the_elements"
+            }
+          ]
+        },
+        "initialState": {
+          "resources": {
+            "maelstrom": "max"
+          },
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remainingSeconds": "full"
+            }
+          }
+        },
+        "actionLists": {
+          "default": [
+            "potion,name=lights_potential_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "assertions": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ]
+        }
+      },
+      "phase": {
+        "dps": {
+          "max": 360041.35407966527,
+          "min": 238031.36196701252,
+          "mean": 310598.7626342753,
+          "error95": 37331.54948433522
+        },
+        "damage": {
+          "max": 7200827.081593306,
+          "min": 4760627.23934025,
+          "mean": 6211975.252685506,
+          "error95": 746630.9896867045
+        },
+        "status": "satisfied",
+        "actions": [
+          {
+            "buff": "master_of_the_elements",
+            "casts": {
+              "max": 7,
+              "min": 6,
+              "mean": 6.125,
+              "error95": 0.347
+            },
+            "action": "elemental_blast",
+            "withBuff": {
+              "max": 5,
+              "min": 3,
+              "mean": 4.125,
+              "error95": 0.6289909152194262
+            }
+          }
+        ],
+        "assertions": [
+          {
+            "kind": "openingActions",
+            "expected": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "observed": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "satisfied": true
+          }
+        ],
+        "executions": [
+          {
+            "seed": 1020635766,
+            "stage": "discovery",
+            "reportSha256": "4d0ae5252bdbc9553df6f501d65de24cabbdbd949d16c28d1015a30f60f182ca",
+            "profileSha256": "968d4c96544e42106bdc2710319012463606da36042638e3f786b98d546f2830"
+          },
+          {
+            "seed": 1020635767,
+            "stage": "measurement",
+            "reportSha256": "2f476059ffb216e40b7819a8186a8a5fa01fcc863787a7254f5b05510e5d05ae",
+            "profileSha256": "97060b846e6e05e7af97b85c4ce9eec3ac44439f04485a26caf37bbf6fab0121"
+          },
+          {
+            "seed": 1020635768,
+            "stage": "measurement",
+            "reportSha256": "9351a1565c66f04b1c84c2b1fb11773ce61d6694f3f6dee8116a56c78e5ac6c4",
+            "profileSha256": "71c53aca25e5e7deb5cc7f6309236b18c3b67a21e5d71b4fdd14c0d724220d82"
+          },
+          {
+            "seed": 1020635769,
+            "stage": "measurement",
+            "reportSha256": "3c823c6238ddfcd66df70f154bae2ebbe7074de3c292d8339cbacbcc3adc9be5",
+            "profileSha256": "16115611521c2447c614dc709ef637fe2de37e3d480956a7fb7186ad29c69af3"
+          },
+          {
+            "seed": 1020635770,
+            "stage": "measurement",
+            "reportSha256": "5daac6099012487d86b8353c44cafa2a26dd1cb4db64471f9f763ffd209c6a9f",
+            "profileSha256": "ac8d2a7bf7328cdaf4cad206c019cfa0f10399b54e4ed7d15e625adc247ba57b"
+          },
+          {
+            "seed": 1020635771,
+            "stage": "measurement",
+            "reportSha256": "f8619d5f8a1789dfd808a6a7b88b254f79ad2ecbbca6683bc24e07c8adfd1e58",
+            "profileSha256": "f0cc7d45558bbd1b10306cb1a67b0af5dc1fefb5f294470ae391a6b9da12281a"
+          },
+          {
+            "seed": 1020635772,
+            "stage": "measurement",
+            "reportSha256": "df8c67d63e26dc048dab29dd98bfbfa9b1c305b494524bd33b8553a5303b9347",
+            "profileSha256": "da4e989b7af4cfb43b8ce3beb2e25ad0762fbbe2074c67bff0f8b931318d5b4b"
+          },
+          {
+            "seed": 1020635773,
+            "stage": "measurement",
+            "reportSha256": "c1e50b32f3418d683c5880ab62fa49154db117eeb9e171d25a0d860c94f961d0",
+            "profileSha256": "ea4743f98753cb3da292aa8b1dce82377d34d00ff43e733c8bc36a0fb428ae6f"
+          },
+          {
+            "seed": 1020635774,
+            "stage": "measurement",
+            "reportSha256": "6276524ade84cb9d47452463a58879a6898ccc9a7a87f809f82e0349fcc257d8",
+            "profileSha256": "7ec884452d53cb8397b007c733c94008fc6ee50f8a703c86fbb1bbdeea6c6814"
+          }
+        ],
+        "iterations": 8,
+        "limitations": [
+          "Statistics cover every independent iteration; displayed action sequence is only the first iteration.",
+          "withBuff counts buff presence at action execution, not confirmed damage amplification or buff consumption.",
+          "Native precombat state restoration is experimental; hidden counters, pets, DoTs and proc history are not restored.",
+          "Opening order checks the first occurrences among listed actions; other actions may occur between them.",
+          "This is a fixed-time target experiment; encounter-specific damage modifiers are not modeled."
+        ],
+        "initialState": {
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remains": 20.0,
+              "spellId": 1300219
+            }
+          },
+          "cooldowns": {},
+          "resources": {
+            "maelstrom": {
+              "value": 175.0,
+              "maximum": 175.0
+            }
+          }
+        },
+        "scenarioHash": "66b97c13fd232f6cc6473244f1b993e02c3257cb9446d43e83142197cbe53730",
+        "profileSha256": "75a481269fa8a00665cca18a6eba63abbe5bdd7f47e3f7133466e81f63a1696d",
+        "elapsedSeconds": 1.551,
+        "durationSeconds": 20,
+        "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+        "sampleTruncated": false,
+        "failedIterations": 0,
+        "resourceOverflow": {
+          "mana": {
+            "max": 48919.19999999996,
+            "min": 48373.119999999966,
+            "mean": 48737.67999999997,
+            "error95": 188.57734414896004
+          },
+          "maelstrom": {
+            "max": 17.0,
+            "min": 11.0,
+            "mean": 14.0,
+            "error95": 2.725977884828016
+          }
+        },
+        "allInitialStatesVerified": true
+      },
+      "metric": 310598.7626342753,
+      "compilerRevision": "chickenbro-simc-compiler-v7",
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "profileSha256": "75a481269fa8a00665cca18a6eba63abbe5bdd7f47e3f7133466e81f63a1696d"
+    },
+    {
+      "case": "reckless",
+      "jobId": "7b4e53ef-6122-46dd-b7bd-e1f8e06d00fc",
+      "scenario": {
+        "iterations": 8,
+        "bloodlust": true,
+        "raidBuffs": true,
+        "measurement": {
+          "durationSeconds": 20,
+          "actions": [
+            {
+              "action": "elemental_blast",
+              "buff": "master_of_the_elements"
+            }
+          ]
+        },
+        "initialState": {
+          "resources": {
+            "maelstrom": "max"
+          },
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remainingSeconds": "full"
+            }
+          }
+        },
+        "actionLists": {
+          "default": [
+            "potion,name=potion_of_recklessness_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "assertions": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ],
+          "requiredBuffs": [
+            "potion_of_recklessness_Crit"
+          ]
+        }
+      },
+      "phase": {
+        "dps": {
+          "max": 329966.8378920957,
+          "min": 270367.8512481962,
+          "mean": 310626.92422945745,
+          "error95": 21323.223227541792
+        },
+        "damage": {
+          "max": 6599336.757841913,
+          "min": 5407357.024963925,
+          "mean": 6212538.484589148,
+          "error95": 426464.46455083566
+        },
+        "status": "satisfied",
+        "actions": [
+          {
+            "buff": "master_of_the_elements",
+            "casts": {
+              "max": 7,
+              "min": 6,
+              "mean": 6.125,
+              "error95": 0.347
+            },
+            "action": "elemental_blast",
+            "withBuff": {
+              "max": 5,
+              "min": 3,
+              "mean": 4,
+              "error95": 0.5246146885368074
+            }
+          }
+        ],
+        "assertions": [
+          {
+            "kind": "openingActions",
+            "expected": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "observed": [
+              "ascendance",
+              "ancestral_swiftness",
+              "elemental_blast"
+            ],
+            "satisfied": true
+          },
+          {
+            "buff": "potion_of_recklessness_Crit",
+            "kind": "requiredBuff",
+            "satisfied": true
+          }
+        ],
+        "executions": [
+          {
+            "seed": 1020635766,
+            "stage": "discovery",
+            "reportSha256": "b44999490a1e48dd5a0b1335e0e6ed8d6fe1ac1ad8c64d8ba9a5c6f2975b56ef",
+            "profileSha256": "65a3e32ed19e5c7660c002e18ccfb6a54ae2df345bf1d8397365866e54d97427"
+          },
+          {
+            "seed": 1020635767,
+            "stage": "measurement",
+            "reportSha256": "0bea3abab33ea5e3a98e2d52db9fda9977aaf7fd19ffbcaf59baa514e00a814c",
+            "profileSha256": "f9b8bdea32f6de5eec8fcdd6517e1d57fde49410f479b1cf672c4beba85d53a2"
+          },
+          {
+            "seed": 1020635768,
+            "stage": "measurement",
+            "reportSha256": "dd33fe0aae29b27bb30494850d5b335d92708d750d7bb590e241d0bed88a0a5d",
+            "profileSha256": "38218a745f323bcbb631dd8e6ee57fff84aa59122625d59add405c3350a10f7e"
+          },
+          {
+            "seed": 1020635769,
+            "stage": "measurement",
+            "reportSha256": "617cdb17612fb66f75e4233007996ccf0dfa9f57da24ea00636799f42c5732b6",
+            "profileSha256": "b51a9e9daabe22605da9acc5bc12828a0fd19e9bab45dda662d86a244b7e3f67"
+          },
+          {
+            "seed": 1020635770,
+            "stage": "measurement",
+            "reportSha256": "2cb3cc0149613f7fd0bfff68857e3a1ad7e9be7f9dca996fc45d33181c64003e",
+            "profileSha256": "8309f75cbfd568a202d89f09afa6514bfff7cf7307c78bbb307dbf67b48e87fd"
+          },
+          {
+            "seed": 1020635771,
+            "stage": "measurement",
+            "reportSha256": "e340b7011d2bca85d1fc2739a451cbe897642edd0a54e5e5e328bc473752d319",
+            "profileSha256": "c6507b79daa1591992d22587ad877c3f407c3c02095ee072532e8b2c8816113a"
+          },
+          {
+            "seed": 1020635772,
+            "stage": "measurement",
+            "reportSha256": "4e4f8b11df0172e15c760b8811dab9ad0d1fa7e71deb153a28a3baedd494c653",
+            "profileSha256": "9e580f32a4f6f3824f9c3d5c432951fdbfa1f098a43b4b1126e78406f7e41878"
+          },
+          {
+            "seed": 1020635773,
+            "stage": "measurement",
+            "reportSha256": "a6f5bdd662b5bda7aeaf43c5a3f164666f05e5b56c0289045c51d3721bbae88a",
+            "profileSha256": "1b05d3dacef356794a7bac16b58cb207352374a020422b8de56a1ec608b737b7"
+          },
+          {
+            "seed": 1020635774,
+            "stage": "measurement",
+            "reportSha256": "a9c596b3113924e330501c2923171b64bc8cfe38773d4dda34ebc52efd67b2e1",
+            "profileSha256": "0b29484a195c4e358cf5cfad697b0c6771aa9b4c0c681fa3846b64f551129e2d"
+          }
+        ],
+        "iterations": 8,
+        "limitations": [
+          "Statistics cover every independent iteration; displayed action sequence is only the first iteration.",
+          "withBuff counts buff presence at action execution, not confirmed damage amplification or buff consumption.",
+          "Native precombat state restoration is experimental; hidden counters, pets, DoTs and proc history are not restored.",
+          "Opening order checks the first occurrences among listed actions; other actions may occur between them.",
+          "This is a fixed-time target experiment; encounter-specific damage modifiers are not modeled."
+        ],
+        "initialState": {
+          "buffs": {
+            "flowing_elements": {
+              "stacks": 2,
+              "remains": 20.0,
+              "spellId": 1300219
+            }
+          },
+          "cooldowns": {},
+          "resources": {
+            "maelstrom": {
+              "value": 175.0,
+              "maximum": 175.0
+            }
+          }
+        },
+        "scenarioHash": "01331b1e033681982965be9b563888b9496e4c6cdcc9f4da0ef546e0da129b4c",
+        "profileSha256": "89556f63942ecb34d1e46397283e4b5de2df194d328b6b75d85053c0a6d4d6b9",
+        "elapsedSeconds": 1.504,
+        "durationSeconds": 20,
+        "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+        "sampleTruncated": false,
+        "failedIterations": 0,
+        "resourceOverflow": {
+          "mana": {
+            "max": 49277.59999999998,
+            "min": 46669.91999999997,
+            "mean": 48397.63999999996,
+            "error95": 842.7903762181874
+          },
+          "maelstrom": {
+            "max": 20.0,
+            "min": 11.0,
+            "mean": 15.125,
+            "error95": 2.697432827178993
+          }
+        },
+        "allInitialStatesVerified": true
+      },
+      "metric": 310626.92422945745,
+      "compilerRevision": "chickenbro-simc-compiler-v7",
+      "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+      "profileSha256": "89556f63942ecb34d1e46397283e4b5de2df194d328b6b75d85053c0a6d4d6b9"
+    }
+  ],
+  "comparison": {
+    "baselineJobId": "ab38ecf5-ad49-4f62-8c0b-47cfe3f99ae9",
+    "variantJobId": "7b4e53ef-6122-46dd-b7bd-e1f8e06d00fc",
+    "metricName": "dps",
+    "baseline": 310598.7626342753,
+    "variant": 310626.92422945745,
+    "delta": 28.161595182144083,
+    "deltaPct": 0.00906687294672319,
+    "combinedErrorBound": 58654.77271187701,
+    "assessment": "within_reported_error",
+    "changes": {
+      "actionLists": {
+        "before": {
+          "default": [
+            "potion,name=lights_potential_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        },
+        "after": {
+          "default": [
+            "potion,name=potion_of_recklessness_2,if=time<1",
+            "ascendance,if=time<1",
+            "ancestral_swiftness,if=buff.ascendance.up&time<5",
+            "elemental_blast,if=buff.ancestral_swiftness.up",
+            "flame_shock,if=!dot.flame_shock.ticking",
+            "elemental_blast,if=buff.master_of_the_elements.up|maelstrom>=maelstrom.max-60",
+            "lava_burst,if=!buff.master_of_the_elements.up",
+            "elemental_blast,if=maelstrom>=maelstrom.max-20",
+            "lightning_bolt"
+          ]
+        }
+      },
+      "assertions": {
+        "before": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ]
+        },
+        "after": {
+          "openingActions": [
+            "ascendance",
+            "ancestral_swiftness",
+            "elemental_blast"
+          ],
+          "requiredBuffs": [
+            "potion_of_recklessness_Crit"
+          ]
+        }
+      }
+    },
+    "controls": {
+      "fightStyle": "Patchwerk",
+      "desiredTargets": 1,
+      "iterations": 8,
+      "varyCombatLength": 0.0,
+      "raidBuffs": true,
+      "bloodlust": true,
+      "maxTime": 20,
+      "initialState": {
+        "resources": {
+          "maelstrom": "max"
+        },
+        "buffs": {
+          "flowing_elements": {
+            "stacks": 2,
+            "remainingSeconds": "full"
+          }
+        },
+        "cooldowns": {}
+      },
+      "measurement": {
+        "durationSeconds": 20,
+        "actions": [
+          {
+            "action": "elemental_blast",
+            "buff": "master_of_the_elements"
+          }
+        ]
+      }
+    },
+    "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+    "engineDiagnostics": {
+      "baseline": [],
+      "variant": []
+    },
+    "limitations": [
+      "Reported error bounds are summed conservatively; this is not a paired statistical significance test."
+    ]
+  },
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

@@ -22,4 +22,4 @@
 - [x] 执行/证据：新增 `phase_execution.py` 与 `phase_evidence.py`，接入 worker。测试实际状态不匹配、跨职业、批次统计、时间预算与断言失败。
 - [x] Chat/API：接入 native schema、job packet、compare、工作流说明，保持旧客户端场景过滤。测试 owner、场景对照、结果证据。
 - [x] 云端 Candidate：导入 Giannis 链接；验证初始状态及 20 秒药水 A/B、负向与第二账号；执行相关回归及 Web 构建/制品检查。
-- [ ] 发布：先报告实际验证结论；审查提交、合入 push main；固定生产基底和恢复材料、精确清单发布；验证线上业务、runtime 与 Web 哈希。
+- [x] 发布：先报告实际验证结论；审查提交、合入 push main；固定生产基底和恢复材料、精确清单发布；验证线上业务、runtime 与 Web 哈希。
