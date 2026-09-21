@@ -1,0 +1,9 @@
+{
+  "baseCommit": "ad72c83aeedc2b5fa058cefd2982d97d4e23919b",
+  "files": {
+    "server/app/admin/repository.py": "7673a6e31d551d61175512a21db9914f5e21fba82804d204f76eaf2641affd07",
+    "tests/app_admin_postgres_test.py": "735a090d2ea9a3de3a474e5c60b10c188f4e28ade5ec184a4ae966b05780438a",
+    "apps/mini-taro/src/web/WebAdmin.tsx": "04fd07cc065eda98ae03446f2937957002ac45099fa934c8a0d3485c0fb184d6",
+    "apps/mini-taro/src/web/web-admin.test.tsx": "e5235cff65c57d0ed0d50c1d097c69648b65be151b976cd70102ff12e55ae814"
+  }
+}

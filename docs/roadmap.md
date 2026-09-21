@@ -14,7 +14,7 @@
 | 引擎与目录 | SimulationCraft 对应游戏构建 `12.1.0.69814`，同步匹配的天赋、装备和中文目录，兼容英雄树免费点 |
 | POE2 构筑与对话 | 独立游戏会话；PoB 字符串导入即展示角色、属性、技能搭配和中文天赋树；两步对比、构筑 ID 复制和列表删除；[正式发布证据](../artifacts/releases/2026-09-21-poe2/README.md) |
 | POE2 研究策略 | 复用已有基线与相同方案；Chat 每轮 12 次新计算、每研究 60 个方案／120 次执行，30 方案软提醒；读取、对比和复用不扣额度，Web 手动计算维持原策略 |
-| 运营与质量 | [魔兽／POE2 独立只读运营统计](../artifacts/verification/2026-09-21-admin-games/README.md)、反馈归集、Badcase 通用修复与条件发布流程 |
+| 运营与质量 | [魔兽／POE2 独立只读运营统计及对话用户去重](../artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md)、反馈归集、Badcase 通用修复与条件发布流程 |
 
 各项发布身份和验证记录见[项目状态](project-state.json)，功能合同见[架构](chickenbro-simc-architecture.md)。
 

@@ -14,6 +14,12 @@ WITH owners AS MATERIALIZED (
  WHERE u.status <> 'deleted' AND NOT (u.id=ANY(%(tests)s::uuid[]))
  AND NOT (i.provider_subject LIKE ANY(%(synthetic)s::text[]))
  GROUP BY u.id
+), game_users AS MATERIALIZED (
+ SELECT r.user_id, min(r.started_at) AS first_chat_at
+ FROM chat.agent_runs r JOIN owners o ON o.id=r.user_id
+ JOIN chat.conversations conv ON conv.id=r.conversation_id AND conv.user_id=r.user_id
+ WHERE conv.game=%(game)s AND r.started_at < %(end)s
+ GROUP BY r.user_id
 ), c AS MATERIALIZED (
  SELECT r.* FROM chat.agent_runs r JOIN owners o ON o.id=r.user_id
  JOIN chat.conversations conv ON conv.id=r.conversation_id AND conv.user_id=r.user_id
@@ -60,14 +66,13 @@ WITH owners AS MATERIALIZED (
  SELECT user_id,created_at,checked_status,elapsed,snapshot_json FROM wow_jobs
  UNION ALL SELECT user_id,created_at,checked_status,elapsed,'{}'::jsonb FROM poe_jobs
 ), activity AS MATERIALIZED (
- SELECT user_id, (started_at AT TIME ZONE 'Asia/Shanghai')::date AS day FROM c
- UNION SELECT user_id, (created_at AT TIME ZONE 'Asia/Shanghai')::date FROM j
- UNION SELECT user_id, (created_at AT TIME ZONE 'Asia/Shanghai')::date FROM builds
+ SELECT DISTINCT user_id, (started_at AT TIME ZONE 'Asia/Shanghai')::date AS day FROM c
+
 ), days AS (
  SELECT generate_series(%(first)s::date,%(last)s::date,interval '1 day')::date AS day
 ), daily AS (
  SELECT d.day::text AS date,
- (SELECT count(*) FROM owners WHERE (joined_at AT TIME ZONE 'Asia/Shanghai')::date=d.day) AS "newUsers",
+ (SELECT count(*) FROM game_users WHERE (first_chat_at AT TIME ZONE 'Asia/Shanghai')::date=d.day) AS "newUsers",
  (SELECT count(*) FROM activity WHERE day=d.day) AS "activeUsers",
  (SELECT count(*) FROM c WHERE (started_at AT TIME ZONE 'Asia/Shanghai')::date=d.day) AS questions,
  (SELECT count(*) FROM j WHERE (created_at AT TIME ZONE 'Asia/Shanghai')::date=d.day) AS simulations,
@@ -80,9 +85,9 @@ WITH owners AS MATERIALIZED (
 )
 SELECT jsonb_build_object(
  'users', (SELECT jsonb_build_object(
-   'total',count(*) FILTER (WHERE joined_at < %(end)s),
-   'new',count(*) FILTER (WHERE joined_at >= %(start)s AND joined_at < %(end)s),
-   'active',(SELECT count(DISTINCT user_id) FROM activity)) FROM owners),
+   'total',count(*),
+   'new',count(*) FILTER (WHERE first_chat_at >= %(start)s),
+   'active',(SELECT count(DISTINCT user_id) FROM activity)) FROM game_users),
  'chat', (SELECT jsonb_build_object(
    'total',count(*),'succeeded',count(*) FILTER (WHERE status='succeeded'),
    'failed',count(*) FILTER (WHERE status='failed'),'running',count(*) FILTER (WHERE status='streaming'),

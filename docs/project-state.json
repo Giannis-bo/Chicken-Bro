@@ -729,8 +729,13 @@
       "productionDeployed": true,
       "manualUserAcceptance": "not_claimed",
       "productionCutoverAuthorized": true,
-      "backend": "/opt/chickenbro-releases/admin-games-20260921-final",
-      "web": "/var/www/chickenbro-web/releases/admin-games-20260921-final"
+      "backend": "/opt/chickenbro-releases/admin-users-20260921",
+      "web": "/var/www/chickenbro-web/releases/admin-users-20260921",
+      "userCohorts": {
+        "status": "live_verified",
+        "rule": "distinct_users_by_game_questions_total_before_end_new_first_question_active_in_period",
+        "evidence": "artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md"
+      }
     }
   },
   "miniRetirement": {

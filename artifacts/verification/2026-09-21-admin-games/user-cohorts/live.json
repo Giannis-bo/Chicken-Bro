@@ -1,0 +1,102 @@
+{
+  "range": [
+    "2026-09-15",
+    "2026-09-21"
+  ],
+  "aggregates": {
+    "wow": {
+      "users": {
+        "new": 9,
+        "total": 50,
+        "active": 20
+      },
+      "chat": {
+        "total": 131,
+        "failed": 9,
+        "running": 0,
+        "resolved": 0,
+        "succeeded": 122,
+        "avgSeconds": 85.51589648854961,
+        "p95Seconds": 236.184551,
+        "unresolved": 0,
+        "successRate": 0.9312977099236641,
+        "feedbackRate": 0,
+        "resolutionRate": null
+      },
+      "tasks": {
+        "total": 29,
+        "failed": 9,
+        "queued": 0,
+        "running": 0,
+        "cancelled": 0,
+        "succeeded": 20,
+        "avgSeconds": 57.111919931034485,
+        "p95Seconds": 290.5831725999999,
+        "successRate": 0.6896551724137931,
+        "invalidResults": 0
+      },
+      "builds": 0,
+      "independentCountsMatched": true
+    },
+    "poe2": {
+      "users": {
+        "new": 1,
+        "total": 1,
+        "active": 1
+      },
+      "chat": {
+        "total": 2,
+        "failed": 0,
+        "running": 0,
+        "resolved": 0,
+        "succeeded": 2,
+        "avgSeconds": 34.973245,
+        "p95Seconds": 48.2556538,
+        "unresolved": 0,
+        "successRate": 1,
+        "feedbackRate": 0,
+        "resolutionRate": null
+      },
+      "tasks": {
+        "total": 1,
+        "failed": 0,
+        "queued": 0,
+        "running": 0,
+        "cancelled": 0,
+        "succeeded": 1,
+        "avgSeconds": 0.0,
+        "p95Seconds": 0,
+        "successRate": 1,
+        "invalidResults": 0
+      },
+      "builds": 1,
+      "independentCountsMatched": true
+    }
+  },
+  "access": {
+    "wow": {
+      "anonymous": 401,
+      "nonAdmin": 403
+    },
+    "poe2": {
+      "anonymous": 401,
+      "nonAdmin": 403
+    }
+  },
+  "publicFilesVerified": 15,
+  "readinessObservation": [
+    {
+      "status": 200,
+      "at": "2026-09-21T12:00:09.408470+00:00"
+    },
+    {
+      "status": 200,
+      "at": "2026-09-21T12:00:19.450269+00:00"
+    },
+    {
+      "status": 200,
+      "at": "2026-09-21T12:00:29.489382+00:00"
+    }
+  ],
+  "temporaryNonAdminSessionRevoked": true
+}
