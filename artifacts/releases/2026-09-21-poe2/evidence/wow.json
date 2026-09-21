@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "jobId": "fee328f1-c8ef-41e7-a62f-ef2ef5c5841e",
+  "compilerRevision": "chickenbro-simc-compiler-v6",
+  "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+  "positiveMetric": true,
+  "sourceReady": true
+}

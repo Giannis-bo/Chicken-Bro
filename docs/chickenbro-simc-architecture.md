@@ -1,8 +1,8 @@
 # Chickenbro 架构
 
-本文描述仓库实现与边界，不作为部署状态证明。生产提供 Web Chat 与云端 SimC，使用 QQ 登录；POE2 扩展在独立 Candidate 等待验收。各项交付状态见[项目状态](project-state.json)，职责与测试归属见[项目 owners](project-owner-map.json)和[后端 owners](backend-owner-map.json)。
+本文描述仓库实现与边界，不作为部署状态证明。生产提供 Web Chat 与云端 SimC，使用 QQ 登录；POE2 双游戏扩展已发布正式环境，发布证据见[2026-09-21 记录](../artifacts/releases/2026-09-21-poe2/README.md)。各项交付状态见[项目状态](project-state.json)，职责与测试归属见[项目 owners](project-owner-map.json)和[后端 owners](backend-owner-map.json)。
 
-## 双游戏 Candidate
+## 双游戏与 POE2
 
 Web 通过游戏选择器切换 WoW/POE2；会话的 `game` 在创建时固定，旧记录默认 `wow`。两套 Chat model 保留各自历史和进行中的回复，POE2 构筑页面 `/poe2` 按需加载。身份共用现有 Principal，构筑和任务归 `poe2` schema，工具 capability 从持久化会话建立，双向禁止调用另一游戏工具。
 
@@ -10,9 +10,9 @@ Web 通过游戏选择器切换 WoW/POE2；会话的 `game` 在创建时固定�
 
 POE2 Chat 加载独立规则和构筑/制作 skill，使用现有公开网页检索能力和账号级 POE2 网关。优先官方补丁与 PoE2DB，给出版本、来源和证据限制；不接价格交易、poe.ninja 内部构筑接口或 GGG 自动绑定。制作顾问给路线与 Craft of Exile 文本导入链接，精确制作概率留待后续。
 
-POE2 构筑树通过 owner-scoped `GET /api/v2/poe2/builds/{id}/tree?jobId=...` 读取；原始视图使用保存的构筑 XML，计算详情使用对应 job 的导出码。复用受限 PoB 子进程，从实际 spec 导出坐标、连线、有效节点名称/属性、升华及武器组；与保存的引擎身份不一致时拒绝展示。响应 `private, no-store`，不持久化新业务数据。Web Canvas 负责只读探索，固定版本自托管图集来自同版本官方发行包；节点属性保留 PoB 原文。图上编辑不属于第一阶段。
+POE2 构筑树通过 owner-scoped `GET /api/v2/poe2/builds/{id}/tree?jobId=...` 读取；原始视图使用保存的构筑 XML，计算详情使用对应 job 的导出码。复用受限 PoB 子进程，从实际 spec 导出坐标、连线、有效节点名称/属性、升华及武器组；与保存的引擎身份不一致时拒绝展示。响应 `private, no-store`，不持久化新业务数据。Web Canvas 负责只读探索，固定版本自托管图集来自同版本官方发行包；节点名称与属性默认展示简体中文，原始 PoB 数据用于计算与溯源。图上编辑不属于第一阶段。
 
-Candidate 专用 DB、8796 API、18794 worker gateway、独立 Cookie 与任务目录；`WOW_APP_ENV=test` 用于已有测试账号登录，QQ 在 Candidate 禁用。具体隔离和撤回见[部署说明](plans/2026-09-18-poe2-deployment-notes.md)。现有生产与 `/test/` 保留原身份。
+Candidate 专用 DB、8796 API、18794 worker gateway、独立 Cookie 与任务目录；`WOW_APP_ENV=test` 用于已有测试账号登录，QQ 在 Candidate 禁用。具体隔离和撤回见[部署说明](plans/2026-09-18-poe2-deployment-notes.md)。正式环境使用现有 QQ 身份与 `chickenbro_prod`，PoB 独立运行目录为 `/opt/chickenbro-poe2-runtime/7d6f530c`；Candidate 数据不迁入生产，`/test/` 保留原身份。
 
 ## 客户端、身份与数据
 
@@ -22,7 +22,7 @@ Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web
 
 QQ 登录通过浏览器绑定、短时、一次性 state 和固定 callback 校验 provider/appid/openid，再映射到内部 `identity.users.id`。服务端签发 Secure、HttpOnly、SameSite=Lax Session；写请求检查 Origin/Host 与 CSRF，Bearer 不作为生产认证。授权码、AppKey 和 provider token 不进入日志、业务记录或公开响应；昵称和头像有界清理，头像限受信 HTTPS QQ 域名。
 
-PostgreSQL 使用 `identity`、`chat`、`simc`、`ops` schema。业务查询由服务端 Principal 注入 owner，请求体不能选择所有权；队列与审计也纳入相应数据生命周期。历史迁移保留追溯，不作为重新迁移或删除的授权。
+PostgreSQL 使用 `identity`、`chat`、`simc`、`poe2`、`ops` schema。业务查询由服务端 Principal 注入 owner，请求体不能选择所有权；队列与审计也纳入相应数据生命周期。历史迁移保留追溯，不作为重新迁移或删除的授权。
 
 ## Chat 与研究
 

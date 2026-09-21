@@ -4,7 +4,7 @@
   "candidateWork": {
     "name": "poe2_dual_game",
     "researchBudget": {
-      "status": "candidate_verified_awaiting_user_acceptance",
+      "status": "production_verified",
       "plan": "docs/plans/2026-09-21-poe2-research-budget.md",
       "newCalculationsPerTurn": 12,
       "distinctCandidatesPerResearch": 60,
@@ -14,49 +14,72 @@
       "scope": "chat_poe2_calculate",
       "evidence": "artifacts/verification/2026-09-21-poe2-research-budget/README.md"
     },
-    "status": "candidate_verified_awaiting_user_acceptance",
+    "status": "production_verified",
     "plan": "docs/plans/2026-09-18-poe2-dual-module.md",
-    "games": ["wow", "poe2"],
+    "games": [
+      "wow",
+      "poe2"
+    ],
     "database": "chickenbro_poe2_candidate",
     "url": "https://www.chickenbro.cloud/poe2-candidate/",
     "cloudExecutionAuthorized": true,
-    "productionCutoverAuthorized": false,
-    "commitPushMergeAuthorized": false,
-    "userAcceptance": "pending",
+    "productionCutoverAuthorized": true,
+    "commitPushMergeAuthorized": true,
+    "userAcceptance": "accepted_2026-09-21",
     "buildFlow": {
-      "steps": ["import", "compare"],
-      "importOverview": ["character", "stats", "passive_tree", "skills"],
+      "steps": [
+        "import",
+        "compare"
+      ],
+      "importOverview": [
+        "character",
+        "stats",
+        "passive_tree",
+        "skills"
+      ],
       "translatedTreeNodes": 4544,
       "translatedTreeEffects": 5979,
-      "status": "candidate_verified_awaiting_user_acceptance",
+      "status": "production_verified",
       "plan": "docs/plans/2026-09-21-poe2-two-step-cn.md",
       "evidence": "artifacts/verification/2026-09-21-poe2-two-step-cn/README.md"
     },
     "passiveTree": {
-      "status": "candidate_verified_awaiting_user_acceptance",
+      "status": "production_verified",
       "plan": "docs/plans/2026-09-20-poe2-passive-tree.md",
       "scope": "read_only_main_tree_ascendancy_allocations_weapon_sets_details",
       "engineCommit": "7d6f530cbdab20389ff8bc6ba97a37ac27f74e41",
-      "userAcceptance": "pending",
+      "userAcceptance": "accepted_2026-09-21",
       "evidence": "artifacts/verification/2026-09-20-poe2-passive-tree/README.md"
     },
     "terminology": {
       "defaultLocale": "zh-CN",
       "policy": "国服简体名称优先，未知名称先核实",
-      "status": "candidate_verified_awaiting_user_acceptance",
+      "status": "production_verified",
       "dictionaryVersion": "2026-09-20.1",
       "verifiedTerms": 69,
       "evidence": "artifacts/verification/2026-09-20-poe2-cn-terms/README.md"
     },
     "characterImport": {
       "plan": "docs/plans/2026-09-20-poe2-character-link-implementation.md",
-      "entrypoints": ["international_pob_code"],
-      "status": "candidate_verified_awaiting_user_acceptance",
+      "entrypoints": [
+        "international_pob_code"
+      ],
+      "status": "production_verified",
       "currentEntryPlan": "docs/plans/2026-09-20-poe2-pob-only.md",
       "evidence": "artifacts/verification/2026-09-20-poe2-pob-only/README.md",
       "wegameMode": "public_preview_with_missing_data_and_pob_supplement",
       "wegameCompleteSampleAcceptance": "pending_missing_jewels_and_mapping",
       "ninjaMode": "user_supplied_pob"
+    },
+    "productionRelease": {
+      "sourceCommit": "77cee1603",
+      "url": "https://www.chickenbro.cloud/poe2",
+      "database": "chickenbro_prod",
+      "status": "production_verified",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateDataMigrated": false,
+      "backupRestoreVerified": true,
+      "productionRollbackDrillPerformed": false
     }
   },
   "activeMilestone": "chickenbro_web_only_qq",
@@ -64,7 +87,8 @@
   "targetProduct": {
     "businessDomains": [
       "chickenbro_chat",
-      "simc"
+      "simc",
+      "poe2"
     ],
     "clients": [
       "web"

@@ -1,0 +1,6 @@
+{
+  "passed": true,
+  "baselineAndCandidateOnly": 2,
+  "chatReusedExistingCandidate": true,
+  "verificationSessionsRevoked": true
+}

@@ -13,7 +13,7 @@ The POE2 expansion under `docs/plans/2026-09-18-poe2-dual-module.md` adds fixed-
 
 ## Product and Engineering Boundaries
 
-- Chickenbro conversations, SimC jobs and the authorized POE2 Candidate gain product behavior. Do not revive news, legacy gear/talent/profile, old simulator, WebSim or prototype domains.
+- Chickenbro conversations, SimC jobs and POE2 builds gain product behavior. Do not revive news, legacy gear/talent/profile, old simulator, WebSim or prototype domains.
 - QQ website identities map to server-owned opaque `user_id`; only Web HttpOnly sessions authenticate production requests. QQ creates new accounts; retained WeChat data is not migrated or linked automatically. History and tools remain owner-scoped.
 - Web login uses QQ OAuth authorization code with a short-lived, one-use browser-bound state. Validate callback host and QQ app identity. Provider tokens/secrets remain server-side and never enter public responses, logs or stored business records.
 - Preserve Taro, typed domain/API layers and explicit `web` and `public` transport context. Server applications own identity, Chat, SimC and workers; HTTP routes adapt transport only. Clients cannot select ownership through request bodies.

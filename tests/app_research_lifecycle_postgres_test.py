@@ -86,6 +86,10 @@ class ResearchPostgresTest(unittest.TestCase):
                 yield conn
         app=Poe2Application(PostgresPoe2Repository(guarded),FakeEngine())
         build=app.import_build(principal,'<PathOfBuilding2><Build/></PathOfBuilding2>')
+        def finish_test_jobs():
+            with self.connect() as conn:
+                conn.execute("UPDATE poe2.jobs SET status='failed',public_error_code='POE2_TEST_FINISHED' WHERE user_id=%s AND build_id=%s AND status IN ('queued','running')",(self.owner,build.id))
+        self.addCleanup(finish_test_jobs)
         from server.app.chickenbro.research_lifecycle import PostgresResearchBudget
         budget=PostgresResearchBudget(guarded,self.owner,run_id)
         gateway=Poe2ToolGateway(app,research_budget=budget)

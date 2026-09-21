@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "publicFilesMatched": 18,
+  "realWebImport": true,
+  "treeAtlasReady": true,
+  "clipboard": true,
+  "deletePersists": true,
+  "mobileNoOverflow": true,
+  "errors": []
+}

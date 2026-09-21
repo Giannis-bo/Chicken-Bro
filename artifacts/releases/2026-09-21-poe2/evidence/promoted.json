@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "sourceCommit": "77cee1603",
+  "backend": "/opt/chickenbro-releases/poe2-77cee1603",
+  "web": "/var/www/chickenbro-web/releases/poe2-77cee1603",
+  "database": "chickenbro_prod",
+  "existingEnvironmentPreserved": true
+}

@@ -1,0 +1,30 @@
+{
+  "operations": [
+    {
+      "name": "poe2.get",
+      "state": "completed"
+    },
+    {
+      "name": "poe2.job_get",
+      "state": "completed"
+    },
+    {
+      "name": "poe2.calculate",
+      "state": "completed"
+    },
+    {
+      "name": "poe2.job_get",
+      "state": "completed"
+    },
+    {
+      "name": "poe2.compare",
+      "state": "completed"
+    }
+  ],
+  "agentRuns": [
+    [
+      "succeeded"
+    ]
+  ],
+  "passed": true
+}

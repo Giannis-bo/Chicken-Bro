@@ -47,3 +47,9 @@
 | 2026-09-11 | Web 会话返回后恢复回复状态 | [会话状态](../artifacts/verification/2026-09-11-chat-return-state/README.md) |
 
 恢复须使用目标批次的固定 manifest，并确认当前运行身份满足执行器前置条件。引擎及绑定目录共同变更时，恢复也需共同核对；具体恢复验证范围见相应记录。
+
+## POE2 正式运行（2026-09-21）
+
+发布源 `77cee1603`，详细身份和验收见[发布记录](../artifacts/releases/2026-09-21-poe2/README.md)。API/Worker 共用现有正式服务，PoB 使用 `/opt/chickenbro-poe2-runtime/7d6f530c`，仅通过两个服务的 `99-poe2-20260921.conf` 增加 `POE2_*` 配置；Lua 动态库环境仅传入 PoB 子进程。
+
+私有恢复包在 `/var/lib/chickenbro/releases/poe2-20260921`，含旧指针、精确文件清单、配置摘要及数据库备份；正式库备份已在独立库恢复并应用新增迁移。回退需先持有发布锁并确认无在途任务，再停服务、恢复清单中的旧 backend/Web 指针、移除本次两个准确命名的 drop-in、reload/start 并验证。保留新增 schema 与发布后业务数据，不用旧备份覆盖生产。未执行正式回退演练。

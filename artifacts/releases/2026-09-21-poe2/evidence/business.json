@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "buildId": "b9a9beec-f13c-4d19-a065-fad435b26caf",
+  "baselineJobId": "444e39ed-a184-4f3e-90b5-0d46921d7961",
+  "candidateJobId": "45f755d0-a293-4981-a9e0-cf9c84ff3784",
+  "conversationId": "68662025-c32c-5ab6-b74a-295125e461b2",
+  "verificationOwners": [
+    "3d4dda03-80bf-4622-9860-8196e8cdf2b7",
+    "d3785961-01b9-4112-be9c-090d924824c8"
+  ],
+  "engineVersion": "v0.23.1@7d6f530cbdab20389ff8bc6ba97a37ac27f74e41",
+  "treeNodes": 4544,
+  "checks": {
+    "realImport": true,
+    "realWorkerCalculation": true,
+    "compare": true,
+    "tree": true,
+    "export": true,
+    "ownerIsolation": true,
+    "anonymousDenied": true,
+    "chatAnswer": true,
+    "wowRuntimeReadable": true
+  },
+  "chatSeconds": 55.9
+}
