@@ -570,7 +570,13 @@ class NativeCodexChatAdapter:
                     prompt_data['researchEvidence']=admitted
                     prompt=json.dumps(prompt_data,ensure_ascii=False)
             if game == "wow" and self._simulation_gateway is not None and tool_context is not None:
-                simulation_gateway_token = self._simulation_gateway.issue_capability(tool_context)
+                from server.app.chickenbro.simulation_tools import SimulationToolContext
+                simulation_context = SimulationToolContext(
+                    principal=tool_context.principal,
+                    conversation_id=tool_context.conversation_id,
+                    run_id=tool_context.run_id,
+                )
+                simulation_gateway_token = self._simulation_gateway.issue_capability(simulation_context)
             if game == "poe2" and self._poe2_gateway is not None and tool_context is not None:
                 poe2_gateway_token = self._poe2_gateway.issue_capability(tool_context)
             child_environment = {

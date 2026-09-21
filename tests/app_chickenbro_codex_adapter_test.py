@@ -671,6 +671,33 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
         self.assertNotIn(str(principal.user_id), str(captured['env']))
         self.assertEqual(gateway.revoked, 'simulation-capability')
 
+    def test_wow_chat_reaches_runtime_with_real_simulation_gateway(self):
+        from uuid import uuid4
+        from server.app.identity.domain import Principal
+        from server.app.chickenbro.simulation_tools import SimulationToolGateway, SimulationToolUnauthorized
+        gateway = SimulationToolGateway(None)
+        principal = Principal(uuid4(), 'web_cookie')
+        conversation_id, run_id = uuid4(), uuid4()
+        captured = {}
+
+        def popen(command, **kwargs):
+            token = kwargs['env']['CHICKENBRO_SIMULATION_GATEWAY_TOKEN']
+            context = gateway._authorized(token).context
+            self.assertEqual((context.principal, context.conversation_id, context.run_id),
+                             (principal, conversation_id, run_id))
+            captured['token'] = token
+            return FakeProcess(answer())
+
+        with tempfile.TemporaryDirectory() as directory:
+            adapter = NativeCodexChatAdapter(enabled=True, jobs_dir=directory,
+                simulation_gateway=gateway, popen=popen)
+            events = list(adapter.stream_for_chat(principal=principal,
+                conversation_id=conversation_id, run_id=run_id, game='wow',
+                prompt='hello', timeout_seconds=30))
+        self.assertEqual(events[-1], {'type': 'completed', 'text': 'answer'})
+        with self.assertRaises(SimulationToolUnauthorized):
+            gateway._authorized(captured['token'])
+
     def test_chat_profile_enables_live_native_web_search(self):
         from server.app.chickenbro.codex_adapter import _load_profile
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
