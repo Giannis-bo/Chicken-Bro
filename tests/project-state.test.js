@@ -18,16 +18,16 @@ const activePlans = [
   'docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md',
 ]
 
-test('project state names the approved Web-only QQ Chat and SimC product', () => {
+test('project state names the approved Web-only QQ dual-game product', () => {
   const state = readJson('docs/project-state.json')
 
   assert.equal(state.schemaVersion, 2)
   assert.equal(state.activeMilestone, 'chickenbro_web_only_qq')
-  assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc'])
+  assert.deepEqual(state.targetProduct.businessDomains, ['chickenbro_chat', 'simc', 'poe2'])
   assert.deepEqual(state.targetProduct.clients, ['web'])
   assert.equal(state.targetProduct.identityOwner, 'identity.users.id')
   assert.match(state.targetProduct.identityContract, /internal user_id/)
-  assert.deepEqual(state.targetProduct.implementationPlans, ['docs/plans/2026-09-09-web-only-qq.md'])
+  assert.deepEqual(state.targetProduct.implementationPlans, ['docs/plans/2026-09-09-web-only-qq.md', 'docs/plans/2026-09-18-poe2-dual-module.md'])
   assert.deepEqual(state.historicalRebuild.targetProduct.implementationPlans, activePlans)
   assert.equal(state.targetProduct.candidateDatabaseProvisioningAuthorized, false)
   assert.ok(activePlans.every(exists))

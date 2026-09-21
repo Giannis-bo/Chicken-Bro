@@ -1,5 +1,7 @@
 # SDD ledger — plan: docs/plans/2026-09-18-poe2-dual-module.md
 
+> 当前状态（2026-09-21）：已完成。用户已验收并授权发布，运行源码 `77cee1603` 已上线，提交与合入已完成；见[正式发布记录](../../artifacts/releases/2026-09-21-poe2/README.md)。下文 Candidate、禁止提交与待验收等表述记录此前阶段，不代表当前状态。
+
 Base: fe0e398697bf31791d213a5845a0818cf54572df
 Local: .worktrees/poe2-20260918 (codex/poe2-20260918)
 Cloud: /opt/chickenbro-candidates/poe2-20260918

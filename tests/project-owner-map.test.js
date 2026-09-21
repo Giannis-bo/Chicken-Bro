@@ -20,6 +20,7 @@ test('project owner map covers exactly the rebuilt product domains', () => {
     'migration_and_cutover',
     'control_and_cleanup',
     'admin_analytics',
+    'poe2',
   ])
   assert.deepEqual(ownerMap.unownedCriticalDomains, [])
   assert.deepEqual(ownerMap.conflictingFactOwners, [])
@@ -41,10 +42,10 @@ test('every owner and characterization path is retained and exists', () => {
   }
 })
 
-test('the route owner targets Web Chat, SimC and restricted analytics', () => {
+test('the route owner targets Web Chat, SimC, POE2 and restricted analytics', () => {
   assert.deepEqual(ownerMap.clientContract.clients, ['web'])
-  assert.deepEqual(ownerMap.clientContract.webRoutes, ['/', '/simc', '/admin'])
+  assert.deepEqual(ownerMap.clientContract.webRoutes, ['/', '/simc', '/admin', '/poe2'])
   assert.deepEqual(ownerMap.clientContract.miniPages, [])
   assert.deepEqual(ownerMap.clientContract.tabs, [])
-  assert.deepEqual(ownerMap.clientContract.businessDomains, ['chickenbro_chat', 'simc'])
+  assert.deepEqual(ownerMap.clientContract.businessDomains, ['chickenbro_chat', 'simc', 'poe2'])
 })

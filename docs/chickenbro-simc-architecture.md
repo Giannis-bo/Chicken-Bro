@@ -14,9 +14,25 @@ POE2 构筑树通过 owner-scoped `GET /api/v2/poe2/builds/{id}/tree?jobId=...` 
 
 Candidate 专用 DB、8796 API、18794 worker gateway、独立 Cookie 与任务目录；`WOW_APP_ENV=test` 用于已有测试账号登录，QQ 在 Candidate 禁用。具体隔离和撤回见[部署说明](plans/2026-09-18-poe2-deployment-notes.md)。正式环境使用现有 QQ 身份与 `chickenbro_prod`，PoB 独立运行目录为 `/opt/chickenbro-poe2-runtime/7d6f530c`；Candidate 数据不迁入生产，`/test/` 保留原身份。
 
+## Agent 规则、工具与限制
+
+仓库根 `AGENTS.md` 约束工程协作；`server/app/chickenbro/agent/AGENTS.md` 是魔兽 Chat 的运行提示词，`POE2.md` 是 POE2 Chat 的运行提示词。`agent_skills.py` 提供按需流程，`server/chickenbro_native_mcp.py` 按服务端会话游戏暴露工具，网关再检查 capability、账号及操作权限。
+
+| 层次 | 魔兽世界 | POE2 |
+| --- | --- | --- |
+| 来源与工具 | 公开检索、WCL、Raider.IO、SimulationCraft | 公开检索、PoB 导入／列表／读取／计算／任务／对比／导出、Craft of Exile 文本导入链接 |
+| 按需流程 | 按主题读取魔兽研究与模拟 skill | `poe2-build-analysis`、`poe2-crafting` |
+| 计算依据 | 角色快照、场景、引擎和有效配置 | 保存的源构筑、有限 changes、固定 PoB 引擎与成功结果 |
+| 研究限制 | 现有来源研究额度；SimC 任务次数不设研究配额 | Chat 每轮 12 次新计算，同研究 60 个不同方案／120 次执行，30 方案软提醒 |
+| 权限 | QQ Web 会话、账号隔离、CSRF、幂等和租约 | 共用身份权限，独立构筑／任务与游戏工具隔离 |
+
+POE2 先读取 `poe2_get.baselineJobId`；只有缺失才创建空修改基线。相同构筑、引擎及修改的成功或在途任务自动复用，不入队、不扣额度。跨轮预算保存在 `chat.research_sessions`，候选身份包含源 hash、引擎与修改；导入新副本不能绕过累计额度。读取、轮询、对比与复用免费，Web 手动计算不使用 Chat 研究额度。
+
+`poe2_character_*` 角色链接后台仍保留：国际服由用户补充 PoB，国服映射有缺口，不等同完整角色导入；Web 当前只有 PoB 字符串入口。删除仅由 Web/API 提供，按用户决定不增加 Agent 删除／重命名工具。价格交易、自动游戏操作、图上编辑天赋和精确制作概率不属于已交付能力。
+
 ## 客户端、身份与数据
 
-Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web/index` 入口承载 `/` 对话、`/simc` 模拟、`/admin` 运营页与 `/?view=faq`。
+Taro H5 的 `apps/mini-taro/src/app.tsx` 挂载 React WebApp，单一 `pages/web/index` 入口承载 `/` 对话、`/simc` 模拟、`/poe2` 构筑、`/admin` 运营页与 `/?view=faq`。
 
 依赖方向为 UI → typed API client → HTTP route → application → domain/port → repository/adapter。Domain 不依赖 FastAPI、Taro 或外部 provider；客户端显式使用 `web` 或受限 `public` context，普通请求使用 Taro H5 request，SSE 使用浏览器 fetch。
 

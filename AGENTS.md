@@ -1,6 +1,6 @@
 # Repository Agent Guidelines
 
-Chickenbro now targets Web-only Chat and SimulationCraft with QQ website login. The 1.0 Mini/Web product is historical. The six-phase rebuild and legacy retirement are complete; historical plans are not new execution authority.
+Chickenbro now targets Web-only dual-game Chat, SimulationCraft and POE2 builds with QQ website login. The 1.0 Mini/Web product is historical. The six-phase rebuild and legacy retirement are complete; historical plans are not new execution authority.
 
 The POE2 expansion under `docs/plans/2026-09-18-poe2-dual-module.md` adds fixed-game conversations and cloud PoB tools. The user accepted the Candidate and authorized production release, commit, push and integration on 2026-09-21. Runtime execution, tests and builds for this release run only on the cloud host. Preserve the existing WoW production capabilities and keep Candidate data isolated.
 

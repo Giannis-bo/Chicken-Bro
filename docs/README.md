@@ -1,10 +1,10 @@
 # 文档地图
 
-当前产品：Web Chat、云端 SimC、QQ 网站登录。按使用、开发和运营场景选择入口。
+当前产品：双游戏 Web Chat、云端 SimC、POE2 构筑与 QQ 网站登录。按使用、开发和运营场景选择入口。
 
 | 要做的事 | 入口与职责 |
 | --- | --- |
-| 使用产品 | [使用指南](user-guide.md)：登录、对话、历史与模拟 |
+| 使用产品 | [使用指南](user-guide.md)：登录、双游戏对话、历史、模拟与构筑 |
 | 了解当前方向 | [路线图](roadmap.md)：已完成能力、持续改进与后续事项 |
 | 确认任务范围 | [计划白名单](plans/README.md)：持续工作流、跟进事项与已落地能力 |
 | 查精确状态与证据 | [项目状态](project-state.json)：按事项定位交付身份、验证和恢复记录 |
@@ -16,7 +16,7 @@
 
 ## 状态记录怎么读
 
-`project-state.json` 是机器兼容的事实账本，保留了历史字段，不能通读后将所有授权叠加。`targetProduct` 描述当前产品，`executionAuthority` 指向执行入口；`incrementalWork` 和相关事项给出各批次证据。`delivery`、`gates`、`refactorEvidence`、`productRelease` 与 `historicalRebuild` 中注明的历史范围不授权新操作。运行身份在操作前重新核对。
+`project-state.json` 是机器兼容的事实账本，保留了历史字段，不能通读后将所有授权叠加。`targetProduct` 描述当前产品，`executionAuthority` 指向执行入口；`incrementalWork` 和相关事项给出各批次证据。`poe2` 记录当前 POE2 能力、正式发布身份与独立 Candidate 信息；`currentProduction` 是最近一次整体发布快照。`delivery`、`gates`、`refactorEvidence`、`productRelease` 与 `historicalRebuild` 中注明的历史范围不授权新操作。运行身份在操作前重新核对。
 
 ## 文档维护规则
 
