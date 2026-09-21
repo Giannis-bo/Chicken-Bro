@@ -8,6 +8,7 @@ import re
 import time
 import tomllib
 import uuid
+from dataclasses import dataclass
 from contextvars import ContextVar
 from functools import wraps
 from collections.abc import Callable, Iterator
@@ -24,6 +25,7 @@ from server.codex_worker import (
 
 _LOG = logging.getLogger(__name__)
 _AGENT_RULES_PATH = Path(__file__).resolve().parent / "agent" / "AGENTS.md"
+_POE2_AGENT_RULES_PATH = Path(__file__).resolve().parent / "agent" / "POE2.md"
 _MAX_AGENT_RULES_BYTES = 32768
 
 
@@ -172,7 +174,12 @@ def _observe_stream(method):
     return observed
 
 
-def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dict[str, Any]:
+def _load_profile(
+    profile: str | None,
+    *,
+    allow_simulation: bool = False,
+    allow_poe2: bool = False,
+) -> dict[str, Any]:
     if not profile:
         return {"web_search": "live"}
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", profile):
@@ -199,6 +206,9 @@ def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dic
                 *toolbox.get("env_vars", []),
                 "CHICKENBRO_SIMULATION_GATEWAY_URL",
                 "CHICKENBRO_SIMULATION_GATEWAY_TOKEN",
+                "CHICKENBRO_POE2_GATEWAY_URL",
+                "CHICKENBRO_POE2_GATEWAY_TOKEN",
+                "CHICKENBRO_GAME",
             ]))
             if allow_simulation:
                 # Only the application's bounded, account-scoped operations are
@@ -206,14 +216,19 @@ def _load_profile(profile: str | None, *, allow_simulation: bool = False) -> dic
                 tool_settings = toolbox.setdefault("tools", {})
                 for name in ("prepare_simulation", "submit_simulation"):
                     tool_settings.setdefault(name, {}).setdefault("approval_mode", "approve")
+            if allow_poe2:
+                tool_settings = toolbox.setdefault("tools", {})
+                for name in ("poe2_import", "poe2_calculate", "poe2_character_create", "poe2_character_source", "poe2_character_retry", "poe2_character_cancel"):
+                    tool_settings.setdefault(name, {}).setdefault("approval_mode", "approve")
         return config
     except (OSError, ValueError):
         raise CodexUnavailable() from None
 
 
-def _load_agent_rules() -> str:
+def _load_agent_rules(game: str = "wow") -> str:
+    path = _POE2_AGENT_RULES_PATH if game == "poe2" else _AGENT_RULES_PATH
     try:
-        with _AGENT_RULES_PATH.open("rb") as source:
+        with path.open("rb") as source:
             raw = source.read(_MAX_AGENT_RULES_BYTES + 1)
         rules = raw.decode("utf-8")
         if len(raw) > _MAX_AGENT_RULES_BYTES or not rules.strip():
@@ -265,7 +280,17 @@ _CODEX_ENV_ALLOWLIST = frozenset({
     "CHICKENBRO_SOURCE_GATEWAY_TOKEN",
     "CHICKENBRO_SIMULATION_GATEWAY_URL",
     "CHICKENBRO_SIMULATION_GATEWAY_TOKEN",
+    "CHICKENBRO_POE2_GATEWAY_URL",
+    "CHICKENBRO_POE2_GATEWAY_TOKEN",
 })
+
+
+@dataclass(frozen=True)
+class ChatToolContext:
+    principal: Any
+    conversation_id: Any
+    run_id: Any
+    game: str = "wow"
 
 
 def _answer_errors(text, evidence):
@@ -442,6 +467,8 @@ class NativeCodexChatAdapter:
         source_gateway_url: str | None = None,
         simulation_gateway: Any | None = None,
         simulation_gateway_url: str | None = None,
+        poe2_gateway: Any | None = None,
+        poe2_gateway_url: str | None = None,
         runtime_revision: str | None = None,
         popen: Callable[..., Any] = subprocess.Popen,
     ):
@@ -465,6 +492,8 @@ class NativeCodexChatAdapter:
         self._source_gateway = source_gateway
         self._simulation_gateway = simulation_gateway
         self._simulation_gateway_url = simulation_gateway_url or "http://127.0.0.1:8790/api/v2/internal/chickenbro/simc-tool"
+        self._poe2_gateway = poe2_gateway
+        self._poe2_gateway_url = poe2_gateway_url or "http://127.0.0.1:8790/api/v2/internal/chickenbro/poe2-tool"
         self._source_gateway_url = (
             source_gateway_url
             or os.environ.get(
@@ -474,9 +503,8 @@ class NativeCodexChatAdapter:
         ).strip()
         self._popen = popen
 
-    def stream_for_chat(self, *, principal, conversation_id, run_id, prompt, timeout_seconds, images=()):
-        from server.app.chickenbro.simulation_tools import SimulationToolContext
-        context = SimulationToolContext(principal=principal, conversation_id=conversation_id, run_id=run_id)
+    def stream_for_chat(self, *, principal, conversation_id, run_id, prompt, timeout_seconds, game="wow", images=()):
+        context = ChatToolContext(principal=principal, conversation_id=conversation_id, run_id=run_id, game=game)
         try:
             yield from self.stream(prompt=prompt, timeout_seconds=timeout_seconds, tool_context=context, images=images)
         except CodexStreamError as error:
@@ -491,11 +519,15 @@ class NativeCodexChatAdapter:
             raise CodexStreamError("CODEX_OUTPUT_INVALID")
 
         images = validate_images(images)
-        developer_instructions = _load_agent_rules()
+        game = str(getattr(tool_context, "game", "wow") or "wow")
+        if game not in {"wow", "poe2"}:
+            raise CodexUnavailable()
+        developer_instructions = _load_agent_rules(game)
         if tool_context is not None:
             developer_instructions += "\nresearchContext是当前研究的历史会话资料：按ordinal结合最近消息理解目标、角色、窗口和用户修正；只有用户明确表述可作为执行要求，历史助手选项仅用于消解指代。truncated表示有遗漏，必要条件不明才追问。researchEvidence按historicalScope区分窗口/过滤条件，partial和采样不代表全量；不同窗口分别引用。"
         profile_config = _load_profile(self._profile, allow_simulation=(
-            self._simulation_gateway is not None and tool_context is not None))
+            game == "wow" and self._simulation_gateway is not None and tool_context is not None),
+            allow_poe2=(game == "poe2" and self._poe2_gateway is not None and tool_context is not None))
         deadline = time.monotonic() + max(1, int(timeout_seconds))
         try:
             job_dir = self._new_job_dir()
@@ -508,6 +540,7 @@ class NativeCodexChatAdapter:
         usage_recorder = None
         source_gateway_token = ""
         simulation_gateway_token = ""
+        poe2_gateway_token = ""
         if self._source_gateway is not None:
             try:
                 source_gateway_token = str(self._source_gateway.issue_capability(tool_context)
@@ -536,13 +569,16 @@ class NativeCodexChatAdapter:
                     prompt_data=json.loads(prompt)
                     prompt_data['researchEvidence']=admitted
                     prompt=json.dumps(prompt_data,ensure_ascii=False)
-            if self._simulation_gateway is not None and tool_context is not None:
+            if game == "wow" and self._simulation_gateway is not None and tool_context is not None:
                 simulation_gateway_token = self._simulation_gateway.issue_capability(tool_context)
+            if game == "poe2" and self._poe2_gateway is not None and tool_context is not None:
+                poe2_gateway_token = self._poe2_gateway.issue_capability(tool_context)
             child_environment = {
                 key: value
                 for key, value in os.environ.items()
                 if key in _CODEX_ENV_ALLOWLIST and key not in {
-                    "CHICKENBRO_SOURCE_GATEWAY_TOKEN", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"
+                    "CHICKENBRO_SOURCE_GATEWAY_TOKEN", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN",
+                    "CHICKENBRO_POE2_GATEWAY_TOKEN"
                 }
             }
             if source_gateway_token:
@@ -551,9 +587,13 @@ class NativeCodexChatAdapter:
             if simulation_gateway_token:
                 child_environment["CHICKENBRO_SIMULATION_GATEWAY_TOKEN"] = simulation_gateway_token
                 child_environment["CHICKENBRO_SIMULATION_GATEWAY_URL"] = self._simulation_gateway_url
+            if poe2_gateway_token:
+                child_environment["CHICKENBRO_POE2_GATEWAY_TOKEN"] = poe2_gateway_token
+                child_environment["CHICKENBRO_POE2_GATEWAY_URL"] = self._poe2_gateway_url
             child_environment["CHICKENBRO_NATIVE_OBSERVATIONS_PATH"] = str(
                 job_dir / "native-tool-observations.jsonl"
             )
+            child_environment["CHICKENBRO_GAME"] = game
             process = self._popen(
                 command,
                 cwd=str(job_dir),
@@ -568,6 +608,7 @@ class NativeCodexChatAdapter:
         except (OSError, ValueError, TypeError):
             self._revoke_source_capability(source_gateway_token)
             self._revoke_simulation_capability(simulation_gateway_token)
+            self._revoke_poe2_capability(poe2_gateway_token)
             raise CodexUnavailable() from None
 
         process_finished = False
@@ -604,10 +645,14 @@ class NativeCodexChatAdapter:
             evidence = evidence or {'reports': [], 'groups': [], 'truncated': False}
             if simulation_gateway_token and hasattr(self._simulation_gateway, 'answer_evidence'):
                 evidence['simulation'] = self._simulation_gateway.answer_evidence(simulation_gateway_token)
+            if poe2_gateway_token and hasattr(self._poe2_gateway, 'answer_evidence'):
+                evidence['poe2'] = self._poe2_gateway.answer_evidence(poe2_gateway_token)
             self._revoke_source_capability(source_gateway_token)
             self._revoke_simulation_capability(simulation_gateway_token)
+            self._revoke_poe2_capability(poe2_gateway_token)
             source_gateway_token = ''
             simulation_gateway_token = ''
+            poe2_gateway_token = ''
             evidence = evidence or {'reports': [], 'groups': [], 'truncated': False}
             errors = _answer_errors(terminal['text'], evidence)
             _diagnostic('validation', validation_codes=errors, deadline=deadline)
@@ -655,6 +700,7 @@ class NativeCodexChatAdapter:
                     pass
             self._revoke_source_capability(source_gateway_token)
             self._revoke_simulation_capability(simulation_gateway_token)
+            self._revoke_poe2_capability(poe2_gateway_token)
 
     def _repair_answer(self, prompt, draft, errors, evidence, deadline, command, profile_config, environment):
         now = time.monotonic()
@@ -754,6 +800,14 @@ class NativeCodexChatAdapter:
             return
         try:
             self._simulation_gateway.revoke(token)
+        except (AttributeError, OSError, TypeError, ValueError):
+            return
+
+    def _revoke_poe2_capability(self, token: str) -> None:
+        if not token or self._poe2_gateway is None:
+            return
+        try:
+            self._poe2_gateway.revoke(token)
         except (AttributeError, OSError, TypeError, ValueError):
             return
 

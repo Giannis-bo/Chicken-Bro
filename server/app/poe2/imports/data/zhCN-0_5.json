@@ -1,0 +1,742 @@
+{
+  "mapping_version": "zhCN-0_5-finite-1",
+  "game_data_version": "0_5",
+  "engine_commit": "7d6f530cbdab20389ff8bc6ba97a37ac27f74e41",
+  "source": "https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/tree/7d6f530cbdab20389ff8bc6ba97a37ac27f74e41/src",
+  "license": "MIT; see UPSTREAM-LICENSE.md. Chinese aliases are independently authored finite correspondences, not a copied third-party dictionary.",
+  "classes": {
+    "Huntress": "Huntress",
+    "Amazon": "Amazon",
+    "女猎手": "Huntress",
+    "亚马逊": "Amazon"
+  },
+  "bases": {
+    "阿科扬战矛": {
+      "name": "Akoyan Spear",
+      "domain": "weapon",
+      "source": "Data/Bases/spear.lua: Akoyan Spear"
+    },
+    "紫晶戒指": {
+      "name": "Amethyst Ring",
+      "domain": "jewellery",
+      "source": "Data/Bases/ring.lua: Amethyst Ring"
+    }
+  },
+  "uniques": {},
+  "gems": {
+    "爆破战矛": {
+      "name": "Explosive Spear",
+      "id": "Metadata/Items/Gems/SkillGemExplosiveSpear",
+      "source_id": "ActiveSkills.explosive_spear",
+      "support": false,
+      "source": "Data/Gems.lua:7078"
+    },
+    "处决 II": {
+      "name": "Execute II",
+      "id": "Metadata/Items/Gems/SkillGemExecuteSupportTwo",
+      "support": true,
+      "tier": 4,
+      "source": "Data/Gems.lua:3709"
+    },
+    "处决 III": {
+      "name": "Execute III",
+      "id": "Metadata/Items/Gems/SkillGemExecuteSupportThree",
+      "support": true,
+      "tier": 5,
+      "source": "Data/Gems.lua:3726"
+    }
+  },
+  "modifier_templates": [
+    {
+      "pattern": "\\+([0-9]+) 生命上限",
+      "english": "+{0} to maximum Life",
+      "domain": [
+        "weapon",
+        "jewellery"
+      ],
+      "source": "Data/StatDescriptions/stat_descriptions.lua: base_maximum_life"
+    },
+    {
+      "pattern": "火焰抗性 \\+([0-9]+)%",
+      "english": "+{0}% to Fire Resistance",
+      "domain": [
+        "weapon",
+        "jewellery"
+      ],
+      "source": "Data/StatDescriptions/stat_descriptions.lua: base_fire_damage_resistance_%"
+    },
+    {
+      "pattern": "冰霜抗性 \\+([0-9]+)%",
+      "english": "+{0}% to Cold Resistance",
+      "domain": [
+        "weapon",
+        "jewellery"
+      ],
+      "source": "Data/StatDescriptions/stat_descriptions.lua: base_cold_damage_resistance_%"
+    },
+    {
+      "pattern": "闪电抗性 \\+([0-9]+)%",
+      "english": "+{0}% to Lightning Resistance",
+      "domain": [
+        "weapon",
+        "jewellery"
+      ],
+      "source": "Data/StatDescriptions/stat_descriptions.lua: base_lightning_damage_resistance_%"
+    },
+    {
+      "pattern": "混沌抗性 \\+([0-9]+)%",
+      "english": "+{0}% to Chaos Resistance",
+      "domain": [
+        "weapon",
+        "jewellery"
+      ],
+      "source": "Data/StatDescriptions/stat_descriptions.lua: base_chaos_damage_resistance_%"
+    }
+  ],
+  "attributes": {
+    "generic_attribute_strength": {
+      "name": "力量",
+      "english": "Strength",
+      "field": "grantedStrength",
+      "stat": "+5 力量"
+    },
+    "generic_attribute_dexterity": {
+      "name": "敏捷",
+      "english": "Dexterity",
+      "field": "grantedDexterity",
+      "stat": "+5 敏捷"
+    },
+    "generic_attribute_intelligence_": {
+      "name": "智慧",
+      "english": "Intelligence",
+      "field": "grantedIntelligence",
+      "stat": "+5 智慧"
+    }
+  },
+  "quest_rewards": {
+    "Act 1/Clearfell/Beira": {
+      "chinese": "冰霜抗性 +10%",
+      "english": "+10% to Cold Resistance",
+      "source": "Data/QuestRewards.lua:3"
+    },
+    "Act 1/Ogham Manor/Candlemass": {
+      "chinese": "+20 生命上限",
+      "english": "+20 to maximum Life",
+      "source": "Data/QuestRewards.lua:43"
+    }
+  },
+  "nodes": {
+    "535": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/535"
+    },
+    "722": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/722"
+    },
+    "1019": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/1019"
+    },
+    "1140": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/1140"
+    },
+    "2200": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/2200"
+    },
+    "2582": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/2582"
+    },
+    "2936": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/2936"
+    },
+    "3458": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/3458"
+    },
+    "4378": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/4378"
+    },
+    "5227": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/5227"
+    },
+    "5563": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/5563"
+    },
+    "6109": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/6109"
+    },
+    "6891": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/6891"
+    },
+    "7847": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/7847"
+    },
+    "8697": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/8697"
+    },
+    "9227": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/9227"
+    },
+    "9294": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/9294"
+    },
+    "10053": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/10053"
+    },
+    "10265": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/10265"
+    },
+    "10998": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/10998"
+    },
+    "11825": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/11825"
+    },
+    "11916": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/11916"
+    },
+    "13407": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/13407"
+    },
+    "13828": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/13828"
+    },
+    "13895": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/13895"
+    },
+    "14262": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/14262"
+    },
+    "14267": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/14267"
+    },
+    "14446": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/14446"
+    },
+    "15030": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/15030"
+    },
+    "15507": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/15507"
+    },
+    "15775": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/15775"
+    },
+    "16484": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/16484"
+    },
+    "16705": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/16705"
+    },
+    "17118": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/17118"
+    },
+    "17340": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/17340"
+    },
+    "17702": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/17702"
+    },
+    "18831": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/18831"
+    },
+    "18910": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/18910"
+    },
+    "18923": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/18923"
+    },
+    "19027": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/19027"
+    },
+    "19288": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/19288"
+    },
+    "19470": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/19470"
+    },
+    "20414": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/20414"
+    },
+    "20677": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/20677"
+    },
+    "21156": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/21156"
+    },
+    "21225": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/21225"
+    },
+    "21274": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/21274"
+    },
+    "21280": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/21280"
+    },
+    "21438": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/21438"
+    },
+    "21755": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/21755"
+    },
+    "21984": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/21984"
+    },
+    "22208": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/22208"
+    },
+    "22811": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/22811"
+    },
+    "22864": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/22864"
+    },
+    "22927": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/22927"
+    },
+    "23040": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/23040"
+    },
+    "23259": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/23259"
+    },
+    "24287": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/24287"
+    },
+    "24786": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/24786"
+    },
+    "24922": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/24922"
+    },
+    "25055": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/25055"
+    },
+    "26068": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/26068"
+    },
+    "27705": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/27705"
+    },
+    "28044": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/28044"
+    },
+    "28050": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/28050"
+    },
+    "28061": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/28061"
+    },
+    "28370": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/28370"
+    },
+    "28835": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/28835"
+    },
+    "28859": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/28859"
+    },
+    "29246": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/29246"
+    },
+    "29959": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/29959"
+    },
+    "30657": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/30657"
+    },
+    "30808": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/30808"
+    },
+    "30905": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/30905"
+    },
+    "31765": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/31765"
+    },
+    "32763": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/32763"
+    },
+    "33080": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/33080"
+    },
+    "33400": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/33400"
+    },
+    "33946": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/33946"
+    },
+    "34015": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/34015"
+    },
+    "34201": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/34201"
+    },
+    "34543": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/34543"
+    },
+    "34621": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/34621"
+    },
+    "34623": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/34623"
+    },
+    "35033": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/35033"
+    },
+    "35043": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/35043"
+    },
+    "35689": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/35689"
+    },
+    "35878": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/35878"
+    },
+    "35901": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/35901"
+    },
+    "35987": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/35987"
+    },
+    "36576": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/36576"
+    },
+    "37389": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/37389"
+    },
+    "38369": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/38369"
+    },
+    "38463": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/38463"
+    },
+    "38493": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/38493"
+    },
+    "38537": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/38537"
+    },
+    "38541": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/38541"
+    },
+    "38814": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/38814"
+    },
+    "38895": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/38895"
+    },
+    "39298": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/39298"
+    },
+    "39369": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/39369"
+    },
+    "39569": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/39569"
+    },
+    "39658": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/39658"
+    },
+    "40341": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/40341"
+    },
+    "41580": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/41580"
+    },
+    "41770": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/41770"
+    },
+    "43082": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/43082"
+    },
+    "43254": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/43254"
+    },
+    "45609": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/45609"
+    },
+    "45702": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/45702"
+    },
+    "46071": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/46071"
+    },
+    "46197": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/46197"
+    },
+    "46402": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/46402"
+    },
+    "46882": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/46882"
+    },
+    "47312": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/47312"
+    },
+    "47976": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/47976"
+    },
+    "48116": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/48116"
+    },
+    "48401": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/48401"
+    },
+    "48635": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/48635"
+    },
+    "48773": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/48773"
+    },
+    "49976": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/49976"
+    },
+    "50342": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/50342"
+    },
+    "50609": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/50609"
+    },
+    "50884": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/50884"
+    },
+    "51048": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/51048"
+    },
+    "51741": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/51741"
+    },
+    "51891": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/51891"
+    },
+    "54127": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/54127"
+    },
+    "54983": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/54983"
+    },
+    "54984": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/54984"
+    },
+    "55796": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/55796"
+    },
+    "56265": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/56265"
+    },
+    "56776": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/56776"
+    },
+    "56847": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/56847"
+    },
+    "56978": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/56978"
+    },
+    "57227": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/57227"
+    },
+    "57821": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/57821"
+    },
+    "59503": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/59503"
+    },
+    "59538": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/59538"
+    },
+    "60034": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/60034"
+    },
+    "60505": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/60505"
+    },
+    "60735": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/60735"
+    },
+    "61112": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/61112"
+    },
+    "61312": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/61312"
+    },
+    "61333": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/61333"
+    },
+    "61403": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/61403"
+    },
+    "61601": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/61601"
+    },
+    "61834": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/61834"
+    },
+    "61976": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/61976"
+    },
+    "62936": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/62936"
+    },
+    "63254": {
+      "attribute": false,
+      "source": "TreeData/0_5/tree.json:nodes/63254"
+    },
+    "63526": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/63526"
+    },
+    "63888": {
+      "attribute": true,
+      "source": "TreeData/0_5/tree.json:nodes/63888"
+    }
+  }
+}

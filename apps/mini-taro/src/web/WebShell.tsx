@@ -1,5 +1,6 @@
 import { Button, Text, View } from '@tarojs/components'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
+import type { GameId } from '@wow-mini/domain'
 
 import { wowApi, type ClientAuthContext } from '@wow-mini/api-client'
 
@@ -15,11 +16,9 @@ import styles from './WebApp.module.scss'
 
 
 type WebClientAuth = Extract<ClientAuthContext, { kind: 'web' }>
-type BusinessView = 'chat' | 'simc'
-const modes: Array<{ id: BusinessView; number: string; label: string }> = [
-  { id: 'chat', number: '01', label: '对话' },
-  { id: 'simc', number: '02', label: '模拟' },
-]
+type BusinessView = 'chat' | 'simc' | 'poe2'
+const WebPoe2 = lazy(() => import('./WebPoe2'))
+const readGame = (): GameId => new URL(window.location.href).searchParams.get('game') === 'poe2' || readView() === 'poe2' ? 'poe2' : 'wow'
 
 export interface WebShellProps {
   accountLabel: string
@@ -77,23 +76,44 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
     }
   }, [auth])
   const [activeView, setActiveView] = useState<WebView>(() => readView())
+  const [game, setGame] = useState<GameId>(readGame)
+  const [poe2Visited, setPoe2Visited] = useState(() => readView() === 'poe2')
+  const [poe2ChatVisited, setPoe2ChatVisited] = useState(() => readGame() === 'poe2')
+  const modes: Array<{ id: BusinessView; number: string; label: string }> = [
+    { id: 'chat', number: '01', label: '对话' },
+    game === 'poe2' ? { id: 'poe2', number: '02', label: '构筑' } : { id: 'simc', number: '02', label: '模拟' },
+  ]
   const [simcVisited, setSimcVisited] = useState(() => readView() === 'simc')
   const lastBusinessView = useRef<BusinessView>(activeView === 'simc' ? 'simc' : 'chat')
 
   const showView = (view: WebView) => {
     if (view === 'simc') setSimcVisited(true)
-    if (view === 'chat' || view === 'simc') lastBusinessView.current = view
+    if (view === 'poe2') setPoe2Visited(true)
+    if (view === 'chat' || view === 'simc' || view === 'poe2') lastBusinessView.current = view
     setActiveView(view)
   }
   const navigate = (view: WebView) => {
     if (view !== activeView) window.history.pushState(window.history.state, '', viewHref(view))
     showView(view)
   }
+  const selectGame = (nextGame: GameId) => {
+    if (nextGame === game) return
+    setGame(nextGame)
+    if (nextGame === 'poe2') setPoe2ChatVisited(true)
+    const url = new URL(window.location.href)
+    url.searchParams.set('game', nextGame)
+    window.history.pushState(window.history.state, '', viewHref('chat', url))
+    showView('chat')
+  }
   useEffect(() => {
     const restore = () => {
       const view = readView()
+      const nextGame = readGame()
+      setGame(nextGame)
+      if (nextGame === 'poe2') setPoe2ChatVisited(true)
       if (view === 'simc') setSimcVisited(true)
-      if (view === 'chat' || view === 'simc') lastBusinessView.current = view
+      if (view === 'poe2') setPoe2Visited(true)
+      if (view === 'chat' || view === 'simc' || view === 'poe2') lastBusinessView.current = view
       setActiveView(view)
     }
     window.addEventListener('popstate', restore)
@@ -118,20 +138,29 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
           <WebServiceHealth />
         </View>
 
-        <View className={styles['modeSwitch'] ?? ''}>
+        <div className={styles['workspaceNavigation']}>
+          <div className={styles['gameSwitch']} role="group" aria-label="选择游戏">
+            {([{ id: 'wow', label: '魔兽世界' }, { id: 'poe2', label: '流放之路 2' }] as const).map(option => (
+              <button key={option.id} type="button" className={styles['gameButton']} aria-pressed={game === option.id} onClick={() => selectGame(option.id)}>
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <View className={styles['modeSwitch'] ?? ''}>
           {modes.map((mode) => (
             <Button
               key={mode.id}
               className={styles['navButton'] ?? ''}
               data-active={activeView === mode.id ? 'true' : 'false'}
-              aria-label={mode.id === 'simc' ? 'SimC 模拟' : '队长对话'}
+              aria-label={mode.id === 'simc' ? 'SimC 模拟' : mode.id === 'poe2' ? 'POE2 构筑' : '队长对话'}
               onClick={() => navigate(mode.id)}
             >
               <Text className={styles['modeSwitchNumber'] ?? ''}>{mode.number}</Text>
               <Text>{mode.label}</Text>
             </Button>
           ))}
-        </View>
+          </View>
+        </div>
 
         <WebHeaderActions {...(isAdmin ? { adminHref: viewHref('admin') } : {})} avatarDataUrl={avatar} onRefreshAvatar={() => refreshAvatar.current()} accountLabel={accountLabel} onLogout={onLogout}
           themeId={themeId} onSelectTheme={selectTheme} themeSaveFailed={themeSaveFailed}
@@ -145,9 +174,15 @@ export default function WebShell({ accountLabel, avatarUrl, auth, onLogout }: We
             onReturn={() => navigate(lastBusinessView.current)} /> : null}
 
           {/* A tab change must not dispose the chat model and abort its active stream. */}
-          <div className={styles['businessPane']} hidden={activeView !== 'chat'}>
-            <WebChatView auth={auth} themeId={themeId} />
+          <div className={styles['businessPane']} hidden={activeView !== 'chat' || game !== 'wow'}>
+            <WebChatView auth={auth} themeId={themeId} game="wow" />
           </div>
+          {poe2ChatVisited ? <div className={styles['businessPane']} hidden={activeView !== 'chat' || game !== 'poe2'}>
+            <WebChatView auth={auth} themeId={themeId} game="poe2" />
+          </div> : null}
+          {poe2Visited ? <div className={styles['businessPane']} hidden={activeView !== 'poe2'}>
+            <Suspense fallback={<p>正在加载构筑工作台…</p>}><WebPoe2 auth={auth} /></Suspense>
+          </div> : null}
           {simcVisited ? (
             <div className={styles['businessPane']} hidden={activeView !== 'simc'}>
               <WebSimcView auth={auth} themeId={themeId} />

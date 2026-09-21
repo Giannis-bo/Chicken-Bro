@@ -27,12 +27,14 @@ const quickPrompts = [
 ]
 
 export interface WebChatViewProps {
+  game?: 'wow' | 'poe2'
   auth: WebClientAuth
   themeId?: WebThemeId
 }
 
-export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProps) {
-  const model = useMemo(() => new ChatModel(wowApi.chat, () => auth), [auth])
+export default function WebChatView({ auth, themeId = 'horde', game = 'wow' }: WebChatViewProps) {
+  const model = useMemo(() => new ChatModel(wowApi.chat, () => auth, {game}), [auth, game])
+  const prompts = game === 'poe2' ? ['帮我解释这个技能的伤害机制', '帮我分析已导入的 BD，找出攻防短板', '帮我规划这件装备的制作路线'] : quickPrompts
   const [state, setState] = useState<ChatModelState>(() => model.get())
   const [draft, setDraft] = useState('')
   const imageDraft = useChatImages(() => auth, state.phase !== 'signed_out')
@@ -273,7 +275,7 @@ export default function WebChatView({ auth, themeId = 'horde' }: WebChatViewProp
             </div>
             {showWelcome ? (
               <View className={styles['quickPrompts'] ?? ''}>
-                {quickPrompts.map((prompt) => (
+                {prompts.map((prompt) => (
                   <Button
                     key={prompt}
                     className={styles['quickPrompt'] ?? ''}

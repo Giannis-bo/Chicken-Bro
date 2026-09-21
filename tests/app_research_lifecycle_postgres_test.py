@@ -43,6 +43,66 @@ class ResearchPostgresTest(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0], rows[1])
 
+    def test_poe2_budget_survives_turns_and_source_work(self):
+        first=self.store(self.admit())
+        for i in range(12):self.assertIsNone(first.reserve_poe2(str(i)))
+        self.assertEqual(first.reserve_poe2('next')['errorCode'],'POE2_RESEARCH_TURN_LIMIT')
+        # Shared source counters must preserve the POE2 execution counter.
+        first.reserve('raiderio_rankings','rankings',{'limit':1})
+        self.assertEqual(first.poe2_status()['turnAttemptsUsed'],12)
+        second=self.store(self.admit('继续比较'))
+        self.assertEqual(second.research_id,first.research_id)
+        self.assertEqual(second.poe2_status()['candidatesUsed'],12)
+        self.assertEqual(second.poe2_status()['turnAttemptsUsed'],0)
+        self.assertIsNone(second.reserve_poe2('next'))
+        self.assertEqual(self.store(second.run_id).poe2_status()['candidatesUsed'],13)
+        with self.assertRaises(PermissionError):self.store(second.run_id,owner=uuid4())
+        ended=self.store(self.admit('/结束研究'))
+        self.assertEqual(ended.reserve_poe2('new')['errorCode'],'RESEARCH_ENDED')
+
+    def test_poe2_parallel_admission_cannot_exceed_turn_limit(self):
+        run_id=self.admit()
+        def reserve_one(i):return self.store(run_id).reserve_poe2(str(i))
+        with ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(reserve_one,range(16)))
+        self.assertEqual(sum(x is None for x in results),12)
+        self.assertEqual(self.store(run_id).poe2_status()['turnAttemptsUsed'],12)
+
+    def test_poe2_gateway_reuses_baseline_and_remains_readable_at_limit(self):
+        from contextlib import contextmanager
+        from types import SimpleNamespace
+        from server.app.identity.domain import Principal
+        from server.app.poe2.application import Poe2Application
+        from server.app.poe2.repository import PostgresPoe2Repository
+        from server.app.poe2.tools import Poe2ToolGateway
+        from tests.app_poe2_jobs_postgres_test import FakeEngine
+        principal=Principal(self.owner,'web_cookie')
+        run_id=self.admit()
+        @contextmanager
+        def guarded():
+            with self.connect() as conn:
+                conn.execute("SET LOCAL lock_timeout='500ms'")
+                # Reproduce the exclusive lock held by a worker's guarded connection.
+                conn.execute('SELECT id FROM chat.agent_runs WHERE id=%s FOR UPDATE',(run_id,))
+                yield conn
+        app=Poe2Application(PostgresPoe2Repository(guarded),FakeEngine())
+        build=app.import_build(principal,'<PathOfBuilding2><Build/></PathOfBuilding2>')
+        from server.app.chickenbro.research_lifecycle import PostgresResearchBudget
+        budget=PostgresResearchBudget(guarded,self.owner,run_id)
+        gateway=Poe2ToolGateway(app,research_budget=budget)
+        token=gateway.issue_capability(SimpleNamespace(game='poe2',principal=principal))
+        baseline=gateway.execute(token,'get',{'buildId':str(build.id)})['baselineJobId']
+        reused=gateway.execute(token,'calculate',{'buildId':str(build.id),'changes':{},'idempotencyKey':'baseline-again'})
+        self.assertEqual(reused['id'],baseline); self.assertTrue(reused['reused'])
+        self.assertEqual(reused['researchBudget']['attemptsUsed'],0)
+        for i in range(12):
+            result=gateway.execute(token,'calculate',{'buildId':str(build.id),'changes':{'level':i+1},'idempotencyKey':str(i)})
+            self.assertFalse(result['reused'])
+        blocked=gateway.execute(token,'calculate',{'buildId':str(build.id),'changes':{'level':99},'idempotencyKey':'extra'})
+        self.assertEqual(blocked['errorCode'],'POE2_RESEARCH_TURN_LIMIT')
+        again=gateway.execute(token,'calculate',{'buildId':str(build.id),'changes':{},'idempotencyKey':'still-reused'})
+        self.assertEqual(again['id'],baseline)
+        self.assertEqual(gateway.execute(token,'job_get',{'jobId':baseline})['status'],'succeeded')
+
     def test_capability_and_process_renewal_cannot_reset_budget(self):
         first = self.store(self.admit())
         gateway = ChickenbroSourceGateway(query_service=Service(), research_budget=first)

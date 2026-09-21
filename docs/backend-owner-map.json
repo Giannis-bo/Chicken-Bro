@@ -1,6 +1,28 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-09",
+  "updatedAt": "2026-09-20",
+  "candidateOwners": {
+    "poe2": {
+      "path": "server/app/poe2/application.py",
+      "runtime": "server/poe2_candidate_runtime.py",
+      "passiveTree": {
+        "application": "server/app/poe2/application.py",
+        "projection": "server/app/poe2/tree_view.lua",
+        "characterization": "tests/app_poe2_tree_test.py"
+      },
+      "characterImport": {
+        "application": "server/app/poe2/imports/application.py",
+        "storage": "server/app/poe2/imports/repository.py",
+        "worker": "server/app/poe2/imports/worker.py",
+        "collector": "server/poe2_source_browser.cjs",
+        "supervisor": "server/poe2_source_supervisor.py",
+        "mapping": "server/app/poe2/imports/mapping.py",
+        "bridge": "server/app/poe2/character_bridge.py",
+        "plan": "docs/plans/2026-09-20-poe2-character-link-implementation.md"
+      },
+      "characterization": ["tests/app_poe2_engine_test.py", "tests/app_poe2_live_engine_test.py", "tests/app_poe2_jobs_unit_test.py", "tests/app_poe2_jobs_postgres_test.py", "tests/app_poe2_chat_isolation_test.py"]
+    }
+  },
   "status": "active",
   "activeMilestone": "chickenbro_web_only_qq",
   "owners": {

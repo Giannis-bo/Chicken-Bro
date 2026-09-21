@@ -6,6 +6,7 @@ from server.app.api.errors import ApiProblem
 from server.app.chickenbro.application import ChatApplication
 from server.app.chickenbro.source_gateway import ChickenbroSourceGateway
 from server.app.simulation.application import SimulationApplication
+from server.app.poe2.application import Poe2Application
 from server.app.identity.qq_application import QqAuthApplication
 from server.app.identity.audit import AuthAuditEvent
 from server.app.identity.domain import Principal
@@ -28,6 +29,10 @@ def chat_application(request: Request) -> ChatApplication:
 
 def simulation_application(request: Request) -> SimulationApplication:
     return request.app.state.simulation_application
+
+
+def poe2_application(request: Request) -> Poe2Application:
+    return request.app.state.poe2_application
 
 
 def chickenbro_source_gateway(request: Request) -> ChickenbroSourceGateway:
@@ -179,3 +184,9 @@ def require_web_origin_dependency(request: Request) -> None:
         status_code=200,
         reason_code="ORIGIN_ACCEPTED",
     )
+
+
+def poe2_import_application(request: Request):
+    from server.app.poe2.imports.application import ImportApplication
+    from server.app.poe2.imports.repository import PostgresImportRepository
+    return ImportApplication(PostgresImportRepository(request.app.state.poe2_application.repository._connect))

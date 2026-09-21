@@ -96,7 +96,7 @@ export default defineConfig<'webpack5'>({
       mode: 'browser',
       basename: configuredH5PublicPath.replace(/\/+$/u, ''),
       customRoutes: {
-        '/pages/web/index': ['/', '/admin', '/simc', '/pages/chickenbro/index', '/pages/simc/index'],
+        '/pages/web/index': ['/', '/admin', '/simc', '/poe2', '/pages/chickenbro/index', '/pages/simc/index'],
       },
     },
     devServer: {

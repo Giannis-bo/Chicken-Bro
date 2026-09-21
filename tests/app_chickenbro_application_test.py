@@ -20,7 +20,7 @@ class MemoryChatRepository:
         self.fail_success_finish_once = False
         self.race_existing_on_start = False
 
-    def create_conversation(self, user_id, conversation_id, title, now):
+    def create_conversation(self, user_id, conversation_id, title, now, game="wow"):
         existing = self.conversations.get((user_id, conversation_id))
         if existing is not None:
             return existing
@@ -28,6 +28,7 @@ class MemoryChatRepository:
             "id": conversation_id,
             "user_id": user_id,
             "title": title,
+            "game": game,
             "status": ConversationStatus.ACTIVE,
             "created_at": now,
             "updated_at": now,
@@ -38,12 +39,12 @@ class MemoryChatRepository:
     def get_conversation(self, user_id, conversation_id):
         return self.conversations.get((user_id, conversation_id))
 
-    def list_conversations(self, user_id, boundary, limit):
+    def list_conversations(self, user_id, boundary, limit, game="wow"):
         self.list_conversations_calls += 1
         self.list_conversation_limits.append(limit)
         rows = [
             row for row in self.conversations.values()
-            if row["user_id"] == user_id
+            if row["user_id"] == user_id and row.get("game", "wow") == game
         ]
         rows.sort(key=lambda row: (row["updated_at"], row["id"]), reverse=True)
         if boundary is not None:

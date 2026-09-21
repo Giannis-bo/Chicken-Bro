@@ -79,6 +79,20 @@ describe('Web business tabs during a chat reply', () => {
     return api.streamMessage.mock.calls[0]![2].onEvent
   }
 
+  it('keeps a WoW stream alive while POE2 uses its own conversation history', async () => {
+    await send()
+    api.list.mockResolvedValue(success({items: [], nextCursor: null}))
+    const selector = Array.from(container.querySelectorAll<HTMLButtonElement>('[aria-label="选择游戏"] button')).find(button => button.textContent === '流放之路 2')!
+    await act(async () => selector.click())
+    expect(selector.getAttribute('aria-pressed')).toBe('true')
+    expect(api.list.mock.calls.at(-1)?.[0]).toMatchObject({game: 'poe2'})
+    expect(abort).not.toHaveBeenCalled()
+    expect(window.location.search).toContain('game=poe2')
+    const visiblePane = Array.from(container.querySelectorAll<HTMLDivElement>('div')).find(node => !node.hidden && node.querySelector('textarea') && node.previousElementSibling?.hasAttribute('hidden'))
+    expect(container.querySelector('button[aria-label="POE2 构筑"]')).not.toBeNull()
+    expect(visiblePane?.textContent ?? '').not.toContain('切换标签测试')
+  })
+
   it('switches themes without interrupting a reply and remembers the browser selection', async () => {
     await send()
     await click('账户菜单')

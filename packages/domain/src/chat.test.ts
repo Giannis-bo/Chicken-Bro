@@ -24,6 +24,14 @@ it('accepts only nullable boolean resolution feedback on assistant replies', () 
 
 
 describe('formal Chat domain guards', () => {
+  it('accepts persisted game identity and rejects unknown games', () => {
+    const summary = {id: conversationId, title: 'BD', status: 'active', createdAt: timestamp, updatedAt: timestamp}
+    for (const game of ['wow', 'poe2']) {
+      expect(isConversationPage({items: [{...summary, game}], nextCursor: null})).toBe(true)
+      expect(isConversationDetail({...summary, game, messages: []})).toBe(true)
+    }
+    expect(isConversationPage({items: [{...summary, game: 'poe1'}], nextCursor: null})).toBe(false)
+  })
   it('accepts the exact owner-free conversation page and detail contracts', () => {
     expect(isConversationPage({
       items: [{

@@ -699,13 +699,88 @@ class ChickenbroCodexAdapterTest(unittest.TestCase):
             self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["tool_timeout_sec"], 90)
             self.assertEqual(config["mcp_servers"]["chickenbro_toolbox"]["env_vars"], [
                 "CHICKENBRO_SOURCE_GATEWAY_TOKEN", "HTTP_PROXY",
-                "CHICKENBRO_SIMULATION_GATEWAY_URL", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"])
+                "CHICKENBRO_SIMULATION_GATEWAY_URL", "CHICKENBRO_SIMULATION_GATEWAY_TOKEN",
+                "CHICKENBRO_POE2_GATEWAY_URL", "CHICKENBRO_POE2_GATEWAY_TOKEN",
+                "CHICKENBRO_GAME"])
             self.assertNotIn("tools", config["mcp_servers"]["chickenbro_toolbox"])
             scoped = _load_profile("test", allow_simulation=True)
             self.assertEqual(scoped["mcp_servers"]["chickenbro_toolbox"]["tools"], {
                 "prepare_simulation": {"approval_mode": "approve"},
                 "submit_simulation": {"approval_mode": "approve"},
             })
+
+    def test_poe2_chat_forwards_trusted_game_through_toolbox_profile(self):
+        import server.chickenbro_native_mcp as native_mcp
+
+        captured = {}
+        process = FakeProcess(answer())
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            Path(directory, "test.config.toml").write_text(
+                'model="gpt-6-astra"\n[mcp_servers.chickenbro_toolbox]\n'
+                'command="/usr/bin/python3"\nenv_vars=[]\n', encoding="utf-8")
+            adapter = NativeCodexChatAdapter(
+                enabled=True, jobs_dir=directory, profile="test",
+                popen=lambda command, **kwargs: (captured.update(kwargs) or process),
+            )
+            list(adapter.stream_for_chat(
+                principal=None, conversation_id="conversation", run_id="run", game="poe2",
+                prompt='{"messages":[]}', timeout_seconds=30,
+            ))
+
+        toolbox = process.sent()[2]["params"]["config"]["mcp_servers"]["chickenbro_toolbox"]
+        self.assertIn("CHICKENBRO_GAME", toolbox["env_vars"])
+        self.assertEqual(captured["env"]["CHICKENBRO_GAME"], "poe2")
+        with patch.dict(os.environ, {"CHICKENBRO_GAME": captured["env"]["CHICKENBRO_GAME"]}, clear=True):
+            names = {item["name"] for item in native_mcp.handle_rpc_request(
+                {"id": 1, "method": "tools/list"})["result"]["tools"]}
+        self.assertIn("poe2_calculate", names)
+        self.assertNotIn("query_warcraftlogs_report", names)
+
+    def test_trusted_poe2_chat_preapproves_only_bounded_mutating_tools(self):
+        class Poe2Gateway:
+            def issue_capability(self, context):
+                self.context = context
+                return "poe2-capability"
+            def revoke(self, token):
+                self.revoked = token
+
+        gateway = Poe2Gateway()
+        poe2_process = FakeProcess(answer())
+        wow_process = FakeProcess(answer())
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CODEX_HOME": directory}):
+            Path(directory, "test.config.toml").write_text(
+                'model="gpt-6-astra"\n[mcp_servers.chickenbro_toolbox]\n'
+                'command="/usr/bin/python3"\nenv_vars=[]\n', encoding="utf-8")
+            adapter = NativeCodexChatAdapter(
+                enabled=True, jobs_dir=directory, profile="test", poe2_gateway=gateway,
+                popen=lambda *args, **kwargs: poe2_process,
+            )
+            list(adapter.stream_for_chat(
+                principal="owner", conversation_id="conversation", run_id="run", game="poe2",
+                prompt='{"messages":[]}', timeout_seconds=30,
+            ))
+            wow_adapter = NativeCodexChatAdapter(
+                enabled=True, jobs_dir=directory, profile="test", poe2_gateway=gateway,
+                popen=lambda *args, **kwargs: wow_process,
+            )
+            list(wow_adapter.stream_for_chat(
+                principal="owner", conversation_id="conversation", run_id="run", game="wow",
+                prompt='{"messages":[]}', timeout_seconds=30,
+            ))
+
+        poe2_tools = poe2_process.sent()[2]["params"]["config"]["mcp_servers"]["chickenbro_toolbox"]["tools"]
+        self.assertEqual(poe2_tools, {
+            "poe2_import": {"approval_mode": "approve"},
+            "poe2_calculate": {"approval_mode": "approve"},
+            "poe2_character_create": {"approval_mode": "approve"},
+            "poe2_character_source": {"approval_mode": "approve"},
+            "poe2_character_retry": {"approval_mode": "approve"},
+            "poe2_character_cancel": {"approval_mode": "approve"},
+        })
+        wow_toolbox = wow_process.sent()[2]["params"]["config"]["mcp_servers"]["chickenbro_toolbox"]
+        self.assertNotIn("tools", wow_toolbox)
+        self.assertEqual(gateway.context.game, "poe2")
+        self.assertEqual(gateway.revoked, "poe2-capability")
 
     def test_streams_public_summary_separately_and_rejects_wrong_turn(self):
         summary = note('item/reasoning/summaryTextDelta', threadId='thread', turnId='turn',

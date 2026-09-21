@@ -32,6 +32,7 @@ export interface ChatModelState {
 }
 
 export interface ChatModelDependencies {
+  game?: 'wow' | 'poe2'
   requestId?: () => string
 }
 
@@ -105,6 +106,7 @@ export class ChatModel {
   private pendingImageSend: { signature: string; clientMessageId: string; idempotencyKey: string } | null = null
   private pendingCreate: { title: string; idempotencyKey: string } | null = null
   private createInFlight: Promise<ConversationSummary | null> | null = null
+  private readonly game: 'wow' | 'poe2'
 
   constructor(
     private readonly client: ChatClient,
@@ -112,6 +114,7 @@ export class ChatModel {
     dependencies: ChatModelDependencies = {},
   ) {
     this.requestId = dependencies.requestId ?? defaultRequestId
+    this.game = dependencies.game ?? 'wow'
   }
 
   get(): ChatModelState {
@@ -167,7 +170,7 @@ export class ChatModel {
       this.authFailure(error)
       return
     }
-    const result = await this.client.list({ limit: 20 }, { auth })
+    const result = await this.client.list({ limit: 20, game: this.game }, { auth })
     if (
       viewGeneration !== this.streamGeneration
       || historyGeneration !== this.historyGeneration
@@ -176,7 +179,7 @@ export class ChatModel {
       this.apiFailure(result, '会话历史加载失败')
       return
     }
-    const conversations = result.payload.items.filter(item => !this.deletedIds.has(item.id))
+    const conversations = result.payload.items.filter(item => !this.deletedIds.has(item.id) && (item.game ?? 'wow') === this.game)
     this.update({
       phase: 'ready',
       conversations,
@@ -210,7 +213,7 @@ export class ChatModel {
       return
     }
     const result = await this.client.list(
-      { cursor: this.state.nextCursor, limit: 20 },
+      { cursor: this.state.nextCursor, limit: 20, game: this.game },
       { auth },
     )
     if (generation !== this.historyGeneration) return
@@ -219,7 +222,7 @@ export class ChatModel {
       return
     }
     const byId = new Map(this.state.conversations.map((item) => [item.id, item]))
-    result.payload.items.filter(item => !this.deletedIds.has(item.id)).forEach((item) => byId.set(item.id, item))
+    result.payload.items.filter(item => !this.deletedIds.has(item.id) && (item.game ?? 'wow') === this.game).forEach((item) => byId.set(item.id, item))
     this.update({
       conversations: [...byId.values()],
       nextCursor: result.payload.nextCursor,
@@ -249,6 +252,10 @@ export class ChatModel {
       return
     }
     this.openingId = null
+    if ((result.payload.game ?? 'wow') !== this.game) {
+      this.update({phase: 'blocked', activeConversation: null, errorCode: 'CONVERSATION_GAME_MISMATCH', errorMessage: '请切换到此会话所属的游戏', retryable: false})
+      return
+    }
     if (this.deletedIds.has(conversationId)) return
     this.update({
       phase: 'ready',
@@ -326,7 +333,7 @@ export class ChatModel {
     this.pendingCreate = pending
     this.update({ phase: 'loading', errorCode: '', errorMessage: '', retryable: false })
     const result = await this.client.create(
-      normalizedTitle ? { title: normalizedTitle } : {},
+      {game: this.game, ...(normalizedTitle ? {title: normalizedTitle} : {})},
       { auth, idempotencyKey: pending.idempotencyKey },
     )
     if (result.fromFallback) {

@@ -1,0 +1,52 @@
+[Unit]
+Description=POE2 Candidate isolated public source browser
+Requires=chickenbro-poe2-source-browser.socket
+After=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+ExecStart=/opt/chickenbro-candidates/poe2-20260918/runtime/node-v22.19.0-linux-x64/bin/node /opt/chickenbro-poe2-source-browser/collector.cjs
+Environment=POE2_SOURCE_ENABLED=1
+Environment=PATH=/usr/bin:/bin
+Environment=HOME=/tmp
+Environment=LANG=C.UTF-8
+UnsetEnvironment=HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy NODE_OPTIONS NODE_PATH
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+TemporaryFileSystem=/opt:ro /var:ro /run:ro /etc:ro
+BindReadOnlyPaths=/opt/chickenbro-poe2-source-browser/collector.cjs
+BindReadOnlyPaths=/opt/chickenbro-poe2-source-browser/poe2_source_supervisor.py
+BindReadOnlyPaths=/opt/chickenbro-candidates/poe2-20260918/runtime/browser
+BindReadOnlyPaths=/opt/chickenbro-candidates/poe2-20260918/runtime/node-v22.19.0-linux-x64/bin/node
+BindReadOnlyPaths=/etc/ssl/certs
+BindReadOnlyPaths=/opt/chickenbro-poe2-source-browser/resolv.conf:/etc/resolv.conf
+IPAddressDeny=0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 198.18.0.0/15 224.0.0.0/4 240.0.0.0/4
+IPAddressDeny=::/128 ::1/128 fc00::/7 fe80::/10 ff00::/8
+MemoryMax=1536M
+MemorySwapMax=0
+TasksMax=192
+CPUQuota=150%
+LimitCORE=0
+UMask=0077
+KillMode=control-group
+TimeoutStopSec=5s
+Restart=on-failure
+RestartSec=3s
+StandardOutput=null
+StandardError=null

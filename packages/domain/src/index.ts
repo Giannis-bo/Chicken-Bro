@@ -7,6 +7,7 @@ export {
   isConversationSummary,
 } from './chat'
 export type {
+  GameId,
   ChatImage,
   ChatEventEnvelope,
   ChatMessage,
@@ -54,3 +55,6 @@ export type {
 export { isAvatarResponse } from './web-auth'
 export type { AvatarResponse } from './web-auth'
 export * from './admin'
+export * from './poe2'
+export * from './poe2-terms'
+export * from './poe2-tree'

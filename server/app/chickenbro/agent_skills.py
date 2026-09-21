@@ -11,6 +11,7 @@ import stat
 
 
 SKILL_IDS = ('mechanics', 'wcl-analysis', 'rankings', 'simc-experiment')
+POE2_SKILL_IDS = ('poe2-build-analysis', 'poe2-crafting')
 MAX_SKILL_BYTES = 16 * 1024
 _SKILLS_ROOT = Path(__file__).resolve().parent / 'agent' / 'skills'
 
@@ -22,10 +23,11 @@ def _unavailable(code):
     }
 
 
-def read_chickenbro_skill(arguments):
+def read_chickenbro_skill(arguments, game='wow'):
     """Return an exact UTF-8 workflow and digest, or a path-free failure packet."""
     if (not isinstance(arguments, dict) or set(arguments) != {'skillId'}
-            or not isinstance(arguments['skillId'], str) or arguments['skillId'] not in SKILL_IDS):
+            or not isinstance(arguments['skillId'], str)
+            or arguments['skillId'] not in (POE2_SKILL_IDS if game == 'poe2' else SKILL_IDS)):
         return _unavailable('SKILL_ARGUMENTS_INVALID')
     skill_id = arguments['skillId']
     path = _SKILLS_ROOT / (skill_id + '.md')

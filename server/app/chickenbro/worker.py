@@ -84,6 +84,12 @@ def start_chat_workers(settings, connection_factory, stop):
     from server.app.simulation.sources import CharacterSourceRouter, HttpxSourceGateway
     from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
     from server.app.simulation.compiler import SimcProfileCompiler
+    from server.app.poe2.application import Poe2Application
+    from server.app.poe2.repository import PostgresPoe2Repository
+    from server.app.poe2.engine import PobEngine
+    from server.app.poe2.tools import Poe2ToolGateway
+    from server.app.poe2.imports.application import ImportApplication
+    from server.app.poe2.imports.repository import PostgresImportRepository
 
     port = int(os.environ.get('WOW_CHAT_WORKER_TOOL_PORT','28794'))
     if port not in (28794,18794):
@@ -99,12 +105,15 @@ def start_chat_workers(settings, connection_factory, stop):
             source_router=CharacterSourceRouter(HttpxSourceGateway()),
             readiness_validator=SimcReadinessValidator(),
             compiler=SimcProfileCompiler(capabilities=capabilities),runtime_capabilities=capabilities)
+        poe2 = Poe2Application(PostgresPoe2Repository(connect),PobEngine())
         return NativeCodexChatAdapter(
             source_gateway=host.register(ChickenbroSourceGateway(
                 query_service=ServerConfiguredSourceQuery(wcl_reader=WclRunReader()), research_budget=research),recorder,'source'),
             simulation_gateway=host.register(SimulationToolGateway(simulation, research_budget=research),recorder,'simc'),
+            poe2_gateway=host.register(Poe2ToolGateway(poe2, import_application=ImportApplication(PostgresImportRepository(connect)),research_budget=research),recorder,'poe2'),
             source_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/source-query',
-            simulation_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/simc-tool')
+            simulation_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/simc-tool',
+            poe2_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/poe2-tool')
 
     def lane():
         worker = ChatWorker(connection_factory,codex_factory=factory)

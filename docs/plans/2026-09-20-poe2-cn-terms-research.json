@@ -1,0 +1,507 @@
+{
+  "version": "2026-09-20.1",
+  "locale": "zh-CN",
+  "gameVersion": "0.5 series; exact source patch unspecified",
+  "sources": [
+    {
+      "id": "poe2db-cn",
+      "url": "https://poe2db.tw/cn/",
+      "accessedAt": "2026-09-20",
+      "locale": "cn",
+      "type": "community game-data reference",
+      "version": "live pages accessed on 2026-09-20; no exact patch claim"
+    }
+  ],
+  "terms": [
+    {
+      "kind": "gem",
+      "en": "Shield Wall",
+      "zhCN": "盾墙",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Shield_Wall"
+    },
+    {
+      "kind": "gem",
+      "en": "Sunder",
+      "zhCN": "大地震击",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Sunder"
+    },
+    {
+      "kind": "gem",
+      "en": "Herald of Blood",
+      "zhCN": "赤血之捷",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Herald_of_Blood"
+    },
+    {
+      "kind": "gem",
+      "en": "Fortifying Cry",
+      "zhCN": "坚韧战吼",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Fortifying_Cry"
+    },
+    {
+      "kind": "gem",
+      "en": "Wind Dancer",
+      "zhCN": "风舞者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Wind_Dancer"
+    },
+    {
+      "kind": "gem",
+      "en": "Companion: Diretusk Boar",
+      "zhCN": "伙伴：恐牙野猪",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Diretusk_Boar",
+      "note": "技能模板伙伴：{0}与怪物恐牙野猪组合，未修改原始宝石标识"
+    },
+    {
+      "kind": "gem",
+      "en": "Herald of Plague",
+      "zhCN": "荒芜之捷",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Herald_of_Plague"
+    },
+    {
+      "kind": "gem",
+      "en": "Attrition",
+      "zhCN": "持久鏖战",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Attrition"
+    },
+    {
+      "kind": "gem",
+      "en": "Time of Need",
+      "zhCN": "紧急时刻",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Time_of_Need"
+    },
+    {
+      "kind": "gem",
+      "en": "Atalui's Bloodletting",
+      "zhCN": "阿图鲁伊的放血术",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Atalui's_Bloodletting"
+    },
+    {
+      "kind": "gem",
+      "en": "Bleed III",
+      "zhCN": "流血 III",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Bleed_III"
+    },
+    {
+      "kind": "gem",
+      "en": "Poison III",
+      "zhCN": "中毒 III",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Poison_III"
+    },
+    {
+      "kind": "gem",
+      "en": "Rapid Attacks II",
+      "zhCN": "快速攻击 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Rapid_Attacks_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Concentrated Area",
+      "zhCN": "范围集中",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Concentrated_Area"
+    },
+    {
+      "kind": "gem",
+      "en": "Defy II",
+      "zhCN": "顽抗 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Defy_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Poison Spores",
+      "zhCN": "毒孢迸溅",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Poison_Spores"
+    },
+    {
+      "kind": "gem",
+      "en": "Brambleslam",
+      "zhCN": "遍地荆棘",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Brambleslam"
+    },
+    {
+      "kind": "gem",
+      "en": "Admixture",
+      "zhCN": "混合物",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Admixture"
+    },
+    {
+      "kind": "gem",
+      "en": "Deadly Poison II",
+      "zhCN": "致命毒素 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Deadly_Poison_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Bursting Plague",
+      "zhCN": "迸发之疫",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Bursting_Plague"
+    },
+    {
+      "kind": "gem",
+      "en": "Enraged Warcry II",
+      "zhCN": "燃怒战吼 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Enraged_Warcry_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Uruk's Smelting",
+      "zhCN": "厄罗克的熔炼术",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Uruks_Smelting"
+    },
+    {
+      "kind": "gem",
+      "en": "Armour Break III",
+      "zhCN": "护甲破损 III",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Armour_Break_III"
+    },
+    {
+      "kind": "gem",
+      "en": "Lifetap",
+      "zhCN": "赤炼",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Lifetap"
+    },
+    {
+      "kind": "gem",
+      "en": "Magnified Area II",
+      "zhCN": "范围扩大 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Magnified_Area_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Heft",
+      "zhCN": "势大力沉",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Heft"
+    },
+    {
+      "kind": "gem",
+      "en": "Heavy Swing",
+      "zhCN": "沉重挥舞",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Heavy_Swing"
+    },
+    {
+      "kind": "gem",
+      "en": "Armour Demolisher II",
+      "zhCN": "护甲破坏者 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Armour_Demolisher_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Meat Shield II",
+      "zhCN": "肉盾 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Meat_Shield_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Lasting Shock",
+      "zhCN": "持久感电",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Lasting_Shock"
+    },
+    {
+      "kind": "gem",
+      "en": "Overcharge",
+      "zhCN": "过载",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Overcharge"
+    },
+    {
+      "kind": "gem",
+      "en": "Elemental Army",
+      "zhCN": "元素大军",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Elemental_Army"
+    },
+    {
+      "kind": "gem",
+      "en": "Chaos Mastery",
+      "zhCN": "混沌专精",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Chaos_Mastery"
+    },
+    {
+      "kind": "gem",
+      "en": "Armour Demolisher I",
+      "zhCN": "护甲破坏者 I",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Armour_Demolisher_I"
+    },
+    {
+      "kind": "gem",
+      "en": "Cooldown Recovery II",
+      "zhCN": "冷却回复 II",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Cooldown_Recovery_II"
+    },
+    {
+      "kind": "gem",
+      "en": "Virtuous Barrier",
+      "zhCN": "美德壁垒",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Virtuous_Barrier"
+    },
+    {
+      "kind": "gem",
+      "en": "Eternal Rage",
+      "zhCN": "永恒狂怒",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Eternal_Rage"
+    },
+    {
+      "kind": "gem",
+      "en": "Spear Throw",
+      "zhCN": "战矛飞掷",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Spear_Throw"
+    },
+    {
+      "kind": "class",
+      "en": "Mercenary",
+      "zhCN": "佣兵",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Mercenary"
+    },
+    {
+      "kind": "class",
+      "en": "Druid",
+      "zhCN": "德鲁伊",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Druid"
+    },
+    {
+      "kind": "class",
+      "en": "Monk",
+      "zhCN": "行者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Monk"
+    },
+    {
+      "kind": "class",
+      "en": "Sorceress",
+      "zhCN": "魔巫",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Sorceress"
+    },
+    {
+      "kind": "class",
+      "en": "Warrior",
+      "zhCN": "战士",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Warrior"
+    },
+    {
+      "kind": "class",
+      "en": "Witch",
+      "zhCN": "女巫",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Witch"
+    },
+    {
+      "kind": "class",
+      "en": "Ranger",
+      "zhCN": "游侠",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Ranger"
+    },
+    {
+      "kind": "class",
+      "en": "Huntress",
+      "zhCN": "女猎手",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Huntress"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Gemling Legionnaire",
+      "zhCN": "古灵使徒斗士",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Gemling_Legionnaire"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Titan",
+      "zhCN": "泰坦",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Titan"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Warbringer",
+      "zhCN": "战争使者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Warbringer"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Smith of Kitava",
+      "zhCN": "奇塔弗匠师",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Smith_of_Kitava"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Deadeye",
+      "zhCN": "锐眼",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Deadeye"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Pathfinder",
+      "zhCN": "追猎者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Pathfinder"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Amazon",
+      "zhCN": "亚马逊",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Amazon"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Ritualist",
+      "zhCN": "仪祭师",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Ritualist"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Witchhunter",
+      "zhCN": "猎巫人",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Witchhunter"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Tactician",
+      "zhCN": "战术家",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Tactician"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Blood Mage",
+      "zhCN": "命源法师",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Blood_Mage"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Infernalist",
+      "zhCN": "驱炎使",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Infernalist"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Lich",
+      "zhCN": "巫妖",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Lich"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Stormweaver",
+      "zhCN": "风暴编织者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Stormweaver"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Chronomancer",
+      "zhCN": "塑时术师",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Chronomancer"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Invoker",
+      "zhCN": "祈求者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Invoker"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Acolyte of Chayula",
+      "zhCN": "夏乌拉追随者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Acolyte_of_Chayula"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Shaman",
+      "zhCN": "萨满",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Shaman"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Oracle",
+      "zhCN": "神谕者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Oracle"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Martial Artist",
+      "zhCN": "武圣",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Martial_Artist"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Spirit Walker",
+      "zhCN": "灵魂行者",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Spirit_Walker"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Disciple of Varashta",
+      "zhCN": "瓦拉煞的门徒",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Disciple_of_Varashta"
+    },
+    {
+      "kind": "ascendancy",
+      "en": "Abyssal Lich",
+      "zhCN": "深渊巫妖",
+      "sourceId": "poe2db-cn",
+      "sourceUrl": "https://poe2db.tw/cn/Abyssal_Lich"
+    }
+  ],
+  "unknown": [
+    {
+      "en": "unlisted gems, item bases, affixes and future classes",
+      "reason": "outside bounded researched vocabulary; preserve source English"
+    }
+  ]
+}

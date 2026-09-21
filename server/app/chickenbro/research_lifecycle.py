@@ -43,19 +43,23 @@ class PostgresResearchBudget:
             self.research_id = research_id
 
     @contextmanager
-    def _locked(self):
-        with self.connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute('''SELECT s.id,s.state,s.budget FROM chat.research_sessions s
+    def _locked(self, cursor=None):
+        if cursor is None:
+            with self.connect() as conn:
+                with conn.cursor() as cur:
+                    with self._locked(cur) as row:
+                        yield row
+            return
+        cursor.execute('''SELECT s.id,s.state,s.budget FROM chat.research_sessions s
                     JOIN chat.research_runs b ON b.research_id=s.id AND b.user_id=s.user_id
                         AND b.conversation_id=s.conversation_id
                     JOIN chat.agent_runs r ON r.id=b.run_id AND r.user_id=b.user_id
                         AND r.conversation_id=b.conversation_id
                     WHERE b.user_id=%s AND b.run_id=%s FOR UPDATE OF s''', (self.user_id,self.run_id))
-                row = cur.fetchone()
-                if row is None:
-                    raise PermissionError('research unavailable')
-                yield cur, row[0], row[1], row[2]
+        row = cursor.fetchone()
+        if row is None:
+            raise PermissionError('research unavailable')
+        yield cursor, row[0], row[1], row[2]
 
     def _save(self, cur, research_id, data):
         cur.execute('UPDATE chat.research_sessions SET budget=%s::jsonb WHERE id=%s AND user_id=%s',
@@ -102,7 +106,7 @@ class PostgresResearchBudget:
                     'nextActions':['Stop new work in this response, answer from retained evidence and identify the remaining finite gap. A user follow-up may continue within the same player/fight scope; do not automatically split bulk research.']}
             if not error:
                 cur.execute('UPDATE chat.research_runs SET work=%s::jsonb WHERE run_id=%s AND user_id=%s',
-                    (json.dumps({'calls':budget.calls,'events':budget.events}),self.run_id,self.user_id))
+                    (json.dumps({**work,'calls':budget.calls,'events':budget.events}),self.run_id,self.user_id))
                 budget.calls = cumulative_calls + budget.calls - before_calls
                 budget.events = cumulative_events + budget.events - before_events
                 data['source'] = budget.dump()
@@ -142,3 +146,23 @@ class PostgresResearchBudget:
             submissions.append(key)
             self._save(cur,identity,data)
             return None
+
+    def poe2_status(self):
+        from server.app.poe2.research import status
+        with self._locked() as (cur, _, state, data):
+            cur.execute('SELECT work FROM chat.research_runs WHERE run_id=%s AND user_id=%s', (self.run_id,self.user_id))
+            return dict(status(data.get('poe2', {}), cur.fetchone()[0]), state=state)
+
+    def reserve_poe2(self, key, cursor=None):
+        from server.app.poe2.research import reserve
+        with self._locked(cursor) as (cur, identity, state, data):
+            if state != 'active':
+                return self._ended()
+            cur.execute('SELECT work FROM chat.research_runs WHERE run_id=%s AND user_id=%s', (self.run_id,self.user_id))
+            work = cur.fetchone()[0]
+            error = reserve(data.setdefault('poe2', {}), work, key)
+            if not error:
+                self._save(cur, identity, data)
+                cur.execute('UPDATE chat.research_runs SET work=%s::jsonb WHERE run_id=%s AND user_id=%s',
+                            (json.dumps(work), self.run_id, self.user_id))
+            return error

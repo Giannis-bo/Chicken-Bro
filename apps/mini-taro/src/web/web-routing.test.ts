@@ -5,6 +5,11 @@ import { normalizeWebUrl, readWebView, webViewHref } from './web-routing'
 afterEach(() => window.history.replaceState(null, '', '/'))
 
 describe('Web short routes', () => {
+  it('keeps POE2 workbench navigation under a candidate base', () => {
+    const url = new URL('https://chickenbro.cloud/poe2-candidate/?game=poe2&view=builds')
+    expect(readWebView(url, '/poe2-candidate')).toBe('poe2')
+    expect(webViewHref('poe2', url, '/poe2-candidate')).toBe('/poe2-candidate/poe2?game=poe2')
+  })
   it.each([
     ['/#/pages/chickenbro/index', '/', 'chat'],
     ['/?view=simc#/pages/chickenbro/index', '/simc', 'simc'],

@@ -8,6 +8,7 @@ from server.app.chickenbro.domain import (
     ChatAccountBusy,
     AgentRunStatus,
     Conversation,
+    ConversationGame,
     ConversationUnavailable,
     ConversationBusy,
     ConversationStatus,
@@ -41,23 +42,24 @@ class PostgresChatRepository(ChatImageRepository):
         conversation_id: UUID,
         title: str,
         now: datetime,
+        game: str = "wow",
     ) -> Conversation:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    INSERT INTO chat.conversations (id, user_id, title, status, created_at, updated_at)
-                    VALUES (%s, %s, %s, 'active', %s, %s)
+                    INSERT INTO chat.conversations (id, user_id, title, status, created_at, updated_at, game)
+                    VALUES (%s, %s, %s, 'active', %s, %s, %s)
                     ON CONFLICT (id) DO NOTHING
-                    RETURNING id, user_id, title, status, created_at, updated_at
+                    RETURNING id, user_id, title, status, created_at, updated_at, game
                     """,
-                    (conversation_id, user_id, title, now, now),
+                    (conversation_id, user_id, title, now, now, game),
                 )
                 row = cursor.fetchone()
                 if row is None:
                     cursor.execute(
                         """
-                        SELECT id, user_id, title, status, created_at, updated_at
+                        SELECT id, user_id, title, status, created_at, updated_at, game
                         FROM chat.conversations
                         WHERE user_id = %s AND id = %s
                         FOR SHARE
@@ -94,7 +96,7 @@ class PostgresChatRepository(ChatImageRepository):
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
-                    SELECT id, user_id, title, status, created_at, updated_at
+                    SELECT id, user_id, title, status, created_at, updated_at, game
                     FROM chat.conversations
                     WHERE user_id = %s AND id = %s AND status = 'active'
                     """,
@@ -110,30 +112,31 @@ class PostgresChatRepository(ChatImageRepository):
         user_id: UUID,
         boundary: tuple[datetime, UUID] | None,
         limit: int,
+        game: str = "wow",
     ) -> Sequence[Conversation]:
         with self._connection_factory() as connection:
             with connection.cursor() as cursor:
                 if boundary is None:
                     cursor.execute(
                         """
-                        SELECT id, user_id, title, status, created_at, updated_at
+                        SELECT id, user_id, title, status, created_at, updated_at, game
                         FROM chat.conversations
-                        WHERE user_id = %s AND status = 'active'
+                        WHERE user_id = %s AND status = 'active' AND game = %s
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
-                        (user_id, limit),
+                        (user_id, game, limit),
                     )
                 else:
                     updated_at, conversation_id = boundary
                     cursor.execute(
                         """
-                        SELECT id, user_id, title, status, created_at, updated_at
+                        SELECT id, user_id, title, status, created_at, updated_at, game
                         FROM chat.conversations
-                        WHERE user_id = %s AND status = 'active'
+                        WHERE user_id = %s AND status = 'active' AND game = %s
                           AND (updated_at, id) < (%s, %s)
                         ORDER BY updated_at DESC, id DESC LIMIT %s
                         """,
-                        (user_id, updated_at, conversation_id, limit),
+                        (user_id, game, updated_at, conversation_id, limit),
                     )
                 rows = cursor.fetchall()
         return [self._conversation_from_row(row) for row in rows]
@@ -494,6 +497,7 @@ class PostgresChatRepository(ChatImageRepository):
             status=ConversationStatus(str(_row_value(row, "status", 3))),
             created_at=_row_value(row, "created_at", 4),
             updated_at=_row_value(row, "updated_at", 5),
+            game=ConversationGame(str(_row_value(row, "game", 6) or "wow")),
         )
 
     @staticmethod

@@ -10,19 +10,21 @@ simulation uses the current Chat run's server-issued, owner-scoped capability.
 import json
 import hashlib
 import os
+import re
 import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from pathlib import Path
+from xml.etree import ElementTree
 
 try:
     from .chickenbro_public_web_research import build_public_web_research_tool_result
-    from .app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
+    from .app.chickenbro.agent_skills import SKILL_IDS, POE2_SKILL_IDS, read_chickenbro_skill
 except ImportError:
     from chickenbro_public_web_research import build_public_web_research_tool_result
-    from app.chickenbro.agent_skills import SKILL_IDS, read_chickenbro_skill
+    from app.chickenbro.agent_skills import SKILL_IDS, POE2_SKILL_IDS, read_chickenbro_skill
 
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
@@ -36,6 +38,8 @@ SOURCE_GATEWAY_URL_ENV = "CHICKENBRO_SOURCE_GATEWAY_URL"
 SOURCE_GATEWAY_TOKEN_ENV = "CHICKENBRO_SOURCE_GATEWAY_TOKEN"
 SIMULATION_GATEWAY_URL_ENV = "CHICKENBRO_SIMULATION_GATEWAY_URL"
 SIMULATION_GATEWAY_TOKEN_ENV = "CHICKENBRO_SIMULATION_GATEWAY_TOKEN"
+POE2_GATEWAY_URL_ENV = "CHICKENBRO_POE2_GATEWAY_URL"
+POE2_GATEWAY_TOKEN_ENV = "CHICKENBRO_POE2_GATEWAY_TOKEN"
 SIMULATION_OPERATIONS = {"prepare_simulation": "prepare", "submit_simulation": "submit",
                          "get_simulation_job": "get", "list_simulation_jobs": "list",
                          "preview_simulation": "preview", "query_simulation_options": "options", "compare_simulation_jobs": "compare"}
@@ -287,6 +291,154 @@ for _name, _description, _required, _properties, _read_only in [
                         "properties": _properties},
         "annotations": {"readOnlyHint": _read_only, "destructiveHint": False, "idempotentHint": True}})
 
+WOW_TOOL_DEFINITIONS = tuple(TOOL_DEFINITIONS)
+_POE2_NUMBER_CONFIG = {
+    name: {"type": "number", "minimum": -200, "maximum": 1000}
+    for name in (
+        "enemyLevel", "enemyPhysicalReduction", "enemyFireResist", "enemyColdResist",
+        "enemyLightningResist", "enemyChaosResist",
+    )
+}
+_POE2_BOOLEAN_CONFIG = {
+    name: {"type": "boolean"}
+    for name in (
+        "conditionEnemyShocked", "conditionEnemyChilled", "conditionEnemyIgnited",
+        "conditionFullLife", "conditionLowLife", "conditionStationary",
+        "usePowerCharges", "useFrenzyCharges", "useEnduranceCharges",
+    )
+}
+_POE2_CHANGES_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "maxProperties": 7,
+    "properties": {
+        "level": {"type": "integer", "minimum": 1, "maximum": 100},
+        "mainSocketGroup": {"type": "integer", "minimum": 1, "maximum": 100},
+        "skillGroups": {
+            "type": "array", "minItems": 1, "maxItems": 10,
+            "items": {
+                "type": "object", "additionalProperties": False, "required": ["index", "gems"],
+                "properties": {
+                    "index": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "gems": {
+                        "type": "array", "minItems": 1, "maxItems": 6,
+                        "items": {
+                            "type": "object", "additionalProperties": False,
+                            "required": ["name", "level", "quality"],
+                            "properties": {
+                                "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                                "level": {"type": "integer", "minimum": 1, "maximum": 40},
+                                "quality": {"type": "integer", "minimum": 0, "maximum": 30},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        "items": {
+            "type": "array", "maxItems": 10,
+            "items": {
+                "type": "object", "additionalProperties": False, "required": ["slot", "text"],
+                "properties": {
+                    "slot": {"type": "string", "enum": [
+                        "Weapon 1", "Weapon 2", "Helmet", "Body Armour", "Gloves",
+                        "Boots", "Amulet", "Ring 1", "Ring 2", "Belt",
+                    ]},
+                    "text": {"type": "string", "minLength": 1, "maxLength": 16000},
+                },
+            },
+        },
+        "config": {
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                **_POE2_NUMBER_CONFIG,
+                "enemyIsBoss": {"type": "string", "enum": ["None", "Boss", "Pinnacle"]},
+                **_POE2_BOOLEAN_CONFIG,
+            },
+        },
+        "allocateNodes": {"type": "array", "maxItems": 30, "uniqueItems": True,
+                          "items": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+        "deallocateNodes": {"type": "array", "maxItems": 30, "uniqueItems": True,
+                            "items": {"type": "integer", "minimum": 0, "maximum": 1000000}},
+    },
+}
+POE2_OPERATIONS = {
+    "poe2_character_create": "character_create", "poe2_character_get": "character_get",
+    "poe2_character_source": "character_source", "poe2_character_retry": "character_retry",
+    "poe2_character_cancel": "character_cancel",
+    "poe2_import": "import", "poe2_list": "list", "poe2_get": "get",
+    "poe2_calculate": "calculate", "poe2_compare": "compare",
+    "poe2_job_get": "job_get", "poe2_export": "export",
+    "poe2_crafting_import_link": "crafting_import_link",
+}
+POE2_TOOL_DEFINITIONS = (
+    {**TOOL_DEFINITION, "description": (
+        "Fallback public HTTPS article reader for POE2 rules, patches and crafting. "
+        "Prefer native live web search for discovery with POE2-specific terms and authoritative domains. "
+        "Use target=URL for a located article; use returned nextStart/start or match for truncated text. "
+        "Irrelevant search results and empty JS shells are not evidence. This fallback has its own bounded source budget."
+    )},
+    {
+        "name": "read_chickenbro_skill",
+        "description": "Read a bundled POE2 workflow for build analysis or crafting. No paths or URLs accepted.",
+        "inputSchema": {"type": "object", "additionalProperties": False, "required": ["skillId"],
+                        "properties": {"skillId": {"type": "string", "enum": list(POE2_SKILL_IDS)}}},
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {"name": "poe2_import", "description": "Import a PoB 2 share code or XML text into this account. Arbitrary URLs, paths and commands are not accepted.",
+     "inputSchema": {"type": "object", "additionalProperties": False, "required": ["source"], "properties": {
+         "source": {"type": "string", "minLength": 1, "maxLength": 2000000}, "title": {"type": "string", "maxLength": 160},
+         "patch": {"type": "string", "maxLength": 80}, "league": {"type": "string", "maxLength": 80}}},
+     "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False}},
+    {"name": "poe2_list", "description": "List this account's imported POE2 builds.",
+     "inputSchema": {"type": "object", "additionalProperties": False, "properties": {}},
+     "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True}},
+    *({"name": name, "description": description,
+       "inputSchema": {"type": "object", "additionalProperties": False, "required": required, "properties": properties},
+       "annotations": {"readOnlyHint": read_only, "destructiveHint": False, "idempotentHint": True}}
+      for name, description, required, properties, read_only in (
+        ("poe2_character_create", "Create an owned character import from an explicit wegame or ninja HTTPS character link. Ninja requires user-supplied PoB; WeGame gaps require complete PoB. Never claim link ownership verified.",
+         ["provider", "url", "idempotencyKey"], {"provider": {"type": "string", "enum": ["wegame", "ninja"]}, "url": {"type": "string", "minLength": 1, "maxLength": 4096}, "idempotencyKey": {"type": "string", "minLength": 1, "maxLength": 128}}, False),
+        ("poe2_character_get", "Read this account's import status, preview and completeness issues. Ready references an existing build and baseline; do not recalculate it.", ["importId"], {"importId": _UUID_SCHEMA}, True),
+        ("poe2_character_source", "Supply a user-confirmed PoB code or XML to an owned import. Relation remains user_supplied, not verified. For text over Chat's 4000-character limit direct the user to the Web build page without splitting messages.",
+         ["importId", "source", "idempotencyKey"], {"importId": _UUID_SCHEMA, "source": {"type": "string", "minLength": 1, "maxLength": 2000000}, "idempotencyKey": {"type": "string", "minLength": 1, "maxLength": 128}}, False),
+        ("poe2_character_retry", "Explicitly retry an owned character import.", ["importId", "idempotencyKey"], {"importId": _UUID_SCHEMA, "idempotencyKey": {"type": "string", "minLength": 1, "maxLength": 128}}, False),
+        ("poe2_character_cancel", "Cancel an owned character import.", ["importId"], {"importId": _UUID_SCHEMA}, False),
+        ("poe2_get", "Read an owned build and baselineJobId. Read that saved baseline with poe2_job_get; only calculate an empty changes baseline if missing.", ["buildId"], {"buildId": _UUID_SCHEMA}, True),
+        ("poe2_calculate", "Reuse an identical successful/in-flight job or submit a missing PoB 2 calculation. reused=true means no new work or budget charge. researchBudget reports 12 new attempts per turn, 60 distinct candidates and 120 attempts per research; 30 candidates is a soft convergence reminder. Read/compare existing results freely. Do not split the same research to bypass limits. Only successful results provide usable values.",
+         ["buildId", "idempotencyKey"], {"buildId": _UUID_SCHEMA, "changes": _POE2_CHANGES_SCHEMA,
+          "idempotencyKey": {"type": "string", "minLength": 8, "maxLength": 128}}, False),
+        ("poe2_compare", "Compare exactly two completed, compatible POE2 jobs from the same baseline.", ["jobIds"],
+         {"jobIds": {"type": "array", "minItems": 2, "maxItems": 2, "items": _UUID_SCHEMA}}, True),
+        ("poe2_job_get", "Read an owned POE2 calculation job. Queued or running is not a result.", ["jobId"], {"jobId": _UUID_SCHEMA}, True),
+        ("poe2_export", "Export an owned POE2 build as a PoB 2 code.", ["buildId"], {"buildId": _UUID_SCHEMA}, True),
+        ("poe2_crafting_import_link", "Generate a correctly encoded Craft of Exile eimport link from user-provided item text. This does not validate a route or probability.",
+         ["itemText"], {"itemText": {"type": "string", "minLength": 1, "maxLength": 20000}}, True),
+      )),
+)
+
+
+def _game(value):
+    return value if value in {"wow", "poe2"} else "wow"
+
+
+def _tool_definitions(game):
+    return POE2_TOOL_DEFINITIONS if _game(game) == "poe2" else WOW_TOOL_DEFINITIONS
+
+
+def _poe2_import_source_allowed(value):
+    if not isinstance(value, str):
+        return False
+    source = value.strip()
+    if source.startswith("<"):
+        if "<!DOCTYPE" in source.upper() or "<!ENTITY" in source.upper():
+            return False
+        try:
+            return ElementTree.fromstring(source).tag == "PathOfBuilding2"
+        except ElementTree.ParseError:
+            return False
+    return bool(re.fullmatch(r"[A-Za-z0-9_+/=-]{16,2000000}", source))
+
 
 def _response(request_id, result):
     return {"jsonrpc": "2.0", "id": request_id, "result": result}
@@ -341,7 +493,7 @@ def _safe_observation(result, tool_name=TOOL_NAME, *, arguments=None, elapsed_ms
     if tool_name == 'read_chickenbro_skill':
         observation['sourceKey'] = 'chickenbro_skill'
         version = packet.get('version')
-        if (packet.get('skillId') in SKILL_IDS and isinstance(version, str)
+        if (packet.get('skillId') in (*SKILL_IDS, *POE2_SKILL_IDS) and isinstance(version, str)
                 and version.startswith('sha256:') and len(version) == 71
                 and all(char in '0123456789abcdef' for char in version[7:])):
             observation.update(skillId=packet['skillId'], version=version)
@@ -364,7 +516,7 @@ def _source_gateway_target_is_local(url):
         and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
         and not parsed.username
         and not parsed.password
-        and port in {8790, 8791, 8792, 28794, 18794}
+        and port in {8790, 8791, 8792, 8796, 28794, 18794}
         and parsed.path == "/api/v2/internal/chickenbro/source-query"
         and not parsed.query
         and not parsed.fragment
@@ -417,7 +569,7 @@ def query_simulation_gateway(operation, arguments):
     local_source_url = parsed._replace(path="/api/v2/internal/chickenbro/source-query").geturl()
     if not token or parsed.path != expected_path or not _source_gateway_target_is_local(local_source_url):
         return _partial_tool_result("This run has no authenticated account-scoped simulation capability.", "simc")
-    request = Request(url, data=json.dumps({"operation": operation, "arguments": arguments}).encode("utf-8"),
+    request = Request(url, data=json.dumps({"operation": operation, "arguments": arguments}, ensure_ascii=False).encode("utf-8"),
         headers={"Content-Type": "application/json", "X-Chickenbro-Simulation-Gateway": token}, method="POST")
     try:
         with urlopen(request, timeout=85) as response:
@@ -432,11 +584,36 @@ def query_simulation_gateway(operation, arguments):
         return _partial_tool_result("The simulation gateway did not return a usable response. Check status before retrying a submission.", "simc")
 
 
-def handle_rpc_request(request, *, observation_writer=None):
+def query_poe2_gateway(operation, arguments):
+    url = os.environ.get(POE2_GATEWAY_URL_ENV, "")
+    token = os.environ.get(POE2_GATEWAY_TOKEN_ENV, "")
+    parsed = urlparse(url)
+    expected_path = "/api/v2/internal/chickenbro/poe2-tool"
+    local_source_url = parsed._replace(path="/api/v2/internal/chickenbro/source-query").geturl()
+    if not token or parsed.path != expected_path or not _source_gateway_target_is_local(local_source_url):
+        return _partial_tool_result("This run has no authenticated account-scoped POE2 capability.", "poe2")
+    request = Request(url, data=json.dumps({"operation": operation, "arguments": arguments}, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-Chickenbro-POE2-Gateway": token}, method="POST")
+    try:
+        with urlopen(request, timeout=85) as response:
+            raw = response.read(1048577)
+        if len(raw) > 1048576:
+            raise ValueError("oversized POE2 response")
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("invalid POE2 response")
+        return payload
+    except (HTTPError, URLError, OSError, ValueError):
+        return _partial_tool_result("The POE2 gateway did not return a usable response. Check status before retrying.", "poe2")
+
+
+def handle_rpc_request(request, *, observation_writer=None, game=None):
     """Handle one stdio JSON-RPC request without exposing any host capability."""
     packet = request if isinstance(request, dict) else {}
     request_id = packet.get("id")
     method = str(packet.get("method") or "")
+    game = _game(game or os.environ.get("CHICKENBRO_GAME", "wow"))
+    tool_definitions = _tool_definitions(game)
     if method == "initialize":
         return _response(
             request_id,
@@ -445,26 +622,28 @@ def handle_rpc_request(request, *, observation_writer=None):
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "chickenbro-native-toolbox", "version": "1.0.0"},
                 "instructions": (
-                    "Research and account-scoped cloud SimC tools are exposed. Submit simulations only when "
-                    "the user asks to run them. Choose the relevant tool and state the returned "
-                    "source scope and limitations."
+                    "Only tools for the trusted persisted conversation game are exposed. "
+                    "State source scope and limitations for research and calculation results."
                 ),
             },
         )
     if method == "tools/list":
-        return _response(request_id, {"tools": TOOL_DEFINITIONS})
+        return _response(request_id, {"tools": tool_definitions})
     if method == "tools/call":
         params = packet.get("params") if isinstance(packet.get("params"), dict) else {}
         tool_name = str(params.get("name") or "")
-        if tool_name not in {definition["name"] for definition in TOOL_DEFINITIONS}:
+        if tool_name not in {definition["name"] for definition in tool_definitions}:
             return _response(
                 request_id,
                 {"content": [{"type": "text", "text": "Unknown read-only tool."}], "isError": True},
             )
         arguments = params.get("arguments") if isinstance(params.get("arguments"), dict) else {}
+        if tool_name in {"poe2_import", "poe2_character_source"} and not _poe2_import_source_allowed(arguments.get("source")):
+            return _response(request_id, {"content": [{"type": "text", "text":
+                "POE2 import accepts only a PoB 2 share code or XML document body."}], "isError": True})
         started = time.monotonic()
         if tool_name == 'read_chickenbro_skill':
-            result = read_chickenbro_skill(params.get('arguments'))
+            result = read_chickenbro_skill(params.get('arguments'), game=game)
         elif tool_name == TOOL_NAME:
             target = str(arguments.get("target") or "").strip()
             if not target:
@@ -485,6 +664,8 @@ def handle_rpc_request(request, *, observation_writer=None):
                         result = _partial_tool_result("Public web research failed before a safe observation was returned.")
         elif tool_name in SIMULATION_OPERATIONS:
             result = query_simulation_gateway(SIMULATION_OPERATIONS[tool_name], arguments)
+        elif tool_name in POE2_OPERATIONS:
+            result = query_poe2_gateway(POE2_OPERATIONS[tool_name], arguments)
         elif tool_name == WCL_RANKINGS_TOOL_NAME:
             result = query_source_gateway('warcraftlogs_rankings','rankings',options=arguments)
         elif tool_name == WCL_CHARACTER_TOOL_NAME:

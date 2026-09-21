@@ -203,10 +203,39 @@ def main(argv: list[str] | None = None) -> int:
     if args.once:
         worker.run_once()
         return 0
+    stop=Event()
+    settings = AppSettings.from_env(os.environ)
+    connection_factory=PostgresConnectionFactory(settings).connection
     if os.environ.get('WOW_CHAT_DURABLE_ENABLED') == '1':
         from server.app.chickenbro.worker import start_chat_workers
-        settings = AppSettings.from_env(os.environ)
-        start_chat_workers(settings, PostgresConnectionFactory(settings).connection, Event())
+        start_chat_workers(settings, connection_factory, stop)
+    from server.app.poe2.worker import Poe2Worker
+    from server.app.poe2.repository import PostgresPoe2Repository
+    from server.app.poe2.engine import PobEngine
+    poe2_worker=Poe2Worker(PostgresPoe2Repository(connection_factory),PobEngine())
+    from server.app.poe2.imports.repository import PostgresImportRepository
+    from server.app.poe2.imports.worker import ImportWorker
+    from server.app.poe2.imports.sources.wegame import collect_wegame
+    from server.app.poe2.imports.mapping import map as map_character_snapshot
+    from server.app.poe2.character_bridge import convert_character
+    import_worker=ImportWorker(PostgresImportRepository(connection_factory),PobEngine(),
+        collect=collect_wegame,map=map_character_snapshot,convert=convert_character)
+    def import_lane():
+        while not stop.is_set():
+            try:
+                if import_worker.run_once():continue
+            except Exception as error:
+                LOGGER.error('poe2_import_lane_error exception_type=%s',type(error).__name__)
+            stop.wait(1)
+    Thread(target=import_lane,daemon=True,name='poe2-import-worker').start()
+    def poe2_lane():
+        while not stop.is_set():
+            try:
+                if poe2_worker.run_once():continue
+            except Exception as error:
+                LOGGER.error('poe2_lane_error exception_type=%s',type(error).__name__)
+            stop.wait(1)
+    Thread(target=poe2_lane,daemon=True,name='poe2-worker').start()
     worker.run_forever(lambda: False)
     return 0
 

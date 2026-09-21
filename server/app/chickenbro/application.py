@@ -12,7 +12,7 @@ from uuid import UUID, uuid4, uuid5
 
 from server.app.chickenbro.codex_adapter import CodexChatPort, CodexTimeout, CodexUnavailable
 from server.app.chickenbro.delivery import BackgroundDelivery, DeliveryCapacity
-from server.app.chickenbro.domain import ConversationUnavailable, ConversationBusy, ChatAccountBusy, AgentRunStatus, Conversation, ConversationStatus
+from server.app.chickenbro.domain import ConversationUnavailable, ConversationBusy, ChatAccountBusy, AgentRunStatus, Conversation, ConversationGame, ConversationStatus
 from server.app.chickenbro.images import ImageError, MAX_IMAGES, MAX_BYTES, normalize_image
 from server.app.chickenbro.image_repository import unavailable
 from server.app.chickenbro.stream import ChatEvent, CodexStreamError
@@ -31,6 +31,13 @@ CHAT_TIMEOUT_SECONDS = 480
 CHAT_STALE_RUN_GRACE_SECONDS = 60
 CHAT_CONVERSATION_NAMESPACE = UUID("83b4eebf-fcf3-51ea-b9ff-d676d1957f48")
 _IDEMPOTENCY_KEY = re.compile(r"[A-Za-z0-9._~-]{8,128}\Z")
+
+
+def _game(value: object) -> str:
+    try:
+        return ConversationGame(str(getattr(value, "value", value) or "wow")).value
+    except ValueError as error:
+        raise ChatApplicationError("GAME_INVALID", "game must be wow or poe2") from error
 
 
 @dataclass(frozen=True)
@@ -185,10 +192,12 @@ class ChatApplication:
         principal: Principal,
         title: str = "炸鸡队长对话",
         *,
+        game: str = "wow",
         idempotency_key: str,
     ) -> Any:
         bounded_title = str(title or "炸鸡队长对话").strip()[:256] or "炸鸡队长对话"
         key = _bounded_idempotency_key(idempotency_key)
+        bounded_game = _game(game)
         conversation_id = uuid5(
             CHAT_CONVERSATION_NAMESPACE,
             f"{principal.user_id}:{key}",
@@ -198,10 +207,16 @@ class ChatApplication:
             conversation_id,
             bounded_title,
             _utc(self._clock),
+            bounded_game,
         )
         if _value(conversation, "status") not in {ConversationStatus.ACTIVE, "active"}:
             raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
         if str(_value(conversation, "title", "")) != bounded_title:
+            raise ChatApplicationError(
+                "IDEMPOTENCY_CONFLICT",
+                "idempotency identity belongs to a different conversation request",
+            )
+        if _game(_value(conversation, "game", "wow")) != bounded_game:
             raise ChatApplicationError(
                 "IDEMPOTENCY_CONFLICT",
                 "idempotency identity belongs to a different conversation request",
@@ -222,13 +237,16 @@ class ChatApplication:
         principal: Principal,
         cursor: str | None = None,
         limit: int = 20,
+        game: str = "wow",
     ) -> ConversationPage:
         bounded_limit = min(max(int(limit), 1), 50)
         boundary = _decode_conversation_cursor(cursor) if cursor else None
+        bounded_game = _game(game)
         rows = self._repository.list_conversations(
             principal.user_id,
             boundary,
             bounded_limit + 1,
+            bounded_game,
         )
         items = tuple(rows[:bounded_limit])
         next_cursor = (
@@ -473,6 +491,10 @@ class ChatApplication:
 
     def execute_run(self, principal: Principal, run: Any, *, request_id: str | None = None):
         conversation_id = _as_uuid(_value(run, "conversation_id"))
+        conversation = self._repository.get_conversation(principal.user_id, conversation_id)
+        if conversation is None:
+            raise ChatApplicationError("CONVERSATION_NOT_FOUND", "conversation not found")
+        game = _game(_value(conversation, "game", "wow"))
         request_id = request_id or str(uuid4())
         run_id = str(_value(run, "id"))
         sequence = 1
@@ -495,6 +517,7 @@ class ChatApplication:
                 image_labels.append({"imageNumber": len(image_inputs), "messageId": str(_value(item, "id")),
                                      "imageId": str(identity)})
             prompt_data = json.loads(self._prompt(history, ""))
+            prompt_data["game"] = game
             evidence_reader = getattr(self._repository, 'research_evidence', None)
             if callable(evidence_reader):
                 prompt_data['researchEvidence'] = evidence_reader(principal.user_id, conversation_id)
@@ -511,7 +534,8 @@ class ChatApplication:
             scoped_stream = getattr(self._codex, "stream_for_chat", None)
             if callable(scoped_stream):
                 codex_events = scoped_stream(principal=principal, conversation_id=conversation_id,
-                    run_id=_as_uuid(_value(run, "id")), prompt=prompt, timeout_seconds=self._timeout_seconds, **image_arguments)
+                    run_id=_as_uuid(_value(run, "id")), game=game, prompt=prompt,
+                    timeout_seconds=self._timeout_seconds, **image_arguments)
             else:
                 codex_events = self._codex.stream(prompt=prompt, timeout_seconds=self._timeout_seconds, **image_arguments)
             try:

@@ -6,6 +6,12 @@
 
 | 状态 | 范围 | 入口 |
 | --- | --- | --- |
+| 正在推进 | POE2 基线复用与宽松的跨轮方案预算 | [范围与验证](2026-09-21-poe2-research-budget.md) |
+| 正在推进 | 双游戏与 POE2 首版，云端 Candidate，待用户验收 | [实施计划](2026-09-18-poe2-dual-module.md)、[进度](2026-09-18-poe2-progress.md) |
+| 正在推进 | POE2 构筑改为国际服 PoB 字符串单入口及解析基本信息 | [当前范围](2026-09-20-poe2-pob-only.md)；[此前角色链接方案](2026-09-20-poe2-character-link-design.md)保留为历史 |
+| 正在推进 | POE2 天赋树、升华及已点分配可视化，Candidate 待验收 | [范围与接入](2026-09-20-poe2-passive-tree.md) |
+| 正在推进 | POE2 导入、对比两步流程，导入即展示完整构筑及天赋中文 | [范围与验证](2026-09-21-poe2-two-step-cn.md) |
+| 正在推进 | POE2 对话和构筑默认国服简体术语 | [范围与验证](2026-09-20-poe2-cn-terms.md) |
 | 正在推进 | Badcase 通用修复、限定验证与条件发布 | [工作流](2026-09-08-badcase-workflow.md)、[执行说明](../badcase-workflow-operations.md) |
 | 正在推进 | 已登记私有副本的保留与到期处置 | [保留流程](../badcase-workflow-operations.md#保留与独立处置对账) |
 | 后续 | 模拟资料与机制证据补齐 | [跟进条件](2026-09-11-remaining-issues-status.md) |

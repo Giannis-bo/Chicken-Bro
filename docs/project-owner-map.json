@@ -1,6 +1,30 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-09",
+  "updatedAt": "2026-09-20",
+  "candidateDomains": {
+    "poe2": {
+      "factOwner": "server/app/poe2/domain.py",
+      "writeOwner": "server/app/poe2/repository.py",
+      "client": "apps/mini-taro/src/web/WebPoe2.tsx",
+      "route": "/poe2",
+      "passiveTree": {
+        "factOwner": "server/app/poe2/tree_view.lua",
+        "client": "apps/mini-taro/src/web/Poe2PassiveTree.tsx",
+        "contract": "packages/domain/src/poe2-tree.ts",
+        "plan": "docs/plans/2026-09-20-poe2-passive-tree.md"
+      },
+      "characterImports": {
+        "factOwner": "server/app/poe2/imports/domain.py",
+        "writeOwner": "server/app/poe2/imports/repository.py",
+        "mappingOwner": "server/app/poe2/imports/mapping.py",
+        "client": "apps/mini-taro/src/web/WebPoe2.tsx",
+        "status": "legacy_link_backend_retained_web_entry_pob_only",
+        "plan": "docs/plans/2026-09-20-poe2-character-link-implementation.md"
+      },
+      "plan": "docs/plans/2026-09-18-poe2-dual-module.md",
+      "characterization": ["packages/domain/src/poe2.test.ts", "packages/api-client/src/poe2.test.ts", "apps/mini-taro/src/web/web-poe2.test.tsx", "tests/app_poe2_jobs_postgres_test.py"]
+    }
+  },
   "status": "active",
   "activeMilestone": "chickenbro_web_only_qq",
   "unownedCriticalDomains": [],

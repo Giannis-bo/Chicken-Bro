@@ -62,6 +62,7 @@ class OwnerIsolationTest(unittest.TestCase):
                 "active",
                 now,
                 now,
+                "wow",
             ),
         ])
         repository = PostgresChatRepository(lambda: RecordingConnection(cursor))
@@ -95,6 +96,7 @@ class OwnerIsolationTest(unittest.TestCase):
                 "active",
                 boundary_time,
                 boundary_time,
+                "wow",
             ),
         ])
         repository = PostgresChatRepository(
@@ -119,7 +121,7 @@ class OwnerIsolationTest(unittest.TestCase):
         self.assertIn("ORDER BY updated_at DESC, id DESC LIMIT %s", statement)
         self.assertEqual(
             parameters,
-            (owner.user_id, boundary_time, boundary_id, 21),
+            (owner.user_id, "wow", boundary_time, boundary_id, 21),
         )
 
     def test_postgres_idempotent_message_lookup_is_owner_scoped(self):

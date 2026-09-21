@@ -37,6 +37,10 @@ from server.app.simulation.compiler import SimcProfileCompiler
 from server.app.simulation.readiness import SimcReadinessValidator, SimcRuntimeCapabilities
 from server.app.simulation.repository import PostgresSimulationRepository
 from server.app.simulation.sources import CharacterSourceRouter, HttpxSourceGateway
+from server.app.poe2.application import Poe2Application
+from server.app.poe2.engine import PobEngine
+from server.app.poe2.repository import PostgresPoe2Repository
+from server.app.poe2.tools import Poe2ToolGateway
 
 
 _QQ_CALLBACK_PREFIXES = (
@@ -63,6 +67,7 @@ def create_app(
     web_auth_application: QqAuthApplication | None = None,
     chat_application: ChatApplication | None = None,
     simulation_application: SimulationApplication | None = None,
+    poe2_application: Poe2Application | None = None,
     auth_audit_sink: AuthAuditSink | None = None,
     readiness_environment: Mapping[str, str] | None = None,
     admin_application: AdminApplication | None = None,
@@ -81,7 +86,7 @@ def create_app(
     source_gateway = ChickenbroSourceGateway(query_service=ServerConfiguredSourceQuery())
     repository = None
     postgres_factory = None
-    if web_auth_application is None or chat_application is None or simulation_application is None:
+    if web_auth_application is None or chat_application is None or simulation_application is None or poe2_application is None:
         postgres_factory = PostgresConnectionFactory(settings)
         repository = PostgresIdentityRepository(postgres_factory.connection)
     if web_auth_application is None:
@@ -105,6 +110,13 @@ def create_app(
         )
     simulation_gateway = SimulationToolGateway(simulation_application)
     app.state.chickenbro_simulation_gateway = simulation_gateway
+    if poe2_application is None:
+        if postgres_factory is None:
+            postgres_factory = PostgresConnectionFactory(settings)
+        poe2_application = Poe2Application(PostgresPoe2Repository(postgres_factory.connection), PobEngine())
+    poe2_gateway = Poe2ToolGateway(poe2_application)
+    app.state.poe2_application = poe2_application
+    app.state.chickenbro_poe2_gateway = poe2_gateway
     if chat_application is None:
         if postgres_factory is None:
             raise RuntimeError("Chat application was not constructed")
@@ -116,6 +128,8 @@ def create_app(
         source_gateway = ChickenbroSourceGateway(query_service=ServerConfiguredSourceQuery(),
             research_budget_factory=research_budget_factory)
         simulation_gateway = SimulationToolGateway(simulation_application, research_budget_factory=research_budget_factory)
+        poe2_gateway = Poe2ToolGateway(poe2_application, research_budget_factory=research_budget_factory)
+        app.state.chickenbro_poe2_gateway = poe2_gateway
         app.state.chickenbro_simulation_gateway = simulation_gateway
         chat_application = ChatApplication(
             repository=PostgresChatRepository(postgres_factory.connection,
@@ -124,6 +138,8 @@ def create_app(
                 source_gateway=source_gateway,
                 simulation_gateway=simulation_gateway,
                 simulation_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/simc-tool",
+                poe2_gateway=poe2_gateway,
+                poe2_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/poe2-tool",
                 source_gateway_url=f"http://127.0.0.1:{settings.port}/api/v2/internal/chickenbro/source-query",
             ),
         )

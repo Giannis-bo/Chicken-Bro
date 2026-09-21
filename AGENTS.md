@@ -2,6 +2,8 @@
 
 Chickenbro now targets Web-only Chat and SimulationCraft with QQ website login. The 1.0 Mini/Web product is historical. The six-phase rebuild and legacy retirement are complete; historical plans are not new execution authority.
 
+The POE2 expansion under `docs/plans/2026-09-18-poe2-dual-module.md` adds fixed-game conversations and cloud PoB tools. The user accepted the Candidate and authorized production release, commit, push and integration on 2026-09-21. Runtime execution, tests and builds for this release run only on the cloud host. Preserve the existing WoW production capabilities and keep Candidate data isolated.
+
 ## Current Truth and Scope
 
 - Before Standard or Strict work, read [project state](docs/project-state.json), then [roadmap](docs/roadmap.md). [plans/README.md](docs/plans/README.md) is the only implementation-plan whitelist; new work requires current user authorization.
@@ -11,7 +13,7 @@ Chickenbro now targets Web-only Chat and SimulationCraft with QQ website login. 
 
 ## Product and Engineering Boundaries
 
-- Only Chickenbro conversations and SimC jobs gain product behavior. Do not revive news, gear, talent, profile, old simulator, WebSim or prototype domains.
+- Chickenbro conversations, SimC jobs and the authorized POE2 Candidate gain product behavior. Do not revive news, legacy gear/talent/profile, old simulator, WebSim or prototype domains.
 - QQ website identities map to server-owned opaque `user_id`; only Web HttpOnly sessions authenticate production requests. QQ creates new accounts; retained WeChat data is not migrated or linked automatically. History and tools remain owner-scoped.
 - Web login uses QQ OAuth authorization code with a short-lived, one-use browser-bound state. Validate callback host and QQ app identity. Provider tokens/secrets remain server-side and never enter public responses, logs or stored business records.
 - Preserve Taro, typed domain/API layers and explicit `web` and `public` transport context. Server applications own identity, Chat, SimC and workers; HTTP routes adapt transport only. Clients cannot select ownership through request bodies.

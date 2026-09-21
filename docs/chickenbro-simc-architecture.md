@@ -1,6 +1,18 @@
 # Chickenbro 架构
 
-本文描述仓库实现与边界，不作为部署状态证明。当前产品仅含 Web Chat 与云端 SimC，使用 QQ 登录；各项交付状态见[项目状态](project-state.json)，职责与测试归属见[项目 owners](project-owner-map.json)和[后端 owners](backend-owner-map.json)。
+本文描述仓库实现与边界，不作为部署状态证明。生产提供 Web Chat 与云端 SimC，使用 QQ 登录；POE2 扩展在独立 Candidate 等待验收。各项交付状态见[项目状态](project-state.json)，职责与测试归属见[项目 owners](project-owner-map.json)和[后端 owners](backend-owner-map.json)。
+
+## 双游戏 Candidate
+
+Web 通过游戏选择器切换 WoW/POE2；会话的 `game` 在创建时固定，旧记录默认 `wow`。两套 Chat model 保留各自历史和进行中的回复，POE2 构筑页面 `/poe2` 按需加载。身份共用现有 Principal，构筑和任务归 `poe2` schema，工具 capability 从持久化会话建立，双向禁止调用另一游戏工具。
+
+`server/app/poe2` 拥有构筑、幂等任务、租约、比较和导出。不可变原始 XML/hash 是比较基线；有限 changes 支持装备、技能组、主技能选择、等级、连接天赋和受限敌人配置。Python 校验输入后启动固定 PoB 2 `v0.23.1` / `7d6f530cbdab20389ff8bc6ba97a37ac27f74e41`；每次新 Lua 进程，串行锁、45 秒/1 GiB 限额和 seccomp 断网。报告保留引擎、输入与输出 hash、有效配置、上游警告和分享码；数值是给定配置下的理论计算。
+
+POE2 Chat 加载独立规则和构筑/制作 skill，使用现有公开网页检索能力和账号级 POE2 网关。优先官方补丁与 PoE2DB，给出版本、来源和证据限制；不接价格交易、poe.ninja 内部构筑接口或 GGG 自动绑定。制作顾问给路线与 Craft of Exile 文本导入链接，精确制作概率留待后续。
+
+POE2 构筑树通过 owner-scoped `GET /api/v2/poe2/builds/{id}/tree?jobId=...` 读取；原始视图使用保存的构筑 XML，计算详情使用对应 job 的导出码。复用受限 PoB 子进程，从实际 spec 导出坐标、连线、有效节点名称/属性、升华及武器组；与保存的引擎身份不一致时拒绝展示。响应 `private, no-store`，不持久化新业务数据。Web Canvas 负责只读探索，固定版本自托管图集来自同版本官方发行包；节点属性保留 PoB 原文。图上编辑不属于第一阶段。
+
+Candidate 专用 DB、8796 API、18794 worker gateway、独立 Cookie 与任务目录；`WOW_APP_ENV=test` 用于已有测试账号登录，QQ 在 Candidate 禁用。具体隔离和撤回见[部署说明](plans/2026-09-18-poe2-deployment-notes.md)。现有生产与 `/test/` 保留原身份。
 
 ## 客户端、身份与数据
 

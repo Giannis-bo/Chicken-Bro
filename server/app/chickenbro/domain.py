@@ -21,6 +21,11 @@ class ConversationStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+class ConversationGame(str, Enum):
+    WOW = "wow"
+    POE2 = "poe2"
+
+
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -40,6 +45,7 @@ class Conversation:
     status: ConversationStatus
     created_at: datetime
     updated_at: datetime
+    game: ConversationGame = ConversationGame.WOW
 
 
 @dataclass(frozen=True)

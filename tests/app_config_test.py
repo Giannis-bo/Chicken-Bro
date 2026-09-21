@@ -4,6 +4,22 @@ from server.app.platform.config import AppSettings
 
 
 class AppConfigTest(unittest.TestCase):
+    def test_test_login_accepts_only_the_exact_poe2_candidate_database_name(self):
+        base = {
+            "WOW_APP_ENV": "test", "WOW_TEST_LOGIN_ENABLED": "1",
+            "WOW_TEST_LOGIN_A_SHA256": "a" * 64,
+            "WOW_TEST_LOGIN_B_SHA256": "b" * 64,
+        }
+        settings = AppSettings.from_env({
+            **base, "WOW_DATABASE_URL": "postgresql://wow_app@localhost/chickenbro_poe2_candidate",
+        })
+        self.assertTrue(settings.test_login_enabled)
+        for database in ("chickenbro_poe2", "chickenbro_poe2_candidate_copy"):
+            with self.subTest(database=database), self.assertRaisesRegex(ValueError, "dedicated test database"):
+                AppSettings.from_env({
+                    **base, "WOW_DATABASE_URL": f"postgresql://wow_app@localhost/{database}",
+                })
+
     def test_postgres_url_is_required_and_secrets_are_not_repr_visible(self):
         with self.assertRaisesRegex(ValueError, "WOW_DATABASE_URL"):
             AppSettings.from_env({"WOW_APP_ENV": "candidate"})

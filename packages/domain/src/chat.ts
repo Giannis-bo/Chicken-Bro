@@ -1,7 +1,9 @@
 export type ConversationStatus = 'active' | 'archived'
 export type ChatMessageRole = 'user' | 'assistant'
+export type GameId = 'wow' | 'poe2'
 
 export interface ConversationSummary {
+  game?: GameId
   id: string
   title: string
   status: ConversationStatus
@@ -92,7 +94,8 @@ function positiveInteger(value: unknown): value is number {
 }
 
 function isConversationSummaryRecord(value: unknown): value is ConversationSummary {
-  if (!record(value) || !exactKeys(value, ['id', 'title', 'status', 'createdAt', 'updatedAt'])) return false
+  if (!record(value) || !exactKeys(value, ['id', 'title', 'status', 'createdAt', 'updatedAt', ...('game' in value ? ['game'] : [])])) return false
+  if ('game' in value && value['game'] !== 'wow' && value['game'] !== 'poe2') return false
   return nonEmptyString(value['id'], 128)
     && boundedString(value['title'], 256)
     && (value['status'] === 'active' || value['status'] === 'archived')
@@ -146,7 +149,7 @@ export function isConversationPage(value: unknown): value is ConversationPage {
 export function isConversationDetail(value: unknown): value is ConversationDetail {
   if (!record(value) || !exactKeys(
     value,
-    ['id', 'title', 'status', 'createdAt', 'updatedAt', 'messages'],
+    ['id', 'title', 'status', 'createdAt', 'updatedAt', 'messages', ...('game' in value ? ['game'] : [])],
   )) return false
   return isConversationSummaryRecord({
     id: value['id'],
@@ -154,6 +157,7 @@ export function isConversationDetail(value: unknown): value is ConversationDetai
     status: value['status'],
     createdAt: value['createdAt'],
     updatedAt: value['updatedAt'],
+    ...('game' in value ? {game: value['game']} : {}),
   })
     && Array.isArray(value['messages'])
     && value['messages'].every(isChatMessage)

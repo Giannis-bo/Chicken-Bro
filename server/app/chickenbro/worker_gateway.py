@@ -8,6 +8,14 @@ from uuid import uuid4
 from server.app.chickenbro.durable import ChatLeaseLost
 
 
+def tool_request_limit(kind):
+    return 4_100_000 if kind == 'poe2' else 32_768
+
+
+def tool_response_limit(operation):
+    return 180_000
+
+
 def source_request_hashes(operation, arguments):
     def digest(value):return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
     raw=digest(arguments)
@@ -65,7 +73,8 @@ class ToolRecorder:
                 if error: reused = error
             result = reused if reused is not None else invoke()
             encoded = json.dumps(result,ensure_ascii=False)
-            if len(encoded.encode()) > 180000:
+            response_limit = tool_response_limit(operation)
+            if len(encoded.encode()) > response_limit:
                 result = {'status':'partial','facts':[], 'limitations':['Tool result exceeded the bounded response size. Narrow the query.']}
                 encoded = json.dumps(result)
             with self.connect() as conn:
@@ -127,7 +136,8 @@ class RegisteredGateway:
             return result
         if set(body)-{'operation','arguments'}:
             raise ValueError('invalid simulation arguments')
-        return self.recorder.execute('simc.'+str(body['operation'])[:40],body,
+        prefix = 'poe2.' if self.kind == 'poe2' else 'simc.'
+        return self.recorder.execute(prefix+str(body['operation'])[:40],body,
             lambda:self.gateway.execute(token,body['operation'],body.get('arguments',{})))
 
 
@@ -143,7 +153,8 @@ class WorkerToolServer:
                 status = 200
                 try:
                     kinds = {'/api/v2/internal/chickenbro/source-query':('source','X-Chickenbro-Source-Gateway'),
-                             '/api/v2/internal/chickenbro/simc-tool':('simc','X-Chickenbro-Simulation-Gateway')}
+                             '/api/v2/internal/chickenbro/simc-tool':('simc','X-Chickenbro-Simulation-Gateway'),
+                             '/api/v2/internal/chickenbro/poe2-tool':('poe2','X-Chickenbro-POE2-Gateway')}
                     kind,header = kinds[self.path]
                     token = self.headers.get(header,'')
                     with host.lock:
@@ -151,7 +162,8 @@ class WorkerToolServer:
                     if gateway is None or gateway.kind != kind:
                         raise ChatLeaseLost('capability unavailable')
                     size = int(self.headers.get('Content-Length','0'))
-                    if not 1 <= size <= 32768:
+                    request_limit = tool_request_limit(kind)
+                    if not 1 <= size <= request_limit:
                         raise ValueError('request exceeds limit')
                     body = json.loads(self.rfile.read(size))
                     if not isinstance(body,dict):

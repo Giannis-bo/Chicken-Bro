@@ -30,6 +30,16 @@ const otherConversation: ConversationSummary = {
   title: '另一个会话',
 }
 
+it('keeps a WoW history response out of the POE2 workspace', async () => {
+  const client = new FakeChatClient()
+  const model = new ChatModel(client, () => ({kind: 'web', csrfToken: 'csrf'}), {game: 'poe2'})
+  await model.load()
+  expect(model.get().conversations).toEqual([])
+  await model.open(conversation.id)
+  expect(model.get().activeConversation).toBeNull()
+  model.dispose()
+})
+
 function success<T>(payload: T): ApiResult<T> {
   return { payload, fromFallback: false, error: '', httpStatus: 200 }
 }

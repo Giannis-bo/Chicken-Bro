@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from collections.abc import Iterator
 from dataclasses import replace
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query
@@ -28,6 +29,7 @@ class ConversationCreateBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(default="炸鸡队长对话", max_length=256)
+    game: Literal["wow", "poe2"] = "wow"
 
 
 class ChatMessageBody(BaseModel):
@@ -64,6 +66,7 @@ def _conversation_payload(conversation: object) -> dict[str, object]:
     return {
         "id": str(_value(conversation, "id", "")),
         "title": str(_value(conversation, "title", "")),
+        "game": str(getattr(_value(conversation, "game", "wow"), "value", _value(conversation, "game", "wow"))),
         "status": str(getattr(status, "value", status)),
         "createdAt": _iso(_value(conversation, "created_at", "")),
         "updatedAt": _iso(_value(conversation, "updated_at", "")),
@@ -128,6 +131,7 @@ def _raise_chat_error(error: ChatApplicationError) -> None:
         "FEEDBACK_INVALID": 422,
         "FEEDBACK_ALREADY_SUBMITTED": 409,
         "INVALID_CURSOR": 422,
+        "GAME_INVALID": 422,
         "MESSAGE_REQUIRED": 422,
         "MESSAGE_TOO_LONG": 422,
         "IDEMPOTENCY_KEY_REQUIRED": 422,
@@ -171,9 +175,10 @@ def list_conversations(
     application: ChatApplication = Depends(chat_application),
     cursor: str | None = None,
     limit: int = 20,
+    game: Literal["wow", "poe2"] = "wow",
 ) -> dict[str, object]:
     try:
-        page = application.list_conversations(principal, cursor, limit)
+        page = application.list_conversations(principal, cursor, limit, game)
     except (ChatApplicationError, TypeError, ValueError) as error:
         if isinstance(error, ChatApplicationError):
             _raise_chat_error(error)
@@ -199,6 +204,7 @@ def create_conversation(
         conversation = application.create_conversation(
             principal,
             body.title if body is not None else "炸鸡队长对话",
+            game=body.game if body is not None else "wow",
             idempotency_key=idempotency_key or "",
         )
     except (ChatApplicationError, ImageError) as error:

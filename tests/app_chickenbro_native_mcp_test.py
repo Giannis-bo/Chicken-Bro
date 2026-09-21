@@ -9,6 +9,52 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FormalChickenbroNativeMcpTest(unittest.TestCase):
+    def test_poe2_calculate_schema_exposes_only_engine_supported_changes(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        definitions = {item["name"]: item for item in module.handle_rpc_request(
+            {"id": 1, "method": "tools/list"}, game="poe2")["result"]["tools"]}
+        changes = definitions["poe2_calculate"]["inputSchema"]["properties"]["changes"]
+        self.assertFalse(changes["additionalProperties"])
+        self.assertEqual(set(changes["properties"]), {
+            "level", "mainSocketGroup", "skillGroups", "items", "config",
+            "allocateNodes", "deallocateNodes",
+        })
+        self.assertEqual(changes["properties"]["level"], {"type": "integer", "minimum": 1, "maximum": 100})
+        group = changes["properties"]["skillGroups"]["items"]
+        self.assertEqual(group["required"], ["index", "gems"])
+        self.assertFalse(group["additionalProperties"])
+        gem = group["properties"]["gems"]["items"]
+        self.assertEqual(gem["required"], ["name", "level", "quality"])
+        self.assertEqual(gem["properties"]["level"]["maximum"], 40)
+        self.assertEqual(gem["properties"]["quality"]["maximum"], 30)
+        item = changes["properties"]["items"]["items"]
+        self.assertEqual(item["properties"]["slot"]["enum"], [
+            "Weapon 1", "Weapon 2", "Helmet", "Body Armour", "Gloves",
+            "Boots", "Amulet", "Ring 1", "Ring 2", "Belt",
+        ])
+        config = changes["properties"]["config"]
+        self.assertFalse(config["additionalProperties"])
+        self.assertEqual(set(config["properties"]), {
+            "enemyLevel", "enemyIsBoss", "enemyPhysicalReduction", "enemyFireResist",
+            "enemyColdResist", "enemyLightningResist", "enemyChaosResist",
+            "conditionEnemyShocked", "conditionEnemyChilled", "conditionEnemyIgnited",
+            "conditionFullLife", "conditionLowLife", "conditionStationary",
+            "usePowerCharges", "useFrenzyCharges", "useEnduranceCharges",
+        })
+        self.assertEqual(config["properties"]["enemyIsBoss"]["enum"], ["None", "Boss", "Pinnacle"])
+        self.assertEqual(config["properties"]["conditionEnemyShocked"], {"type": "boolean"})
+        self.assertEqual(config["properties"]["enemyFireResist"], {
+            "type": "number", "minimum": -200, "maximum": 1000,
+        })
+        self.assertTrue(changes["properties"]["allocateNodes"]["uniqueItems"])
+
+    def test_poe2_import_does_not_claim_idempotency_for_uuid_creation(self):
+        module = importlib.import_module("server.chickenbro_native_mcp")
+        definitions = {item["name"]: item for item in module.handle_rpc_request(
+            {"id": 1, "method": "tools/list"}, game="poe2")["result"]["tools"]}
+        self.assertFalse(definitions["poe2_import"]["annotations"]["idempotentHint"])
+        self.assertTrue(definitions["poe2_calculate"]["annotations"]["idempotentHint"])
+
     def test_report_and_batch_advertise_bounded_statistics_views(self):
         module = importlib.import_module('server.chickenbro_native_mcp')
         definitions = {t['name']:t for t in module.handle_rpc_request({'id':1,'method':'tools/list'})['result']['tools']}
@@ -39,7 +85,7 @@ class FormalChickenbroNativeMcpTest(unittest.TestCase):
 
     def test_gateway_accepts_managed_test_port_but_rejects_other_targets(self):
         module = importlib.import_module("server.chickenbro_native_mcp")
-        for port in [8790, 8791, 8792]:
+        for port in [8790, 8791, 8792, 8796]:
             self.assertTrue(module._source_gateway_target_is_local(
                 f"http://127.0.0.1:{port}/api/v2/internal/chickenbro/source-query"))
         for target in [

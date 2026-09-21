@@ -66,7 +66,8 @@ class AppSettings:
         parsed = urlparse(self.database_url)
         if self.environment not in {"local", "test", "candidate"}:
             raise ValueError("test login is forbidden in production")
-        if (parsed.path not in {"/chickenbro_test", "/chickenbro_candidate", "/chickenbro_dev"}
+        if (parsed.path not in {"/chickenbro_test", "/chickenbro_candidate", "/chickenbro_dev",
+                               "/chickenbro_poe2_candidate"}
                 or parsed.query or parsed.fragment or parsed.params):
             raise ValueError("test login requires a dedicated test database without URL overrides")
         if any(re.fullmatch(r"[0-9a-f]{64}", value) is None for value in

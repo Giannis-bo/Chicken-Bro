@@ -32,6 +32,15 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal Chat client', () => {
+  it('sends game on creation and paginated history requests', async () => {
+    const transport = new RecordingTransport()
+    const client = createChatClient(transport)
+    const auth = {kind: 'web' as const, csrfToken: 'csrf'}
+    await client.list({game: 'poe2', cursor: 'next'}, {auth})
+    await client.create({game: 'poe2', title: 'My BD'}, {auth, idempotencyKey: 'poe2-create-123'})
+    expect(transport.requests[0]?.path).toContain('game=poe2')
+    expect(transport.requests[1]?.options.data).toEqual({game: 'poe2', title: 'My BD'})
+  })
   it('uses the isolated candidate prefix for every formal Chat route', async () => {
     vi.stubGlobal('__WOW_API_V2_PREFIX__', '/api/v2-candidate')
     try {

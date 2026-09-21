@@ -6,6 +6,7 @@ from server.app.api.routes.chat import router as chat_router
 from server.app.api.routes.health import router as health_router
 from server.app.api.routes.simc import router as simc_router
 from server.app.api.routes.source_gateway import router as source_gateway_router
+from server.app.api.routes.poe2 import router as poe2_router, internal_router as poe2_internal_router
 
 
 from server.app.api.routes.admin import router as admin_router
@@ -18,5 +19,7 @@ router.include_router(auth_router)
 router.include_router(chat_router)
 router.include_router(simc_router)
 router.include_router(source_gateway_router)
+router.include_router(poe2_router)
+router.include_router(poe2_internal_router)
 
 __all__ = ["router"]

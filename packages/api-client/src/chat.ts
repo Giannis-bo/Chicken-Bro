@@ -10,6 +10,7 @@ import {
   type ConversationDetail,
   type ConversationPage,
   type ConversationSummary,
+  type GameId,
 } from '@wow-mini/domain'
 
 import type { ClientAuthContext } from './auth-context'
@@ -29,11 +30,13 @@ export interface ChatCreateOptions extends ChatRequestOptions {
 }
 
 export interface ChatListRequest {
+  game?: GameId
   cursor?: string
   limit?: number
 }
 
 export interface ChatCreateRequest {
+  game?: GameId
   title?: string
 }
 
@@ -172,6 +175,7 @@ export function createChatClient(transport: ApiTransport): ChatClient {
     },
     list(listRequest, options) {
       const query = new URLSearchParams()
+      if (listRequest.game !== undefined) query.set('game', listRequest.game)
       if (listRequest.cursor !== undefined) query.set('cursor', listRequest.cursor)
       if (listRequest.limit !== undefined) query.set('limit', String(listRequest.limit))
       const encoded = query.toString()
@@ -191,7 +195,8 @@ export function createChatClient(transport: ApiTransport): ChatClient {
       if (!isValidIdempotencyKey(options.idempotencyKey)) {
         throw new TypeError('idempotency key is invalid')
       }
-      const data = createRequest.title === undefined ? {} : { title: createRequest.title }
+      const data = {...(createRequest.title === undefined ? {} : { title: createRequest.title }),
+        ...(createRequest.game === undefined ? {} : {game: createRequest.game})}
       return request(apiV2Path('/chat/conversations'), data, options, {
         method: 'POST',
         mutating: true,

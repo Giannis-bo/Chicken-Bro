@@ -1,6 +1,6 @@
 # Chickenbro 路线图
 
-更新日期：2026-09-17。产品聚焦 Web 对话与云端 SimulationCraft，使用 QQ 登录。
+更新日期：2026-09-21。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 扩展在独立 Candidate 中验证。
 
 ## 已完成
 
@@ -18,8 +18,15 @@
 
 ## 正在推进
 
+- [双游戏与 POE2 首版](plans/2026-09-18-poe2-dual-module.md)：独立会话、权威来源问答、云端 PoB 构筑导入/有限比较/导出与制作路线顾问；隔离 Candidate 等待用户验收，暂不提交合入或切换生产。
+- [POE2 构筑入口](plans/2026-09-20-poe2-pob-only.md)：按最新要求改为国际服 PoB 字符串单入口，说明 ninja 复制位置；成功展示等级、职业和升华，确认后继续对比。云端真实字符串、手机布局及新导入流程已验证，等待用户验收。[验证记录](../artifacts/verification/2026-09-20-poe2-pob-only/README.md)。此前角色链接后台和历史资料保留，Web 不再提供链接导入。
+- [国服简体术语](plans/2026-09-20-poe2-cn-terms.md)：对话默认国服名称，POE2工具与Web共享核实词表；用户构筑技能/辅助、职业升华、常用配置中文展示及真实Chat已在Candidate验证。[证据](../artifacts/verification/2026-09-20-poe2-cn-terms/README.md)
 - [Badcase 持续改进](plans/2026-09-08-badcase-workflow.md)：根据实际反馈定位通用问题，完成限定验证后按授权发布。
 - [私有副本保留与到期处置](badcase-workflow-operations.md#保留与独立处置对账)：按现有登记核对到期时间、哈希、活动引用与恢复条件。
+
+- **POE2 构筑两步与天赋中文**：导入即展示角色、属性、技能、天赋，对比页内查看调整结果；当前完整主树与升华 4,544 节点中文化，保留武器组、搜索与节点详情。已完成云端 Candidate 真实导入与对比验证，等待用户验收。[范围](plans/2026-09-21-poe2-two-step-cn.md)、[证据](../artifacts/verification/2026-09-21-poe2-two-step-cn/README.md)。图上点选编辑为后续范围。
+
+POE2 已在 Candidate 验证基线与相同方案复用、跨轮 Chat 方案预算（12 次/轮、60 方案/研究、120 执行尝试；30 方案软提醒）。读取与复用不扣额度，Web 手动计算保持现有策略。[范围](plans/2026-09-21-poe2-research-budget.md)、[证据](../artifacts/verification/2026-09-21-poe2-research-budget/README.md)。
 
 ## 后续
 
