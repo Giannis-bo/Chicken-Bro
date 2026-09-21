@@ -1,0 +1,704 @@
+{
+  "scope": "engine_only_synthetic_profiles",
+  "binary": "/opt/wow-simc/releases/ac0f3a3c7ff9e521137c0ca1760d548330c697f3/simc",
+  "binarySha256": "67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+  "cases": {
+    "baseline": {
+      "profileSha256": "148cb20d66803ba0280c38e1af88462fd3db4c733e83116a9101fb33ed2834a1",
+      "reportExists": true,
+      "reportSha256": "6da9ed7d306e180523354438eb659fec1ec65f530a3680b3dd1cd229f24faee6",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [],
+      "ascendanceTimes": [],
+      "potionBuffs": [],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": []
+    },
+    "cooldown": {
+      "profileSha256": "14b3ddbb204ad83e969bebe36805efec75208b9c4e55dad5b7b2d306fb2f1c35",
+      "reportExists": true,
+      "reportSha256": "04c80e32c1c095b5f55c093173235832d93e500647c9092e997e9d11654a7337",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [
+        {
+          "time": 0.0,
+          "id": 443454,
+          "name": "ancestral_swiftness",
+          "target": "none",
+          "spell_name": "Ancestral Swiftness",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 0.0,
+          "id": 117014,
+          "name": "elemental_blast",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Elemental Blast",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 447244,
+              "name": "call_of_the_ancestors",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 0.889,
+          "id": 188196,
+          "name": "lightning_bolt",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Lightning Bolt",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 118522,
+              "name": "elemental_blast_critical_strike",
+              "stacks": 1
+            },
+            {
+              "id": 173183,
+              "name": "elemental_blast_haste",
+              "stacks": 1
+            },
+            {
+              "id": 173184,
+              "name": "elemental_blast_mastery",
+              "stacks": 1
+            },
+            {
+              "id": 447244,
+              "name": "call_of_the_ancestors",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 35.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        }
+      ],
+      "ascendanceTimes": [
+        10.753
+      ],
+      "potionBuffs": [],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "1.822 Player 'MID2_Shaman_Elemental_Farseer' decrements Buff 'flowing_elements' (1300219) by 1 to 1 stacks",
+        "3.859 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125"
+      ]
+    },
+    "invalid_buff": {
+      "profileSha256": "b20559d4b6a5110c2ca8d37a611e9149ed92df0cf2406addd7c35eb6c4371e3a",
+      "reportExists": false,
+      "stateLogEvidence": [
+        "Error: Initialization error: Actor 'MID2_Shaman_Elemental_Farseer': Invalid 'override.precombat_state': No buff found for 'nonexistent_probe'."
+      ]
+    },
+    "potion": {
+      "profileSha256": "51464b0d25b57a60f5e0587c0b2f21ef47d4b03edac1258c16f8b08f54f6595a",
+      "reportExists": true,
+      "reportSha256": "ba7e55bb7f5d92662fc5f56333c9c4b694d22bba84e569916af50e29f48a12ae",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [
+        {
+          "time": 0.0,
+          "id": 1236994,
+          "name": "potion",
+          "target": "none",
+          "spell_name": "Potion of Recklessness",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 0.0,
+          "id": 117014,
+          "name": "elemental_blast",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Elemental Blast",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 1.183,
+          "id": 188196,
+          "name": "lightning_bolt",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Lightning Bolt",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 118522,
+              "name": "elemental_blast_critical_strike",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            },
+            {
+              "id": 1306870,
+              "name": "tattered_tortollan_scroll",
+              "stacks": 12
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 35.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        }
+      ],
+      "ascendanceTimes": [],
+      "potionBuffs": [
+        "potion_of_recklessness_Mastery",
+        "potion_of_recklessness_penalty_Vers"
+      ],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "2.186 Player 'MID2_Shaman_Elemental_Farseer' decrements Buff 'flowing_elements' (1300219) by 1 to 1 stacks",
+        "4.236 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125"
+      ]
+    },
+    "potion_crit": {
+      "profileSha256": "f69744ef1afb15dd6c067e02aded83c71ba92b62032001281a6ac3bc9f6d9bdf",
+      "reportExists": true,
+      "reportSha256": "49bf6b25b38a60800056953dfb30caf79607ed665fdda3a72bf5069d4771020b",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [
+        {
+          "time": 0.0,
+          "id": 1236994,
+          "name": "potion",
+          "target": "none",
+          "spell_name": "Potion of Recklessness",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 0.0,
+          "id": 117014,
+          "name": "elemental_blast",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Elemental Blast",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 1.183,
+          "id": 188196,
+          "name": "lightning_bolt",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Lightning Bolt",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 173184,
+              "name": "elemental_blast_mastery",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            },
+            {
+              "id": 1241762,
+              "name": "frenzied_focus",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 35.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        }
+      ],
+      "ascendanceTimes": [],
+      "potionBuffs": [
+        "potion_of_recklessness_Crit",
+        "potion_of_recklessness_penalty_Vers"
+      ],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "2.164 Player 'MID2_Shaman_Elemental_Farseer' decrements Buff 'flowing_elements' (1300219) by 1 to 1 stacks",
+        "4.261 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125"
+      ]
+    },
+    "rogue_state": {
+      "profileSha256": "3e93d68bb53946b8a8b8aec785ac0af9e1c93366e322f60344ffed0c28adfc39",
+      "reportExists": true,
+      "reportSha256": "dae94b8e04175f4cce416dac54d034639c9d134327a815aa19fb7afed7caa311",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [
+        {
+          "time": 0.541,
+          "id": 1329,
+          "name": "mutilate",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Mutilate",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 315496,
+              "name": "slice_and_dice",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "energy": 52.24
+          },
+          "resources_max": {
+            "energy": 250.0
+          }
+        },
+        {
+          "time": 0.541,
+          "id": 381623,
+          "name": "thistle_tea_auto",
+          "target": "none",
+          "spell_name": "Thistle Tea",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 315496,
+              "name": "slice_and_dice",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "energy": 102.24000000000001
+          },
+          "resources_max": {
+            "energy": 250.0
+          }
+        },
+        {
+          "time": 1.546,
+          "id": 1329,
+          "name": "mutilate",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Mutilate",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 315496,
+              "name": "slice_and_dice",
+              "stacks": 1
+            },
+            {
+              "id": 1264297,
+              "name": "cold_blood",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "energy": 124.98
+          },
+          "resources_max": {
+            "energy": 250.0
+          }
+        }
+      ],
+      "ascendanceTimes": [],
+      "potionBuffs": [],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Rogue_Assassination_Deathstalker missing 'use_item' action for item \"voracious_heart_of_ulatek\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Rogue_Assassination_Deathstalker missing 'use_item' action for item \"font_of_venomous_rage\" (slot=trinket1)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource energy overridden to 40",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource combo_points overridden to 3",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource energy overridden to 40",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource combo_points overridden to 3",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource energy overridden to 40",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource combo_points overridden to 3",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' gains Buff 'slice_and_dice' (315496) (stacks=1) (value=0.5, time_duration_multiplier=1)",
+        "10.000 Player 'MID2_Rogue_Assassination_Deathstalker' loses Buff 'slice_and_dice' (315496)",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource energy overridden to 40",
+        "0.000 Player 'MID2_Rogue_Assassination_Deathstalker' resource combo_points overridden to 3"
+      ]
+    },
+    "shaman_cast": {
+      "profileSha256": "e68bbd3305240a7bbaf51504004382cbeffeae596ffa9872648e837d7e0a5842",
+      "reportExists": true,
+      "reportSha256": "957b6ac3183b64497186439532d42a9624852274f12dc47a646bff86f22e5328",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [
+        {
+          "time": 0.0,
+          "id": 1219480,
+          "name": "ascendance",
+          "target": "none",
+          "spell_name": "Ascendance",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 1.154,
+          "id": 443454,
+          "name": "ancestral_swiftness",
+          "target": "none",
+          "spell_name": "Ancestral Swiftness",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1219480,
+              "name": "ascendance",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            },
+            {
+              "id": 1229746,
+              "name": "arcanoweave_insight",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        },
+        {
+          "time": 1.154,
+          "id": 117014,
+          "name": "elemental_blast",
+          "target": "Fluffy_Pillow",
+          "spell_name": "Elemental Blast",
+          "queue_failed": false,
+          "buffs": [
+            {
+              "id": 1219480,
+              "name": "ascendance",
+              "stacks": 1
+            },
+            {
+              "id": 447244,
+              "name": "call_of_the_ancestors",
+              "stacks": 1
+            },
+            {
+              "id": 443454,
+              "name": "ancestral_swiftness",
+              "stacks": 1
+            },
+            {
+              "id": 1300219,
+              "name": "flowing_elements",
+              "stacks": 2
+            },
+            {
+              "id": 1229746,
+              "name": "arcanoweave_insight",
+              "stacks": 1
+            }
+          ],
+          "resources": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          },
+          "resources_max": {
+            "mana": 275000.0,
+            "maelstrom": 125.0
+          }
+        }
+      ],
+      "ascendanceTimes": [
+        0.0
+      ],
+      "potionBuffs": [],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "2.975 Player 'MID2_Shaman_Elemental_Farseer' decrements Buff 'flowing_elements' (1300219) by 1 to 1 stacks",
+        "4.993 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "15.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "15.429 Player 'MID2_Shaman_Elemental_Farseer' decrements Buff 'flowing_elements' (1300219) by 1 to 1 stacks",
+        "17.462 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125"
+      ]
+    },
+    "state": {
+      "profileSha256": "706af4320594652504ebe1060a70970df816d7d9f7eb799af7eff9106b6c1fc9",
+      "reportExists": true,
+      "reportSha256": "7e9a7affc25a6c2b1518577646baff73311bacee01a4b7430690e1641211b011",
+      "gameData": "Live",
+      "fightLength": 20.0,
+      "firstActions": [],
+      "ascendanceTimes": [],
+      "potionBuffs": [],
+      "warnings": [
+        {
+          "level": "trivial",
+          "message": "Disable this warning by adding 'use_item' actions into the action priority list for the actor(s), or set 'use_item_verification=0' in your SimulationCraft input."
+        },
+        {
+          "level": "trivial",
+          "message": "MID2_Shaman_Elemental_Farseer missing 'use_item' action for item \"vile_vial_of_volatile_venom\" (slot=trinket2)"
+        },
+        {
+          "level": "trivial",
+          "message": "Warning: The 'override.precombat_state' option may not be fully supported for all buffs and cooldowns and may produce incorrect or misleading results."
+        },
+        {
+          "level": "implementation_not_yet_verified",
+          "message": "Rune of Unleashed Fire: Procs are assumed to target the same unit that triggered them. Procs triggered by damage are assumed to proc damage. Procs triggered by healing/aura are assumed to proc heal."
+        }
+      ],
+      "stateLogEvidence": [
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' gains Buff 'flowing_elements' (1300219) (stacks=2) (value=-2.225074e-308, time_duration_multiplier=1)",
+        "15.000 Player 'MID2_Shaman_Elemental_Farseer' loses Buff 'flowing_elements' (1300219)",
+        "0.000 Player 'MID2_Shaman_Elemental_Farseer' resource maelstrom overridden to 125"
+      ]
+    }
+  }
+}

@@ -39,3 +39,14 @@
 - 提交后主动读取状态，可用 `waitSeconds` 有界等待；不要紧密空转轮询。仍在运行时给出任务 ID 和真实状态，任务可在同账号 SimC 列表查看；下一轮可继续查询。请求剩余时间足够时读到终态再分析，不把排队或进程返回成功说成已有 DPS。
 
 - 仅根据经过校验的结果和 provenance 报告真实 DPS/HPS。对比差值和百分比，结合 `metricError` / `metricErrorPct`；缺误差或差异接近误差时不宣称已经证明某属性更好。模拟只支持所用快照、目标数、时长和输出循环，不把它推广成所有角色的固定属性排序。
+
+
+## 阶段爆发实验
+
+用户指定满资源、预存增益、技能冷却或短窗口时，使用通用 initialState + measurement（compiler v7），不要回复“入口不支持”或退回默认开怪。resources 使用引擎资源名，值为数值或 max；buffs 使用 query_simulation_options 查询引擎 token（名称索引仅供候选发现，实际支持和角色条件以云端校验为准），包含 stacks 与 remainingSeconds（秒或 full）；cooldowns 为动作 token 到剩余秒数。初始增益默认完整时长时明确告知该假设。
+
+measurement.durationSeconds 20–120，actions 是 {action,buff?} 数组；iterations 先用 1 验证，再用 32，必要时最多 128。阶段实验必须提供完整 actionLists.default，precombat 仅允许 snapshot_stats。阶段模式不接受 sequence/strict_sequence（报告会隐藏内部动作）；使用显式动作条件安排起手。assertions.openingActions 检查列出的动作顺序；requiredBuffs 核验实际获得的 Buff（药水 token 大小写原样保留）；maxResourceOverflow 仅在用户要求硬约束时使用。失败后核对状态/天赋/装备/APL，不改变用户初始条件凑结果。
+
+get_simulation_job.result.phaseEvidence 给出全部迭代的初始状态验证、伤害/DPS 区间、动作次数/携带指定 Buff 次数和资源溢出。sample 仅第一迭代；withBuff 是执行时携带，不能宣传为已验证增伤结算。引擎预设可能不恢复隐藏计数器、宠物、DoT 或触发历史，保留这些限制。固定目标窗口不包含未指定首领易伤机制。
+
+比较药水用 APL potion,name=已核实token，只改变药水；属性调整必须两组相同并披露为假设。实际增益不符合要求时，不强制伪造随机结果。先调用 preview_simulation，再 submit/get，所有断言满足后 compare_simulation_jobs；不得把单次试跑称为最优循环或统计胜出。

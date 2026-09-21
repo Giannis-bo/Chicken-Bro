@@ -355,7 +355,7 @@ class SimcReadinessValidator:
         spec_key = str(character.get("specKey") or "").strip().lower()
         require(
             "compiler",
-            runtime_capabilities.compiler_revision in {"chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"},
+            runtime_capabilities.compiler_revision in {"chickenbro-simc-compiler-v1", "chickenbro-simc-compiler-v2", "chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4", "chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6", "chickenbro-simc-compiler-v7"},
             "COMPILER_UNAVAILABLE",
         )
         require(

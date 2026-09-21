@@ -995,5 +995,17 @@
         "servicesActive": true
       }
     }
+  },
+  "simcPhaseState": {
+    "status": "live_verified",
+    "sourceCommit": "32add63464e28ea53a9df23690cc1800dbe74953",
+    "evidence": "artifacts/verification/2026-09-20-phase-state-release/README.md",
+    "compilerRevision": "chickenbro-simc-compiler-v7",
+    "candidateIterationsPerArm": 32,
+    "liveIterationsPerArm": 8,
+    "publicWebFilesMatched": 13,
+    "runtimeServerFilesMatched": 151,
+    "manualUserAcceptance": false,
+    "productionRollbackDrill": false
   }
 }

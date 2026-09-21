@@ -39,6 +39,9 @@ class RawSimulationExecution:
     report_json: str | bytes | None = None
     requires_json: bool = False
     npc_sources: dict | None = None
+    phase_evidence: dict | None = None
+    phase_report: dict | None = None
+    phase_identity: dict | None = None
 
 
 class SimulationCraftPort(Protocol):
@@ -63,6 +66,12 @@ class LocalSimulationCraftPort:
         self._runner = runner
 
     def run(self, compiled_input: Any, runtime_revision: str) -> RawSimulationExecution:
+        if "measurement" in getattr(compiled_input, "scenario", {}):
+            from server.app.simulation.phase_execution import run_phase
+            return run_phase(self, compiled_input, runtime_revision)
+        return self._run_once(compiled_input, runtime_revision)
+
+    def _run_once(self, compiled_input: Any, runtime_revision: str, *, timeout_seconds=None, full_states=False) -> RawSimulationExecution:
         if not runtime_revision or not self._runtime_revision or runtime_revision != self._runtime_revision:
             raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
         try:
@@ -78,13 +87,13 @@ class LocalSimulationCraftPort:
                 output = Path(private_dir) / "report.json"
                 html_output = Path(private_dir) / "report.html"
                 completed = self._runner(
-                    [binary, "-", f"json={output},full_states=0", f"html={html_output}", "report_details=1"],
+                    [binary, "-", f"json={output},full_states={int(full_states)}", f"html={html_output}", "report_details=1"],
                     input=compiled_input.profile,
                     text=True,
                     encoding="utf-8",
                     errors="replace",
                     capture_output=True,
-                    timeout=self._timeout_seconds,
+                    timeout=self._timeout_seconds if timeout_seconds is None else timeout_seconds,
                     check=False,
                     cwd=private_dir,
                 )
@@ -311,18 +320,32 @@ class SimulationWorker:
                 raise SimulationWorkerError("SIMC_RUNTIME_REVISION_STALE")
             metric = self._result_parser.parse(execution, expected_actor=compiled.actor_name)
             action_evidence = None
-            if compiled.compiler_revision == "chickenbro-simc-compiler-v6":
+            if compiled.compiler_revision in {"chickenbro-simc-compiler-v6", "chickenbro-simc-compiler-v7"}:
                 from server.app.simulation.action_lists import extract_action_evidence
                 try:
                     action_evidence = extract_action_evidence(execution.report_json, compiled.actor_name, compiled.profile_sha256)
                 except ValueError as error:
                     raise SimulationWorkerError("SIMC_ACTION_EVIDENCE_MISSING") from error
             effective_config = None
-            if compiled.compiler_revision in {"chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6"}:
+            if compiled.compiler_revision in {"chickenbro-simc-compiler-v5", "chickenbro-simc-compiler-v6", "chickenbro-simc-compiler-v7"}:
                 try:
                     effective_config = verify_effective_config(compiled, metric.report, execution.report_json)
                 except ValueError as error:
                     raise SimulationWorkerError("SIMC_EFFECTIVE_CONFIG_MISMATCH") from error
+            phase_evidence = None
+            if "measurement" in compiled.scenario:
+                phase_evidence = execution.phase_evidence
+                if (not isinstance(phase_evidence, dict) or phase_evidence.get("status") != "satisfied"
+                        or phase_evidence.get("profileSha256") != compiled.profile_sha256
+                        or phase_evidence.get("scenarioHash") != compiled.scenario_hash
+                        or phase_evidence.get("runtimeRevision") != compiled.runtime_revision
+                        or phase_evidence.get("iterations") != compiled.scenario["iterations"]
+                        or not execution.phase_report):
+                    raise SimulationWorkerError("SIMC_PHASE_EVIDENCE_MISSING")
+                value = phase_evidence["dps"]["mean"]
+                error = phase_evidence["dps"]["error95"]
+                metric = replace(metric, value=value, error=error, error_pct=error / value * 100 if error is not None else None,
+                                 report=execution.phase_report, report_identity=execution.phase_identity)
         except SimulationWorkerError as error:
             return self._record_failure(
                 job,
@@ -363,6 +386,7 @@ class SimulationWorker:
             user_id=job.user_id,
             profile_sha256=compiled.profile_sha256,
             result={
+                **({"phaseEvidence": phase_evidence} if phase_evidence is not None else {}),
                 **({"actionEvidence": action_evidence} if action_evidence is not None else {}),
                 "metricName": metric.name,
                 "metricValue": metric.value,
@@ -443,6 +467,7 @@ class SimulationWorker:
                 ("chickenbro-simc-compiler-v3", "chickenbro-simc-compiler-v4"),
                 *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v5") for i in range(1, 5)),
                 *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v6") for i in range(1, 6)),
+                *((f"chickenbro-simc-compiler-v{i}", "chickenbro-simc-compiler-v7") for i in range(1, 7)),
             }
             and job.runtime_revision == self._runtime_capabilities.runtime_revision
         ):

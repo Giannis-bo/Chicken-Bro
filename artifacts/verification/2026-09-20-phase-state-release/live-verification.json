@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "32add63464e28ea53a9df23690cc1800dbe74953",
+  "backend": "/opt/chickenbro-releases/badcase-32add63464e28ea53a9df23690cc1800dbe74953",
+  "web": "/var/www/chickenbro-web/releases/phase-state-32add63464e28ea53a9df23690cc1800dbe74953",
+  "publicFilesMatched": 13,
+  "runtimeServerFiles": 151,
+  "readiness": "ready",
+  "environmentHashesUnchanged": true,
+  "previousReleasesPreserved": true,
+  "backendManifestSha256": "7769d8fd977795ede64f0aee4bf193b4dfcf76fcd9a652bb47dc2181bdd18776",
+  "recoveryRecordPresent": true
+}
