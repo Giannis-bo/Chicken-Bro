@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "realModelCompleted": true,
+  "realWorkerGatewayAccepted": true,
+  "capabilityRevoked": true,
+  "scope": "isolated cloud adapter startup; no simulation submitted"
+}

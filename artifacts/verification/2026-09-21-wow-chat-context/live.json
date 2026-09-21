@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "conversationId": "9f79d172-ed0c-5e68-aaab-6dbd02842c62",
+  "runId": "c25920a1-536b-4a90-ab88-bd9e18c80792",
+  "jobId": "4ff32b85-14d6-4cb9-a5d3-4168834f6c7b",
+  "compilerRevision": "chickenbro-simc-compiler-v6",
+  "runtimeRevision": "simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:67bd532aff42fbfcd391c764b6fe95f2222143cb2ba3a7cf324958b49c6ceb4c",
+  "positiveMetric": true,
+  "assistantAnswerPersisted": true,
+  "ownerIsolation": true,
+  "toolCalls": [
+    [
+      "simc.preview",
+      "completed"
+    ],
+    [
+      "simc.submit",
+      "completed"
+    ],
+    [
+      "simc.get",
+      "completed"
+    ]
+  ],
+  "seconds": 35.4
+}

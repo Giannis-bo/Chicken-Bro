@@ -736,6 +736,17 @@
         "rule": "distinct_users_by_game_questions_total_before_end_new_first_question_active_in_period",
         "evidence": "artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md"
       }
+    },
+    "wowChatContextRepair": {
+      "status": "live_verified",
+      "sourceCommit": "9ef8a187d",
+      "evidence": "artifacts/verification/2026-09-21-wow-chat-context/README.md",
+      "scope": "WoW Chat trusted SimulationToolContext adaptation",
+      "cloudTargetedTests": 102,
+      "liveChatSimulationVerified": true,
+      "ownerIsolationVerified": true,
+      "publicWebFilesVerified": 15,
+      "manualUserAcceptance": "not_claimed"
     }
   },
   "miniRetirement": {

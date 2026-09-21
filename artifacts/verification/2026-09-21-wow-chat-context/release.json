@@ -1,0 +1,13 @@
+{
+  "backend": "/opt/chickenbro-releases/wow-chat-context-20260921",
+  "backendBase": "/opt/chickenbro-releases/admin-users-20260921",
+  "web": "/var/www/chickenbro-web/releases/wow-chat-context-20260921",
+  "changedBackendFiles": [
+    "server/app/chickenbro/codex_adapter.py"
+  ],
+  "adapterSha256": "7832e710dc8cbc0cb4466e48c76562fe0f26324c4112bdf57cc7a49a336b4c0c",
+  "publicWebFilesVerified": 15,
+  "webIdenticalToPrevious": true,
+  "sourceCommit": "9ef8a187d",
+  "recovery": "previous backend and Web retained with exact inventory; rollback not exercised"
+}
