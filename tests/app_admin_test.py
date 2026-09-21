@@ -13,9 +13,9 @@ from server.app.main import create_app
 class Repository:
     def __init__(self, owner): self.owner, self.calls = owner, 0
     def is_qq_owner(self, user_id, appid): return user_id == self.owner and appid == '123'
-    def overview(self, window, appid):
+    def overview(self, window, appid, game='wow'):
         self.calls += 1
-        return {'window': window.start.isoformat(), 'appid': appid}
+        return {'window': window.start.isoformat(), 'appid': appid, 'game': game}
 
 class AdminTest(unittest.TestCase):
     def setUp(self):
@@ -40,6 +40,15 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(w.end.isoformat(),'2026-09-09T16:00:00+00:00')
         for a,b in [('2026-09-10','2026-09-09'),('2026-2-1','2026-02-02'),('2025-01-01','2026-09-09'),('2026-09-01','2026-09-10')]:
             with self.subTest(a=a,b=b), self.assertRaises(AdminError): date_window(a,b,datetime(2026,9,9,tzinfo=timezone.utc))
+    def test_game_is_validated_and_forwarded(self):
+        principal = Principal(self.owner, 'web_cookie')
+        self.assertEqual(self.admin.overview(principal, None, None, 'poe2')['game'], 'poe2')
+        self.assertEqual(self.admin.overview(principal, None, None)['game'], 'wow')
+        with self.assertRaises(AdminError) as error:
+            self.admin.overview(principal, None, None, 'other')
+        self.assertEqual(error.exception.code, 'ADMIN_GAME_INVALID')
+        self.assertEqual(self.repo.calls, 2)
+
     def test_bad_admin_configuration_fails_closed(self):
         for value in ['396318352','*',str(self.owner)+','+str(self.other),str(next(iter(TEST_ACCOUNT_IDS.values())))]:
             with self.assertRaises(ValueError): replace(self.settings,admin_user_id=value)

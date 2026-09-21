@@ -1,0 +1,38 @@
+{
+  "backendBase": "/opt/chickenbro-releases/admin-games-20260921",
+  "webBase": "/var/www/chickenbro-web/releases/admin-games-20260921",
+  "backend": "/opt/chickenbro-releases/admin-games-20260921-final",
+  "web": "/var/www/chickenbro-web/releases/admin-games-20260921-final",
+  "webFiles": {
+    "brand/gugu-v1-16.png": "e3634867101d1319658212956c5a00e0f1c2167ff5fae669054d41ea57ffa998",
+    "brand/gugu-v1-32.png": "42cc96b30198c135bdc42f7ea756c85ce2c86b07305d3f6a239ef63893847ed5",
+    "brand/gugu-v1.ico": "e5f825cb5b569fbafc4dc6c21e79fce2e4982cd5908d7d279b209a15e025a67d",
+    "chunk/1.js": "38174991d09ce2fb74649329e13ccb4277f2af03661e1e51617396a600928827",
+    "chunk/244.js": "165b40d802c075161728a5d7f57c4bfc193d56f8820fc2dd96d005b856886185",
+    "chunk/244.js.LICENSE.txt": "3a77de513a8b913936cf8fd93b05e202e51c90a62634339cd42184df0e9fa418",
+    "chunk/329.js": "482c7124e2e4784716a821442b01250520c2622fc91fc5eeef665c0c4d0b4835",
+    "css/329.css": "930d6db3661773d5d6aec9f27c4fa9231de3a23ebf2b3b2959c8ed132897c2cf",
+    "css/app.css": "9e902d24b42a24346e705cd88a5d5fe50fe1c8181b2ab308d11d7efc9eaff103",
+    "index.html": "0a9acafdc448cf29e8ad1ec742c7cfdf0ec9afd26aeb507d2ea91c8d36cb6a58",
+    "js/611.js": "b35b378a2dcaffa7a0a0b5c073397c1b2d875f558d90e10cb63fa6cb15878038",
+    "js/611.js.LICENSE.txt": "d102d2aa15e2431a69f4736c1f8881b03a886de77e2926a2d2901815147e8310",
+    "js/app.js": "3a4394dbbd5e5b21db2dd80cad88a69aaeb4ee5ea82c87143192564a019e91a4",
+    "js/app.js.LICENSE.txt": "7380d4f13827f25020b8d7b8f752d9bd8b91a438cbe3e9c64f1f3a1284b032af",
+    "static/images/web/assets/gu-gu-mascot.png": "d6fb806af1772431b5452a0d13add4e27a8ad63c6c72a61d2148f6603105949e"
+  },
+  "changedBackendFiles": [
+    "server/app/admin/repository.py"
+  ],
+  "databaseMigration": false,
+  "backendAdminFiles": {
+    "server/app/admin/application.py": "bacdfa8e3a8fd84804372244155a9d159efb8e1f7a58bc3776fce4218159da86",
+    "server/app/admin/repository.py": "61fa2494e9893ab60ab23892fa97dbd784ac0a505b64579283afe205f99cd691",
+    "server/app/api/routes/admin.py": "f913b0ddced0080cd41b07dc67011f695d065df0b0c28099ba23b6a81d17f999"
+  },
+  "promotion": {
+    "passed": true,
+    "backend": "/opt/chickenbro-releases/admin-games-20260921-final",
+    "web": "/var/www/chickenbro-web/releases/admin-games-20260921-final",
+    "environmentPreserved": true
+  }
+}

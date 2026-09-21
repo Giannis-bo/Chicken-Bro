@@ -8,7 +8,7 @@ import { isAdminOverview } from '@wow-mini/domain'
 import { readWebView, webViewHref } from './web-routing'
 const ok=(payload:unknown)=>({payload,fromFallback:false,error:''})
 const zero={total:0,succeeded:0,failed:0,running:0,successRate:null,avgSeconds:null,p95Seconds:null}
-const fixture={start:'2026-09-03',end:'2026-09-09',timezone:'Asia/Shanghai',generatedAt:'2026-09-09T04:00:00Z',scope:'current_qq_users',users:{total:0,new:0,active:0},chat:{...zero,resolved:0,unresolved:0,feedbackRate:null,resolutionRate:null},simc:{...zero,queued:0,cancelled:0,invalidResults:0},daily:[{date:'2026-09-09',newUsers:0,activeUsers:0,questions:0,simulations:0}],specializations:[]}
+const fixture={game:'wow',builds:0,start:'2026-09-03',end:'2026-09-09',timezone:'Asia/Shanghai',generatedAt:'2026-09-09T04:00:00Z',scope:'current_qq_users',users:{total:0,new:0,active:0},chat:{...zero,resolved:0,unresolved:0,feedbackRate:null,resolutionRate:null},simc:{...zero,queued:0,cancelled:0,invalidResults:0},daily:[{date:'2026-09-09',newUsers:0,activeUsers:0,questions:0,simulations:0,builds:0}],specializations:[]}
 let node:HTMLDivElement, root:Root
 const client={access:vi.fn(),overview:vi.fn()}
 beforeEach(()=>{vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);node=document.createElement('div');document.body.append(node);root=createRoot(node);vi.clearAllMocks()})
@@ -48,4 +48,24 @@ it('ignores an older response after switching the date range',async()=>{
   await act(async()=>finishOld(ok({...fixture,users:{total:999,new:999,active:999}})))
   expect(node.textContent).not.toContain('999')
   expect(node.textContent).toContain('累计用户7')
+})
+
+it('separates POE2 metrics and ignores a late WoW response after switching games',async()=>{
+  client.access.mockResolvedValue(ok({isAdmin:true,accountId:'11111111-1111-4111-8111-111111111111'}))
+  let finishOld: (value: unknown) => void = () => undefined
+  const {simc,...base}=fixture
+  const poe={...base,game:'poe2',builds:3,poe2:{...simc,total:4}}
+  expect(isAdminOverview(poe)).toBe(true)
+  expect(isAdminOverview({...poe,poe2:undefined})).toBe(false)
+  client.overview.mockImplementationOnce(()=>new Promise(resolve=>{finishOld=resolve})).mockResolvedValue(ok(poe))
+  await render()
+  await act(async()=>Array.from(node.querySelectorAll('button')).find(b=>b.textContent==='POE2')!.click())
+  expect(client.overview.mock.lastCall?.[3]).toBe('poe2')
+  expect(node.textContent).toContain('PoB 构筑计算')
+  expect(node.textContent).toContain('构筑导入3')
+  expect(node.textContent).not.toContain('SimC 模拟')
+  expect(node.textContent).not.toContain('职业与专精分布')
+  await act(async()=>finishOld(ok({...fixture,users:{total:999,new:999,active:999}})))
+  expect(node.textContent).not.toContain('999')
+  expect(node.textContent).toContain('PoB 构筑计算')
 })

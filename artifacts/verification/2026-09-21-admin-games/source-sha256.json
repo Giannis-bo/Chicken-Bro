@@ -1,0 +1,15 @@
+{
+  "baseCommit": "77fbcf864d574d7f69abe43e7110164b34d73cea",
+  "files": {
+    "apps/mini-taro/src/web/WebAdmin.module.scss": "9efa066d2b73ff38f805a5f72be4be69db1f6731008939d226342416a0b4705f",
+    "apps/mini-taro/src/web/WebAdmin.tsx": "467720afc3c14977f824cf2c29bf3a81271eca1d2eb690b06e1d82a8e8aaaa72",
+    "apps/mini-taro/src/web/web-admin.test.tsx": "190feba004f7361096e927d432309eb9f5dfbaee13898c62f0e77c49d8fd5161",
+    "packages/api-client/src/admin.ts": "606fee75bf95c3d01fb67bed0eec4a2dd20148792364ba5d2b833065a3fde790",
+    "packages/domain/src/admin.ts": "62b5b01e4a1f1d901033f311999f8731af6288d36b14cc67fbfa2b1d4ba55728",
+    "server/app/admin/application.py": "bacdfa8e3a8fd84804372244155a9d159efb8e1f7a58bc3776fce4218159da86",
+    "server/app/admin/repository.py": "61fa2494e9893ab60ab23892fa97dbd784ac0a505b64579283afe205f99cd691",
+    "server/app/api/routes/admin.py": "f913b0ddced0080cd41b07dc67011f695d065df0b0c28099ba23b6a81d17f999",
+    "tests/app_admin_postgres_test.py": "8cbb6f974d3239bad47b1b85f5fc9eb8aaa0fa806740dd5099319bc01548a7fd",
+    "tests/app_admin_test.py": "e7785f0bbe8b0eba011a7d7d60f15f329f5a6aeec15687b8253df8c2174edd58"
+  }
+}

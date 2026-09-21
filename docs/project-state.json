@@ -721,6 +721,16 @@
       "manualUserAcceptance": "not_claimed",
       "rollbackDrill": false,
       "repositoryUrl": "https://github.com/Giannis-bo/Chicken-Bro"
+    },
+    "adminGames": {
+      "status": "live_verified",
+      "scope": "read_only_admin_game_separation_and_poe2_aggregates",
+      "evidence": "artifacts/verification/2026-09-21-admin-games/README.md",
+      "productionDeployed": true,
+      "manualUserAcceptance": "not_claimed",
+      "productionCutoverAuthorized": true,
+      "backend": "/opt/chickenbro-releases/admin-games-20260921-final",
+      "web": "/var/www/chickenbro-web/releases/admin-games-20260921-final"
     }
   },
   "miniRetirement": {

@@ -25,7 +25,7 @@ class DateWindow:
 
 class AnalyticsRepository(Protocol):
     def is_qq_owner(self, user_id: UUID, appid: str) -> bool: ...
-    def overview(self, window: DateWindow, appid: str) -> dict: ...
+    def overview(self, window: DateWindow, appid: str, game: str = 'wow') -> dict: ...
 
 def date_window(start: str | None, end: str | None, now: datetime | None = None) -> DateWindow:
     today = (now or datetime.now(timezone.utc)).astimezone(BEIJING).date()
@@ -57,10 +57,12 @@ class AdminApplication:
         if not self.allowed(principal):
             raise AdminError('ADMIN_FORBIDDEN', '此账号没有运营后台访问权限', 403)
 
-    def overview(self, principal: Principal, start: str | None, end: str | None) -> dict:
+    def overview(self, principal: Principal, start: str | None, end: str | None, game: str = 'wow') -> dict:
         self.require(principal)
+        if game not in ('wow', 'poe2'):
+            raise AdminError('ADMIN_GAME_INVALID', '请选择魔兽世界或 POE2')
         window = date_window(start, end)
         try:
-            return self.repository.overview(window, self.settings.qq_appid)
+            return self.repository.overview(window, self.settings.qq_appid, game)
         except Exception:
             raise AdminError('ADMIN_UNAVAILABLE', '统计服务暂不可用，请稍后重试', 503) from None

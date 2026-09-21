@@ -142,6 +142,16 @@
       ]
     },
     {
+      "id": "admin-games-20260921",
+      "disposition": "keep",
+      "category": "target-verification",
+      "owner": "admin_analytics",
+      "reason": "Retain dual-game admin aggregate contracts and cloud verification evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-09-21-admin-games/"
+      ]
+    },
+    {
       "id": "phase-state-simulation-20260920",
       "disposition": "keep",
       "category": "target-verification",
