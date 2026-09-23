@@ -29,8 +29,12 @@ from server.app.chickenbro.image_repository import ChatImageRepository
 class PostgresChatRepository(ChatImageRepository):
     """Owner-scoped repository for the additive v2 chat tables."""
 
-    def __init__(self, connection_factory: Callable[[], Any], *, durable: bool = False):
+    def __init__(self, connection_factory: Callable[[], Any], *, durable: bool = False, actor_kind: str = "web_cookie", qq_scope=None, qq_inbox_id=None):
         self._connection_factory = connection_factory
+        if actor_kind not in {"web_cookie", "qq_group"}:
+            raise ValueError("unsupported Chat actor kind")
+        self.actor_kind = actor_kind
+        self.qq_scope,self.qq_inbox_id=qq_scope,qq_inbox_id
         self.durable = durable
         if durable:
             from server.app.chickenbro.durable import PostgresChatExecutions
@@ -358,7 +362,14 @@ class PostgresChatRepository(ChatImageRepository):
                 bind_research(cursor, user_id, conversation_id, run_id, content)
                 if self.durable:
                     from server.app.chickenbro.durable import enqueue_execution
-                    enqueue_execution(cursor, run_id, user_id)
+                    enqueue_execution(cursor, run_id, user_id, actor_kind=self.actor_kind)
+                    if self.qq_scope is not None:
+                        if self.actor_kind!='qq_group' or self.qq_scope not in ('wow_read','wow_sim') or not self.qq_inbox_id:
+                            raise ValueError('invalid QQ scope binding')
+                        cursor.execute("""INSERT INTO qq_channel.run_scopes(run_id,user_id,scope,inbox_id)
+                            SELECT %s,%s,%s,id FROM qq_channel.inbox WHERE id=%s AND user_id=%s
+                            RETURNING run_id""",(run_id,user_id,self.qq_scope,self.qq_inbox_id,user_id))
+                        if cursor.fetchone() is None:raise ValueError('QQ inbox owner mismatch')
                 cursor.execute(
                     """
                     UPDATE chat.conversations

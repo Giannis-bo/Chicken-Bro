@@ -79,3 +79,12 @@ class AppConfigTest(unittest.TestCase):
         })
         self.assertFalse(hasattr(settings, "prototype_enabled"))
         self.assertFalse(hasattr(settings, "prototype_ttl_seconds"))
+
+    def test_qq_worker_scope_uses_distinct_managed_heartbeat_and_database(self):
+        base={'WOW_APP_ENV':'production','WOW_DATABASE_URL':'postgresql://wow_app@127.0.0.1/chickenbro_qq_channel','WOW_WORKER_V2_SCOPE':'qq_group'}
+        settings=AppSettings.from_env(base)
+        self.assertEqual(settings.worker_heartbeat_path,'/var/lib/chickenbro/qq-channel/worker-heartbeat.json')
+        for patch in [{'WOW_DATABASE_URL':'postgresql://wow_app@127.0.0.1/chickenbro_prod'},
+                      {'WOW_WORKER_V2_HEARTBEAT_PATH':'/var/lib/chickenbro/production-worker-heartbeat.json'},
+                      {'WOW_WORKER_V2_SCOPE':'arbitrary'}]:
+            with self.subTest(patch=patch),self.assertRaises(ValueError):AppSettings.from_env({**base,**patch})

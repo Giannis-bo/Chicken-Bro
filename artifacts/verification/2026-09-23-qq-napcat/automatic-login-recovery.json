@@ -1,0 +1,25 @@
+{
+  "observedAt": "2026-09-23T05:15:43.886897+00:00",
+  "scope": "password_fallback_container_restart",
+  "startedAt": "2026-09-23T05:15:14.322117994Z",
+  "image": "mlikiowa/napcat-docker@sha256:2cc70b45244ae3fabc657ffc3aaa4de8fb893518171e519659ab83d80e6d36b5",
+  "status": {
+    "isLogin": true,
+    "isOffline": false,
+    "coreReady": true,
+    "loginPhase": "ready",
+    "loginError": ""
+  },
+  "quickLoginAccountPresent": false,
+  "manualScanAfterStart": false,
+  "restartPolicy": "unless-stopped",
+  "dockerEnabled": "enabled",
+  "secretFileMode": "0o600",
+  "secretRootOwned": true,
+  "secretMountReadOnly": true,
+  "passwordInDockerConfigEnv": false,
+  "hostRebootPerformed": false,
+  "botIdentityMatches": true,
+  "onebotOnline": true,
+  "configuredGroupJoined": true
+}

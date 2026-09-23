@@ -6,6 +6,7 @@
 
 | 状态 | 范围 | 入口 |
 | --- | --- | --- |
+| 正在推进 | QQ 群记忆与 SimC 的真实群端体验核对；实现与 Candidate 验证已完成 | [实施计划](2026-09-23-qq-companion-implementation.md) |
 | 正在推进 | Badcase 通用修复、限定验证与条件发布 | [工作流](2026-09-08-badcase-workflow.md)、[执行说明](../badcase-workflow-operations.md) |
 | 正在推进 | 已登记私有副本的保留与到期处置 | [保留流程](../badcase-workflow-operations.md#保留与独立处置对账) |
 | 后续 | 模拟资料与机制证据补齐 | [跟进条件](2026-09-11-remaining-issues-status.md) |
@@ -15,6 +16,7 @@
 
 | 能力 | 设计与交付记录 |
 | --- | --- |
+| QQ「炸鸡」陪伴角色；@、主动文字／表情、按需引用已验收 | [角色设计](2026-09-23-qq-companion-design.md)、[交付记录](../../artifacts/verification/2026-09-23-qq-companion/closure/README.md) |
 | POE2 正式发布 | [发布记录](../../artifacts/releases/2026-09-21-poe2/README.md)、[首版计划](2026-09-18-poe2-dual-module.md)、[进度](2026-09-18-poe2-progress.md) |
 | POE2 构筑与中文展示 | [字符串入口](2026-09-20-poe2-pob-only.md)、[天赋树](2026-09-20-poe2-passive-tree.md)、[两步流程](2026-09-21-poe2-two-step-cn.md)、[简体术语](2026-09-20-poe2-cn-terms.md) |
 | POE2 基线复用与研究额度 | [范围与验证](2026-09-21-poe2-research-budget.md) |

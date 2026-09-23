@@ -1,0 +1,23 @@
+[
+  {
+    "input": "[QQ表情：耶]",
+    "attachment": false,
+    "action": "reply",
+    "reply": "耶✌️",
+    "elapsed": 11.03
+  },
+  {
+    "input": "哈哈哈哈",
+    "attachment": false,
+    "action": "reply",
+    "reply": "哈哈哈，笑得都传染了",
+    "elapsed": 7.56
+  },
+  {
+    "input": "终于下班了",
+    "attachment": false,
+    "action": "reply",
+    "reply": "可算熬到了，出门那口空气都自由了。",
+    "elapsed": 8.69
+  }
+]

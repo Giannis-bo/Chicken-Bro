@@ -106,7 +106,16 @@ class AppSettings:
         if not 0.1 <= poll_seconds <= 30:
             raise ValueError("WOW_WORKER_V2_POLL_SECONDS is outside 0.1..30")
 
-        default_heartbeat_path = f"/var/lib/chickenbro/{environment}-worker-heartbeat.json"
+        worker_scope = env.get("WOW_WORKER_V2_SCOPE", "web")
+        if worker_scope not in {"web", "qq_group"}:
+            raise ValueError("unsupported Worker scope")
+        if worker_scope == "qq_group":
+            parsed_database = urlparse(database_url)
+            if (parsed_database.path != "/chickenbro_qq_channel" or parsed_database.query
+                    or parsed_database.fragment or parsed_database.params):
+                raise ValueError("QQ production Worker requires its dedicated database")
+        default_heartbeat_path = ("/var/lib/chickenbro/qq-channel/worker-heartbeat.json"
+            if worker_scope == "qq_group" else f"/var/lib/chickenbro/{environment}-worker-heartbeat.json")
         worker_heartbeat_path = env.get(
             "WOW_WORKER_V2_HEARTBEAT_PATH",
             default_heartbeat_path,

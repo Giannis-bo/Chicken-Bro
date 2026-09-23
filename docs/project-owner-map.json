@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-21",
+  "updatedAt": "2026-09-23",
   "status": "active",
   "activeMilestone": "chickenbro_web_only_qq",
   "unownedCriticalDomains": [],
@@ -51,7 +51,8 @@
       "writeOwner": "server/app/chickenbro/repository.py",
       "runtimeSurfaces": [
         "server/app/chickenbro/application.py",
-        "server/app/api/routes/chat.py"
+        "server/app/api/routes/chat.py",
+        "server/app/channels/qq/runtime.py"
       ],
       "characterization": [
         "tests/app_chickenbro_application_test.py",
@@ -66,13 +67,26 @@
         "tests/app_chickenbro_source_gateway_test.py",
         "tests/app_chickenbro_simulation_tools_test.py",
         "tests/app_chat_durable_postgres_test.py",
-        "tests/app_wcl_run_reader_test.py"
+        "tests/app_wcl_run_reader_test.py",
+        "tests/app_qq_channel_test.py",
+        "tests/app_qq_onebot_test.py",
+        "tests/app_qq_channel_postgres_test.py",
+        "tests/app_qq_companion_memory_test.py",
+        "tests/app_qq_companion_model_test.py",
+        "tests/app_qq_companion_observation_test.py",
+        "tests/app_qq_companion_postgres_test.py",
+        "tests/app_qq_companion_runtime_test.py",
+        "tests/app_qq_companion_service_test.py",
+        "tests/app_qq_companion_stickers_test.py",
+        "tests/app_qq_companion_tools_test.py",
+        "tests/app_qq_group_memes_test.py"
       ],
       "changedPathPatterns": [
         "server/app/chickenbro/**",
         "server/app/api/routes/chat.py",
         "packages/api-client/src/chat*.ts",
-        "packages/domain/src/chat*.ts"
+        "packages/domain/src/chat*.ts",
+        "server/app/channels/**"
       ]
     },
     {

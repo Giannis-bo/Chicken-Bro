@@ -46,7 +46,7 @@ class ChatWorker:
                         started_at,finished_at,idempotency_key FROM chat.agent_runs
                         WHERE id=%s AND user_id=%s""", (run_id,claim['user_id']))
                     run = repository._agent_run_from_row(cur.fetchone())
-            principal = Principal(user_id=claim['user_id'], session_kind='web_cookie')
+            principal = Principal(user_id=claim['user_id'], session_kind=claim['actor_kind'])
             codex = self.codex_factory(claim, connect) if self.codex_factory else self.codex
             application = ChatApplication(repository=repository, codex=codex)
             for event in application.execute_run(principal, run):
@@ -92,7 +92,7 @@ def start_chat_workers(settings, connection_factory, stop):
     from server.app.poe2.imports.repository import PostgresImportRepository
 
     port = int(os.environ.get('WOW_CHAT_WORKER_TOOL_PORT','28794'))
-    if port not in (28794,18794):
+    if port not in (28794,18794,18795,18796):
         raise ValueError('Chat worker tool port must be an allowlisted loopback port')
     host = WorkerToolServer(port)
     host.start()
@@ -101,6 +101,17 @@ def start_chat_workers(settings, connection_factory, stop):
         from server.app.chickenbro.research_lifecycle import PostgresResearchBudget
         research = PostgresResearchBudget(connect, claim['user_id'], claim['run_id'])
         recorder = ToolRecorder(connect,claim['run_id'])
+        qq_scope=None;qq_rules=None;policy={};query_type=ServerConfiguredSourceQuery
+        if claim.get('actor_kind')=='qq_group' and os.environ.get('WOW_QQ_COMPANION_ENABLED')=='1':
+            from server.app.channels.qq.execution_policy import RunScopeRepository,QqSourceQuery
+            query_type=QqSourceQuery
+            from server.app.channels.qq.companion_model import PERSONA_PATH
+            from server.app.chickenbro.codex_adapter import _load_agent_rules
+            scopes=RunScopeRepository(connect)
+            qq_scope=scopes.load(claim['run_id'],claim['user_id'])
+            qq_rules=_load_agent_rules('wow')+'\nQQ 群交流规则：\n'+PERSONA_PATH.read_text()
+            policy={'scope':qq_scope,'scope_check':lambda:scopes.load(claim['run_id'],claim['user_id'])==qq_scope}
+
         simulation = SimulationApplication(repository=PostgresSimulationRepository(connect),
             source_router=CharacterSourceRouter(HttpxSourceGateway()),
             readiness_validator=SimcReadinessValidator(),
@@ -108,9 +119,10 @@ def start_chat_workers(settings, connection_factory, stop):
         poe2 = Poe2Application(PostgresPoe2Repository(connect),PobEngine())
         return NativeCodexChatAdapter(
             source_gateway=host.register(ChickenbroSourceGateway(
-                query_service=ServerConfiguredSourceQuery(wcl_reader=WclRunReader()), research_budget=research),recorder,'source'),
-            simulation_gateway=host.register(SimulationToolGateway(simulation, research_budget=research),recorder,'simc'),
-            poe2_gateway=host.register(Poe2ToolGateway(poe2, import_application=ImportApplication(PostgresImportRepository(connect)),research_budget=research),recorder,'poe2'),
+                query_service=query_type(wcl_reader=WclRunReader()), research_budget=research),recorder,'source',**policy),
+            simulation_gateway=(host.register(SimulationToolGateway(simulation, research_budget=research),recorder,'simc',**policy) if qq_scope in (None,'wow_sim') else None),
+            poe2_gateway=(host.register(Poe2ToolGateway(poe2, import_application=ImportApplication(PostgresImportRepository(connect)),research_budget=research),recorder,'poe2') if qq_scope is None else None),
+            qq_scope=qq_scope,qq_rules=qq_rules,
             source_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/source-query',
             simulation_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/simc-tool',
             poe2_gateway_url=f'http://127.0.0.1:{port}/api/v2/internal/chickenbro/poe2-tool')
@@ -125,7 +137,8 @@ def start_chat_workers(settings, connection_factory, stop):
                 LOG.error('chat_lane_error exception_type=%s',type(error).__name__)
             stop.wait(1)
 
-    threads = [Thread(target=lane,daemon=True,name=f'chat-worker-{i}') for i in range(8)]
+    lane_count=1 if os.environ.get('WOW_QQ_COMPANION_ENABLED')=='1' else 8
+    threads = [Thread(target=lane,daemon=True,name=f'chat-worker-{i}') for i in range(lane_count)]
     for thread in threads:
         thread.start()
     return host,threads

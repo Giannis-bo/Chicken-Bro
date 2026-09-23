@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "case": "fresh_proactive",
+      "state": "done",
+      "outputs": [
+        "别人打本刷装备，你打本刷脆皮，走的时候还得让奶妈撒把孜然。"
+      ]
+    },
+    {
+      "case": "mention_with_proactive_disabled",
+      "state": "done",
+      "outputs": [
+        "阿原，下班快乐！先歇口气，今天辛苦了。"
+      ]
+    }
+  ],
+  "itemTypes": {
+    "userMessage": 2,
+    "agentMessage": 2
+  },
+  "facts": [
+    {
+      "sender": "96660123",
+      "key": "preferred_name",
+      "value": "阿原"
+    }
+  ],
+  "transport": "record_only_no_onebot"
+}

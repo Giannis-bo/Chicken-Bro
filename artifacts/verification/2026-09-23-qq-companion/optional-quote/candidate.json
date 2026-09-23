@@ -1,0 +1,15 @@
+{
+  "input": "鸡哥鸡哥",
+  "text": "诶，鸡哥在呢。",
+  "quote": false,
+  "segments": [
+    {
+      "type": "text",
+      "data": {
+        "text": "诶，鸡哥在呢。"
+      }
+    }
+  ],
+  "transport": "record_only_no_onebot",
+  "scope": "model_to_persisted_queue_to_transport"
+}

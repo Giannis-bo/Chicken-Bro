@@ -1,0 +1,59 @@
+{
+  "results": [
+    {
+      "case": 0,
+      "mentioned": true,
+      "state": "done",
+      "outputs": [
+        [
+          "阿强好啊，名字记住了，群里随便唠。",
+          null
+        ]
+      ]
+    },
+    {
+      "case": 1,
+      "mentioned": true,
+      "state": "done",
+      "outputs": [
+        [
+          "阿强啊，刚说完就考鸡哥？",
+          null
+        ]
+      ]
+    },
+    {
+      "case": 2,
+      "mentioned": true,
+      "state": "done",
+      "outputs": [
+        [
+          "",
+          "watch"
+        ]
+      ]
+    },
+    {
+      "case": 3,
+      "mentioned": false,
+      "state": "done",
+      "outputs": [
+        [
+          "阿强，你这是打本还是给地板试油温啊？",
+          "laugh"
+        ]
+      ]
+    }
+  ],
+  "itemTypes": {
+    "userMessage": 4,
+    "agentMessage": 4
+  },
+  "facts": [
+    {
+      "sender": "96660001",
+      "key": "preferred_name",
+      "value": "阿强"
+    }
+  ]
+}

@@ -28,6 +28,7 @@
 | POE2 保留的角色链接后台（非 Web 入口） | 两入口 provider 与 URL 一致性、状态/attempt/租约 CAS、来源及补充幂等、owner隔离、净化/TTL、采集器内核私网拒绝、未知映射阻断 | 历史 Candidate 记录 `verification/2026-09-20-poe2-character-import/README.md`（保留于原工作树，未纳入 Git；正式验收见[正式发布记录](../artifacts/releases/2026-09-21-poe2/README.md)）：ninja 补充 PoB 的真实基线、WeGame 预览及缺珠宝提示、刷新/取消/两账号、三步和390px通过。完整国服样本及用户体验验收待完成；ready 必须绑定构筑和成功基线 |
 | POE2 研究额度与复用 | 同源／引擎／修改身份、成功与在途复用、失败重试、持久化并发扣减、owner/run 绑定、跨轮累计及研究结束 | 真实 Chat 读取基线、复用候选并对比；确认任务数量未增加，单轮与跨轮额度分别判断 |
 | POE2 构筑交互 | 导入字符串验证、迟到响应、技能辅助关联、ID 复制、确认删除和账号切换 | 两步流程、中文树详情与搜索、手机可读；删除后刷新仍隐藏，第二账号不可读写；[正式证据](../artifacts/releases/2026-09-21-poe2/README.md) |
+| QQ 群通道 | 真实 at/白名单/self_id/时效；两群两用户两游戏隔离；durable actor；幂等提交间隙恢复；队列上限；发送 uncertain；白名单撤销 | 独立 Candidate；真实 QQ 入群、@→模型→发送回执与群友可见；服务重启、原 Web 身份与生产进程/制品保持；NapCat 登录恢复单独列证据 |
 | Web | 相关组件/API 合同、typecheck、lint、H5 build，实际导航和可交互状态 | 公网制品哈希、Web 路由与 QQ 登录入口 |
 | 运营后台 | 唯一管理员、空配置/测试身份/普通用户拒绝；北京时间、366 天限制、去重、补零、分母、null 与异常结果的 PostgreSQL 验证 | 本人可读、第二账号 403、匿名 401、聚合 SQL 对账及公网制品 |
 | 迁移/删除/恢复 | 独立测试库、版本兼容、精确依赖及活动引用、独立恢复核验 | 明确授权的清单、保留数据前后核对、失败恢复；不得覆盖生产新写入 |
@@ -37,3 +38,10 @@
 数据库测试使用独立 UTF8 测试库，按入口配置 `WOW_PG_TEST_DSN_V2` 或 `WOW_ADMIN_TEST_DSN`；不得指向生产或共享业务库。未配置造成跳过时单列，不能称数据库验证完成。反馈数据库用例为 `tests.app_chat_feedback_postgres_test`，旧请求未带 `includeFeedback` 时保持合同。
 
 SimC 和 PoB 只在云端受控环境运行，不本地安装；POE2 测试和构建按当前云端执行约定。数据处置使用本次授权和恢复材料。
+
+### QQ companion
+
+- 云端隔离库：`app_qq_companion_*` 与 `app_qq_group_memes_test` 验证观察、必答、幂等/租约恢复、成员来源与遗忘、工具范围、表情和模式配置；另复跑原 QQ、Chat durable、Codex/SimC owner 合同。
+- Candidate：真实模型无工具轨迹、自然社交、未 @ 决策、真实专业运行/SimC，与群 sender 隔离。
+- Live：@ 自然最终回复、未 @ 接话、群友识别和表情分别记录；OneBot 回执与用户群端可见验收分列。
+- 回退：先关闭主动参与并验证必答，必要时切 legacy；新数据保留。网站 PID/readiness/源码及 Web 指针保持。

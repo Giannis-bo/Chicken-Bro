@@ -1,0 +1,14 @@
+{
+  "observedAt": "2026-09-23T03:59:22.738933+00:00",
+  "scope": "read_only_onebot_login_and_group_membership",
+  "unauthenticatedHttpStatus": 101,
+  "unauthenticatedRetcode": 1403,
+  "unauthenticatedRejected": true,
+  "authenticatedWebSocket": true,
+  "botIdentityMatches": true,
+  "configuredGroupsJoined": true,
+  "configuredGroupOwnerVerified": true,
+  "messagesSent": 0,
+  "businessEnabled": false,
+  "channelAdapter": "not_implemented"
+}

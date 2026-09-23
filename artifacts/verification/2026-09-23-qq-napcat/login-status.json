@@ -1,0 +1,39 @@
+{
+  "observedAt": "2026-09-23T03:59:21.876986+00:00",
+  "scope": "napcat_environment_preparation_only",
+  "image": "mlikiowa/napcat-docker@sha256:2cc70b45244ae3fabc657ffc3aaa4de8fb893518171e519659ab83d80e6d36b5",
+  "napcatVersion": "4.18.28",
+  "linuxQQVersion": "3.2.30-50969",
+  "container": "chickenbro-napcat",
+  "checks": {
+    "containerRunning": true,
+    "noAutomaticRestartsOrOOM": true,
+    "imageMatchesLock": true,
+    "loopbackPortsOnly": true,
+    "resourceLimits": true,
+    "notPrivileged": true,
+    "onlyChannelMounts": true,
+    "credentialsPrivate": true,
+    "secretConsoleAndFileLogsOff": true,
+    "managementRejectsUnauthenticated": true,
+    "managementAuthenticated": true,
+    "distinctNonemptyTokens": true,
+    "onebotTokenConfigured": true,
+    "businessDisabled": true,
+    "productionProcessesAndPointersUnchanged": true,
+    "productionReadiness": true,
+    "temporaryDockerProxyRemoved": true
+  },
+  "managementUnauthenticatedHttpStatus": 200,
+  "qqLoggedIn": true,
+  "coreReady": true,
+  "channelIdentityConfigured": true,
+  "onebotAuthenticatedRoundTrip": "requires_separate_onebot_check",
+  "groupBusinessAcceptance": "not_run",
+  "channelAdapter": "not_implemented",
+  "production": {
+    "backendPointer": "/opt/chickenbro-releases/wow-chat-context-20260921",
+    "webPointer": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+    "processSnapshotSha256": "896d830b1a55d4078b6ee168c98e863ee3d5527c1413a0d80363aa80e0773b75"
+  }
+}

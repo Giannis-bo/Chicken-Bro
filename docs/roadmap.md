@@ -1,6 +1,6 @@
 # Chickenbro 路线图
 
-更新日期：2026-09-21。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
+更新日期：2026-09-23。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
 
 ## 已完成
 
@@ -14,12 +14,14 @@
 | 引擎与目录 | SimulationCraft 对应游戏构建 `12.1.0.69814`，同步匹配的天赋、装备和中文目录，兼容英雄树免费点 |
 | POE2 构筑与对话 | 独立游戏会话；PoB 字符串导入即展示角色、属性、技能搭配和中文天赋树；两步对比、构筑 ID 复制和列表删除；[正式发布证据](../artifacts/releases/2026-09-21-poe2/README.md) |
 | POE2 研究策略 | 复用已有基线与相同方案；Chat 每轮 12 次新计算、每研究 60 个方案／120 次执行，30 方案软提醒；读取、对比和复用不扣额度，Web 手动计算维持原策略 |
+| QQ 群角色 | 「炸鸡」的人设、群观察、@ 必答、主动互动、群友记忆、魔兽工具权限与群表情复用已实现并部署；用户已验收 @／主动文字与表情、按需引用。[交付记录](../artifacts/verification/2026-09-23-qq-companion/closure/README.md) |
 | 运营与质量 | [魔兽／POE2 独立只读运营统计及对话用户去重](../artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md)、反馈归集、Badcase 通用修复与条件发布流程 |
 
 各项发布身份和验证记录见[项目状态](project-state.json)，功能合同见[架构](chickenbro-simc-architecture.md)。
 
 ## 正在推进
 
+- **QQ 群端体验跟进**：记忆和 SimC 已通过隔离 Candidate 验证；继续结合真实群使用核对体验。[实施与验证](plans/2026-09-23-qq-companion-implementation.md)。
 - [Badcase 持续改进](plans/2026-09-08-badcase-workflow.md)：根据实际反馈定位通用问题，完成限定验证后按授权发布。
 - [私有副本保留与到期处置](badcase-workflow-operations.md#保留与独立处置对账)：按现有登记核对到期时间、哈希、活动引用与恢复条件。
 

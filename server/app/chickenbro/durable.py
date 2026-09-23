@@ -15,12 +15,12 @@ class ChatQueueFull(RuntimeError):
     pass
 
 
-def enqueue_execution(cursor, run_id, user_id):
+def enqueue_execution(cursor, run_id, user_id, *, actor_kind="web_cookie"):
     cursor.execute('SELECT pg_advisory_xact_lock(719620260909)')
     cursor.execute("SELECT count(*) FROM chat.executions WHERE stage IN ('pending','running')")
     if cursor.fetchone()[0] >= 32:
         raise ChatQueueFull('bounded Chat admission capacity exhausted')
-    cursor.execute('INSERT INTO chat.executions(run_id,user_id) VALUES (%s,%s)', (run_id, user_id))
+    cursor.execute('INSERT INTO chat.executions(run_id,user_id,actor_kind) VALUES (%s,%s,%s)', (run_id, user_id, actor_kind))
 
 
 class PostgresChatExecutions:
@@ -38,11 +38,11 @@ class PostgresChatExecutions:
                         lease_expires_at=now()+make_interval(secs=>%s), heartbeat_at=now(),
                         execution_started_at=now(), updated_at=now()
                     FROM candidate c WHERE e.run_id=c.run_id
-                    RETURNING e.run_id,e.user_id,e.lease_token""", (token, lease_seconds))
+                    RETURNING e.run_id,e.user_id,e.lease_token,e.actor_kind""", (token, lease_seconds))
                 row = cur.fetchone()
                 if row is None:
                     return None
-                return dict(zip(('run_id', 'user_id', 'lease_token'), row))
+                return dict(zip(('run_id', 'user_id', 'lease_token', 'actor_kind'), row))
 
     def recover(self, user_id=None):
         # Lock execution before run, matching guarded writes. Only expired

@@ -1,0 +1,106 @@
+{
+  "observedAt": 1790137796.104897,
+  "sourceBaseCommit": "9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+  "sourceDelivery": "uncommitted_source_snapshot",
+  "codeSha256": {
+    "server/app/channels/__init__.py": "e1a4800b9f2e66209f9534e5c887fc15ef82224e8a815c811d407a3eea78e38d",
+    "server/app/channels/qq/service.py": "9cd1e0956cc475b6a5b8a992cbd37af57c48931acb9e376c692f4449e5f750b0",
+    "server/app/channels/qq/onebot.py": "fe39ab5a434fba12d30f95160e7b3065cf08413587a2071a14d22d9604471d37",
+    "server/app/channels/qq/policy.py": "088f633296a49354f0a2448c9275e6916e6f98e634982f2cbec37b042e32ad22",
+    "server/app/channels/qq/__init__.py": "9e21122aa326c9c0c7aa0c6c69814d9a11360e1179754235b94bc8741f5c9d9a",
+    "server/app/channels/qq/runtime.py": "28ef0c488ee70fbe5dd457fd111c5fae7594228ecc98f426fc1269bfb8c9cbea",
+    "server/app/channels/qq/repository.py": "92f4e95b8a719944c57b06599444d00c1e06c7aa957c7ee384ac735496b85632",
+    "server/app/identity/domain.py": "8bd2da6e46aa4e81a4759ac00a93c329f4c3364aeb5cf29a80653541824538be",
+    "server/app/chickenbro/application.py": "3b1202d0783c6074b7a411b33beca327c29f657127e499deeb1a72f53252f282",
+    "server/app/chickenbro/repository.py": "1867865cd53415644e77e2ed00f81974a3a419d429690a7cf5f5e99e815e7627",
+    "server/app/chickenbro/durable.py": "c61df31836a78724e23257d2ff53eedfd6080d5c8c9c2b77622adb31a0ccf33e",
+    "server/app/chickenbro/worker.py": "a465bee050bfcbeb651bef0bd33d1ea5a8d84f17a7596ccbd24692e99942c9eb",
+    "server/app/platform/config.py": "1830688989b30350594ae896cedb6f995e72e815dc207333d2990b8baee5d9be",
+    "server/migrations/product/0015_qq_group_channel.sql": "94212d34f252778fe8ff8c8a90dae286653198217ce80a1558b13ac17555bd2d"
+  },
+  "codeMatchesLocal": true,
+  "sourcePointer": "/opt/chickenbro-qq-releases/20260923-text-v1",
+  "productionDatabase": "chickenbro_qq_channel",
+  "candidateDatabase": "chickenbro_qq_channel_candidate_20260923",
+  "candidate": {
+    "inbox": {
+      "done": 1
+    },
+    "runs": {
+      "succeeded": 1
+    },
+    "outbox": {
+      "sent": 1,
+      "uncertain": 1
+    }
+  },
+  "productionChannel": {
+    "inbox": {},
+    "runs": {},
+    "outbox": {}
+  },
+  "health": {
+    "observedAt": 1790137777.6463547,
+    "qqOnline": true,
+    "businessEnabled": true,
+    "runtimeRevision": "codex:sha256:56ef98ab4032d317ab26e9b5e5a175650717351edb16ed9cde0cb6d1734d62da"
+  },
+  "workerHeartbeat": {
+    "environment": "production",
+    "schemaVersion": "chickenbro-worker-heartbeat-v1",
+    "updatedAt": "2026-09-23T04:29:55Z",
+    "workerId": "chickenbro-qq-worker"
+  },
+  "serviceActive": {
+    "chickenbro-qq-channel": "active",
+    "chickenbro-qq-worker": "active",
+    "chickenbro-qq-channel-candidate": "inactive",
+    "chickenbro-qq-worker-candidate": "inactive"
+  },
+  "websiteProductionProcessesAndPointersUnchanged": true,
+  "webPointer": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+  "backendPointer": "/opt/chickenbro-releases/wow-chat-context-20260921",
+  "candidateUserConfirmedReply": false,
+  "productionUserConfirmedReply": false,
+  "napcatAutomaticLoginRecovery": "failed_manual_qr_restored",
+  "recovery": {
+    "dumpSha256": "9fde5edc34c8b3c67093990e9907a992e2a001eaacae2a3ad0b88eb586ca4392",
+    "restoreDatabase": "chickenbro_qq_channel_restore_20260923",
+    "migrationCount": 16,
+    "channelTableCount": 4,
+    "inboxCount": 0,
+    "runCount": 0,
+    "restoreVerified": true,
+    "scope": "isolated_QQ_database_snapshot_not_Web_production"
+  },
+  "candidateReceiptReconciliation": {
+    "observedAt": 1790137509.5915327,
+    "scope": "manual_exact_outbox_reconciliation_with_qq_group_history",
+    "matches": [
+      {
+        "outboxId": "848da962-b86f-4336-8621-95f0b181e860",
+        "receipt": "37577401",
+        "exactOwnMessageContentMatched": true,
+        "contentSha256": "c5e9448aa91b211e9179ba0298601e9a312cbf87f25498d0695a7a9761e6695d",
+        "replayed": false
+      }
+    ],
+    "newMessagesSent": 0,
+    "interpretation": "retracted_local_history_does_not_prove_delivery"
+  },
+  "userScreenshotEvidence": "ack_only_then_no_inbound_messages",
+  "qqKernelSendError": {
+    "onebotRetcode": 1200,
+    "result": 1006514,
+    "message": "网络连接异常!"
+  },
+  "latestRecoveryState": {
+    "observedAt": "2026-09-23T05:16:01Z",
+    "qqLoggedIn": true,
+    "loginPhase": "ready",
+    "channelTemporarilyStopped": false,
+    "businessEnabled": true,
+    "pendingUserAction": "group_final_reply_retest",
+    "automaticLoginEvidence": "automatic-login-recovery.json"
+  }
+}

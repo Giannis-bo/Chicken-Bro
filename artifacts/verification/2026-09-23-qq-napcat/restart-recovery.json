@@ -1,0 +1,17 @@
+{
+  "observedAt": "2026-09-23T03:58:35.401310+00:00",
+  "scope": "isolated_napcat_container_restart",
+  "containerRestartCompleted": true,
+  "qqLoggedInAfterRestart": false,
+  "coreReadyAfterRestart": false,
+  "autoLoginAccountMatches": true,
+  "cachedQuickLoginAccountPresent": false,
+  "manualQuickLoginCode": -1,
+  "manualQuickLoginMessage": "登录态已失效，请重新登录。",
+  "qqDataMountPreserved": true,
+  "automaticLoginRecovery": "failed_manual_qr_restored",
+  "rootCause": "not_established",
+  "productionProcessesAndPointersUnchanged": true,
+  "manualQrRecoveryObservedAt": "2026-09-23T03:59:22.738933+00:00",
+  "manualQrRecoveryVerified": true
+}

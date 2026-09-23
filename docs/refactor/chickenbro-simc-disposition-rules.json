@@ -2,6 +2,118 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "qq-napcat-preparation-20260923",
+      "disposition": "keep",
+      "category": "target-product",
+      "owner": "control_and_cleanup",
+      "reason": "Retain authorized QQ group channel implementation, isolated Candidate, setup and redacted evidence; website identity linking is excluded.",
+      "paths": [
+        "docs/plans/2026-09-23-qq-napcat-channel.md",
+        "server/qq-channel/README.md",
+        "server/qq-channel/image-lock.json",
+        "server/qq-channel/prepare-host.sh",
+        "server/qq-channel/start-napcat.sh",
+        "server/qq-channel/verify-environment.py",
+        "artifacts/verification/2026-09-23-qq-napcat/README.md",
+        "artifacts/verification/2026-09-23-qq-napcat/environment.json",
+        "server/qq-channel/verify-onebot.py",
+        "artifacts/verification/2026-09-23-qq-napcat/login-status.json",
+        "artifacts/verification/2026-09-23-qq-napcat/onebot-login.json",
+        "artifacts/verification/2026-09-23-qq-napcat/restart-recovery.json",
+        "artifacts/verification/2026-09-23-qq-napcat/automatic-login-recovery.json",
+        "artifacts/verification/2026-09-23-qq-napcat/production-hello.json",
+        "server/app/channels/__init__.py",
+        "server/app/channels/qq/service.py",
+        "server/app/channels/qq/onebot.py",
+        "server/app/channels/qq/policy.py",
+        "server/app/channels/qq/face_names.json",
+        "server/app/channels/qq/__init__.py",
+        "server/app/channels/qq/runtime.py",
+        "server/app/channels/qq/repository.py",
+        "server/migrations/product/0015_qq_group_channel.sql",
+        "tests/app_qq_channel_test.py",
+        "tests/app_qq_onebot_test.py",
+        "tests/app_qq_channel_postgres_test.py",
+        "server/qq-channel/chickenbro-qq-channel-candidate.service",
+        "server/qq-channel/chickenbro-qq-worker-candidate.service",
+        "artifacts/verification/2026-09-23-qq-napcat/candidate-runtime.json",
+        "artifacts/verification/2026-09-23-qq-napcat/implementation.md",
+        "server/qq-channel/chickenbro-qq-channel.service",
+        "server/qq-channel/chickenbro-qq-worker.service",
+        "docs/plans/2026-09-23-qq-companion-design.md",
+        "docs/plans/2026-09-23-qq-companion-implementation.md",
+        "server/app/channels/qq/companion_domain.py",
+        "server/app/channels/qq/companion_model.py",
+        "server/app/channels/qq/companion_repository.py",
+        "server/app/channels/qq/companion_service.py",
+        "server/app/channels/qq/execution_policy.py",
+        "server/app/channels/qq/memory.py",
+        "server/app/channels/qq/observation_repository.py",
+        "server/app/channels/qq/persona.md",
+        "server/app/channels/qq/stickers.py",
+        "server/qq-channel/stickers/approve.png",
+        "server/qq-channel/stickers/cry.png",
+        "server/qq-channel/stickers/laugh.png",
+        "server/qq-channel/stickers/manifest.json",
+        "server/qq-channel/stickers/speechless.png",
+        "server/qq-channel/stickers/thinking.png",
+        "server/qq-channel/stickers/watch.png",
+        "tests/app_qq_companion_memory_test.py",
+        "tests/app_qq_companion_model_test.py",
+        "tests/app_qq_companion_observation_test.py",
+        "tests/app_qq_companion_postgres_test.py",
+        "tests/app_qq_companion_runtime_test.py",
+        "tests/app_qq_companion_service_test.py",
+        "tests/app_qq_companion_stickers_test.py",
+        "tests/app_qq_companion_tools_test.py",
+        "server/migrations/product/0016_qq_companion.sql",
+        "server/migrations/product/0017_qq_companion_scope_request.sql",
+        "server/migrations/product/0018_qq_companion_memory_order.sql",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-professional-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-social-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/review.md",
+        "artifacts/verification/2026-09-23-qq-companion/README.md",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-professional.json",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-social.json",
+        "artifacts/verification/2026-09-23-qq-companion/release-manifest.json",
+        "artifacts/verification/2026-09-23-qq-companion/release.json",
+        "server/app/channels/qq/group_memes.py",
+        "server/migrations/product/0019_qq_group_memes.sql",
+        "tests/app_qq_group_memes_test.py",
+        "artifacts/verification/2026-09-23-qq-companion/activation/README.md",
+        "artifacts/verification/2026-09-23-qq-companion/activation/candidate-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/activation/candidate.json",
+        "artifacts/verification/2026-09-23-qq-companion/activation/deploy.py",
+        "artifacts/verification/2026-09-23-qq-companion/activation/release-manifest.json",
+        "artifacts/verification/2026-09-23-qq-companion/activation/release.json",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-meme-reuse-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-meme-reuse.json",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-meme-search-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-meme-search.json",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-natural-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/candidate-natural-replies.json",
+        "artifacts/verification/2026-09-23-qq-companion/face-name-source.json",
+        "artifacts/verification/2026-09-23-qq-companion/meme-release-manifest.json",
+        "artifacts/verification/2026-09-23-qq-companion/meme-release.json",
+        "artifacts/verification/2026-09-23-qq-companion/meme-revision.md",
+        "artifacts/verification/2026-09-23-qq-companion/natural-readback.json",
+        "artifacts/verification/2026-09-23-qq-companion/natural-release-manifest.json",
+        "artifacts/verification/2026-09-23-qq-companion/natural-release.json",
+        "artifacts/verification/2026-09-23-qq-companion/natural-reply-fix.md",
+        "artifacts/verification/2026-09-23-qq-companion/activation/live-readback.json",
+        "server/migrations/product/0020_qq_optional_quote.sql",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/README.md",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/candidate-probe.py",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/candidate.json",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/deploy.py",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/live-readback.json",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/release-manifest.json",
+        "artifacts/verification/2026-09-23-qq-companion/optional-quote/release.json",
+        "artifacts/verification/2026-09-23-qq-companion/closure/README.md",
+        "artifacts/verification/2026-09-23-qq-companion/closure/verification.json"
+      ]
+    },
+    {
       "id": "poe2-production-20260921",
       "disposition": "keep",
       "category": "target-product",
@@ -217,8 +329,12 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Retain authorized direct-answer rules, semantic acceptance and release evidence.",
-      "paths": ["docs/plans/2026-09-13-direct-conclusions.md"],
-      "prefixes": ["artifacts/verification/2026-09-13-direct-conclusions/"]
+      "paths": [
+        "docs/plans/2026-09-13-direct-conclusions.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-13-direct-conclusions/"
+      ]
     },
     {
       "id": "agent-performance-benchmark",
@@ -226,8 +342,19 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Retain authorized paired performance evaluation and quality evidence; no production behavior changes.",
-      "paths": ["docs/plans/2026-09-12-agent-performance-benchmark.md", "scripts/agent_benchmark_fixtures.py", "scripts/agent_benchmark_metrics.py", "scripts/benchmark-chickenbro-agent.py", "scripts/export-agent-benchmark.py", "scripts/prepare-agent-benchmark-live.py", "scripts/export-agent-benchmark-live.py", "scripts/summarize-agent-benchmark.py"],
-      "prefixes": ["artifacts/verification/2026-09-12-agent-benchmark/"]
+      "paths": [
+        "docs/plans/2026-09-12-agent-performance-benchmark.md",
+        "scripts/agent_benchmark_fixtures.py",
+        "scripts/agent_benchmark_metrics.py",
+        "scripts/benchmark-chickenbro-agent.py",
+        "scripts/export-agent-benchmark.py",
+        "scripts/prepare-agent-benchmark-live.py",
+        "scripts/export-agent-benchmark-live.py",
+        "scripts/summarize-agent-benchmark.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-12-agent-benchmark/"
+      ]
     },
     {
       "id": "agent-skills-and-current-chat-evidence",
@@ -235,8 +362,16 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Retain authorized runtime workflow implementation and release evidence, including the currently linked Web release record.",
-      "paths": ["docs/plans/2026-09-12-agent-skills.md", "scripts/prepare-agent-skills-smoke.py", "scripts/prepare-agent-skills-release.py", "scripts/export-agent-skills-evidence.py"],
-      "prefixes": ["artifacts/verification/2026-09-12-agent-skills/", "artifacts/verification/2026-09-11-chat-return-state/"]
+      "paths": [
+        "docs/plans/2026-09-12-agent-skills.md",
+        "scripts/prepare-agent-skills-smoke.py",
+        "scripts/prepare-agent-skills-release.py",
+        "scripts/export-agent-skills-evidence.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-12-agent-skills/",
+        "artifacts/verification/2026-09-11-chat-return-state/"
+      ]
     },
     {
       "id": "research-generalization",
@@ -244,8 +379,12 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Authorized generic research evidence, semantic evaluation and release.",
-      "paths": ["docs/plans/2026-09-11-research-generalization.md"],
-      "prefixes": ["artifacts/verification/2026-09-11-research-generalization/"]
+      "paths": [
+        "docs/plans/2026-09-11-research-generalization.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-11-research-generalization/"
+      ]
     },
     {
       "id": "research-completion",
@@ -253,8 +392,12 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "User-authorized finite research completion and release evidence.",
-      "paths": ["docs/plans/2026-09-11-research-completion.md"],
-      "prefixes": ["artifacts/verification/2026-09-11-research-completion/"]
+      "paths": [
+        "docs/plans/2026-09-11-research-completion.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-11-research-completion/"
+      ]
     },
     {
       "id": "persistent-research-budget",
@@ -262,8 +405,12 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "Retain authorized persistent research lifecycle plan and environment-specific evidence.",
-      "paths": ["docs/plans/2026-09-11-persistent-research-budget.md"],
-      "prefixes": ["artifacts/verification/2026-09-11-persistent-research/"]
+      "paths": [
+        "docs/plans/2026-09-11-persistent-research-budget.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-11-persistent-research/"
+      ]
     },
     {
       "id": "remaining-issues-control-state",
@@ -271,8 +418,18 @@
       "category": "target-verification",
       "owner": "control_and_cleanup",
       "reason": "Retain explicitly authorized current delivery status without overwriting historical failures.",
-      "paths": ["docs/plans/2026-09-11-remaining-issues-status.md"],
-      "prefixes": ["artifacts/security/2026-09-11-cos-audit-recovery/", "artifacts/verification/2026-09-11-native-output/", "artifacts/verification/2026-09-11-g10-product-path/", "artifacts/verification/2026-09-11-simc-accuracy/", "artifacts/verification/2026-09-11-project-closure/", "artifacts/verification/2026-09-11-trinket-mechanism/", "artifacts/verification/2026-09-11-lightspire-sensitivity/"]
+      "paths": [
+        "docs/plans/2026-09-11-remaining-issues-status.md"
+      ],
+      "prefixes": [
+        "artifacts/security/2026-09-11-cos-audit-recovery/",
+        "artifacts/verification/2026-09-11-native-output/",
+        "artifacts/verification/2026-09-11-g10-product-path/",
+        "artifacts/verification/2026-09-11-simc-accuracy/",
+        "artifacts/verification/2026-09-11-project-closure/",
+        "artifacts/verification/2026-09-11-trinket-mechanism/",
+        "artifacts/verification/2026-09-11-lightspire-sensitivity/"
+      ]
     },
     {
       "id": "g12-enchant-validation",
@@ -280,7 +437,9 @@
       "category": "target-verification",
       "owner": "simc",
       "reason": "Retain bounded enchant experiment failures and explicitly scoped release evidence.",
-      "prefixes": ["artifacts/verification/2026-09-11-g12-final-window/"]
+      "prefixes": [
+        "artifacts/verification/2026-09-11-g12-final-window/"
+      ]
     },
     {
       "id": "custom-apl",
@@ -288,8 +447,13 @@
       "category": "target-verification",
       "owner": "simc",
       "reason": "User-authorized custom action lists and research-first terminology release evidence.",
-      "paths": ["server/app/simulation/action_lists.py", "tests/app_simulation_action_lists_test.py"],
-      "prefixes": ["artifacts/verification/2026-09-10-custom-apl/"]
+      "paths": [
+        "server/app/simulation/action_lists.py",
+        "tests/app_simulation_action_lists_test.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-10-custom-apl/"
+      ]
     },
     {
       "id": "bounded-research",
@@ -297,8 +461,14 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "User-approved bounded player research and resource admission with local verification.",
-      "paths": ["docs/plans/2026-09-10-bounded-research.md", "tests/app_research_budget_test.py"],
-      "prefixes": ["artifacts/verification/2026-09-10-bounded-research/", "artifacts/verification/2026-09-10-native-search/"]
+      "paths": [
+        "docs/plans/2026-09-10-bounded-research.md",
+        "tests/app_research_budget_test.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-10-bounded-research/",
+        "artifacts/verification/2026-09-10-native-search/"
+      ]
     },
     {
       "id": "wcl-tool-efficiency",
@@ -306,8 +476,12 @@
       "category": "target-verification",
       "owner": "chickenbro_chat",
       "reason": "User-authorized WCL response views, run-local query reuse and bounded window statistics.",
-      "paths": ["docs/plans/2026-09-10-wcl-tool-efficiency.md"],
-      "prefixes": ["artifacts/verification/2026-09-10-wcl-tool-efficiency/"]
+      "paths": [
+        "docs/plans/2026-09-10-wcl-tool-efficiency.md"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-10-wcl-tool-efficiency/"
+      ]
     },
     {
       "id": "admin-analytics",

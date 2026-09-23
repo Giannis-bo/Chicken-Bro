@@ -1,0 +1,11 @@
+{
+  "release": "/opt/chickenbro-qq-releases/20260923-companion-social-v3",
+  "verifiedServerFiles": 236,
+  "services": {
+    "chickenbro-qq-channel": "active",
+    "chickenbro-qq-worker": "active"
+  },
+  "faceParsedText": "[QQ表情：耶]",
+  "faceAttachment": false,
+  "websiteReadiness": "ready"
+}

@@ -1,0 +1,31 @@
+{
+  "observedAt": "2026-09-23T14:02:27.691729+08:00",
+  "scope": "production_hello_run_and_explicit_onebot_receipt",
+  "inboxId": "ea3f8807-4b66-4d7c-b5d6-d960ab39be27",
+  "messageId": "1327187698",
+  "receivedAt": "2026-09-23T14:01:15.609715+08:00",
+  "inboxState": "done",
+  "runId": "a42015a1-38be-49a6-a26b-cb45cd48579d",
+  "runStatus": "succeeded",
+  "finishedAt": "2026-09-23T14:01:28.542006+08:00",
+  "actorKind": "qq_group",
+  "outbox": [
+    {
+      "kind": "ack",
+      "state": "sent",
+      "receipt": "459318360",
+      "sentAt": "2026-09-23T14:01:17.511836+08:00"
+    },
+    {
+      "kind": "answer",
+      "state": "sent",
+      "receipt": "1995914696",
+      "sentAt": "2026-09-23T14:01:31.153533+08:00"
+    }
+  ],
+  "receiptSource": "successful_OneBot_send_group_msg_response_not_local_history",
+  "userVisibleFinalAnswerConfirmed": true,
+  "userConfirmationStatus": "accepted",
+  "userConfirmation": "OK，现在消息通道已经OK。",
+  "userConfirmationDate": "2026-09-23"
+}

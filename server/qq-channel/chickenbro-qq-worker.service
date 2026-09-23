@@ -1,0 +1,21 @@
+[Unit]
+Description=Chickenbro QQ existing Chat and simulation Worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/chickenbro-qq-current
+EnvironmentFile=/etc/chickenbro-qq-channel/production.env
+ExecStart=/opt/chickenbro-runtime/bin/python -m server.app.worker.main --worker-id chickenbro-qq-worker
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+MemoryMax=1400M
+CPUQuota=150%
+
+[Install]
+WantedBy=multi-user.target

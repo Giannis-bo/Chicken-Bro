@@ -1,0 +1,24 @@
+[Unit]
+Description=Chickenbro QQ group channel candidate
+After=network-online.target docker.service postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/chickenbro-candidates/qq-channel-20260923
+EnvironmentFile=/etc/chickenbro-qq-channel/candidate.env
+LoadCredential=credentials.json:/etc/chickenbro-qq-channel/credentials.json
+LoadCredential=channel.json:/etc/chickenbro-qq-channel/candidate-channel.json
+ExecStart=/opt/chickenbro-runtime/bin/python -m server.app.channels.qq.runtime
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+MemoryMax=256M
+CPUQuota=30%
+
+[Install]
+WantedBy=multi-user.target

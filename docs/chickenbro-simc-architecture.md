@@ -91,3 +91,9 @@ WCL 参数在预留上游工作前校验；统计保留窗口、过滤、层级�
 ### 指定阶段状态
 
 阶段场景通过 `initialState`、`measurement` 和 `assertions` 编译为 v7；默认开怪场景沿用现有编译版本。云端解析资源上限并校验每次迭代 t=0 快照，使用完整显式 APL，20–120 秒固定窗口、最多128次且共享任务时间预算。资源、Buff层数/时长及单充能冷却不符或断言失败时，任务不产生成功结果。统计包括总伤害（含宠物/守护者）、动作/Buff携带次数与资源溢出；聚合报告与中文身份重新绑定。Buff携带不等同实际增伤，隐藏触发历史、宠物/DoT起始状态和首领专属易伤未由此接口恢复。
+
+## QQ 群通道与陪伴角色
+
+普通小号经 NapCat OneBot 11、独立 token、宿主机 loopback WebSocket 进入 `server/app/channels/qq`。legacy 模式仅真实 @ 触发。当前 companion 模式观察允许群新消息，@ 必答、未 @ 按语境参与；拒绝私聊、自发和已配置机器人事件。社交与专业队列分离，表情优先复用当前群，必要时作一次受限表情搜索。每个 bot/group/sender 映射新内部 UUID，不签发网站会话，不与 QQ OAuth openid 自动关联。每用户/游戏/代次持久化独立会话。
+
+通道使用现有 ChatApplication durable admission 与 Worker。`chat.executions.actor_kind` 记录可信来源，Worker 恢复 qq_group Principal；Web 默认仍是 web_cookie，HTTP 认证合同不变。qq_channel 拥有 inbox/outbox、身份映射和代次；单实例锁、幂等键和发送不确定态分别约束派发、重启与回复。当前隔离 Candidate 的数据库和模型任务目录独立；部署与用户验收见[本批实施记录](../artifacts/verification/2026-09-23-qq-napcat/implementation.md)。
