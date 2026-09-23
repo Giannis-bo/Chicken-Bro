@@ -1,0 +1,85 @@
+{
+  "source": "/opt/chickenbro-releases/wow-chat-context-20260921",
+  "sourceHashes": {
+    "server/app/chickenbro/wcl_source.py": "02463875ea57392eba001272bc90d8be3ea2e47f6c64cb8bd84e567398933dac",
+    "server/app/chickenbro/wcl_statistics.py": "5d8df42ee5276b4e0188f91046c3b31439027b6b9f9a2b25aa833ba599c75a78"
+  },
+  "results": [
+    {
+      "class": "original",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": false,
+      "boundHintPresent": false
+    },
+    {
+      "class": "variant",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": false,
+      "boundHintPresent": false
+    },
+    {
+      "class": "holdout",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": false,
+      "boundHintPresent": false
+    },
+    {
+      "class": "normal_empty",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": true,
+      "boundHintPresent": false
+    },
+    {
+      "class": "normal_full",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": true,
+      "boundHintPresent": false
+    },
+    {
+      "class": "statistics",
+      "status": "partial",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true,
+      "boundHintPresent": false
+    },
+    {
+      "class": "permission",
+      "status": "missing_credentials",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true
+    }
+  ],
+  "allPassed": false
+}

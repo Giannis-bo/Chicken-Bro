@@ -1,0 +1,55 @@
+{
+  "cloudTests": {
+    "command": "python -m unittest tests.app_chickenbro_wcl_source_test tests.app_wcl_healing_test tests.app_wcl_run_reader_test tests.app_chickenbro_source_gateway_test",
+    "passed": 65,
+    "failed": 0
+  },
+  "red": {
+    "tests": 2,
+    "bothFailedBecause": "sourceStatus remained verified for out-of-fight queries"
+  },
+  "deterministic": "before.json and after.json, seven checks across five classes; no product model sampling involved",
+  "independentReview": {
+    "reviewer": "review_wcl_window",
+    "verdict": "no blocking findings",
+    "holdout": "end-only offset window independently selected; tested after code frozen"
+  },
+  "harnessFailures": [
+    {
+      "phase": "candidate startup",
+      "reason": "test port 18890 or 18794 occupied",
+      "productModelCalls": 0,
+      "correction": "use 18896/18796"
+    }
+  ],
+  "relatedResearchRegression": {
+    "passed": 39,
+    "failed": 0
+  },
+  "candidate": {
+    "productModels": 2,
+    "sourceCalls": 4,
+    "coreCriterionPassed": true,
+    "exactEndpointRuns": [
+      true,
+      false
+    ],
+    "exactEndpointFailurePreserved": true,
+    "eventCountEach": 11,
+    "allEventTimestampsInRequestedInterval": true,
+    "range": [
+      7076841,
+      7079998
+    ],
+    "untruncatedAndComplete": true,
+    "ownerAndIdempotencyEach": true,
+    "historyReadbackFirst": true,
+    "review": "Independent reviewer accepted core bounds rejection/correction scope and recommends preserving21ms answer/query mismatch as separate residual; no blind repeat."
+  },
+  "harnessAmendment": {
+    "reason": "Exact-endpoint assertion was stricter than core out-of-fight rejection criterion; additionally require DamageTaken, complete untruncated coverage and every returned event inside requested interval. Keep exact endpoint field false, never relabel pass.",
+    "sourceChange": false,
+    "extraProductCalls": 0
+  },
+  "portRestored": true
+}

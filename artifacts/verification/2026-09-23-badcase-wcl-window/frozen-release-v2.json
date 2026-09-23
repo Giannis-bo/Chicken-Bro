@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "3a0a88e22801571936fd8a7771009d90cc28e156",
+  "reportSha256": "8859a6923c177a3de22be4738963072d2b62d2f36e552bb49a275a7866ab95e7",
+  "authorization": "2026-09-23 badcase standing reversible backend fix",
+  "scope": "event window bounds and correction, no changes to fight selection or budget",
+  "createdAt": "2026-09-23T12:17:33.185639+00:00",
+  "files": {
+    "manifest.json": "efa5cdb76f17fc6ea1b2228a2fa02a7f84e6edafec6daac51fd116a64c2bc133",
+    "deploy.py": "8dc54d873bf6b64d59888cbcf164691eb580dfb5ced9376d429a0aaaeb2abf83",
+    "smoke.py": "da4ce996a313c759166d478a2c9ff821b867b6593627be7a31d047a7a933c132",
+    "release.py": "f73d340aad0438e098ddc5469fe8e014bb36ead645505914ef6c36adf1c34a39"
+  },
+  "candidate": {
+    "models": 2,
+    "sourceCalls": 4,
+    "corePassed": true,
+    "exactEndpointResidual": true
+  },
+  "rollback": "preserved base inventory and environment snapshot; on failure restore idle-fenced baseline and run two real narrow WCL Chat requests",
+  "observe": {
+    "seconds": 60,
+    "newFailedChatRuns": 0,
+    "runtimeAndEnvironment": "must remain manifest bound"
+  },
+  "supersedes": "frozen-release.json",
+  "preExecutionReview": "Two orchestration recovery findings corrected and independently re-reviewed; no previous execution"
+}

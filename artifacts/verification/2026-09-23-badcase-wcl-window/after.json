@@ -1,0 +1,73 @@
+{
+  "source": "/opt/chickenbro-candidates/badcase-wcl-runtime-20260923",
+  "sourceHashes": {
+    "server/app/chickenbro/wcl_source.py": "585d87975e815813d1f29991ab0d008021076961033ebbd074297b8d3f092ed1",
+    "server/app/chickenbro/wcl_statistics.py": "8be8c01154a57692bbf5691c23f1ac24fd87044f97cfc47ff6135066e78226d6"
+  },
+  "results": [
+    {
+      "class": "original",
+      "status": "blocked",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true,
+      "boundHintPresent": true
+    },
+    {
+      "class": "variant",
+      "status": "blocked",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true,
+      "boundHintPresent": true
+    },
+    {
+      "class": "holdout",
+      "status": "blocked",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true,
+      "boundHintPresent": true
+    },
+    {
+      "class": "normal_empty",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": true,
+      "boundHintPresent": false
+    },
+    {
+      "class": "normal_full",
+      "status": "verified",
+      "factsCount": 1,
+      "evidenceRefs": [
+        "wcl.report",
+        "wcl.fight",
+        "wcl.events"
+      ],
+      "meetsCriterion": true,
+      "boundHintPresent": false
+    },
+    {
+      "class": "statistics",
+      "status": "partial",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true,
+      "boundHintPresent": true
+    },
+    {
+      "class": "permission",
+      "status": "missing_credentials",
+      "factsCount": 0,
+      "evidenceRefs": [],
+      "meetsCriterion": true
+    }
+  ],
+  "allPassed": true
+}

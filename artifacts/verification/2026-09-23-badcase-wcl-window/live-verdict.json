@@ -1,0 +1,9 @@
+{
+  "receiptSha256": "634d6b5b850b34e13ee030d0d7b25f8c76df8df6a2617e4979e6691a88dacd80",
+  "corePassed": true,
+  "reviewer": "independent review_wcl_window agent, root readback agrees",
+  "scope": "invalid out-of-fight event windows rejected; actionable report-relative correction",
+  "exactEndpointPassed": false,
+  "residual": "Both live queries ended21ms later than requested; all11 events inside intended window, complete untruncated DamageTaken; actual end disclosed in answers",
+  "historyOwnerIdempotency": true
+}

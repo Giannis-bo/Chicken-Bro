@@ -1,0 +1,31 @@
+{
+  "status": "released",
+  "sourceCommit": "3a0a88e22801571936fd8a7771009d90cc28e156",
+  "publicWebHashes": {
+    "index.html": true,
+    "js/app.js": true,
+    "js/app.js.LICENSE.txt": true,
+    "js/611.js": true,
+    "js/611.js.LICENSE.txt": true,
+    "brand/gugu-v1.ico": true,
+    "brand/gugu-v1-32.png": true,
+    "brand/gugu-v1-16.png": true,
+    "css/329.css": true,
+    "css/app.css": true,
+    "chunk/244.js.LICENSE.txt": true,
+    "chunk/1.js": true,
+    "chunk/244.js": true,
+    "chunk/329.js": true,
+    "static/images/web/assets/gu-gu-mascot.png": true
+  },
+  "coreSemanticVerdict": {
+    "receiptSha256": "634d6b5b850b34e13ee030d0d7b25f8c76df8df6a2617e4979e6691a88dacd80",
+    "corePassed": true,
+    "reviewer": "independent review_wcl_window agent, root readback agrees",
+    "scope": "invalid out-of-fight event windows rejected; actionable report-relative correction",
+    "exactEndpointPassed": false,
+    "residual": "Both live queries ended21ms later than requested; all11 events inside intended window, complete untruncated DamageTaken; actual end disclosed in answers",
+    "historyOwnerIdempotency": true
+  },
+  "observationSeconds": 60
+}

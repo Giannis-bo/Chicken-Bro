@@ -1,0 +1,94 @@
+{
+  "candidate": {
+    "receiptSha256": "8635fb4f82dd384bb635bfaacf3c6375328df8c2e31951710324d15d9567d671",
+    "checks": {
+      "correctWindow": true,
+      "eventsReturned": true,
+      "historyReadback": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "runs": [
+      {
+        "runId": "bc8694e5-bb26-47ed-b329-1a97ed300446",
+        "status": "succeeded",
+        "seconds": 175.594,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 90492,
+            "totalTokens": 90793,
+            "outputTokens": 301,
+            "cachedInputTokens": 74752,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "toolCalls": 2,
+        "answer": "取得了这四秒窗口的承伤事件：查询覆盖战斗内第 222–226 秒，返回 11 条伤害事件，事件页标记为完整。",
+        "exactEndpointPassed": true
+      },
+      {
+        "runId": "305b0521-78e1-48f6-80ae-1f1135edab0d",
+        "status": "succeeded",
+        "seconds": 21.026,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 91251,
+            "totalTokens": 91611,
+            "outputTokens": 360,
+            "cachedInputTokens": 78592,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "toolCalls": 2,
+        "answer": "已取得这四秒的承伤事件：窗口按战斗开战时间换算为报告时间 7,076,810–7,080,810 毫秒，查询返回 11 条承伤事件，事件页标记完整。",
+        "exactEndpointPassed": false
+      }
+    ]
+  },
+  "live": {
+    "receiptSha256": "634d6b5b850b34e13ee030d0d7b25f8c76df8df6a2617e4979e6691a88dacd80",
+    "checks": {
+      "correctWindow": true,
+      "eventsReturned": true,
+      "historyReadback": true,
+      "ownerIsolation": true,
+      "idempotentReplay": true
+    },
+    "runs": [
+      {
+        "runId": "6f38f23b-1a28-40ae-a4a1-8c2ff61bbede",
+        "status": "succeeded",
+        "seconds": 26.06,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 118077,
+            "totalTokens": 118465,
+            "outputTokens": 388,
+            "cachedInputTokens": 99072,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "toolCalls": 2,
+        "answer": "已取得这四秒窗口内的承伤事件：查询返回 11 条，事件页标记为完整。窗口按战斗相对时间 222.000–226.021 秒计算。",
+        "exactEndpointPassed": false
+      },
+      {
+        "runId": "a9fe6ba9-82f2-4a98-a849-83b88f9a9e74",
+        "status": "succeeded",
+        "seconds": 19.642,
+        "modelUsage": {
+          "primary": {
+            "inputTokens": 110293,
+            "totalTokens": 110693,
+            "outputTokens": 400,
+            "cachedInputTokens": 89600,
+            "reasoningOutputTokens": 0
+          }
+        },
+        "toolCalls": 2,
+        "answer": "已取得 222–226 秒窗口的承伤事件：查询到 11 条，事件页标记为完整。时间按战斗开战计算；接口查询范围为报告相对时间 7,076,810–7,080,831 毫秒。",
+        "exactEndpointPassed": false
+      }
+    ]
+  }
+}
