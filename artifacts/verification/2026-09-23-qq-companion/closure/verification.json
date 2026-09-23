@@ -35,7 +35,12 @@
     "manifestSha256": "eae17fb85f76fe9ec33f16c24c422cb9bcdf06699da109691575e5adb9735537",
     "files": 237,
     "localMismatches": [],
-    "liveMismatches": []
+    "liveMismatches": [],
+    "implementationCommit": "f6f0745770ce7a55db00c930feb1b74dee4fc119",
+    "branch": "main",
+    "remote": "origin",
+    "committedFilesMatched": 237,
+    "liveManifestSha256": "eae17fb85f76fe9ec33f16c24c422cb9bcdf06699da109691575e5adb9735537"
   },
   "live": {
     "qqServices": [
@@ -51,5 +56,10 @@
   "followups": [
     "real_group_memory_experience",
     "real_group_simc_experience"
-  ]
+  ],
+  "controls": {
+    "command": "node --test tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js tests/chickenbro-simc-refactor-inventory.test.js",
+    "passed": 16,
+    "failed": 0
+  }
 }

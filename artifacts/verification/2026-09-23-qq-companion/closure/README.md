@@ -4,9 +4,12 @@
 
 本批实现包括 NapCat 独立群通道、炸鸡角色与群观察、成员事实记忆、受限魔兽专业工具、群表情复用与搜索、主动参与和按需引用。线上版本为 20260923-companion-quote-v5；[发布与恢复记录](../optional-quote/release.json)保持原始发布身份，提交内容按其 237 项源码清单逐项核对。
 
+实现提交：`f6f0745770ce7a55db00c930feb1b74dee4fc119`，已推送 `origin/main`。该提交的 237 项 server 文件与正式 v5 manifest 完全匹配；本次仅补验收与 Git 交付证据，不重新切服务。
+
 ## 最终验证
 
 - 云端完整后端回归：921 项，920 通过、1 项 Windows junction 检查按平台跳过。
+- 项目状态、归属与保留路径控制检查 16 项通过，Git diff 空白检查通过。
 - 隔离真实 PostgreSQL：QQ channel、companion 与 Chat durable 共 42 项通过，无跳过。
 - 线上 237 项 server 文件与当前本地源码均符合发布清单；QQ 两服务 active，主动参与开启。
 - 网站后端与 Web 发布指针保持原版本；公网 app.js 与服务器文件 SHA-256 相同。无客户端修改，无需本批 Web 构建。

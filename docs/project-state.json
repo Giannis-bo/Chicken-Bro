@@ -65,7 +65,10 @@
       "quoteEvidence": "artifacts/verification/2026-09-23-qq-companion/optional-quote/README.md",
       "quoteGroupAcceptance": "user_confirmed_20260923",
       "closureAuthorizedAt": "2026-09-23",
-      "closureEvidence": "artifacts/verification/2026-09-23-qq-companion/closure/README.md"
+      "closureEvidence": "artifacts/verification/2026-09-23-qq-companion/closure/README.md",
+      "sourceCommit": "f6f0745770ce7a55db00c930feb1b74dee4fc119",
+      "sourceBranch": "main",
+      "gitDelivery": "implementation_pushed"
     }
   },
   "targetProduct": {
