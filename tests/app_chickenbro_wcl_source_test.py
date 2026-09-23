@@ -21,6 +21,32 @@ class FakeResponse:
 
 
 class ChickenbroWclSourceTest(unittest.TestCase):
+    def test_event_window_outside_fight_is_not_verified_empty_evidence(self):
+        report = {'fights': [{'id': 42, 'startTime': 6854810, 'endTime': 7080831}],
+                  'events': {'data': [], 'nextPageTimestamp': None}}
+        with patch('server.app.chickenbro.wcl_source.warcraftlogs_credentials_state',
+                   return_value={'configured': True, 'mode': 'v2_oauth', 'api': 'v2'}), patch(
+                   'server.app.chickenbro.wcl_source._graphql', return_value={'reportData': {'report': report}}):
+            result = build_wcl_log_evidence({
+                'wclUrl': 'https://www.warcraftlogs.com/reports/AAAAAAAAAAAAAAAA?fight=42',
+                'options': {'view': 'events', 'dataType': 'DamageTaken', 'startTime': 222000, 'endTime': 226021}})
+        self.assertNotEqual(result['sourceStatus'], 'verified')
+        self.assertNotIn('events', result)
+        self.assertIn('report-relative', ' '.join(result['blockers'] + result['nextActions']))
+        self.assertIn('6854810', ' '.join(result['blockers'] + result['nextActions']))
+
+    def test_event_window_after_fight_rejects_returned_events(self):
+        report = {'fights': [{'id': 7, 'startTime': 1000, 'endTime': 9000}],
+                  'events': {'data': [{'type': 'damage', 'timestamp': 8000}], 'nextPageTimestamp': None}}
+        with patch('server.app.chickenbro.wcl_source.warcraftlogs_credentials_state',
+                   return_value={'configured': True, 'mode': 'v2_oauth', 'api': 'v2'}), patch(
+                   'server.app.chickenbro.wcl_source._graphql', return_value={'reportData': {'report': report}}):
+            result = build_wcl_log_evidence({
+                'wclUrl': 'https://www.warcraftlogs.com/reports/BBBBBBBBBBBBBBBB?fight=7',
+                'options': {'view': 'events', 'startTime': 8000, 'endTime': 10000}})
+        self.assertNotEqual(result['sourceStatus'], 'verified')
+        self.assertNotIn('events', result)
+
     def test_statistics_deadline_bounds_the_upstream_request(self):
         from server.app.chickenbro import wcl_source as w
         marker = w._STATISTICS_DEADLINE.set(10.25)
@@ -203,7 +229,7 @@ class ChickenbroWclSourceTest(unittest.TestCase):
         self.assertEqual(result["eventPage"]["endTime"], 900)
 
     def test_context_and_followup_events_are_available_without_losing_cursor(self):
-        report = {"fights": [{"id": 4}], "masterData": {"gameVersion": 1, "logVersion": 22},
+        report = {"fights": [{"id": 4, "startTime": 100, "endTime": 900}], "masterData": {"gameVersion": 1, "logVersion": 22},
                   "playerDetails": {"data": {"playerDetails": {"dps": [
                       {"id": 4, "name": "Giannis", "combatantInfo": {"gear": [{"id": 123}], "talentTree": [{"id": 456}]}},
                       {"id": 5, "name": "Other"}]}}},

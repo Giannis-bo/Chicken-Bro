@@ -2,6 +2,8 @@
 from collections import Counter
 from math import isfinite
 
+from server.app.simulation.sources import InvalidSourceLink
+
 
 def _number(value):
     return type(value) in (int, float) and isfinite(value) and value >= 0
@@ -19,6 +21,9 @@ def summarize_window(reference, options, credentials, fetch):
             page_options = {k:v for k,v in options.items() if k != 'maxPages'}
             page_options.update(view='events', startTime=cursor)
             page = fetch(reference, credentials, page_options)
+        except InvalidSourceLink as error:
+            failures.append(str(error))
+            break
         except Exception:
             failures.append('A statistics page failed; only previously read intervals are included.')
             break

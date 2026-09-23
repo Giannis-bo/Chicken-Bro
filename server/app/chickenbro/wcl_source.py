@@ -496,6 +496,15 @@ def _fetch_v2_evidence(reference: Mapping[str, str], credential_state: Mapping[s
     selected_fight = next((item for item in fights if item.get("id") == fight_id), {}) if fight_id else {}
     if fight_id and not selected_fight:
         raise RuntimeError("The requested fight was not found in this report")
+    if selected_fight and {'startTime', 'endTime'} & options.keys() and view != 'overview':
+        start, end = selected_fight['startTime'], selected_fight['endTime']
+        requested_start = options.get('startTime', start)
+        requested_end = options.get('endTime', end)
+        if not start <= requested_start < requested_end <= end:
+            raise InvalidSourceLink(
+                f"The event window must be within the selected fight [{start}, {end}] "
+                "in report-relative milliseconds. For a fight-relative time, add fight.startTime; "
+                "do not interpret an out-of-range empty response as no events.")
     events_payload = report.get("events")
     events = events_payload.get("data") if isinstance(events_payload, Mapping) else []
     master = report.get("masterData") or {}
@@ -652,6 +661,15 @@ def build_wcl_log_evidence(request_data: Mapping[str, Any] | None) -> dict[str, 
             finally:
                 _STATISTICS_DEADLINE.reset(token)
         return _fetch_v2_evidence(reference, credential_state, options)
+    except InvalidSourceLink as error:
+        return {
+            'schemaRevision': 'wcl-log-evidence-v1',
+            'status': 'blocked', 'sourceStatus': 'blocked',
+            'reportCode': reference['reportCode'], 'sourceUrl': reference['sourceUrl'],
+            'fightId': reference['fightId'], 'missingInputs': ['wcl.valid_window'],
+            'blockers': [_redact_secret(error)], 'evidenceRefs': [],
+            'nextActions': ['Correct the query window using the selected fight bounds in report-relative milliseconds, then retry within the remaining research budget.'],
+        }
     except Exception as error:
         return {
             "schemaRevision": "wcl-log-evidence-v1",
