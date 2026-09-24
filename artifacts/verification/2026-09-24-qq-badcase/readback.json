@@ -1,0 +1,12 @@
+{
+  "observedAt": "2026-09-24T01:59:11.454228+00:00",
+  "release": "/opt/chickenbro-qq-releases/20260924-badcase-v7",
+  "sourceCommit": "84867887eaf26a7e632593bf1230df88fc935f14",
+  "filesMatched": 237,
+  "states": {
+    "chickenbro-qq-channel": "inactive",
+    "chickenbro-qq-worker": "inactive"
+  },
+  "personaSha256": "0da8cb38d618c303ec44fbe2da6d94e374af67d9367f60ac0f916dcb2ba75228",
+  "liveBusinessAcceptance": "not_run_stopped"
+}

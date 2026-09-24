@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "84867887eaf26a7e632593bf1230df88fc935f14",
+  "baselineManifestSha256": "dfe3c427bd32b5f20bf6861310d6652526a2977f1d207a2d935410cc878236a5",
+  "changedFiles": {
+    "server/app/channels/qq/companion_model.py": "1612eda02663408dbaf7e344696cc7991797a7502aa62f6cda0c80c4eaaf584c",
+    "server/app/channels/qq/companion_service.py": "bee52fed4b5feb71ae65b4845d479b9a9ac43a011ea32236b424f7bda607467e",
+    "server/app/channels/qq/execution_policy.py": "137a64f2b8890aede7f0ad0f5ffb6633aeb31272354a238c40300ab3976b12dd",
+    "server/app/channels/qq/group_memes.py": "7c322f4620eb8103b4fa5db0c2643584be287da6960c5b1deec3c7300bc5dbf5",
+    "server/app/channels/qq/observation_repository.py": "702e420d136dd45654ed5c9a798aa099de3d1b19d896211b494e6d709187cc90"
+  },
+  "candidateVerified": true,
+  "reviewPassed": true,
+  "evidenceHashes": {
+    "professional-final.json": "df3b9792bc6e29114b3e49bf8689f20ffb590fbb6fb2c6807367e906b547dfd6",
+    "after.jsonl": "857db02e7928adc0f652f4e34e6679cce621d3fae7a90ff390fb2d9e11beb048",
+    "holdout.jsonl": "e3afed6ba5c9aaf5bb51eb89959d34692c5ac80f0ca8d8a607ae9dcdaf62f1c3",
+    "review.md": "e0794bfa8cd9d29ce5dbd4db0aa8aded32621914ce124fcacfa0919a6ff3d20a",
+    "candidate-manifest.json": "6fa2aef5fee2f629a00d84bfbdc247be29988e02b3dccb0fdac9166165503a78"
+  },
+  "executorSha256": "fa2a8984fc6673fe7019ced19af7eedd2123286012713bed041b7271c22a2806"
+}

@@ -1,0 +1,43 @@
+{
+  "status": "deployed_stopped_pending_live_acceptance",
+  "observedAt": "2026-09-24T01:58:18.893153+00:00",
+  "release": "/opt/chickenbro-qq-releases/20260924-badcase-v7",
+  "previousRelease": "/opt/chickenbro-qq-releases/20260923-companion-persona-v6",
+  "sourceCommit": "84867887eaf26a7e632593bf1230df88fc935f14",
+  "changedFiles": [
+    "server/app/channels/qq/companion_model.py",
+    "server/app/channels/qq/companion_service.py",
+    "server/app/channels/qq/execution_policy.py",
+    "server/app/channels/qq/group_memes.py",
+    "server/app/channels/qq/observation_repository.py"
+  ],
+  "manifestFiles": 237,
+  "manifestSha256": "52abe3eb88d60d9deec3f3fc27caa29a491d1ecccab9c9062b84967e83de9399",
+  "runtimeRevision": "qq-badcase-20260924-v7",
+  "channelState": "inactive",
+  "workerState": "inactive",
+  "groupMessagesSent": 0,
+  "databaseChanged": false,
+  "groupConfigUnchanged": true,
+  "websiteBefore": {
+    "apiPid": "1960416",
+    "workerPid": "1960343",
+    "code": "/opt/chickenbro-releases/badcase-3a0a88e22801571936fd8a7771009d90cc28e156",
+    "web": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+    "napcatStarted": "2026-09-23T05:15:14.322117994Z"
+  },
+  "websiteAfter": {
+    "apiPid": "1960416",
+    "workerPid": "1960343",
+    "code": "/opt/chickenbro-releases/badcase-3a0a88e22801571936fd8a7771009d90cc28e156",
+    "web": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+    "napcatStarted": "2026-09-23T05:15:14.322117994Z"
+  },
+  "recovery": {
+    "oldTreeVerified": true,
+    "configurationBackup": "/var/backups/chickenbro/qq-badcase-20260924T015818Z",
+    "configurationReadbackVerified": true,
+    "rollbackMustKeepStopped": true
+  },
+  "liveBusinessAcceptance": "not_run_user_requires_stopped"
+}

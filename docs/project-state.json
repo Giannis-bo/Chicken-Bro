@@ -71,7 +71,7 @@
       "gitDelivery": "implementation_pushed"
     },
     "badcaseRepair": {
-      "status": "candidate_verified_pending_stopped_deployment",
+      "status": "deployed_stopped_pending_live_acceptance",
       "scope": [
         "professional_dispatch",
         "target_speaker_context",
@@ -80,7 +80,13 @@
       ],
       "evidence": "artifacts/verification/2026-09-24-qq-badcase/README.md",
       "startupAuthorized": false,
-      "liveAcceptance": "pending_user_resumption"
+      "liveAcceptance": "pending_user_resumption",
+      "deployedRelease": "/opt/chickenbro-qq-releases/20260924-badcase-v7",
+      "sourceCommit": "84867887eaf26a7e632593bf1230df88fc935f14",
+      "channelState": "inactive",
+      "workerState": "inactive",
+      "releaseEvidence": "artifacts/verification/2026-09-24-qq-badcase/release.json",
+      "readbackEvidence": "artifacts/verification/2026-09-24-qq-badcase/readback.json"
     }
   },
   "targetProduct": {
