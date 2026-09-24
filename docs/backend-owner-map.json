@@ -43,6 +43,7 @@
         "tests/app_qq_channel_postgres_test.py",
         "tests/app_qq_companion_memory_test.py",
         "tests/app_qq_companion_model_test.py",
+        "tests/app_qq_badcase_test.py",
         "tests/app_qq_companion_observation_test.py",
         "tests/app_qq_companion_postgres_test.py",
         "tests/app_qq_companion_runtime_test.py",

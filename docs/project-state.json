@@ -4,7 +4,7 @@
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "qqGroupChannel": {
-    "status": "text_channel_user_accepted",
+    "status": "paused_by_user",
     "selectedTransport": "personal_qq_napcat_onebot11",
     "preparationAuthorizedAt": "2026-09-23",
     "host": "wow-lighthouse",
@@ -14,7 +14,7 @@
     "containerRunning": true,
     "qqLoggedIn": true,
     "channelAdapter": "implemented",
-    "businessEnabled": true,
+    "businessEnabled": false,
     "groupBusinessAcceptance": "user_accepted_20260923",
     "productionApplicationChanged": false,
     "loginEvidence": "artifacts/verification/2026-09-23-qq-napcat/login-status.json",
@@ -46,7 +46,7 @@
       "executionMethod": "native_sequential_then_independent_review",
       "fixedProactiveCooldown": false,
       "hourlyProactiveQuota": false,
-      "productionEnabled": true,
+      "productionEnabled": false,
       "proactiveEnabled": true,
       "independentReview": "passed",
       "verificationRecord": "artifacts/verification/2026-09-23-qq-companion/README.md",
@@ -69,6 +69,18 @@
       "sourceCommit": "f6f0745770ce7a55db00c930feb1b74dee4fc119",
       "sourceBranch": "main",
       "gitDelivery": "implementation_pushed"
+    },
+    "badcaseRepair": {
+      "status": "candidate_verified_pending_stopped_deployment",
+      "scope": [
+        "professional_dispatch",
+        "target_speaker_context",
+        "image_provenance",
+        "quiet_participation"
+      ],
+      "evidence": "artifacts/verification/2026-09-24-qq-badcase/README.md",
+      "startupAuthorized": false,
+      "liveAcceptance": "pending_user_resumption"
     }
   },
   "targetProduct": {

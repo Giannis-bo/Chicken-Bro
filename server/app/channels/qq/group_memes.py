@@ -150,11 +150,14 @@ class GroupMemeCatalog:
         data=bytes(row['content'])
         if hashlib.sha256(data).hexdigest()!=row['sha256']:raise ValueError('media integrity mismatch')
         return row
-    def prepare(self,group):
+    def prepare(self,group,*,target_message_id=None,reply_to=None):
         self._check(group)
         with self.connect() as c:
             keys=[r[0] for r in c.execute('''SELECT id FROM qq_channel.memes WHERE bot_id=%s AND group_id=%s
-                AND NOT failed AND created_at>now()-interval '7 days' ORDER BY created_at DESC,id DESC LIMIT 3''',(self.bot,group)).fetchall()]
+                AND NOT failed AND created_at>now()-interval '7 days'
+                ORDER BY CASE WHEN source='group' AND source_message_id=%s THEN 0
+                    WHEN source='group' AND source_message_id=%s THEN 1 ELSE 2 END,created_at DESC,id DESC LIMIT 3''',
+                (self.bot,group,target_message_id,reply_to)).fetchall()]
         labels=[];images=[]
         for key in keys:
             try:row=self._load(group,key)

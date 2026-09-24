@@ -1,0 +1,16 @@
+{
+  "status": "candidate_passed",
+  "database": "chickenbro_qq_badcase_candidate_20260924",
+  "socialAction": "wow_read",
+  "inboxState": "done",
+  "scope": "wow_read",
+  "toolCalls": 1,
+  "verifiedToolCalls": 1,
+  "answerParts": 1,
+  "answerSha256": "ae62dc6430fb4e716043ea083f6a7e65a5a78110b3ebc052e64025666c63d2f1",
+  "outboxState": "pending_recording_only",
+  "secondOwnerDenied": true,
+  "onebotStarted": false,
+  "groupMessagesSent": 0,
+  "elapsedSeconds": 23.95
+}

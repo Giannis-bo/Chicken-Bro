@@ -21,11 +21,11 @@ class CompanionService:
         self.observations.append(event)
         if event.mentioned:self.repository.ensure_response(event,kind='mention',context_seq=self.observations.latest_seq(event.bot,event.group))
     def _decide(self,job):
-        e=job['event'];context=self.observations.context(e.bot,e.group,now=time.time())
+        e=job['event'];context=self.observations.context(e.bot,e.group,now=e.timestamp,before_message_id=e.message_id)
         if not any(x.message_id==e.message_id for x in context):context.append(e)
         facts=self.memory.facts(e.bot,e.group,tuple({x.sender for x in context})) if self.memory else []
         media=bool(self.stickers and hasattr(self.stickers,'prepare'))
-        labels,images=self.stickers.prepare(e.group) if media else (self.stickers.labels() if self.stickers else (),())
+        labels,images=self.stickers.prepare(e.group,target_message_id=e.message_id,reply_to=e.reply_to) if media else (self.stickers.labels() if self.stickers else (),())
         arguments=dict(must_reply=job['kind']=='mention',facts=facts,stickers=labels,target=e.message_id,
             recent_replies=self.repository.recent_replies(e.group),images=images,meme_search_available=media)
         decision=self.model.decide(context,**arguments)
@@ -63,7 +63,8 @@ class CompanionService:
                 if job['kind']=='mention':
                     fallback='鸡哥刚刚脑子卡了一下，这句再聊一次？'
                     if decision and decision.action in ('wow_read','wow_sim'):
-                        fallback='把你自己的角色链接和具体想比较的东西给鸡哥，咱再细看。'
+                        fallback='这次分析还没开始。请把要分析的魔兽日志或本人角色链接与具体问题一起发来。'
+                        decision=None  # Never emit a dispatch draft when admission failed.
                     draft=must_reply_draft(decision,fallback)
                     self.repository.complete_response(job['id'],job['lease_token'],draft)
                 elif not stale and decision and decision.action=='reply' and decision.draft:

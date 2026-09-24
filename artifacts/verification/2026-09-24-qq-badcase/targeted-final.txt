@@ -1,0 +1,31 @@
+test_denied_professional_draft_never_claims_start (tests.app_qq_badcase_test.BadcaseTest.test_denied_professional_draft_never_claims_start) ... ok
+test_image_catalog_is_not_current_attachment (tests.app_qq_badcase_test.BadcaseTest.test_image_catalog_is_not_current_attachment) ... ok
+test_log_link_and_look_request_are_readable (tests.app_qq_badcase_test.BadcaseTest.test_log_link_and_look_request_are_readable) ... ok
+test_malformed_source_url_cannot_crash_admission (tests.app_qq_badcase_test.BadcaseTest.test_malformed_source_url_cannot_crash_admission) ... ok
+test_target_survives_context_budget_and_carries_speaker (tests.app_qq_badcase_test.BadcaseTest.test_target_survives_context_budget_and_carries_speaker) ... ok
+test_adapter_social_rejects_gateways (tests.app_qq_companion_model_test.CompanionModelTest.test_adapter_social_rejects_gateways) ... ok
+test_quote_is_opt_in_and_strict_boolean (tests.app_qq_companion_model_test.CompanionModelTest.test_quote_is_opt_in_and_strict_boolean) ... ok
+test_social_disables_inherited_tools_without_mutation (tests.app_qq_companion_model_test.CompanionModelTest.test_social_disables_inherited_tools_without_mutation) ... ok
+test_strict_decision_schema (tests.app_qq_companion_model_test.CompanionModelTest.test_strict_decision_schema) ... ok
+test_mandatory_silent_and_failure_have_natural_reply (tests.app_qq_companion_service_test.CompanionServiceTest.test_mandatory_silent_and_failure_have_natural_reply) ... ok
+test_meme_search_gets_one_visual_followup_and_rejects_unseen_image (tests.app_qq_companion_service_test.CompanionServiceTest.test_meme_search_gets_one_visual_followup_and_rejects_unseen_image) ... ok
+test_proactive_has_no_quota_or_random_gate (tests.app_qq_companion_service_test.CompanionServiceTest.test_proactive_has_no_quota_or_random_gate) ... ok
+test_gateway_checks_before_invoking_underlying (tests.app_qq_companion_tools_test.ToolsTest.test_gateway_checks_before_invoking_underlying) ... ok
+test_idle_wow_chat_never_grants_simulation (tests.app_qq_companion_tools_test.ToolsTest.test_idle_wow_chat_never_grants_simulation) ... ok
+test_native_gateway_accepts_only_known_qq_loopback_ports (tests.app_qq_companion_tools_test.ToolsTest.test_native_gateway_accepts_only_known_qq_loopback_ports) ... ok
+test_professional_admission_and_sources (tests.app_qq_companion_tools_test.ToolsTest.test_professional_admission_and_sources) ... ok
+test_scope_matrix (tests.app_qq_companion_tools_test.ToolsTest.test_scope_matrix) ... ok
+test_search_hits_cannot_escape_allowed_domains (tests.app_qq_companion_tools_test.ToolsTest.test_search_hits_cannot_escape_allowed_domains) ... ok
+test_bing_metadata_not_arbitrary_image_tags (tests.app_qq_group_memes_test.GroupMemesTest.test_bing_metadata_not_arbitrary_image_tags) ... ok
+test_decision_search_is_structured_not_a_tool_permission (tests.app_qq_group_memes_test.GroupMemesTest.test_decision_search_is_structured_not_a_tool_permission) ... ok
+test_image_fetch_rejects_unsafe_hosts_before_request (tests.app_qq_group_memes_test.GroupMemesTest.test_image_fetch_rejects_unsafe_hosts_before_request) ... ok
+test_non_images_and_oversize_rejected (tests.app_qq_group_memes_test.GroupMemesTest.test_non_images_and_oversize_rejected) ... ok
+test_only_real_image_segments_are_media (tests.app_qq_group_memes_test.GroupMemesTest.test_only_real_image_segments_are_media) ... ok
+test_raw_gif_is_preserved_preview_is_static (tests.app_qq_group_memes_test.GroupMemesTest.test_raw_gif_is_preserved_preview_is_static) ... ok
+test_search_query_is_only_a_short_meme_phrase (tests.app_qq_group_memes_test.GroupMemesTest.test_search_query_is_only_a_short_meme_phrase) ... ok
+test_slow_continuous_response_is_interrupted_at_absolute_deadline (tests.app_qq_group_memes_test.GroupMemesTest.test_slow_continuous_response_is_interrupted_at_absolute_deadline) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.100s
+
+OK

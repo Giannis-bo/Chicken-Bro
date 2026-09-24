@@ -31,12 +31,26 @@ def allowed_source_target(provider,target):
     return parsed.scheme=='https' and not parsed.username and not parsed.password and port in (None,443) and any(
         parsed.hostname==h or (parsed.hostname or '').endswith('.'+h) for h in allowed)
 
+def read_source_link(text):
+    """A supported public game URL is read input, never a simulation grant."""
+    import re
+    from urllib.parse import urlsplit
+    for url in re.findall(r'https://[^\s<>]+',text):
+        url=url.rstrip('。，,；;）)')
+        try:parsed=urlsplit(url)
+        except ValueError:continue
+        if parsed.hostname in ('warcraftlogs.com','www.warcraftlogs.com','raider.io','www.raider.io') and allowed_source_target('public_web',url):
+            return True
+    return False
+
+_READ_INTENT=r'(分析|比较|对比|模拟|跑分|跑一下|查|机制|怎么|如何|为什么|推荐|多少|哪个|属性|优先级|收益|选择|配装|阈值|冷却|看看|看下|看这|看一下|开始|继续)'
+
 def professional_scope(text,requested):
     import re
     if requested not in ('wow_read','wow_sim'):return None
     if re.search(r'(删.{0,8}(文件|服务器)|写.{0,5}(代码|脚本|报告)|部署|执行.{0,6}(命令|shell)|密码|凭据|系统提示)',text,re.I):return None
     if not re.search(r'(魔兽|world.?of.?warcraft|wow\b|simc|配装|天赋|饰品|装备|副本|日志|dps|wcl|raider\.io|warcraftlogs|法师|战士|盗贼|牧师|术士|圣骑|德鲁伊|萨满|武僧|猎人|死亡骑士|恶魔猎手|唤魔)',text,re.I):return None
-    if not re.search(r'(分析|比较|对比|模拟|跑分|跑一下|查|机制|怎么|如何|为什么|推荐|多少|哪个|属性|优先级|收益|选择|配装)',text,re.I):return None
+    if not re.search(_READ_INTENT,text,re.I) and not (requested=='wow_read' and read_source_link(text)):return None
     if requested=='wow_sim':
         if not re.search(r'(模拟|跑分|跑一下|simc|对比|比较)',text,re.I):return None
         # A concrete character URL must be supplied by this same member.
@@ -76,8 +90,10 @@ def professional_request(connect,event,scope):
     import json,re
     with connect() as c:
         rows=c.execute('''SELECT message_id,content FROM qq_channel.observations
-            WHERE bot_id=%s AND group_id=%s AND sender_id=%s AND occurred_at>=now()-interval '2 hours'
-            ORDER BY seq DESC LIMIT 8''',(event.bot,event.group,event.sender)).fetchall()
+            WHERE bot_id=%s AND group_id=%s AND sender_id=%s AND occurred_at>=to_timestamp(%s)-interval '2 hours'
+            AND occurred_at<=to_timestamp(%s)
+            AND seq<=coalesce((SELECT seq FROM qq_channel.observations WHERE bot_id=%s AND group_id=%s AND message_id=%s),9223372036854775807)
+            ORDER BY seq DESC LIMIT 8''',(event.bot,event.group,event.sender,event.timestamp,event.timestamp,event.bot,event.group,event.message_id)).fetchall()
         facts=c.execute('''SELECT fact_key,value,source_message_id FROM qq_channel.member_facts
             WHERE bot_id=%s AND group_id=%s AND sender_id=%s AND active AND fact_key='wow_character' LIMIT 1''',
             (event.bot,event.group,event.sender)).fetchall()
@@ -90,10 +106,14 @@ def professional_request(connect,event,scope):
     own_facts=[{'key':r[0],'value':r[1],'source_message_id':r[2]} for r in facts]
     combined=event.text+'\n'+'\n'.join(x['text'] for x in history)+'\n'+'\n'.join(x['value'] for x in own_facts)
     if professional_scope(combined,scope)!=scope:return None
-    continuation=bool(history or own_facts) and bool(re.fullmatch(r'\s*(鸡哥[，, ]*)?(帮我|请|再)?(跑一下|模拟一下|再跑一次|比较一下|对比一下)[吧呀啊。！! ]*',event.text))
+    # Only bounded anaphoric continuation may borrow game context. An unrelated
+    # current task must not gain permission merely because old messages mention WoW.
+    continuation=bool(history or own_facts) and bool(re.fullmatch(
+        r'\s*(?:(?:鸡哥|小鸡|请|帮我|再|现在|立即|立刻|先|继续|开始|接着)[，, ]*)*'
+        r'(?:分析|看看|看下|看一下|跑一下|模拟一下|跑一次|比较一下|对比一下)?[吧呀啊。！! ]*',event.text))
     if professional_scope(event.text,'wow_read') is None and not continuation:return None
     # Operation intent must be in the current request, not borrowed from history.
-    if not re.search(r'(分析|比较|对比|模拟|跑分|跑一下|simc|查|机制|怎么|如何|为什么|推荐|多少|哪个|属性|优先级|收益|选择|配装|阈值|冷却)',event.text,re.I):return None
+    if not re.search(_READ_INTENT,event.text,re.I) and not (scope=='wow_read' and read_source_link(event.text)):return None
     if scope=='wow_sim':
         if not re.search(r'(模拟|跑分|跑一下|simc|对比|比较)',event.text,re.I):return None
         if not own_facts and not re.search(r'(我.{0,4}角色|我玩|我这|我是|我叫|这是我)',combined):return None

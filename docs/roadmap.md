@@ -1,6 +1,6 @@
 # Chickenbro 路线图
 
-更新日期：2026-09-23。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
+更新日期：2026-09-24。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
 
 ## 已完成
 
@@ -21,7 +21,7 @@
 
 ## 正在推进
 
-- **QQ 群端体验跟进**：记忆和 SimC 已通过隔离 Candidate 验证；继续结合真实群使用核对体验。[实施与验证](plans/2026-09-23-qq-companion-implementation.md)。
+- **QQ 群端体验跟进**：按用户要求保持停机；专业路由、目标与图片指代、安静请求已完成修复验证，按[本批记录](../artifacts/verification/2026-09-24-qq-badcase/README.md)发布代码，待用户恢复后核对真实群效果。记忆和 SimC 已通过隔离 Candidate 验证。[实施与验证](plans/2026-09-23-qq-companion-implementation.md)。
 - [Badcase 持续改进](plans/2026-09-08-badcase-workflow.md)：根据实际反馈定位通用问题，完成限定验证后按授权发布。
 - [私有副本保留与到期处置](badcase-workflow-operations.md#保留与独立处置对账)：按现有登记核对到期时间、哈希、活动引用与恢复条件。
 

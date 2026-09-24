@@ -1,0 +1,20 @@
+{"started": "direct", "group": "Q1", "time": 1790214357.3486602}
+{"group": "Q1", "case": "direct", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": null, "target_message_id": "1", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "followup", "group": "Q1", "time": 1790214363.606608}
+{"group": "Q1", "case": "followup", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "continuation", "group": "Q1", "time": 1790214368.91987}
+{"group": "Q1", "case": "continuation", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "new_topic", "group": "Q2", "time": 1790214375.7624269}
+{"group": "Q2", "case": "new_topic", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "还不了解星河，光凭名字鸡哥可评不出水平。你说说他的具体表现？", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "address_other", "group": "Q2", "time": 1790214381.9573426}
+{"group": "Q2", "case": "address_other", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "1", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "target_image", "group": "Q3", "time": 1790214388.7588708}
+{"group": "Q3", "case": "target_image", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "BOAT", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "missing_image", "group": "Q3", "time": 1790214395.4140105}
+{"group": "Q3", "case": "missing_image", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "你这张图我这边没显示出来，再发一下呗。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "quiet", "group": "Q4", "time": 1790214401.6717148}
+{"group": "Q4", "case": "quiet", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "quiet_variant", "group": "Q4", "time": 1790214410.754575}
+{"group": "Q4", "case": "quiet_variant", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "mention_after_quiet", "group": "Q4", "time": 1790214417.8960903}
+{"group": "Q4", "case": "mention_after_quiet", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "晚上好呀。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}

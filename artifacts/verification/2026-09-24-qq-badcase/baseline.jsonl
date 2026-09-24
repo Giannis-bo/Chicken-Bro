@@ -1,0 +1,20 @@
+{"started": "direct", "group": "Q1", "time": 1790214241.0009596}
+{"group": "Q1", "case": "direct", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": {"text": "先看看这把的战斗情况。你是日志里哪个角色？", "sticker_id": null, "quote": false}, "target_message_id": "1", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "followup", "group": "Q1", "time": 1790214249.394063}
+{"group": "Q1", "case": "followup", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": {"text": "先看第 7 场的战斗情况和主要问题。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "continuation", "group": "Q1", "time": 1790214255.5550625}
+{"group": "Q1", "case": "continuation", "expectedAction": "wow_read", "decision": {"action": "wow_read", "draft": {"text": "先看这份日志的第7场，查减员原因、关键机制处理和输出治疗表现。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "new_topic", "group": "Q2", "time": 1790214266.9461834}
+{"group": "Q2", "case": "new_topic", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "星河干啥了？光报个名字，鸡哥也不能凭昵称判水平啊。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "address_other", "group": "Q2", "time": 1790214276.0811195}
+{"group": "Q2", "case": "address_other", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "1", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "target_image", "group": "Q3", "time": 1790214281.3235977}
+{"group": "Q3", "case": "target_image", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "BOAT", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "missing_image", "group": "Q3", "time": 1790214287.8217876}
+{"group": "Q3", "case": "missing_image", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "你这张图我这边没显示出来，重发一下呗。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "quiet", "group": "Q4", "time": 1790214295.5458462}
+{"group": "Q4", "case": "quiet", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "quiet_variant", "group": "Q4", "time": 1790214302.8390758}
+{"group": "Q4", "case": "quiet_variant", "expectedAction": "silent", "decision": {"action": "silent", "draft": null, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}
+{"started": "mention_after_quiet", "group": "Q4", "time": 1790214312.686864}
+{"group": "Q4", "case": "mention_after_quiet", "expectedAction": "reply", "decision": {"action": "reply", "draft": {"text": "晚上好呀。", "sticker_id": null, "quote": false}, "target_message_id": "2", "memories": [], "meme_query": null}, "actionPass": true}

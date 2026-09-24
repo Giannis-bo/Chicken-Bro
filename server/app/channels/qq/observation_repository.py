@@ -23,13 +23,16 @@ class ObservationRepository:
                 (event.bot,event.group,row[0]))
             return True
 
-    def context(self,bot,group,*,now,limit=80):
+    def context(self,bot,group,*,now,limit=80,before_message_id=None):
         with self.connect() as c:
             rows=c.execute('''SELECT bot_id,group_id,sender_id,message_id,extract(epoch from occurred_at),
                 content,display_name,mentioned,reply_to,attachment FROM qq_channel.observations
                 WHERE bot_id=%s AND group_id=%s AND occurred_at>=to_timestamp(%s)-interval '2 hours'
-                AND occurred_at<=to_timestamp(%s)+interval '10 seconds' ORDER BY seq DESC LIMIT %s''',
-                (bot,group,now,now,min(80,max(1,limit)))).fetchall()
+                AND occurred_at<=to_timestamp(%s)+interval '10 seconds'
+                AND (%s::text IS NULL OR seq<=coalesce((SELECT seq FROM qq_channel.observations
+                    WHERE bot_id=%s AND group_id=%s AND message_id=%s),0))
+                ORDER BY seq DESC LIMIT %s''',
+                (bot,group,now,now,before_message_id,bot,group,before_message_id,min(80,max(1,limit)))).fetchall()
         return [GroupEvent(*r[:4],float(r[4]),*r[5:]) for r in reversed(rows)]
 
     def latest_seq(self,bot,group):

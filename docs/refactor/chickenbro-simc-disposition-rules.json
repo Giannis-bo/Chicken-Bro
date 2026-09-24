@@ -2,6 +2,19 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "qq-badcase-20260924",
+      "disposition": "keep",
+      "category": "target-product",
+      "owner": "control_and_cleanup",
+      "reason": "QQ feedback repair, cloud Candidate validation and stopped deployment evidence.",
+      "paths": [
+        "tests/app_qq_badcase_test.py"
+      ],
+      "prefixes": [
+        "artifacts/verification/2026-09-24-qq-badcase/"
+      ]
+    },
+    {
       "id": "qq-napcat-preparation-20260923",
       "disposition": "keep",
       "category": "target-product",

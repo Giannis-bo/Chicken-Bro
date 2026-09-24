@@ -282,3 +282,46 @@ class CompanionPostgresTest(unittest.TestCase):
             job=r.claim_response();r.complete_response(job['id'],job['lease_token'],draft)
         queued=QqRepository(self.connect,self.bot,('22222',)).pending_outbox()
         self.assertEqual([(x['message_id'],x['quote_reply']) for x in queued],[('31',False),('32',True),('32',False)])
+
+    def test_log_followup_uses_own_past_context_and_dispatches_once(self):
+        from dataclasses import replace
+        from server.app.channels.qq.execution_policy import professional_request
+        import time,json
+        o=self.repository();r=self.responses();ts=time.time()
+        first=replace(self.event(ts=ts-2),text='分析WCL https://www.warcraftlogs.com/reports/AbCdEfGh12345678')
+        other=replace(first,message_id='2',sender='33333',text='分析 https://www.warcraftlogs.com/reports/ZyXwVuTs87654321')
+        current=replace(first,message_id='3',timestamp=ts-1,text='请立即开始分析',mentioned=True)
+        future=replace(first,message_id='4',timestamp=ts,text='未来消息，不应进入当前分析')
+        for e in (first,other,current,future):o.append(e)
+        data=professional_request(self.connect,current,'wow_read')
+        self.assertIsNotNone(data);self.assertIn('AbCdEfGh',data);self.assertNotIn('ZyXwVuTs',data);self.assertNotIn('未来消息',data)
+        r.ensure_response(current,kind='mention');job=r.claim_response()
+        self.assertTrue(r.prepare_professional(job,'wow_read'));self.assertFalse(r.prepare_professional(job,'wow_read'))
+        with self.connect() as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM qq_channel.inbox WHERE bot_id=%s AND message_id=%s',(self.bot,'3')).fetchone()[0],1)
+        for text in ('帮我查询明天北京天气','比较两款手机','继续分析服务器密码'):
+            self.assertIsNone(professional_request(self.connect,replace(current,text=text),'wow_read'))
+
+    def test_target_image_is_not_displaced_by_newer_group_images(self):
+        import io
+        from PIL import Image
+        from server.app.channels.qq.group_memes import GroupMemeCatalog
+        from dataclasses import replace
+        catalog=GroupMemeCatalog(self.connect,self.bot,('22222',))
+        data=io.BytesIO();Image.new('RGB',(10,10),'blue').save(data,format='PNG')
+        for i in range(5):
+            e=replace(self.event(mid=str(i+1)),attachment=True)
+            catalog.observe(e,{'message':[{'type':'image','data':{'file':str(i)+'.png'}}]})
+        with self.connect() as c:
+            keys=c.execute('SELECT id FROM qq_channel.memes WHERE bot_id=%s',(self.bot,)).fetchall()
+        for key, in keys:catalog._save('22222',key,data.getvalue())
+        labels,images=catalog.prepare('22222',target_message_id='1',reply_to='2')
+        self.assertEqual([x['source_message_id'] for x in labels[:2]],['1','2'])
+        self.assertEqual(len(images),3)
+
+    def test_queued_target_context_does_not_include_newer_observations(self):
+        from dataclasses import replace
+        o=self.repository();first=self.event(ts=1000);o.append(first)
+        for i in range(90):o.append(replace(first,message_id=str(i+2),text='后来话题'))
+        rows=o.context(self.bot,'22222',now=1000,before_message_id='1')
+        self.assertEqual([x.message_id for x in rows],['1'])
