@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+  "cloudTests": {
+    "passed": 69,
+    "modules": [
+      "tests.app_chickenbro_wcl_source_test",
+      "tests.app_chickenbro_source_gateway_test",
+      "tests.app_chickenbro_raiderio_research_test"
+    ]
+  },
+  "pairedDeterministic": {
+    "classes": 5,
+    "checks": 7,
+    "repetitions": 1,
+    "beforePass": 4,
+    "afterPass": 7,
+    "models": 0
+  },
+  "candidate": {
+    "repetitions": 2,
+    "realChat": true,
+    "localeRequestsAccepted": 2,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true
+  },
+  "live": {
+    "repetitions": 2,
+    "realChat": true,
+    "localeRequestsAccepted": 2,
+    "history": true,
+    "ownerIsolation": true,
+    "idempotency": true
+  },
+  "review": "One-line actual production diff reviewed. Independent timestamp computation against returned complete event pages and full answer readback. No game-effect claim.",
+  "cost": {
+    "productModels": 4,
+    "providerCalls": 5,
+    "simc": 0
+  },
+  "harness": {
+    "initialPreflightFailure": "Candidate credential lookup failed before service mutation or model call",
+    "correction": "Read-only postgres local queue check; original worker restored active"
+  },
+  "unresolved": "Death-cause followthrough and other feedback remain separate."
+}

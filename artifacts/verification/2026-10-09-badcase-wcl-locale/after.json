@@ -1,0 +1,46 @@
+{
+  "source": "/opt/chickenbro-candidates/badcase-locale-20261009",
+  "results": [
+    {
+      "class": "original",
+      "actual": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=5",
+      "expected": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=5",
+      "passed": true
+    },
+    {
+      "class": "variant",
+      "actual": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=7&source=9",
+      "expected": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=7&source=9",
+      "passed": true
+    },
+    {
+      "class": "holdout",
+      "actual": "https://www.warcraftlogs.com/reports/ZXCVBNMQ#fight=81&source=23",
+      "expected": "https://www.warcraftlogs.com/reports/ZXCVBNMQ#fight=81&source=23",
+      "passed": true
+    },
+    {
+      "class": "normal",
+      "actual": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=5",
+      "expected": "https://www.warcraftlogs.com/reports/ABCDEFGH#fight=5",
+      "passed": true
+    },
+    {
+      "class": "permission",
+      "actual": null,
+      "expected": null,
+      "passed": true
+    },
+    {
+      "class": "unknown_filter",
+      "actual": null,
+      "expected": null,
+      "passed": true
+    },
+    {
+      "class": "missing_credentials",
+      "passed": true
+    }
+  ],
+  "allPassed": true
+}

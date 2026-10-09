@@ -1,0 +1,44 @@
+{
+  "status": "released",
+  "sourceCommit": "1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+  "publicWebHashes": {
+    "index.html": true,
+    "js/app.js": true,
+    "js/app.js.LICENSE.txt": true,
+    "js/611.js": true,
+    "js/611.js.LICENSE.txt": true,
+    "brand/gugu-v1.ico": true,
+    "brand/gugu-v1-32.png": true,
+    "brand/gugu-v1-16.png": true,
+    "css/329.css": true,
+    "css/app.css": true,
+    "chunk/244.js.LICENSE.txt": true,
+    "chunk/1.js": true,
+    "chunk/244.js": true,
+    "chunk/329.js": true,
+    "static/images/web/assets/gu-gu-mascot.png": true
+  },
+  "coreSemanticVerdict": {
+    "observedAt": "2026-10-09T02:04:21.145299+00:00",
+    "receiptSha256": "008997b181618896236ef23a8dee8be3bf260293f57a66003e7e9d72f83aa8bc",
+    "corePassed": true,
+    "method": "Independent source-timestamp arithmetic plus full answer review; criteria use no version label",
+    "cases": [
+      {
+        "deathCount": 3,
+        "minGapMs": 4,
+        "answerEvidenceConsistent": true,
+        "localePathUsed": true
+      },
+      {
+        "deathCount": 3,
+        "minGapMs": 4,
+        "answerEvidenceConsistent": true,
+        "localePathUsed": true
+      }
+    ],
+    "scope": "URL locale and death summary only",
+    "deathCauseAccepted": false
+  },
+  "observationSeconds": 60
+}

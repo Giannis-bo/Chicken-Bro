@@ -1,0 +1,24 @@
+{
+  "sourceCommit": "1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+  "reportSha256": "801b9410f629f513adb34436a3d146c43095eab0d8c86d4a7a67ddbccfe7fa9f",
+  "authorization": "2026-10-09 badcase standing reversible backend fix",
+  "scope": "WCL locale display parameter acceptance only",
+  "createdAt": "2026-10-09T02:02:46.991872+00:00",
+  "files": {
+    "manifest.json": "9a250174b67c11b580b11151c83c427933fcf57ddf7aa6f403a063b34ca9b231",
+    "deploy.py": "8dc54d873bf6b64d59888cbcf164691eb580dfb5ced9376d429a0aaaeb2abf83",
+    "smoke.py": "37d900f3468d91425422a28a3d26517c183f1c53f52162c91bd8df27fd84b852",
+    "release.py": "7f022bd239340cbfe8fe78f633f49f306c49f8098a491ec88f5967d6043fdca7"
+  },
+  "candidate": {
+    "models": 2,
+    "sourceCalls": 2,
+    "corePassed": true
+  },
+  "observe": {
+    "seconds": 60,
+    "newFailedChatRuns": 0,
+    "runtimeAndEnvironment": "manifest bound"
+  },
+  "rollback": "baseline exact inventory plus root private effective environments; idle fenced restore and two canonical-URL real Chat checks"
+}

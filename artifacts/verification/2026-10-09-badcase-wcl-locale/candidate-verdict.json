@@ -1,0 +1,23 @@
+{
+  "method": "Independent arithmetic over stored source events, then full answer readback; numeric answers require no subjective open-ended rubric. Version labels not used for verdict.",
+  "receiptSha256": "03ccc9ef82bd3fa3d9d84f4262def1a6ee03d5461b0c820da33496f6ec3c6c0e",
+  "checks": [
+    {
+      "events": 3,
+      "minGapMs": 4,
+      "complete": true,
+      "fight": "5",
+      "answerMatches": true
+    },
+    {
+      "events": 3,
+      "minGapMs": 4,
+      "complete": true,
+      "fight": "5",
+      "answerMatches": true
+    }
+  ],
+  "corePassed": true,
+  "staticReview": "One display-only parameter ignored in shared normalizer; strict identity parser unchanged; no case/report/user matching. Exact production overlay limited to one file.",
+  "scope": "URL acceptance and factual death-count summary only; no death-cause or attribution claim"
+}

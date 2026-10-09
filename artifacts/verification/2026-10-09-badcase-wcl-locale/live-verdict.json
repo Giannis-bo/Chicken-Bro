@@ -1,0 +1,22 @@
+{
+  "observedAt": "2026-10-09T02:04:21.145299+00:00",
+  "receiptSha256": "008997b181618896236ef23a8dee8be3bf260293f57a66003e7e9d72f83aa8bc",
+  "corePassed": true,
+  "method": "Independent source-timestamp arithmetic plus full answer review; criteria use no version label",
+  "cases": [
+    {
+      "deathCount": 3,
+      "minGapMs": 4,
+      "answerEvidenceConsistent": true,
+      "localePathUsed": true
+    },
+    {
+      "deathCount": 3,
+      "minGapMs": 4,
+      "answerEvidenceConsistent": true,
+      "localePathUsed": true
+    }
+  ],
+  "scope": "URL locale and death summary only",
+  "deathCauseAccepted": false
+}
