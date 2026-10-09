@@ -329,7 +329,7 @@ def normalize_wcl_report_url(url: str) -> str:
     parts = urlsplit(url)
     def clean(value: str) -> str:
         return urlencode([(k, v) for k, v in parse_qsl(value, keep_blank_values=True)
-                          if k not in {"type", "view"}])
+                          if k not in {"type", "view", "locale"}])
     candidate = urlunsplit((parts.scheme, parts.netloc, parts.path,
                            clean(parts.query), clean(parts.fragment)))
     parsed = parse_character_source_url(candidate)

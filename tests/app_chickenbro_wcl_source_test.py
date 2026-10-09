@@ -21,6 +21,28 @@ class FakeResponse:
 
 
 class ChickenbroWclSourceTest(unittest.TestCase):
+    def test_display_locale_preserves_report_identity(self):
+        from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+        for url in (
+            'https://cn.warcraftlogs.com/reports/ABCDEFGH?type=deaths&fight=5&locale=cn&source=9',
+            'https://www.warcraftlogs.com/reports/ABCDEFGH?locale=en#source=9&fight=5&locale=de',
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(normalize_wcl_report_url(url),
+                    'https://www.warcraftlogs.com/reports/ABCDEFGH#fight=5&source=9')
+
+    def test_display_locale_does_not_relax_host_or_filter_validation(self):
+        from server.app.chickenbro.wcl_source import normalize_wcl_report_url
+        from server.app.simulation.sources import InvalidSourceLink
+        for url in (
+            'https://example.com/reports/ABCDEFGH?fight=5&locale=cn',
+            'https://user@www.warcraftlogs.com/reports/ABCDEFGH?fight=5&locale=cn',
+            'https://www.warcraftlogs.com/reports/ABCDEFGH?fight=5&locale=cn&start=42',
+            'https://www.warcraftlogs.com/reports/ABCDEFGH?fight=0&locale=cn',
+        ):
+            with self.subTest(url=url), self.assertRaises(InvalidSourceLink):
+                normalize_wcl_report_url(url)
+
     def test_event_window_outside_fight_is_not_verified_empty_evidence(self):
         report = {'fights': [{'id': 42, 'startTime': 6854810, 'endTime': 7080831}],
                   'events': {'data': [], 'nextPageTimestamp': None}}
