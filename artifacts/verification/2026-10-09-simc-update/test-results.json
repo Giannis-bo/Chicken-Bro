@@ -1,0 +1,10 @@
+{
+  "cloudPython": "/opt/chickenbro-runtime/bin/python",
+  "cloudTestsPassed": 190,
+  "cloudTestsSkipped": 0,
+  "engineDirectRunsPassed": 4,
+  "candidateJobsPassed": 3,
+  "newDependenciesInstalled": false,
+  "candidateScope": "Real SimC queue/worker lane with Chat and POE2 lanes excluded",
+  "localChecks": "Python and shell syntax; catalog source/build/hash; git diff --check"
+}

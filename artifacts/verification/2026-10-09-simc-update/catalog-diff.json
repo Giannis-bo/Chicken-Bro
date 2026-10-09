@@ -1,0 +1,40 @@
+{
+  "traits": {
+    "changedFields": [
+      "revision",
+      "sourceSha256",
+      "build"
+    ]
+  },
+  "trait-labels": {
+    "changedFields": [
+      "revision",
+      "sourceSha256",
+      "build"
+    ]
+  },
+  "trait-paths": {
+    "changedFields": [
+      "revision",
+      "engineSourceSha256",
+      "build"
+    ]
+  },
+  "item-variants": {
+    "changedFields": [
+      "revision",
+      "sourceSha256",
+      "build"
+    ],
+    "items": {
+      "oldCount": 16,
+      "newCount": 16,
+      "changedEntries": 0
+    },
+    "upgrades": {
+      "oldCount": 34,
+      "newCount": 34,
+      "changedEntries": 0
+    }
+  }
+}

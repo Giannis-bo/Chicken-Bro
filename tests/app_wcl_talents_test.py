@@ -12,14 +12,14 @@ class WclTalentReconstructionTest(unittest.TestCase):
     def setUp(self):
         self.details = json.loads((FIXTURES / 'giannis_raiderio_details.json').read_text())['characterDetails']['character']
         self.tree = json.loads((FIXTURES / 'giannis_wcl_report.json').read_text())['data']['reportData']['report']['events']['data'][0]['talentTree']
-        self.expected = json.loads((FIXTURES / 'giannis_wcl_engine_export_69814.json').read_text())['talents']
+        self.expected = json.loads((FIXTURES / 'giannis_wcl_engine_export_69933.json').read_text())['talents']
 
     def test_matches_independent_cloud_engine_export_including_apex_and_choices(self):
         code, proof = reconstruct_fight_talents(self.tree, 262, self.details, "elemental")
         self.assertEqual(code, self.expected)
         self.assertEqual(proof['entryCount'], 80)
         self.assertEqual(proof['heroSubTreeId'], 56)
-        self.assertEqual(proof['gameBuild'], '12.1.0.69814')
+        self.assertEqual(proof['gameBuild'], '12.1.0.69933')
 
     def test_log_order_and_current_talent_export_are_irrelevant(self):
         self.details.pop('talentLoadout')

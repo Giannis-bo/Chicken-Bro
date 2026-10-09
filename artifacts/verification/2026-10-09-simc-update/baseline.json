@@ -1,0 +1,26 @@
+{
+  "base": "/opt/chickenbro-releases/badcase-1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+  "web": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+  "candidate": "/opt/chickenbro-candidates/simc-update-20261009",
+  "engine": "/opt/wow-simc/releases/ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+  "units": {
+    "chickenbro-api": {
+      "pid": "74671",
+      "cwd": "/opt/chickenbro-releases/badcase-1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+      "simcBinary": null,
+      "environmentSha256": "dc6d6fdfae7589adfdc349d237ccd9b46dae3826b069274bbff76f35ed42a586"
+    },
+    "chickenbro-worker": {
+      "pid": "74602",
+      "cwd": "/opt/chickenbro-releases/badcase-1087feb29aa273152cf94cb3d32b95b1db5e6c05",
+      "simcBinary": null,
+      "environmentSha256": "6186d0af8ad922b210368fa1d448a30d45c3dbc66ab1d87486b2c3489f36a450"
+    }
+  },
+  "active": {
+    "chat": 0,
+    "execution": 0,
+    "simc": 0,
+    "queue": 0
+  }
+}

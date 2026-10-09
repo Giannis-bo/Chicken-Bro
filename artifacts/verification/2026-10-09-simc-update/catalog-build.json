@@ -1,0 +1,13 @@
+{
+  "revision": "eed909156d8eccbfca0f284cc271c080949d6a20",
+  "build": "12.1.0.69933",
+  "traits": 3435,
+  "changedStarterRows": 0,
+  "providerGraphStructuralCompatibility": "passed",
+  "files": {
+    "trait-labels-12.1.0.json": "5d5bce96020236857d8e903af25dd55ce32d9700aeffef99697d55955a6db48c",
+    "trait-paths-12.1.0.json": "10ecf3db7aa2cf665cbe4ff7b0694d682e964674242dcc5aa5b6b41858033f54",
+    "item-variants-12.1.0.json": "f8e01710faf29fa18c74019bbc49a7ec0b79a99dcbac9769a538b1edd397b162",
+    "traits-12.1.0.json": "602546c0dad59d2a70c9de3cc053ed06dde29a8d98c82c89655b8e310ce6bded"
+  }
+}

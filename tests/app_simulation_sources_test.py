@@ -115,12 +115,12 @@ class SimulationSourcesTest(unittest.TestCase):
         self.assertEqual(candidate.snapshot["gear"]["neck"]["gems"], [240983])
         self.assertEqual(candidate.snapshot["gear"]["main_hand"]["itemId"], 245770)
         self.assertEqual(candidate.snapshot["gearState"]["unequippedSlots"], ["off_hand"])
-        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export_69814.json").read_text())
+        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export_69933.json").read_text())
         self.assertEqual(candidate.snapshot["talents"]["string"], expected["talents"])
         self.assertIn("wclCombatantInfo", candidate.provenance)
         from server.app.simulation.compiler import SimcProfileCompiler
         from server.app.simulation.readiness import SimcRuntimeCapabilities, SimcReadinessValidator
-        capabilities = SimcRuntimeCapabilities("simc:managed:ac0f3a3c7ff9e521137c0ca1760d548330c697f3:" + "a" * 64, "chickenbro-simc-compiler-v3", frozenset({("shaman", "elemental")}))
+        capabilities = SimcRuntimeCapabilities("simc:managed:eed909156d8eccbfca0f284cc271c080949d6a20:" + "a" * 64, "chickenbro-simc-compiler-v3", frozenset({("shaman", "elemental")}))
         saved = candidate.to_source_snapshot(user_id="00000000-0000-4000-8000-000000000001",
             snapshot_id="00000000-0000-4000-8000-000000000002",
             readiness_report=SimcReadinessValidator().validate(candidate, capabilities))
@@ -141,7 +141,7 @@ class SimulationSourcesTest(unittest.TestCase):
 
     def test_wcl_historical_talents_survive_current_character_respec(self):
         gateway, official, _, details, _, _ = self._giannis_gateway()
-        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export_69814.json").read_text())["talents"]
+        expected = json.loads((Path(__file__).parent / "fixtures/simc/giannis_wcl_engine_export_69933.json").read_text())["talents"]
         # A later respec must not alter or invalidate the recorded fight build.
         details["characterDetails"]["character"]["talentLoadout"]["nodes"] = []
         details["characterDetails"]["character"]["talentLoadout"]["loadoutText"] = "AAAA"
