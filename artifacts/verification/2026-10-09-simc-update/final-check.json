@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "ff9df82b8df7eca05009354423c4ce56acf699a2",
+  "backend": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2",
+  "web": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+  "runtimeFilesMatched": 199,
+  "publicWebFilesMatched": 15,
+  "recoverySnapshotVerified": true,
+  "rollbackDrill": false,
+  "observation": {
+    "seconds": 58.39,
+    "readinessSamples": 10,
+    "maxReadinessSeconds": 0.624,
+    "errorJournalEntries": 0,
+    "servicesActive": true
+  }
+}

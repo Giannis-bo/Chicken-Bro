@@ -26,7 +26,7 @@
 | 研究与日志 | [研究完成](2026-09-11-research-completion.md)、[跨轮研究](2026-09-11-persistent-research-budget.md)、[搜索与范围管理](2026-09-10-bounded-research.md)、[WCL 查询](2026-09-10-wcl-tool-efficiency.md) |
 | 研究证据与表达 | [证据与语义](2026-09-11-research-generalization.md)、[按需流程](2026-09-12-agent-skills.md)、[直接结论](2026-09-13-direct-conclusions.md) |
 | 场景模拟与专精 | [场景实验](2026-09-09-simc-scenario-experiments.md)、[专精支持](2026-09-09-simc-all-specs.md) |
-| 连续模拟与引擎更新 | [任务次数](../../artifacts/verification/2026-09-14-simc-quota/README.md)、[引擎与目录](../../artifacts/verification/2026-09-15-simc-update/README.md) |
+| 连续模拟与引擎更新 | [任务次数](../../artifacts/verification/2026-09-14-simc-quota/README.md)、[引擎与目录](../../artifacts/verification/2026-10-09-simc-update/README.md) |
 | 运营后台 | [只读运营](2026-09-09-admin-ops.md) |
 
 [路线图](../roadmap.md) · [当前架构](../chickenbro-simc-architecture.md) · [项目状态与验证证据](../project-state.json)

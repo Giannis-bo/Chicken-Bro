@@ -1,6 +1,6 @@
 # Chickenbro 路线图
 
-更新日期：2026-09-24。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
+更新日期：2026-10-09。生产提供 Web 对话与云端 SimulationCraft，使用 QQ 登录；双游戏与 POE2 构筑已于 2026-09-21 发布正式环境。
 
 ## 已完成
 
@@ -11,7 +11,7 @@
 | 研究与日志 | 实时搜索、WCL 战斗视图和窗口统计、跨轮研究范围管理、历史证据复用与按需研究流程；[修复同一玩家跨来源重复计额](../artifacts/verification/2026-09-17-research-player-identity/README.md) |
 | 云端模拟 | Raider.IO 角色导入，输出与坦克专精，装备与天赋场景、自定义施法、食物／属性实验及任务对照；[指定阶段初始资源、增益、冷却和短窗口统计](../artifacts/verification/2026-09-20-phase-state-release/README.md) |
 | 连续实验 | Chat 单轮与跨轮 SimC 任务不限次数，保留任务历史、幂等与账号隔离 |
-| 引擎与目录 | SimulationCraft 对应游戏构建 `12.1.0.69814`，同步匹配的天赋、装备和中文目录，兼容英雄树免费点 |
+| 引擎与目录 | SimulationCraft 已升级游戏构建 `12.1.0.69933`，匹配天赋、装备和中文目录；[升级与验证](../artifacts/verification/2026-10-09-simc-update/README.md) |
 | POE2 构筑与对话 | 独立游戏会话；PoB 字符串导入即展示角色、属性、技能搭配和中文天赋树；两步对比、构筑 ID 复制和列表删除；[正式发布证据](../artifacts/releases/2026-09-21-poe2/README.md) |
 | POE2 研究策略 | 复用已有基线与相同方案；Chat 每轮 12 次新计算、每研究 60 个方案／120 次执行，30 方案软提醒；读取、对比和复用不扣额度，Web 手动计算维持原策略 |
 | QQ 群角色 | 「炸鸡」的人设、群观察、@ 必答、主动互动、群友记忆、魔兽工具权限与群表情复用已实现并部署；用户已验收 @／主动文字与表情、按需引用。[交付记录](../artifacts/verification/2026-09-23-qq-companion/closure/README.md) |
