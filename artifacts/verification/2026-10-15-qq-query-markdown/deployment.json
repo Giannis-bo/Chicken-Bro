@@ -1,0 +1,16 @@
+{
+  "filesMatched": 5,
+  "presentation": "markdown_recent5_v1",
+  "gatewayReady": true,
+  "allowedGroupCount": 1,
+  "queryOnly": true,
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1195642",
+    "chickenbro-worker.service": "1195577",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "rollbackDirectory": "/etc/chickenbro-qq-official/presentation-backup-20261015T024730Z",
+  "cloudTestsPassed": 82,
+  "groupPresentationAcceptance": "pending",
+  "configDatabaseAndCredentialsChanged": false
+}

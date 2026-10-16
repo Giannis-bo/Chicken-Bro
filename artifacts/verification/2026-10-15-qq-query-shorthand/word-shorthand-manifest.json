@@ -1,0 +1,7 @@
+{
+  "path": "server/app/channels/qq_official/query_commands.py",
+  "previousSha256": "ff29e54cea91c0c242d62a290e197a51cb960179eae9d3c7eb5c7facebd6b45c",
+  "sha256": "97b6578fdcde079a6e7346df99249964ce01d915d51ecda0e042d304e5c902aa",
+  "cloudTestsPassed": 92,
+  "testGroupNumber": "1127827451"
+}

@@ -1,0 +1,199 @@
+[
+  {
+    "command": "/角色查询 Giannis 白银之手",
+    "seconds": 11.01,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-15T02:44:14.633147+00:00",
+      "sections": [
+        {
+          "title": "团本",
+          "rows": [],
+          "scope": "烈毒之渊 · 12.1.5",
+          "status": "no_records"
+        },
+        {
+          "title": "大秘境",
+          "rows": [
+            {
+              "name": "虚空之痕竞技场",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 80.3157504015893,
+              "recordedAt": 1791900574063,
+              "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "毒牙祭坛",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 92.33264621485529,
+              "recordedAt": 1791898093435,
+              "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=7",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 74.04892020531919,
+              "recordedAt": 1791896091930,
+              "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=6",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 16,
+              "timed": true
+            },
+            {
+              "name": "毒牙祭坛",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 67.07189895344828,
+              "recordedAt": 1791893839574,
+              "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=5",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 15,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 84.83121009116554,
+              "recordedAt": 1791448544049,
+              "reportUrl": "https://www.warcraftlogs.com/reports/YptH9vaxBChMTn7b?fight=1",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            }
+          ],
+          "scope": "Mythic+ Season 2 · Season 2",
+          "status": "ok"
+        }
+      ],
+      "sources": [
+        "https://raider.io/characters/cn/silver-hand/Giannis",
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ],
+      "profile": {
+        "source": "Raider.IO",
+        "race": "黑铁矮人",
+        "class": "萨满祭司",
+        "spec": "元素",
+        "itemLevel": 327,
+        "sourceTime": "2026-10-13T14:51:58.401Z",
+        "hero": "先知"
+      }
+    },
+    "markdown": "# Giannis｜白银之手｜国服\n\n**角色资料**\n种族：黑铁矮人 · 职业：萨满祭司\n专精：元素 · 英雄天赋：先知\n**装备等级：327**\n资料：Raider.IO · 2026-10-13 22:51 北京时间\n\n## 团本\n烈毒之渊 · 12.1.5\n暂无公开记录\n\n## 大秘境 · 最近 5 场\nMythic\\+ Season 2 · Season 2\n历史 WCL 排名百分位（同层）\n\n1. **虚空之痕竞技场 +12**\n   元素 · DPS · **80.3157504015893（紫分）** · 限时\n   2026-10-13 22:09 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10)\n2. **毒牙祭坛 +12**\n   元素 · DPS · **92.33264621485529（紫分）** · 限时\n   2026-10-13 21:28 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=7)\n3. **诸王之眠 +16**\n   元素 · DPS · **74.04892020531919（蓝分）** · 限时\n   2026-10-13 20:54 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=6)\n4. **毒牙祭坛 +15**\n   元素 · DPS · **67.07189895344828（蓝分）** · 限时\n   2026-10-13 20:17 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=5)\n5. **诸王之眠 +12**\n   元素 · DPS · **84.83121009116554（紫分）** · 限时\n   2026-10-08 16:35 北京时间 · [日志](https://www.warcraftlogs.com/reports/YptH9vaxBChMTn7b?fight=1)\n\n来源：[Raider.IO](https://raider.io/characters/cn/silver-hand/Giannis) · [WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 10:44 北京时间",
+    "partLengths": [
+      1157
+    ]
+  },
+  {
+    "command": "/角色团本查询 Giannis 白银之手 Boss=内克扎莉 难度=英雄",
+    "seconds": 4.38,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-15T02:44:25.647769+00:00",
+      "sections": [
+        {
+          "title": "团本",
+          "rows": [],
+          "scope": "烈毒之渊 · 12.1.5",
+          "status": "no_records"
+        }
+      ],
+      "sources": [
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ]
+    },
+    "markdown": "# Giannis｜白银之手｜国服\n\n## 团本\n烈毒之渊 · 12.1.5\n暂无公开记录\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 10:44 北京时间",
+    "partLengths": [
+      149
+    ]
+  },
+  {
+    "command": "/角色大米查询 Giannis 白银之手 副本=诸王之眠 层数=12",
+    "seconds": 5.7,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-15T02:44:30.025108+00:00",
+      "sections": [
+        {
+          "title": "大秘境",
+          "rows": [
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 84.83121009116554,
+              "recordedAt": 1791448544049,
+              "reportUrl": "https://www.warcraftlogs.com/reports/YptH9vaxBChMTn7b?fight=1",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 73.85101888786447,
+              "recordedAt": 1789188584501,
+              "reportUrl": "https://www.warcraftlogs.com/reports/XzTykZJFWG8xhRf2?fight=4",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 78.04510103780193,
+              "recordedAt": 1789177109767,
+              "reportUrl": "https://www.warcraftlogs.com/reports/b6vCgDp1fr2d7TjM?fight=3",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 74.12426908409483,
+              "recordedAt": 1789140639414,
+              "reportUrl": "https://www.warcraftlogs.com/reports/tkxF6pBhDLrVaX2W?fight=12",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "metric": "DPS",
+              "percentile": 88.02319494331697,
+              "recordedAt": 1788691306860,
+              "reportUrl": "https://www.warcraftlogs.com/reports/Q6ybVT8P39Xx1zmC?fight=2",
+              "scope": "Mythic+ Season 2 · Season 2",
+              "level": 12,
+              "timed": true
+            }
+          ],
+          "scope": "Mythic+ Season 2 · Season 2",
+          "status": "ok"
+        }
+      ],
+      "sources": [
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ]
+    },
+    "markdown": "# Giannis｜白银之手｜国服\n\n## 大秘境 · 最近 5 场\nMythic\\+ Season 2 · Season 2\n历史 WCL 排名百分位（同层）\n\n1. **诸王之眠 +12**\n   元素 · DPS · **84.83121009116554（紫分）** · 限时\n   2026-10-08 16:35 北京时间 · [日志](https://www.warcraftlogs.com/reports/YptH9vaxBChMTn7b?fight=1)\n2. **诸王之眠 +12**\n   元素 · DPS · **73.85101888786447（蓝分）** · 限时\n   2026-09-12 12:49 北京时间 · [日志](https://www.warcraftlogs.com/reports/XzTykZJFWG8xhRf2?fight=4)\n3. **诸王之眠 +12**\n   元素 · DPS · **78.04510103780193（紫分）** · 限时\n   2026-09-12 09:38 北京时间 · [日志](https://www.warcraftlogs.com/reports/b6vCgDp1fr2d7TjM?fight=3)\n4. **诸王之眠 +12**\n   元素 · DPS · **74.12426908409483（蓝分）** · 限时\n   2026-09-11 23:30 北京时间 · [日志](https://www.warcraftlogs.com/reports/tkxF6pBhDLrVaX2W?fight=12)\n5. **诸王之眠 +12**\n   元素 · DPS · **88.02319494331697（紫分）** · 限时\n   2026-09-06 18:41 北京时间 · [日志](https://www.warcraftlogs.com/reports/Q6ybVT8P39Xx1zmC?fight=2)\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 10:44 北京时间",
+    "partLengths": [
+      966
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "candidate": {
+    "resolved": "/opt/chickenbro-qq-official-candidate-20261014/server/app/chickenbro/wcl_source.py",
+    "sha256": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4"
+  },
+  "web": {
+    "resolved": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2/server/app/chickenbro/wcl_source.py",
+    "sha256": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4"
+  }
+}

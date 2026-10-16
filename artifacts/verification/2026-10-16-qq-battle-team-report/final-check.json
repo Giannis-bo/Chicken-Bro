@@ -1,0 +1,37 @@
+{
+  "runtimeFilesMatched": 22,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_team_report_zhcn_v5",
+  "unchangedDuringDeploymentServicePids": {
+    "chickenbro-api.service": "1487462",
+    "chickenbro-worker.service": "1487374",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "currentServicePids": {
+    "chickenbro-api.service": "1943579",
+    "chickenbro-worker.service": "1943440",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "subsequentServiceRestarts": {
+    "chickenbro-api.service": {
+      "atDeployment": "1487462",
+      "atFinalCheck": "1943579",
+      "startedAt": "Fri 2026-10-16 14:06:16 CST"
+    },
+    "chickenbro-worker.service": {
+      "atDeployment": "1487374",
+      "atFinalCheck": "1943440",
+      "startedAt": "Fri 2026-10-16 14:06:15 CST"
+    }
+  },
+  "deploymentReceiptMtime": 1792130755.5530646,
+  "webResolvedPath": "/opt/chickenbro-releases/simc-repaired-20261016-128530c9797bdcbf6bd24af86ec2b29d9ec57af0/server/app/chickenbro/wcl_source.py",
+  "webSourceSha256Unchanged": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4",
+  "legacyServices": {
+    "chickenbro-qq-channel.service": "inactive",
+    "chickenbro-qq-worker.service": "inactive"
+  },
+  "observedAt": 1792130858.013656
+}

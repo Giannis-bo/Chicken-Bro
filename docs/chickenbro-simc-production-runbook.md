@@ -55,3 +55,9 @@
 发布源 `77cee1603`，详细身份和验收见[发布记录](../artifacts/releases/2026-09-21-poe2/README.md)。API/Worker 共用现有正式服务，PoB 使用 `/opt/chickenbro-poe2-runtime/7d6f530c`，仅通过两个服务的 `99-poe2-20260921.conf` 增加 `POE2_*` 配置；Lua 动态库环境仅传入 PoB 子进程。
 
 私有恢复包在 `/var/lib/chickenbro/releases/poe2-20260921`，含旧指针、精确文件清单、配置摘要及数据库备份；正式库备份已在独立库恢复并应用新增迁移。回退需先持有发布锁并确认无在途任务，再停服务、恢复清单中的旧 backend/Web 指针、移除本次两个准确命名的 drop-in、reload/start 并验证。保留新增 schema 与发布后业务数据，不用旧备份覆盖生产。未执行正式回退演练。
+
+## 官方 QQBot 测试群
+
+官方 WoW QQBot 独立于 Web 身份、Chat、SimC 与 POE2，源码为 `server/app/channels/qq_official/`，配置范围维持原单群。角色最近三场查询、WCL 战斗 v8 与无工具引导 v2 是当前能力。模型仅接收限定证据或引导规则，强制禁用继承工具与 MCP。发送使用消息时效、五次预算及不确定状态停发；撤群持久禁用已有和新成员。
+
+云端专用数据库执行 `npm run test:qqbot`；官方 `000`–`004` schema 不进入 Web 迁移。更新前绑定文件清单与 SHA，保留 root 私有文件恢复包及独立恢复数据库，空队列后仅重启官方两项服务。核对原群配置哈希、queryOnly、工具禁用、健康更新时间，以及 Web PIDs／目录／静态文件未变。不得自动扩大群范围或发送验证消息；群端业务验收须另有实际用户消息与回执证据。详见 [本轮记录](../artifacts/verification/2026-10-16-qqbot-integration/README.md)。

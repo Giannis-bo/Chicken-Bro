@@ -221,7 +221,10 @@ def _graphql(
     *,
     token: str | None = None,
     timeout_seconds: Any = None,
+    locale: str | None = None,
 ) -> Mapping[str, Any]:
+    if locale not in (None, 'zhCN'):
+        raise ValueError('unsupported WCL locale')
     request_timeout = _timeout_seconds(timeout_seconds)
     statistics_deadline = _STATISTICS_DEADLINE.get()
     if statistics_deadline is not None:
@@ -237,7 +240,7 @@ def _graphql(
         request_timeout = min(request_timeout, 360 - (started_at-reader.started))
     if not isfinite(request_timeout) or request_timeout <= 0:
         raise WarcraftLogsProviderError('Warcraft Logs request deadline exhausted')
-    graphql_url = os.environ.get(
+    graphql_url = 'https://cn.warcraftlogs.com/api/v2/client' if locale == 'zhCN' else os.environ.get(
         "WOW_WARCRAFTLOGS_GRAPHQL_URL",
         "https://www.warcraftlogs.com/api/v2/client",
     ).strip()
@@ -249,6 +252,7 @@ def _graphql(
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "User-Agent": "wow-mini-program-wcl-sync",
+            **({'Accept-Language': 'zh-CN'} if locale == 'zhCN' else {}),
         },
         method="POST",
     )

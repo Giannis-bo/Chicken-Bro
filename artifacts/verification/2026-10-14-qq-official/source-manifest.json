@@ -1,0 +1,67 @@
+{
+  "sourceBaseCommit": "8682f05fed6657b3354db7a8d2bfb29914c8f21b",
+  "branch": "codex/qq-official",
+  "sourceDelivery": "uncommitted_isolated_worktree",
+  "runtimeDirectory": "/opt/chickenbro-qq-official-candidate-20261014",
+  "testGroupNumber": "1127827451",
+  "appId": "102828220",
+  "cloudTestsPassed": 70,
+  "files": [
+    {
+      "path": "server/app/channels/qq_official/__init__.py",
+      "sha256": "cdc28f3f21f652264951033000ab233d36c25d53670d8bd7cba3ebc6b0fb563f"
+    },
+    {
+      "path": "server/app/channels/qq_official/client.py",
+      "sha256": "5dd4cb61cdaea5249293784c6b8cfdea6f0a3df668962e9c9325087f54bddca6"
+    },
+    {
+      "path": "server/app/channels/qq_official/deployment.py",
+      "sha256": "b4a9ebc6b16a19cb5a00a48390a4a6045054ee193eaada695581a46131701961"
+    },
+    {
+      "path": "server/app/channels/qq_official/gateway.py",
+      "sha256": "c121dc82958f6af814e15606c8dd007eca5d29c7ba8467b52a678f180c03dc3b"
+    },
+    {
+      "path": "server/app/channels/qq_official/policy.py",
+      "sha256": "f4a5074d6e9f3c632eee34908cca30de23450e42f185f040d59dfe3d245623aa"
+    },
+    {
+      "path": "server/app/channels/qq_official/repository.py",
+      "sha256": "32b0fbcbb60111294d6a9e5e8285c0f413ba717e96758bc47e9b0ddcdf268bda"
+    },
+    {
+      "path": "server/app/channels/qq_official/runtime.py",
+      "sha256": "1f17340f9d87299b9edbc2abcc8b1e80f4855ce13ffda69bcf0734f4aba590e0"
+    },
+    {
+      "path": "server/app/platform/config.py",
+      "sha256": "98c220168ff805f6a1ccfb9100e3bf346f39abc397f037480a030cf9aa949396"
+    },
+    {
+      "path": "server/qq-official/001_transport.sql",
+      "sha256": "96b55e012883fcaa27f13083d33a5e9c4a15cac3af2907562a56abeb52c964c5"
+    },
+    {
+      "path": "server/qq-official/README.md",
+      "sha256": "34270ef79e6e39187642d337b6f953f0c5c94a0505ba06729d0c45ac0f4346ac"
+    },
+    {
+      "path": "server/qq-official/chickenbro-qq-official-worker.service",
+      "sha256": "b91f824179683d33d6aac2e668f69289ef059d578a9d9ae37638ad40cc4832bc"
+    },
+    {
+      "path": "server/qq-official/chickenbro-qq-official.service",
+      "sha256": "19536dec6bd0b94a599ea1211536df06d52521eda36c8ff19552192f7b765a0c"
+    },
+    {
+      "path": "server/qq-official/probe.py",
+      "sha256": "f6053d2774d649821b875ec9aab2ab7116c27a668394438c9fec374ed2c9540c"
+    },
+    {
+      "path": "server/qq-official/requirements.txt",
+      "sha256": "06cc8843caba375f54bed43345d7734a3c6c29a4399b1e7dc97d50a649047e00"
+    }
+  ]
+}

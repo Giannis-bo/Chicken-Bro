@@ -21,6 +21,7 @@ test('project owner map covers exactly the rebuilt product domains', () => {
     'control_and_cleanup',
     'admin_analytics',
     'poe2',
+    'qq_official',
   ])
   assert.deepEqual(ownerMap.unownedCriticalDomains, [])
   assert.deepEqual(ownerMap.conflictingFactOwners, [])

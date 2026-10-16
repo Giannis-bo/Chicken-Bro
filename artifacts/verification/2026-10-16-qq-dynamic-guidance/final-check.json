@@ -1,0 +1,26 @@
+{
+  "runtimeFilesMatched": 28,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_evidence_narrative_zhcn_v8",
+  "defaultReplyPresentation": "bounded-model-guidance-v1",
+  "guidanceToolAccess": false,
+  "groupedHelpCharacters": 489,
+  "candidateModelResult": {
+    "schema": "qq-guidance-v1",
+    "version": "bounded-model-guidance-v1",
+    "status": "ready",
+    "text": "闲聊暂时还没开放，鸡哥目前能帮你查魔兽角色、团本和大米成绩，也支持WCL战斗摘要与人物点评，具体用法看 /帮助。",
+    "modelCalls": 1,
+    "seconds": 9.28
+  },
+  "unchangedServicePids": {
+    "chickenbro-api.service": "2319609",
+    "chickenbro-worker.service": "2319544",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "candidateDatabaseWrites": 0,
+  "qqValidationMessagesSent": 0,
+  "manualGroupAcceptance": "pending_user_test"
+}

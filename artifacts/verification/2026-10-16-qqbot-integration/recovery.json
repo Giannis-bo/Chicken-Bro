@@ -1,0 +1,27 @@
+{
+  "fileRestoreVerified": 570,
+  "databaseRestoreVerified": 38,
+  "runtimeFiles": 37,
+  "quarantineFiles": 45,
+  "recoveryPath": "/var/lib/chickenbro-retirement/qqbot-integration-20261016",
+  "restoreDatabase": "chickenbro_qq_official_restore_20261016",
+  "archiveSha256": "092cbc77f4e41ea9d299c2b8a210d88638421df51819c0057f37d58b15ca0a14",
+  "databaseDumpSha256": "4f6681e35fa2a166115c6761a00a94026a10e302cf9138039fd585031abb04ca",
+  "webBefore": {
+    "backendPath": "/opt/chickenbro-releases/simc-characters-20261016-fc393359efea1d13",
+    "webPath": "/var/www/chickenbro-web/releases/simc-characters-20261016-fc393359efea1d13",
+    "apiPid": "2319609",
+    "workerPid": "2319544",
+    "backendFiles": 1811,
+    "webFiles": 15,
+    "configHashes": {
+      "/etc/chickenbro-qq-official/channel.json": "42068433569020bad14d3bf0181ce8f1897bb2c96195670cca7af04ee3727e5e",
+      "/etc/chickenbro-qq-official/credentials.json": "05bc00a4a96eb10a331fa8aa60326d92e9d6a5ba9cc7b387e9a1cb7b3bbfd2cc",
+      "/etc/chickenbro-qq-official/battle-panel-before-20261015.json": "c4a623fb88d708b0415db8bc5c26ed1a8f553bf1388a39f772764e1f62351801",
+      "/etc/chickenbro-qq-official/discovery.json": "0e36f99bf74e450e9f24d2ddbf9040c3723f09a5abbc4cc9cf9f1fc6a86f18d6",
+      "/etc/chickenbro-qq-official/runtime-before-model-network.env": "5a94564f26648b87012ba19275c82a6e0a6a7f6ed723109551c598f7f573ed0b",
+      "/etc/chickenbro-qq-official/runtime.env": "62abea8a05b92ce27c26164cde85dcb906de7cd8c89b104af3f578860f4656eb",
+      "/etc/chickenbro-qq-official/battle-mplus-panel-before-20261016.json": "075ea53d86a58c897d204b653d8b23fc548f919ccfa9e0ecad5f5c30c0e93704"
+    }
+  }
+}

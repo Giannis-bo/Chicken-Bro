@@ -1,0 +1,34 @@
+{
+  "sourceBaseCommit": "8682f05fed6657b3354db7a8d2bfb29914c8f21b",
+  "branch": "codex/qq-official",
+  "testGroupNumber": "1127827451",
+  "cloudTestsPassed": 82,
+  "presentation": "markdown_recent5_v1",
+  "files": [
+    {
+      "path": "server/app/channels/qq_official/character_source.py",
+      "sha256": "b819a3fa1297f3b75c2ebcd27bdb05f0d1f9f75c5b0b7410d41df4b45254ec42",
+      "previousSha256": "53d9f980fc19ebba42c9bd8a310d0beda4ad30c7aa9087e79d6beaa9adcc678c"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_commands.py",
+      "sha256": "f8a37d9e5e39e28cec413f7fa3dcdda19daed07d057042676622786bdfa2bae9",
+      "previousSha256": "5aca081b858ef69a3c40e4fd81c8208e49d657ffcae1ac81d1a8889da1abef49"
+    },
+    {
+      "path": "server/app/channels/qq_official/client.py",
+      "sha256": "53cf43f13ffe8d677a637ccb2ac217aacae72a49dfbd15026d670b16f3ce4b83",
+      "previousSha256": "5dd4cb61cdaea5249293784c6b8cfdea6f0a3df668962e9c9325087f54bddca6"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_repository.py",
+      "sha256": "b4d23efd49987cd3672ec0ccbcd2c34a97c8c9f6c89d63b4bcb0d5057bacafec",
+      "previousSha256": "2f10cc8953911ec517831c3fbfcf14c7144cf77f4019e7f97a13146da5f7d07d"
+    },
+    {
+      "path": "server/app/channels/qq_official/runtime.py",
+      "sha256": "b407865884a26f621eaf186770e099b73b542f809c3f3318cf607125ef3f089a",
+      "previousSha256": "472d1bdbcd0e5815adf498cde9eaaa781a80541dbddf8424f7a2f68d899034c6"
+    }
+  ]
+}

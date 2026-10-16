@@ -1,0 +1,148 @@
+{
+  "qqMessagesSent": 0,
+  "modelCalls": 2,
+  "realPublicSources": true,
+  "character": {
+    "identity": "Giannis｜白银之手｜国服",
+    "sections": [
+      {
+        "title": "团本",
+        "rows": [
+          {
+            "name": "乌拉特克",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 39.89825425897988,
+            "recordedAt": 1792073276193,
+            "reportUrl": "https://www.warcraftlogs.com/reports/Hb4Vkx39tjaKYfWL?fight=9",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "乌拉特克",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 80.46049876060898,
+            "recordedAt": 1791891480252,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "The Coiled Altar",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 64.8574715233876,
+            "recordedAt": 1791724239828,
+            "reportUrl": "https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          }
+        ],
+        "scope": "烈毒之渊 · 全部分区",
+        "status": "ok"
+      },
+      {
+        "title": "大秘境",
+        "rows": [
+          {
+            "name": "虚空之痕竞技场",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 87.4168110021824,
+            "recordedAt": 1792076024956,
+            "reportUrl": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 12,
+            "timed": true
+          },
+          {
+            "name": "密谋小径",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 77.76749149665446,
+            "recordedAt": 1792074267741,
+            "reportUrl": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 12,
+            "timed": true
+          },
+          {
+            "name": "虚空之痕竞技场",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 80.3157504015893,
+            "recordedAt": 1791900574063,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 12,
+            "timed": true
+          }
+        ],
+        "scope": "Mythic+ Season 2 · Season 2",
+        "status": "ok"
+      }
+    ],
+    "message": "# Giannis｜白银之手｜国服\n\n**角色资料**\n种族：黑铁矮人 · 职业：萨满祭司\n专精：元素 · 英雄天赋：暂无数据\n**装备等级：327**\n资料：Raider.IO · 2026-10-16 00:39 北京时间\n\n## 团本 · 最近 3 场\n烈毒之渊 · 全部分区\n历史 WCL 排名百分位\n\n**1. 乌拉特克 · 英雄**\n   元素 · DPS · **40（绿分）**\n   2026-10-15 22:07 北京时间 · [日志](https://www.warcraftlogs.com/reports/Hb4Vkx39tjaKYfWL?fight=9)\n**2. 乌拉特克 · 英雄**\n   元素 · DPS · **80（紫分）**\n   2026-10-13 19:38 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3)\n**3. The Coiled Altar · 英雄**\n   元素 · DPS · **65（蓝分）**\n   2026-10-11 21:10 北京时间 · [日志](https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48)\n\n## 大秘境 · 最近 3 场\nMythic\\+ Season 2 · Season 2\n历史 WCL 排名百分位（同层）\n\n**1. 虚空之痕竞技场 +12**\n   元素 · DPS · **87（紫分）** · 限时\n   2026-10-15 22:53 北京时间 · [日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2)\n**2. 密谋小径 +12**\n   元素 · DPS · **78（紫分）** · 限时\n   2026-10-15 22:24 北京时间 · [日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1)\n**3. 虚空之痕竞技场 +12**\n   元素 · DPS · **80（紫分）** · 限时\n   2026-10-13 22:09 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10)\n\n来源：[Raider.IO](https://raider.io/characters/cn/silver-hand/Giannis) · [WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-16 18:24 北京时间"
+  },
+  "battle": {
+    "reportCode": "mZBg8DbyNdTrXcFL",
+    "fightId": 3,
+    "coverage": {
+      "actors": true,
+      "deaths": true,
+      "roles": true,
+      "damage": true,
+      "healing": true
+    },
+    "narrative": {
+      "summary": "这场打赢了，但本场死亡6次，涉及6人，过关之外还有明确的减员处理要修。伤害和治疗都有扎实贡献，普攻承接与落石重复命中则各有各的改法，不能混成笼统的生存问题。\n\n🏆 扛住场面的\n**凄迷**：1.62亿伤害，同职责第1/19，同时本场死亡0次。输出位置靠前，自己也完整站住了，这份伤害贡献够硬；本场使用治疗石2次，保命按钮也有实际使用。\n**小苹果酱**：1.83亿有效治疗，同职责第1/6，尤其是02:02–02:08队伍承伤1597.6万，你提供258.1万有效治疗。队伍集中掉血时有实际治疗托底，治疗量不是只挂在结算面板上，这段贡献很实在。\n\n💀 这场的失分点\n**这个真不会啊**：00:32，非坦克承接血腥响尾普攻137.6万，这是分摊后恢复的第一下普攻，需让坦克承接这个时点。这里该修的是普攻恢复时的承接安排；一击超过满血88.6万，按现有防护补满仍无法存活，单靠治疗把血条抬满，挡不住这个致死点。\n**Mixhouse**：04:53，2次落石在1毫秒内命中，合计80.2万，避开任意一次命中即可保住这次生命。这次栽在落石伤害叠加，落点躲开就能消掉致死组合；石头叠着吃没有奖励，该省下的是这笔额外承伤。\n\n下次把分摊后的普攻交给坦克承接，并避开落石重复命中，这些已经暴露的减员点就有明确的处理方向。",
+      "good": [
+        {
+          "actorId": 208,
+          "text": "WCL分数94（输出），恶魔学识术士，装等327，1.62亿伤害，同职责第1/19。这场输出端确实够硬，伤害打到了队伍前排，值得夸的也不只是结算位置：本场死亡0次，本场使用治疗石2次。能打、站得住，还实际用了自保资源，这份贡献没有只顾着追伤害面板。"
+        },
+        {
+          "actorId": 216,
+          "text": "1.83亿有效治疗，同职责第1/6，更值得拿出来说的是02:02–02:08队伍承伤1597.6万，你提供258.1万有效治疗。集中承伤时确实有有效治疗接上，贡献能对到队伍掉血的具体阶段。再加上本场死亡0次，自己也稳稳站到了结束，这场治疗位置坐得扎实，奶量有实际用途。"
+        },
+        {
+          "actorId": 236,
+          "text": "1.55亿伤害，同职责第2/19，离本场同专精第一只差4.8%，第一梯队咬得很紧。这场属于紧跟同专精前排的输出，伤害差距没有被拉开，存在感很足。再看本场死亡0次，以及本场使用治疗石2次，打伤害之外也照顾了自身生存，这份表现值得夸，别被结算位置遮住了贡献。"
+        }
+      ],
+      "review": [
+        {
+          "actorId": 224,
+          "text": "00:32，非坦克承接血腥响尾普攻137.6万，这是分摊后恢复的第一下普攻，需让坦克承接这个时点。这次致死点卡在分摊结束、普攻恢复的衔接上，承接对象需要安排清楚。一击超过满血88.6万，按现有防护补满仍无法存活，血条再绿也扛不住这下；处理方向就是让坦克接住恢复后的普攻，别把这个环节留给补血硬顶。"
+        },
+        {
+          "actorId": 230,
+          "text": "04:53，2次落石在1毫秒内命中，合计80.2万，当时伤前生命68.9万，避开任意一次命中即可保住这次生命。这次不是落石擦伤，而是重复命中把伤害叠到了致死线。直接改进点是躲避落点，消除重复命中，改法已经很直接：盯住落点、避开叠加承伤，石头可不适合凑套餐，这条命原本能保住。"
+        },
+        {
+          "actorId": 222,
+          "text": "6229.2万伤害，同职责第18/19，同专精阿尔托黎娅打了9706.3万，两人装等差不超过5，你的伤害少35.8%。本场最明显的输出失分，是相近装备条件下同专精已经打出了更高伤害，而你的贡献落在队伍后段。这个差距值得认真对待；点评就落在本场伤害表现上，循环哪个环节该改，并没有可直接下结论的细节。"
+        }
+      ],
+      "status": "ready",
+      "version": "battle-narrative-v8",
+      "fingerprint": "2bb29307f56a0951b33c4b3dc0bd26d2acb98953d472f3c3178d880e4659e44e",
+      "modelCalls": 1,
+      "seconds": 43.56
+    },
+    "messages": {
+      "battle_summary": "# 乌拉特克 · 战斗分析\n**英雄｜已击杀｜09:51｜28人**\n\n这场打赢了，但本场死亡6次，涉及6人，过关之外还有明确的减员处理要修。伤害和治疗都有扎实贡献，普攻承接与落石重复命中则各有各的改法，不能混成笼统的生存问题。\n\n🏆 扛住场面的\n**凄迷**：1.62亿伤害，同职责第1/19，同时本场死亡0次。输出位置靠前，自己也完整站住了，这份伤害贡献够硬；本场使用治疗石2次，保命按钮也有实际使用。\n**小苹果酱**：1.83亿有效治疗，同职责第1/6，尤其是02:02–02:08队伍承伤1597.6万，你提供258.1万有效治疗。队伍集中掉血时有实际治疗托底，治疗量不是只挂在结算面板上，这段贡献很实在。\n\n💀 这场的失分点\n**这个真不会啊**：00:32，非坦克承接血腥响尾普攻137.6万，这是分摊后恢复的第一下普攻，需让坦克承接这个时点。这里该修的是普攻恢复时的承接安排；一击超过满血88.6万，按现有防护补满仍无法存活，单靠治疗把血条抬满，挡不住这个致死点。\n**Mixhouse**：04:53，2次落石在1毫秒内命中，合计80.2万，避开任意一次命中即可保住这次生命。这次栽在落石伤害叠加，落点躲开就能消掉致死组合；石头叠着吃没有奖励，该省下的是这笔额外承伤。\n\n下次把分摊后的普攻交给坦克承接，并避开落石重复命中，这些已经暴露的减员点就有明确的处理方向。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3) · 第3场\n详情：/战斗详情-大腿 · /战斗分析-菜鸡",
+      "battle_good": "# 乌拉特克 · 战斗详情·大腿\n**英雄｜已击杀｜09:51｜28人**\n\n**1. 凄迷**\nWCL分数94（输出），恶魔学识术士，装等327，1.62亿伤害，同职责第1/19。这场输出端确实够硬，伤害打到了队伍前排，值得夸的也不只是结算位置：本场死亡0次，本场使用治疗石2次。能打、站得住，还实际用了自保资源，这份贡献没有只顾着追伤害面板。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=damage-done&source=208)\n\n**2. 小苹果酱**\n1.83亿有效治疗，同职责第1/6，更值得拿出来说的是02:02–02:08队伍承伤1597.6万，你提供258.1万有效治疗。集中承伤时确实有有效治疗接上，贡献能对到队伍掉血的具体阶段。再加上本场死亡0次，自己也稳稳站到了结束，这场治疗位置坐得扎实，奶量有实际用途。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=healing&source=216)\n\n**3. 不咋滴丶**\n1.55亿伤害，同职责第2/19，离本场同专精第一只差4.8%，第一梯队咬得很紧。这场属于紧跟同专精前排的输出，伤害差距没有被拉开，存在感很足。再看本场死亡0次，以及本场使用治疗石2次，打伤害之外也照顾了自身生存，这份表现值得夸，别被结算位置遮住了贡献。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=damage-done&source=236)\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3) · 第3场",
+      "battle_review": "# 乌拉特克 · 战斗分析·菜鸡\n**英雄｜已击杀｜09:51｜28人**\n\n**1. 这个真不会啊**\n00:32，非坦克承接血腥响尾普攻137.6万，这是分摊后恢复的第一下普攻，需让坦克承接这个时点。这次致死点卡在分摊结束、普攻恢复的衔接上，承接对象需要安排清楚。一击超过满血88.6万，按现有防护补满仍无法存活，血条再绿也扛不住这下；处理方向就是让坦克接住恢复后的普攻，别把这个环节留给补血硬顶。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=deaths&source=224)\n\n**2. Mixhouse**\n04:53，2次落石在1毫秒内命中，合计80.2万，当时伤前生命68.9万，避开任意一次命中即可保住这次生命。这次不是落石擦伤，而是重复命中把伤害叠到了致死线。直接改进点是躲避落点，消除重复命中，改法已经很直接：盯住落点、避开叠加承伤，石头可不适合凑套餐，这条命原本能保住。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=deaths&source=230)\n\n**3. 血之咆哮**\n6229.2万伤害，同职责第18/19，同专精阿尔托黎娅打了9706.3万，两人装等差不超过5，你的伤害少35.8%。本场最明显的输出失分，是相近装备条件下同专精已经打出了更高伤害，而你的贡献落在队伍后段。这个差距值得认真对待；点评就落在本场伤害表现上，循环哪个环节该改，并没有可直接下结论的细节。\n[日志证据](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3&type=damage-done&source=222)\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3) · 第3场"
+    }
+  },
+  "guidance": {
+    "schema": "qq-guidance-v1",
+    "version": "bounded-model-guidance-v2",
+    "status": "ready",
+    "text": "查大米成绩用 /角色大米查询，具体参数格式看 /帮助，照着填就行。",
+    "modelCalls": 1,
+    "seconds": 5.39
+  }
+}

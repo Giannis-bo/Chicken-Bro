@@ -1,0 +1,19 @@
+{
+  "webSourceSha256Unchanged": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4",
+  "runtimeFilesMatched": 24,
+  "changedFiles": 5,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_player_commentary_zhcn_v6",
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1943579",
+    "chickenbro-worker.service": "1943440",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "rollbackDirectory": "/etc/chickenbro-qq-official/battle-commentary-backup-20261016T065252Z",
+  "rollbackDrill": false,
+  "databaseChanged": false,
+  "configAndCredentialsChanged": false,
+  "sourceDelivery": "uncommitted_not_pushed_not_integrated"
+}

@@ -1,0 +1,1457 @@
+{
+  "gaps": [],
+  "good": [
+    {
+      "name": "辉斩",
+      "rank": 1,
+      "prose": true,
+      "share": 34.90514629191685,
+      "amount": 262257522,
+      "metric": "damage",
+      "actorId": 4,
+      "analysis": [
+        "WCL分数70（输出），浩劫恶魔猎手，装等326，2.62亿伤害，输出第1/3，占同职责34.9%。领先第二名950.8万。",
+        "中断施法2次，其中灵魂之箭1次；驱散6次，其中暗影束缚6次。",
+        "本场记录死亡1次。",
+        "贡献排得上号，减员这笔账也得一起记。",
+        "全程CPM 41.9；本场使用治疗药水1次。"
+      ],
+      "evidence": [
+        {
+          "view": "damage",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "interrupts",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "dispels",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "playerDetails",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 4,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 932,
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+        }
+      ],
+      "roleCount": 3,
+      "roleLabel": "输出",
+      "requiredAnalysis": [
+        0
+      ]
+    },
+    {
+      "name": "巧克力丨丶",
+      "rank": 1,
+      "prose": true,
+      "share": 100.0,
+      "amount": 116944555,
+      "metric": "effective_healing",
+      "actorId": 2,
+      "analysis": [
+        "WCL分数52（治疗），神圣圣骑士，装等323，1.17亿有效治疗，是本场唯一治疗。",
+        "08:00–08:06队伍承伤92.7万，你提供32.7万有效治疗。",
+        "驱散10次，其中冰霜震击4次。",
+        "治疗和驱散两份活都交了作业，这份贡献得记。",
+        "本场没有死亡。",
+        "全程CPM 33.9。"
+      ],
+      "evidence": [
+        {
+          "view": "healing",
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Healing",
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 637653,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "dispels",
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "playerDetails",
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "hps",
+          "actorId": 2,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 755,
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "roleCount": 1,
+      "roleLabel": "治疗",
+      "requiredAnalysis": [
+        0
+      ]
+    }
+  ],
+  "fight": {
+    "id": 1,
+    "kill": true,
+    "name": "诸王之眠",
+    "endTime": 1493292,
+    "gameZone": {
+      "id": 1762,
+      "name": "诸王之眠"
+    },
+    "startTime": 157318,
+    "difficulty": 10,
+    "keystoneLevel": 12
+  },
+  "causes": [
+    {
+      "hits": [
+        {
+          "time": 485.326,
+          "amount": 242083,
+          "ability": "剑刃风暴",
+          "sourceId": 32,
+          "timestamp": 642644
+        }
+      ],
+      "name": "辉斩",
+      "cause": "lethal_hit",
+      "death": {
+        "name": "辉斩",
+        "time": 485.335,
+        "ability": "剑刃风暴",
+        "actorId": 4,
+        "evidence": [
+          {
+            "view": "Deaths",
+            "actorId": 4,
+            "fightId": 1,
+            "complete": true,
+            "timestamp": 642653,
+            "reportCode": "YptH9vaxBChMTn7b"
+          }
+        ],
+        "killerId": 32,
+        "abilityId": 270928,
+        "timestamp": 642653
+      },
+      "prose": true,
+      "ability": "剑刃风暴",
+      "actorId": 4,
+      "analysis": [
+        "WCL分数70（输出），浩劫恶魔猎手，装等326。",
+        "08:05：直接致死：剑刃风暴完整一击24.2万。命中前剩余生命23.9万，伤害超过当时生命。",
+        "伤前生命23.9万/84.0万，致死伤害前2秒实际有效治疗8.2万。",
+        "全程CPM 41.9；本场使用治疗药水1次。"
+      ],
+      "complete": true,
+      "evidence": [
+        {
+          "view": "DamageTaken",
+          "actorId": 4,
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 632653,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "targetFilter": 4
+        },
+        {
+          "view": "All",
+          "actorId": 4,
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 632653,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "targetFilter": 4
+        },
+        {
+          "view": "playerDetails",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 4,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 932,
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+        }
+      ],
+      "lastHeal": {
+        "x": -273682,
+        "y": -110931,
+        "type": "heal",
+        "armor": 1096,
+        "fight": 1,
+        "mapID": 1004,
+        "absorb": 2812,
+        "amount": 5499,
+        "facing": -701,
+        "hitType": 1,
+        "sourceID": 4,
+        "targetID": 4,
+        "avoidance": 453,
+        "hitPoints": 239379,
+        "itemLevel": 326,
+        "timestamp": 642563,
+        "spellPower": 736,
+        "attackPower": 4108,
+        "versatility": 700,
+        "maxHitPoints": 839986,
+        "abilityGameID": 143924,
+        "resourceActor": 1,
+        "classResources": [
+          {
+            "max": 170,
+            "type": 17,
+            "amount": 170
+          }
+        ]
+      },
+      "sourceId": 32,
+      "abilityId": 270928,
+      "hitEvents": [
+        {
+          "x": -273682,
+          "y": -110931,
+          "type": "damage",
+          "armor": 1096,
+          "buffs": "157128.1266616.",
+          "fight": 1,
+          "isAoE": true,
+          "mapID": 1004,
+          "absorb": 0,
+          "amount": 239379,
+          "facing": -701,
+          "hitType": 1,
+          "absorbed": 30022,
+          "overkill": 2704,
+          "sourceID": 32,
+          "targetID": 4,
+          "avoidance": 453,
+          "hitPoints": 0,
+          "itemLevel": 326,
+          "mitigated": 168976,
+          "timestamp": 642644,
+          "spellPower": 622,
+          "attackPower": 3067,
+          "versatility": 400,
+          "maxHitPoints": 839986,
+          "abilityGameID": 270928,
+          "resourceActor": 2,
+          "classResources": [
+            {
+              "max": 170,
+              "type": 17,
+              "amount": 0
+            }
+          ],
+          "unmitigatedAmount": 441081
+        }
+      ],
+      "maxHealth": 839986,
+      "burstCount": 1,
+      "conclusion": "直接致死：剑刃风暴完整一击24.2万。命中前剩余生命23.9万，伤害超过当时生命。",
+      "deathCount": 1,
+      "fatalEvent": {
+        "x": -273682,
+        "y": -110931,
+        "type": "damage",
+        "armor": 1096,
+        "buffs": "157128.1266616.",
+        "fight": 1,
+        "isAoE": true,
+        "mapID": 1004,
+        "absorb": 0,
+        "amount": 239379,
+        "facing": -701,
+        "hitType": 1,
+        "absorbed": 30022,
+        "overkill": 2704,
+        "sourceID": 32,
+        "targetID": 4,
+        "avoidance": 453,
+        "hitPoints": 0,
+        "itemLevel": 326,
+        "mitigated": 168976,
+        "timestamp": 642644,
+        "spellPower": 622,
+        "attackPower": 3067,
+        "versatility": 400,
+        "maxHitPoints": 839986,
+        "abilityGameID": 270928,
+        "resourceActor": 2,
+        "classResources": [
+          {
+            "max": 170,
+            "type": 17,
+            "amount": 0
+          }
+        ],
+        "unmitigatedAmount": 441081
+      },
+      "sourceName": "提玛吉大王",
+      "burstDamage": 242083,
+      "fatalDamage": 242083,
+      "buffCoverage": [
+        157128,
+        1266616
+      ],
+      "extraReduction": null,
+      "requiredAnalysis": [
+        1,
+        2
+      ],
+      "burstMilliseconds": 0,
+      "healthBeforeBurst": 239379,
+      "recordedDefensives": [],
+      "healingLast2Seconds": 82206
+    }
+  ],
+  "deaths": [
+    {
+      "name": "辉斩",
+      "time": 485.335,
+      "ability": "剑刃风暴",
+      "actorId": 4,
+      "evidence": [
+        {
+          "view": "Deaths",
+          "actorId": 4,
+          "fightId": 1,
+          "complete": true,
+          "timestamp": 642653,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "killerId": 32,
+      "abilityId": 270928,
+      "timestamp": 642653
+    }
+  ],
+  "readAt": "2026-10-16T07:31:09.622871+00:00",
+  "review": [
+    {
+      "hits": [
+        {
+          "time": 485.326,
+          "amount": 242083,
+          "ability": "剑刃风暴",
+          "sourceId": 32,
+          "timestamp": 642644
+        }
+      ],
+      "name": "辉斩",
+      "cause": "lethal_hit",
+      "death": {
+        "name": "辉斩",
+        "time": 485.335,
+        "ability": "剑刃风暴",
+        "actorId": 4,
+        "evidence": [
+          {
+            "view": "Deaths",
+            "actorId": 4,
+            "fightId": 1,
+            "complete": true,
+            "timestamp": 642653,
+            "reportCode": "YptH9vaxBChMTn7b"
+          }
+        ],
+        "killerId": 32,
+        "abilityId": 270928,
+        "timestamp": 642653
+      },
+      "prose": true,
+      "ability": "剑刃风暴",
+      "actorId": 4,
+      "analysis": [
+        "WCL分数70（输出），浩劫恶魔猎手，装等326。",
+        "08:05：直接致死：剑刃风暴完整一击24.2万。命中前剩余生命23.9万，伤害超过当时生命。",
+        "伤前生命23.9万/84.0万，致死伤害前2秒实际有效治疗8.2万。",
+        "全程CPM 41.9；本场使用治疗药水1次。"
+      ],
+      "complete": true,
+      "evidence": [
+        {
+          "view": "DamageTaken",
+          "actorId": 4,
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 632653,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "targetFilter": 4
+        },
+        {
+          "view": "All",
+          "actorId": 4,
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 632653,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "targetFilter": 4
+        },
+        {
+          "view": "playerDetails",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 4,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 932,
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+        }
+      ],
+      "lastHeal": {
+        "x": -273682,
+        "y": -110931,
+        "type": "heal",
+        "armor": 1096,
+        "fight": 1,
+        "mapID": 1004,
+        "absorb": 2812,
+        "amount": 5499,
+        "facing": -701,
+        "hitType": 1,
+        "sourceID": 4,
+        "targetID": 4,
+        "avoidance": 453,
+        "hitPoints": 239379,
+        "itemLevel": 326,
+        "timestamp": 642563,
+        "spellPower": 736,
+        "attackPower": 4108,
+        "versatility": 700,
+        "maxHitPoints": 839986,
+        "abilityGameID": 143924,
+        "resourceActor": 1,
+        "classResources": [
+          {
+            "max": 170,
+            "type": 17,
+            "amount": 170
+          }
+        ]
+      },
+      "sourceId": 32,
+      "abilityId": 270928,
+      "hitEvents": [
+        {
+          "x": -273682,
+          "y": -110931,
+          "type": "damage",
+          "armor": 1096,
+          "buffs": "157128.1266616.",
+          "fight": 1,
+          "isAoE": true,
+          "mapID": 1004,
+          "absorb": 0,
+          "amount": 239379,
+          "facing": -701,
+          "hitType": 1,
+          "absorbed": 30022,
+          "overkill": 2704,
+          "sourceID": 32,
+          "targetID": 4,
+          "avoidance": 453,
+          "hitPoints": 0,
+          "itemLevel": 326,
+          "mitigated": 168976,
+          "timestamp": 642644,
+          "spellPower": 622,
+          "attackPower": 3067,
+          "versatility": 400,
+          "maxHitPoints": 839986,
+          "abilityGameID": 270928,
+          "resourceActor": 2,
+          "classResources": [
+            {
+              "max": 170,
+              "type": 17,
+              "amount": 0
+            }
+          ],
+          "unmitigatedAmount": 441081
+        }
+      ],
+      "maxHealth": 839986,
+      "burstCount": 1,
+      "conclusion": "直接致死：剑刃风暴完整一击24.2万。命中前剩余生命23.9万，伤害超过当时生命。",
+      "deathCount": 1,
+      "fatalEvent": {
+        "x": -273682,
+        "y": -110931,
+        "type": "damage",
+        "armor": 1096,
+        "buffs": "157128.1266616.",
+        "fight": 1,
+        "isAoE": true,
+        "mapID": 1004,
+        "absorb": 0,
+        "amount": 239379,
+        "facing": -701,
+        "hitType": 1,
+        "absorbed": 30022,
+        "overkill": 2704,
+        "sourceID": 32,
+        "targetID": 4,
+        "avoidance": 453,
+        "hitPoints": 0,
+        "itemLevel": 326,
+        "mitigated": 168976,
+        "timestamp": 642644,
+        "spellPower": 622,
+        "attackPower": 3067,
+        "versatility": 400,
+        "maxHitPoints": 839986,
+        "abilityGameID": 270928,
+        "resourceActor": 2,
+        "classResources": [
+          {
+            "max": 170,
+            "type": 17,
+            "amount": 0
+          }
+        ],
+        "unmitigatedAmount": 441081
+      },
+      "sourceName": "提玛吉大王",
+      "burstDamage": 242083,
+      "fatalDamage": 242083,
+      "buffCoverage": [
+        157128,
+        1266616
+      ],
+      "extraReduction": null,
+      "requiredAnalysis": [
+        1,
+        2
+      ],
+      "burstMilliseconds": 0,
+      "healthBeforeBurst": 239379,
+      "recordedDefensives": [],
+      "healingLast2Seconds": 82206
+    }
+  ],
+  "schema": "qq-battle-v1",
+  "status": "ready",
+  "fightId": 1,
+  "windows": [
+    {
+      "pages": 1,
+      "endTime": 643653,
+      "complete": true,
+      "dataType": "DamageTaken",
+      "startTime": 637653,
+      "observedThrough": 643653
+    }
+  ],
+  "coverage": {
+    "roles": true,
+    "actors": true,
+    "damage": true,
+    "deaths": true,
+    "healing": true
+  },
+  "duration": 1335.974,
+  "narrative": {
+    "status": "unavailable",
+    "seconds": 36.3,
+    "version": "battle-narrative-v7",
+    "errorCode": "summary actor",
+    "modelCalls": 1,
+    "fingerprint": "6ef7de15888e208a867087d4f1f78452c891707dd6b6c9971ae5a2527e0bbc73"
+  },
+  "sourceUrl": "https://www.warcraftlogs.com/reports/YptH9vaxBChMTn7b",
+  "battleType": "mythic_plus",
+  "difficulty": "大秘境+12",
+  "highlights": [
+    "**整场结论**\n本场死亡1次，涉及1人；08:05出现唯一一次减员，后续14:10未再记录死亡。",
+    "**队伍表现**\n**辉斩**：WCL分数70（输出），浩劫恶魔猎手，装等326，2.62亿伤害，输出第1/3，占同职责34.9%。领先第二名950.8万。中断施法2次，其中灵魂之箭1次；驱散6次，其中暗影束缚6次。本场记录死亡1次。\n**巧克力丨丶**：WCL分数52（治疗），神圣圣骑士，装等323，1.17亿有效治疗，是本场唯一治疗。驱散10次，其中冰霜震击4次。本场没有死亡。",
+    "**减员原因**\n08:05 辉斩：直接致死：剑刃风暴完整一击24.2万。命中前剩余生命23.9万，伤害超过当时生命。",
+    "**关键承伤片段**\n08:00–08:06，2人合计承伤92.7万；主要来源剑刃风暴72.4万。同窗玩家有效治疗68.5万。\n整场评价结合实际贡献与这些关键时点。"
+  ],
+  "reportCode": "YptH9vaxBChMTn7b",
+  "teamReport": {
+    "utility": {
+      "dispels": {
+        "total": 27,
+        "actors": {
+          "1": 1,
+          "2": 10,
+          "3": 10,
+          "4": 6
+        },
+        "spells": {
+          "1": [
+            {
+              "name": "兽性狂暴",
+              "count": 1,
+              "abilityId": 1297763
+            }
+          ],
+          "2": [
+            {
+              "name": "冰霜震击",
+              "count": 4,
+              "abilityId": 270499
+            },
+            {
+              "name": "腐烂搜寻者",
+              "count": 3,
+              "abilityId": 1298104
+            }
+          ],
+          "3": [
+            {
+              "name": "暗影束缚",
+              "count": 6,
+              "abilityId": 269935
+            },
+            {
+              "name": "队长壁垒",
+              "count": 2,
+              "abilityId": 1296671
+            }
+          ],
+          "4": [
+            {
+              "name": "暗影束缚",
+              "count": 6,
+              "abilityId": 269935
+            }
+          ]
+        },
+        "complete": true
+      },
+      "interrupts": {
+        "total": 26,
+        "actors": {
+          "1": 11,
+          "3": 9,
+          "4": 2,
+          "5": 4
+        },
+        "spells": {
+          "1": [
+            {
+              "name": "幽灵弹",
+              "count": 3,
+              "abilityId": 1295125
+            },
+            {
+              "name": "毒性新星",
+              "count": 2,
+              "abilityId": 267273
+            }
+          ],
+          "3": [
+            {
+              "name": "恶疾排放",
+              "count": 3,
+              "abilityId": 267763
+            },
+            {
+              "name": "妖术",
+              "count": 3,
+              "abilityId": 270492
+            }
+          ],
+          "4": [
+            {
+              "name": "灵魂之箭",
+              "count": 1,
+              "abilityId": 1294972
+            },
+            {
+              "name": "幽灵弹",
+              "count": 1,
+              "abilityId": 1295125
+            }
+          ],
+          "5": [
+            {
+              "name": "妖术齐射",
+              "count": 1,
+              "abilityId": 269972
+            },
+            {
+              "name": "灵魂之箭",
+              "count": 1,
+              "abilityId": 1294972
+            }
+          ]
+        },
+        "complete": true
+      }
+    },
+    "pressure": {
+      "amount": 926911,
+      "endTime": 643653,
+      "healers": {
+        "1": 290236,
+        "2": 326728,
+        "3": 9259,
+        "4": 54226,
+        "5": 4699
+      },
+      "healing": 685148,
+      "complete": true,
+      "evidence": [
+        {
+          "view": "DamageTaken",
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 637653,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "abilities": [
+        {
+          "amount": 723939,
+          "ability": "剑刃风暴",
+          "abilityId": 270928
+        },
+        {
+          "amount": 198253,
+          "ability": "灵魂之箭",
+          "abilityId": 1294972
+        },
+        {
+          "amount": 4719,
+          "ability": "极其锋利的海贝",
+          "abilityId": 1292299
+        }
+      ],
+      "startTime": 637653,
+      "targetCount": 2,
+      "healingEvidence": {
+        "view": "Healing",
+        "endTime": 643653,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 637653,
+        "reportCode": "YptH9vaxBChMTn7b"
+      }
+    },
+    "timeline": "本场死亡1次，涉及1人；08:05出现唯一一次减员，后续14:10未再记录死亡。"
+  },
+  "playerCount": 5,
+  "playerRoles": {
+    "1": "tanks",
+    "2": "healers",
+    "3": "dps",
+    "4": "dps",
+    "5": "dps"
+  },
+  "sourceCalls": 7,
+  "damageWindows": [
+    {
+      "amount": 926911,
+      "endTime": 643653,
+      "complete": true,
+      "evidence": [
+        {
+          "view": "DamageTaken",
+          "endTime": 643653,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 637653,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "abilities": [
+        {
+          "amount": 723939,
+          "ability": "剑刃风暴",
+          "abilityId": 270928
+        },
+        {
+          "amount": 198253,
+          "ability": "灵魂之箭",
+          "abilityId": 1294972
+        },
+        {
+          "amount": 4719,
+          "ability": "极其锋利的海贝",
+          "abilityId": 1292299
+        }
+      ],
+      "startTime": 637653,
+      "targetCount": 2
+    }
+  ],
+  "reportVersion": "team-report-v5",
+  "causalCoverage": {
+    "analyzedDeaths": 1,
+    "recordedDeaths": 1,
+    "selectedDeaths": 1,
+    "completeDeathList": true
+  },
+  "analysisVersion": "death-causes-v2",
+  "detailMaxPlayers": 2,
+  "commentaryVersion": "battle-commentary-v6",
+  "playerAssessments": {
+    "1": {
+      "cpm": 70.42053213610446,
+      "spec": "Guardian",
+      "score": 60,
+      "evidence": [
+        {
+          "view": "playerDetails",
+          "actorId": 1,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 1,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 1568,
+          "actorId": 1,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "className": "Druid",
+      "itemLevel": 313,
+      "emptySlots": [],
+      "consumables": {},
+      "scoreMetric": "dps",
+      "scoreEvidence": {
+        "view": "rankings",
+        "metric": "dps",
+        "actorId": 1,
+        "compare": "Rankings",
+        "endTime": 1493292,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 157318,
+        "timeframe": "Historical",
+        "reportCode": "YptH9vaxBChMTn7b"
+      },
+      "weaponEnchant": "哈谢仪式"
+    },
+    "2": {
+      "cpm": 33.90784551196356,
+      "spec": "Holy",
+      "score": 52,
+      "evidence": [
+        {
+          "view": "playerDetails",
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "hps",
+          "actorId": 2,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 755,
+          "actorId": 2,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "className": "Paladin",
+      "itemLevel": 323,
+      "emptySlots": [],
+      "consumables": {},
+      "scoreMetric": "hps",
+      "scoreEvidence": {
+        "view": "rankings",
+        "metric": "hps",
+        "actorId": 2,
+        "compare": "Rankings",
+        "endTime": 1493292,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 157318,
+        "timeframe": "Historical",
+        "reportCode": "YptH9vaxBChMTn7b"
+      }
+    },
+    "3": {
+      "cpm": 37.68037401925487,
+      "spec": "Elemental",
+      "score": 60,
+      "evidence": [
+        {
+          "view": "playerDetails",
+          "actorId": 3,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 3,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 839,
+          "actorId": 3,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "className": "Shaman",
+      "itemLevel": 325,
+      "emptySlots": [],
+      "consumables": {},
+      "scoreMetric": "dps",
+      "scoreEvidence": {
+        "view": "rankings",
+        "metric": "dps",
+        "actorId": 3,
+        "compare": "Rankings",
+        "endTime": 1493292,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 157318,
+        "timeframe": "Historical",
+        "reportCode": "YptH9vaxBChMTn7b"
+      },
+      "weaponEnchant": "哈谢仪式"
+    },
+    "4": {
+      "cpm": 41.857102009470246,
+      "spec": "Havoc",
+      "score": 70,
+      "evidence": [
+        {
+          "view": "playerDetails",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 4,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 932,
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "actorId": 4,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b",
+          "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+        }
+      ],
+      "className": "DemonHunter",
+      "itemLevel": 326,
+      "emptySlots": [],
+      "consumables": {
+        "healthPotion": 1
+      },
+      "scoreMetric": "dps",
+      "scoreEvidence": {
+        "view": "rankings",
+        "metric": "dps",
+        "actorId": 4,
+        "compare": "Rankings",
+        "endTime": 1493292,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 157318,
+        "timeframe": "Historical",
+        "reportCode": "YptH9vaxBChMTn7b"
+      },
+      "weaponEnchant": "附魔武器 - 加亚莱的精准"
+    },
+    "5": {
+      "cpm": 34.895888692444615,
+      "spec": "Arcane",
+      "score": 57,
+      "evidence": [
+        {
+          "view": "playerDetails",
+          "actorId": 5,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "rankings",
+          "metric": "dps",
+          "actorId": 5,
+          "compare": "Rankings",
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "timeframe": "Historical",
+          "reportCode": "YptH9vaxBChMTn7b"
+        },
+        {
+          "view": "Casts",
+          "count": 777,
+          "actorId": 5,
+          "endTime": 1493292,
+          "fightId": 1,
+          "complete": true,
+          "startTime": 157318,
+          "reportCode": "YptH9vaxBChMTn7b"
+        }
+      ],
+      "className": "Mage",
+      "itemLevel": 311,
+      "emptySlots": [],
+      "consumables": {},
+      "scoreMetric": "dps",
+      "scoreEvidence": {
+        "view": "rankings",
+        "metric": "dps",
+        "actorId": 5,
+        "compare": "Rankings",
+        "endTime": 1493292,
+        "fightId": 1,
+        "complete": true,
+        "startTime": 157318,
+        "timeframe": "Historical",
+        "reportCode": "YptH9vaxBChMTn7b"
+      },
+      "weaponEnchant": "哈谢仪式"
+    }
+  },
+  "roleContributions": {
+    "damage": [
+      {
+        "name": "辉斩",
+        "rank": 1,
+        "prose": true,
+        "share": 34.90514629191685,
+        "amount": 262257522,
+        "metric": "damage",
+        "actorId": 4,
+        "analysis": [
+          "WCL分数70（输出），浩劫恶魔猎手，装等326，2.62亿伤害，输出第1/3，占同职责34.9%。领先第二名950.8万。",
+          "中断施法2次，其中灵魂之箭1次；驱散6次，其中暗影束缚6次。",
+          "本场记录死亡1次。",
+          "贡献排得上号，减员这笔账也得一起记。",
+          "全程CPM 41.9；本场使用治疗药水1次。"
+        ],
+        "evidence": [
+          {
+            "view": "damage",
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "interrupts",
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "dispels",
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "playerDetails",
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "rankings",
+            "metric": "dps",
+            "actorId": 4,
+            "compare": "Rankings",
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "timeframe": "Historical",
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "Casts",
+            "count": 932,
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "Casts",
+            "actorId": 4,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b",
+            "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+          }
+        ],
+        "roleCount": 3,
+        "roleLabel": "输出",
+        "requiredAnalysis": [
+          0
+        ]
+      },
+      {
+        "name": "Giannis",
+        "rank": 2,
+        "share": 33.63972282895838,
+        "amount": 252749846,
+        "metric": "damage",
+        "actorId": 3,
+        "evidence": [
+          {
+            "view": "damage",
+            "actorId": 3,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          }
+        ],
+        "roleCount": 3,
+        "roleLabel": "输出"
+      },
+      {
+        "name": "业火的向日葵",
+        "rank": 3,
+        "share": 31.455130879124777,
+        "amount": 236336058,
+        "metric": "damage",
+        "actorId": 5,
+        "evidence": [
+          {
+            "view": "damage",
+            "actorId": 5,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          }
+        ],
+        "roleCount": 3,
+        "roleLabel": "输出"
+      }
+    ],
+    "healing": [
+      {
+        "name": "巧克力丨丶",
+        "rank": 1,
+        "prose": true,
+        "share": 100.0,
+        "amount": 116944555,
+        "metric": "effective_healing",
+        "actorId": 2,
+        "analysis": [
+          "WCL分数52（治疗），神圣圣骑士，装等323，1.17亿有效治疗，是本场唯一治疗。",
+          "08:00–08:06队伍承伤92.7万，你提供32.7万有效治疗。",
+          "驱散10次，其中冰霜震击4次。",
+          "治疗和驱散两份活都交了作业，这份贡献得记。",
+          "本场没有死亡。",
+          "全程CPM 33.9。"
+        ],
+        "evidence": [
+          {
+            "view": "healing",
+            "actorId": 2,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "Healing",
+            "endTime": 643653,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 637653,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "dispels",
+            "actorId": 2,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "playerDetails",
+            "actorId": 2,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "rankings",
+            "metric": "hps",
+            "actorId": 2,
+            "compare": "Rankings",
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "timeframe": "Historical",
+            "reportCode": "YptH9vaxBChMTn7b"
+          },
+          {
+            "view": "Casts",
+            "count": 755,
+            "actorId": 2,
+            "endTime": 1493292,
+            "fightId": 1,
+            "complete": true,
+            "startTime": 157318,
+            "reportCode": "YptH9vaxBChMTn7b"
+          }
+        ],
+        "roleCount": 1,
+        "roleLabel": "治疗",
+        "requiredAnalysis": [
+          0
+        ]
+      }
+    ]
+  },
+  "localizationLocale": "zhCN"
+}

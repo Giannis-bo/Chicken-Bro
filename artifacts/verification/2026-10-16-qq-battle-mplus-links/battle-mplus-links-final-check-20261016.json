@@ -1,0 +1,51 @@
+{
+  "runtimeFilesMatched": 20,
+  "health": {
+    "observedAt": 1792118839.000083,
+    "gatewayReady": true,
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "queryPresentation": "markdown_recent3_v1",
+    "battlePresentation": "single_summary_raid_mplus_v3",
+    "runtimeRevision": "codex:sha256:0b2e9301d6100dddda3b9d5c80ebaeaa3a2f1962388f2f36f6b96a9f08b1f33f"
+  },
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1195642",
+    "chickenbro-worker.service": "1195577",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "legacyServices": {
+    "chickenbro-qq-channel.service": "inactive",
+    "chickenbro-qq-worker.service": "inactive"
+  },
+  "screenshotUrlNormalization": [
+    {
+      "url": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=last&type=damage-done",
+      "request": {
+        "kind": "battle_summary",
+        "url": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg",
+        "fight_id": "last"
+      }
+    },
+    {
+      "url": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=last&type=summary",
+      "request": {
+        "kind": "battle_summary",
+        "url": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg",
+        "fight_id": "last"
+      }
+    },
+    {
+      "url": "https://cn.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg/#type=damage-done&fight=last&source=all",
+      "request": {
+        "kind": "battle_summary",
+        "url": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg",
+        "fight_id": "last"
+      }
+    }
+  ],
+  "menuVersion": 3,
+  "qqMessagesSentByProbe": 0,
+  "modelCalls": 0,
+  "manualUserAcceptance": "pending_v3_user_test"
+}

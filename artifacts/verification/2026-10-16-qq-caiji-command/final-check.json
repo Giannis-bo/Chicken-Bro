@@ -1,0 +1,32 @@
+{
+  "runtimeFilesMatched": 28,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_evidence_narrative_zhcn_v8",
+  "defaultReplyPresentation": "bounded-model-guidance-v2",
+  "guidanceToolAccess": false,
+  "reviewCommand": "/战斗分析-菜鸡",
+  "legacyCommandCompatible": true,
+  "groupedHelpCharacters": 489,
+  "cachedBattle": {
+    "reportCode": "YptH9vaxBChMTn7b",
+    "fightId": 1,
+    "narrativeVersion": "battle-narrative-v8",
+    "reviewTitle": "# 诸王之眠 · 战斗分析·菜鸡",
+    "summaryFooter": "详情：/战斗详情-大腿 · /战斗分析-菜鸡",
+    "lengths": {
+      "summary": 592,
+      "review": 367
+    },
+    "additionalModelCalls": 0
+  },
+  "unchangedServicePids": {
+    "chickenbro-api.service": "2319609",
+    "chickenbro-worker.service": "2319544",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "candidateDatabaseWrites": 0,
+  "qqValidationMessagesSent": 0,
+  "manualGroupAcceptance": "pending_user_test"
+}

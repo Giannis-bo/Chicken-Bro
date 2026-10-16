@@ -1,0 +1,1495 @@
+{
+  "qqMessagesSent": 0,
+  "modelCalls": 0,
+  "root": "/opt/chickenbro-qq-official-query-staging-20261014",
+  "results": [
+    {
+      "name": "key_first",
+      "inputUrl": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1",
+      "seconds": 10.36,
+      "packet": {
+        "schema": "qq-battle-v1",
+        "status": "ready",
+        "reportCode": "kNBvnCLXjqPQZhdg",
+        "sourceUrl": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg",
+        "fightId": 1,
+        "fight": {
+          "id": 1,
+          "name": "Lithiel Cinderfury / Xathuux the Annihilator / ... ",
+          "difficulty": 10,
+          "kill": true,
+          "startTime": 9,
+          "endTime": 1475860,
+          "keystoneLevel": 12,
+          "gameZone": null
+        },
+        "battleType": "mythic_plus",
+        "detailMaxPlayers": 2,
+        "difficulty": "大秘境+12",
+        "duration": 1475.851,
+        "playerCount": 5,
+        "coverage": {
+          "actors": true,
+          "deaths": true,
+          "roles": true,
+          "damage": true,
+          "healing": true
+        },
+        "gaps": [],
+        "deaths": [
+          {
+            "actorId": 4,
+            "name": "西行寺黑雪",
+            "timestamp": 627925,
+            "time": 627.916,
+            "ability": "Murder in a Row",
+            "abilityId": 474740,
+            "killerId": 50,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "Deaths",
+                "actorId": 4,
+                "timestamp": 627925,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 2,
+            "name": "Giannis",
+            "timestamp": 851640,
+            "time": 851.631,
+            "ability": "Melee",
+            "abilityId": 1,
+            "killerId": 56,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "Deaths",
+                "actorId": 2,
+                "timestamp": 851640,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "good": [
+          {
+            "actorId": 2,
+            "name": "Giannis",
+            "metric": "damage",
+            "roleLabel": "输出",
+            "amount": 369480797,
+            "share": 38.19034813799947,
+            "rank": 1,
+            "roleCount": 3,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "damage",
+                "actorId": 2,
+                "startTime": 9,
+                "endTime": 1475860,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 1,
+            "name": "古徳牧宁",
+            "metric": "effective_healing",
+            "roleLabel": "治疗",
+            "amount": 197932887,
+            "share": 100.0,
+            "rank": 1,
+            "roleCount": 1,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "healing",
+                "actorId": 1,
+                "startTime": 9,
+                "endTime": 1475860,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "review": [
+          {
+            "actorId": 2,
+            "name": "Giannis",
+            "death": {
+              "actorId": 2,
+              "name": "Giannis",
+              "timestamp": 851640,
+              "time": 851.631,
+              "ability": "Melee",
+              "abilityId": 1,
+              "killerId": 56,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 1,
+                  "view": "Deaths",
+                  "actorId": 2,
+                  "timestamp": 851640,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 56,
+            "sourceName": "Shivan Punisher",
+            "fatalDamage": 499265,
+            "maxHealth": 918880,
+            "healthBeforeBurst": 429788,
+            "burstDamage": 499265,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108,
+              1287955,
+              1317581
+            ],
+            "healingLast2Seconds": 68852,
+            "lastHeal": {
+              "timestamp": 850991,
+              "type": "heal",
+              "sourceID": 1,
+              "targetID": 2,
+              "abilityGameID": 443126,
+              "fight": 1,
+              "hitType": 1,
+              "amount": 283,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 17,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 429788,
+              "maxHitPoints": 964840,
+              "attackPower": 1050,
+              "spellPower": 3697,
+              "armor": 1593,
+              "absorb": 16775,
+              "x": 498216,
+              "y": 873845,
+              "facing": -538,
+              "mapID": 2434,
+              "versatility": 0,
+              "avoidance": 453,
+              "itemLevel": 327
+            },
+            "fatalEvent": {
+              "timestamp": 851613,
+              "type": "damage",
+              "sourceID": 56,
+              "sourceInstance": 2,
+              "targetID": 2,
+              "abilityGameID": 1,
+              "fight": 1,
+              "buffs": "1235108.1287955.1317581.",
+              "hitType": 1,
+              "amount": 429788,
+              "mitigated": 187522,
+              "unmitigatedAmount": 700961,
+              "overkill": 69477,
+              "absorbed": 14174,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 918880,
+              "attackPower": 1050,
+              "spellPower": 3513,
+              "armor": 1593,
+              "absorb": 0,
+              "x": 498572,
+              "y": 874127,
+              "facing": -538,
+              "mapID": 2434,
+              "versatility": 174,
+              "avoidance": 453,
+              "itemLevel": 327
+            },
+            "hitEvents": [
+              {
+                "timestamp": 851613,
+                "type": "damage",
+                "sourceID": 56,
+                "sourceInstance": 2,
+                "targetID": 2,
+                "abilityGameID": 1,
+                "fight": 1,
+                "buffs": "1235108.1287955.1317581.",
+                "hitType": 1,
+                "amount": 429788,
+                "mitigated": 187522,
+                "unmitigatedAmount": 700961,
+                "overkill": 69477,
+                "absorbed": 14174,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 175,
+                    "type": 11
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 918880,
+                "attackPower": 1050,
+                "spellPower": 3513,
+                "armor": 1593,
+                "absorb": 0,
+                "x": 498572,
+                "y": 874127,
+                "facing": -538,
+                "mapID": 2434,
+                "versatility": 174,
+                "avoidance": 453,
+                "itemLevel": 327
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 2,
+                "view": "DamageTaken",
+                "startTime": 841640,
+                "endTime": 852640,
+                "complete": true,
+                "targetFilter": 2
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 2,
+                "view": "All",
+                "startTime": 841640,
+                "endTime": 852640,
+                "complete": true,
+                "targetFilter": 2
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 851613,
+                "time": 851.604,
+                "ability": "普通攻击",
+                "amount": 499265,
+                "sourceId": 56
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接Shivan Punisher普攻49.9万。伤前生命43.0万，满血91.9万；该次伤害超过当时剩余生命。",
+            "deathCount": 1
+          },
+          {
+            "actorId": 4,
+            "name": "西行寺黑雪",
+            "death": {
+              "actorId": 4,
+              "name": "西行寺黑雪",
+              "timestamp": 627925,
+              "time": 627.916,
+              "ability": "Murder in a Row",
+              "abilityId": 474740,
+              "killerId": 50,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 1,
+                  "view": "Deaths",
+                  "actorId": 4,
+                  "timestamp": 627925,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 474740,
+            "ability": "Murder in a Row",
+            "sourceId": 50,
+            "sourceName": "Zaen Bladesorrow",
+            "fatalDamage": 135247,
+            "maxHealth": 940632,
+            "healthBeforeBurst": 101323,
+            "burstDamage": 135247,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": null,
+            "healingLast2Seconds": 31457,
+            "lastHeal": {
+              "timestamp": 626931,
+              "type": "heal",
+              "sourceID": 1,
+              "targetID": 4,
+              "abilityGameID": 33110,
+              "fight": 1,
+              "hitType": 2,
+              "amount": 21739,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 60,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 223977,
+              "maxHitPoints": 940632,
+              "attackPower": 3607,
+              "spellPower": 511,
+              "armor": 1567,
+              "absorb": 0,
+              "x": 474712,
+              "y": 891149,
+              "facing": -323,
+              "mapID": 2435,
+              "versatility": 648,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "fatalEvent": {
+              "timestamp": 627924,
+              "type": "damage",
+              "sourceID": 50,
+              "targetID": 4,
+              "abilityGameID": 474740,
+              "fight": 1,
+              "hitType": 1,
+              "amount": 101323,
+              "mitigated": 13309,
+              "unmitigatedAmount": 148556,
+              "overkill": 33924,
+              "isAoE": false,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 100,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 940632,
+              "attackPower": 3462,
+              "spellPower": 511,
+              "armor": 1567,
+              "absorb": 0,
+              "x": 476278,
+              "y": 891377,
+              "facing": -323,
+              "mapID": 2435,
+              "versatility": 648,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "hitEvents": [
+              {
+                "timestamp": 627924,
+                "type": "damage",
+                "sourceID": 50,
+                "targetID": 4,
+                "abilityGameID": 474740,
+                "fight": 1,
+                "hitType": 1,
+                "amount": 101323,
+                "mitigated": 13309,
+                "unmitigatedAmount": 148556,
+                "overkill": 33924,
+                "isAoE": false,
+                "tick": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 100,
+                    "max": 125,
+                    "type": 2
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 940632,
+                "attackPower": 3462,
+                "spellPower": 511,
+                "armor": 1567,
+                "absorb": 0,
+                "x": 476278,
+                "y": 891377,
+                "facing": -323,
+                "mapID": 2435,
+                "versatility": 648,
+                "avoidance": 453,
+                "itemLevel": 321
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 4,
+                "view": "DamageTaken",
+                "startTime": 617925,
+                "endTime": 628925,
+                "complete": true,
+                "targetFilter": 4
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 4,
+                "view": "All",
+                "startTime": 617925,
+                "endTime": 628925,
+                "complete": true,
+                "targetFilter": 4
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 627924,
+                "time": 627.915,
+                "ability": "Murder in a Row",
+                "amount": 135247,
+                "sourceId": 50
+              }
+            ],
+            "cause": "dot_finisher",
+            "conclusion": "持续伤害收尾：Murder in a Row最后一跳13.5万致死。10:26先受同技能直击67.0万，随后持续伤害造成减员。",
+            "deathCount": 1
+          }
+        ],
+        "highlights": [
+          "本场死亡2次；已完成2次致死过程核验。",
+          "**非坦承接普攻**\n14:11 Giannis：非坦克承接Shivan Punisher普攻49.9万。伤前生命43.0万，满血91.9万；该次伤害超过当时剩余生命。",
+          "**Murder in a Row**\n10:27 西行寺黑雪：持续伤害收尾：Murder in a Row最后一跳13.5万致死。10:26先受同技能直击67.0万，随后持续伤害造成减员。"
+        ],
+        "damageWindows": [
+          {
+            "startTime": 622925,
+            "endTime": 628925,
+            "amount": 2216828,
+            "targetCount": 5,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 474740,
+                "ability": "Murder in a Row",
+                "amount": 1132344
+              },
+              {
+                "abilityId": 1217099,
+                "ability": "Fel-Infused Freight",
+                "amount": 1084484
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "DamageTaken",
+                "startTime": 622925,
+                "endTime": 628925,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "startTime": 846640,
+            "endTime": 852640,
+            "amount": 2649520,
+            "targetCount": 5,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1,
+                "ability": "Melee",
+                "amount": 2102238
+              },
+              {
+                "abilityId": 1293022,
+                "ability": "Fel Dash",
+                "amount": 542048
+              },
+              {
+                "abilityId": 1292299,
+                "ability": "Seriously Sharp Seashell",
+                "amount": 5234
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "view": "DamageTaken",
+                "startTime": 846640,
+                "endTime": 852640,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "windows": [
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 622925,
+            "endTime": 628925,
+            "observedThrough": 628925,
+            "dataType": "DamageTaken"
+          },
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 846640,
+            "endTime": 852640,
+            "observedThrough": 852640,
+            "dataType": "DamageTaken"
+          }
+        ],
+        "analysisVersion": "death-causes-v2",
+        "causes": [
+          {
+            "actorId": 4,
+            "name": "西行寺黑雪",
+            "death": {
+              "actorId": 4,
+              "name": "西行寺黑雪",
+              "timestamp": 627925,
+              "time": 627.916,
+              "ability": "Murder in a Row",
+              "abilityId": 474740,
+              "killerId": 50,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 1,
+                  "view": "Deaths",
+                  "actorId": 4,
+                  "timestamp": 627925,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 474740,
+            "ability": "Murder in a Row",
+            "sourceId": 50,
+            "sourceName": "Zaen Bladesorrow",
+            "fatalDamage": 135247,
+            "maxHealth": 940632,
+            "healthBeforeBurst": 101323,
+            "burstDamage": 135247,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": null,
+            "healingLast2Seconds": 31457,
+            "lastHeal": {
+              "timestamp": 626931,
+              "type": "heal",
+              "sourceID": 1,
+              "targetID": 4,
+              "abilityGameID": 33110,
+              "fight": 1,
+              "hitType": 2,
+              "amount": 21739,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 60,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 223977,
+              "maxHitPoints": 940632,
+              "attackPower": 3607,
+              "spellPower": 511,
+              "armor": 1567,
+              "absorb": 0,
+              "x": 474712,
+              "y": 891149,
+              "facing": -323,
+              "mapID": 2435,
+              "versatility": 648,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "fatalEvent": {
+              "timestamp": 627924,
+              "type": "damage",
+              "sourceID": 50,
+              "targetID": 4,
+              "abilityGameID": 474740,
+              "fight": 1,
+              "hitType": 1,
+              "amount": 101323,
+              "mitigated": 13309,
+              "unmitigatedAmount": 148556,
+              "overkill": 33924,
+              "isAoE": false,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 100,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 940632,
+              "attackPower": 3462,
+              "spellPower": 511,
+              "armor": 1567,
+              "absorb": 0,
+              "x": 476278,
+              "y": 891377,
+              "facing": -323,
+              "mapID": 2435,
+              "versatility": 648,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "hitEvents": [
+              {
+                "timestamp": 627924,
+                "type": "damage",
+                "sourceID": 50,
+                "targetID": 4,
+                "abilityGameID": 474740,
+                "fight": 1,
+                "hitType": 1,
+                "amount": 101323,
+                "mitigated": 13309,
+                "unmitigatedAmount": 148556,
+                "overkill": 33924,
+                "isAoE": false,
+                "tick": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 100,
+                    "max": 125,
+                    "type": 2
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 940632,
+                "attackPower": 3462,
+                "spellPower": 511,
+                "armor": 1567,
+                "absorb": 0,
+                "x": 476278,
+                "y": 891377,
+                "facing": -323,
+                "mapID": 2435,
+                "versatility": 648,
+                "avoidance": 453,
+                "itemLevel": 321
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 4,
+                "view": "DamageTaken",
+                "startTime": 617925,
+                "endTime": 628925,
+                "complete": true,
+                "targetFilter": 4
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 4,
+                "view": "All",
+                "startTime": 617925,
+                "endTime": 628925,
+                "complete": true,
+                "targetFilter": 4
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 627924,
+                "time": 627.915,
+                "ability": "Murder in a Row",
+                "amount": 135247,
+                "sourceId": 50
+              }
+            ],
+            "cause": "dot_finisher",
+            "conclusion": "持续伤害收尾：Murder in a Row最后一跳13.5万致死。10:26先受同技能直击67.0万，随后持续伤害造成减员。",
+            "deathCount": 1
+          },
+          {
+            "actorId": 2,
+            "name": "Giannis",
+            "death": {
+              "actorId": 2,
+              "name": "Giannis",
+              "timestamp": 851640,
+              "time": 851.631,
+              "ability": "Melee",
+              "abilityId": 1,
+              "killerId": 56,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 1,
+                  "view": "Deaths",
+                  "actorId": 2,
+                  "timestamp": 851640,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 56,
+            "sourceName": "Shivan Punisher",
+            "fatalDamage": 499265,
+            "maxHealth": 918880,
+            "healthBeforeBurst": 429788,
+            "burstDamage": 499265,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108,
+              1287955,
+              1317581
+            ],
+            "healingLast2Seconds": 68852,
+            "lastHeal": {
+              "timestamp": 850991,
+              "type": "heal",
+              "sourceID": 1,
+              "targetID": 2,
+              "abilityGameID": 443126,
+              "fight": 1,
+              "hitType": 1,
+              "amount": 283,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 17,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 429788,
+              "maxHitPoints": 964840,
+              "attackPower": 1050,
+              "spellPower": 3697,
+              "armor": 1593,
+              "absorb": 16775,
+              "x": 498216,
+              "y": 873845,
+              "facing": -538,
+              "mapID": 2434,
+              "versatility": 0,
+              "avoidance": 453,
+              "itemLevel": 327
+            },
+            "fatalEvent": {
+              "timestamp": 851613,
+              "type": "damage",
+              "sourceID": 56,
+              "sourceInstance": 2,
+              "targetID": 2,
+              "abilityGameID": 1,
+              "fight": 1,
+              "buffs": "1235108.1287955.1317581.",
+              "hitType": 1,
+              "amount": 429788,
+              "mitigated": 187522,
+              "unmitigatedAmount": 700961,
+              "overkill": 69477,
+              "absorbed": 14174,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 918880,
+              "attackPower": 1050,
+              "spellPower": 3513,
+              "armor": 1593,
+              "absorb": 0,
+              "x": 498572,
+              "y": 874127,
+              "facing": -538,
+              "mapID": 2434,
+              "versatility": 174,
+              "avoidance": 453,
+              "itemLevel": 327
+            },
+            "hitEvents": [
+              {
+                "timestamp": 851613,
+                "type": "damage",
+                "sourceID": 56,
+                "sourceInstance": 2,
+                "targetID": 2,
+                "abilityGameID": 1,
+                "fight": 1,
+                "buffs": "1235108.1287955.1317581.",
+                "hitType": 1,
+                "amount": 429788,
+                "mitigated": 187522,
+                "unmitigatedAmount": 700961,
+                "overkill": 69477,
+                "absorbed": 14174,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 175,
+                    "type": 11
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 918880,
+                "attackPower": 1050,
+                "spellPower": 3513,
+                "armor": 1593,
+                "absorb": 0,
+                "x": 498572,
+                "y": 874127,
+                "facing": -538,
+                "mapID": 2434,
+                "versatility": 174,
+                "avoidance": 453,
+                "itemLevel": 327
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 2,
+                "view": "DamageTaken",
+                "startTime": 841640,
+                "endTime": 852640,
+                "complete": true,
+                "targetFilter": 2
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 1,
+                "actorId": 2,
+                "view": "All",
+                "startTime": 841640,
+                "endTime": 852640,
+                "complete": true,
+                "targetFilter": 2
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 851613,
+                "time": 851.604,
+                "ability": "普通攻击",
+                "amount": 499265,
+                "sourceId": 56
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接Shivan Punisher普攻49.9万。伤前生命43.0万，满血91.9万；该次伤害超过当时剩余生命。",
+            "deathCount": 1
+          }
+        ],
+        "causalCoverage": {
+          "selectedDeaths": 2,
+          "analyzedDeaths": 2,
+          "recordedDeaths": 2,
+          "completeDeathList": true
+        },
+        "readAt": "2026-10-16T02:42:00.475545+00:00",
+        "sourceCalls": 8
+      },
+      "messages": {
+        "battle_summary": "# Lithiel Cinderfury / Xathuux the Annihilator  · 战斗分析\n**大秘境+12｜已完成｜24:35｜5人**\n\n本场死亡2次；已完成2次致死过程核验。\n\n**非坦承接普攻**\n14:11 Giannis：非坦克承接Shivan Punisher普攻49.9万。伤前生命43.0万，满血91.9万；该次伤害超过当时剩余生命。\n\n**Murder in a Row**\n10:27 西行寺黑雪：持续伤害收尾：Murder in a Row最后一跳13.5万致死。10:26先受同技能直击67.0万，随后持续伤害造成减员。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1) · 第1场\n详情：/战斗详情-大腿 · /战斗详情-毒瘤",
+        "battle_good": "# Lithiel Cinderfury / Xathuux the Annihilator  · 战斗详情·大腿\n**大秘境+12｜已完成｜24:35｜5人**\n\n**1. Giannis｜输出贡献**\n记录伤害36948.1万，占同职责已核验总量38.2%；同职责第1/3。\n[整场记录伤害记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1&source=2)\n\n**2. 古徳牧宁｜治疗贡献**\n有效治疗19793.3万，占同职责已核验总量100.0%；同职责第1/1。\n[整场有效治疗记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1&source=1)\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1) · 第1场",
+        "battle_review": "# Lithiel Cinderfury / Xathuux the Annihilator  · 战斗详情·毒瘤\n**大秘境+12｜已完成｜24:35｜5人**\n\n**1. Giannis｜14:11**\n非坦克承接Shivan Punisher普攻49.9万。伤前生命43.0万，满血91.9万；该次伤害超过当时剩余生命。\n[致死记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1&type=deaths&source=2)\n\n**2. 西行寺黑雪｜10:27**\n持续伤害收尾：Murder in a Row最后一跳13.5万致死。10:26先受同技能直击67.0万，随后持续伤害造成减员。\n[致死记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1&type=deaths&source=4)\n\n选人依据：已核验的致死过程，优先展示不同类型的代表角色；死亡本身不等于责任。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=1) · 第1场"
+      }
+    },
+    {
+      "name": "key_last",
+      "inputUrl": "https://cn.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg/#type=damage-done&fight=last&source=all",
+      "seconds": 5.72,
+      "packet": {
+        "schema": "qq-battle-v1",
+        "status": "ready",
+        "reportCode": "kNBvnCLXjqPQZhdg",
+        "sourceUrl": "https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg",
+        "fightId": 2,
+        "fight": {
+          "id": 2,
+          "name": "Voidscar Arena",
+          "difficulty": 10,
+          "kill": true,
+          "startTime": 1757224,
+          "endTime": 2836731,
+          "keystoneLevel": 12,
+          "gameZone": {
+            "id": 2923,
+            "name": "Voidscar Arena"
+          }
+        },
+        "battleType": "mythic_plus",
+        "detailMaxPlayers": 2,
+        "difficulty": "大秘境+12",
+        "duration": 1079.507,
+        "playerCount": 5,
+        "coverage": {
+          "actors": true,
+          "deaths": true,
+          "roles": true,
+          "damage": true,
+          "healing": true
+        },
+        "gaps": [],
+        "deaths": [
+          {
+            "actorId": 166,
+            "name": "呢喃的猫猫",
+            "timestamp": 1776427,
+            "time": 19.203,
+            "ability": "Melee",
+            "abilityId": 1,
+            "killerId": 171,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "view": "Deaths",
+                "actorId": 166,
+                "timestamp": 1776427,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "good": [
+          {
+            "actorId": 2,
+            "name": "Giannis",
+            "metric": "damage",
+            "roleLabel": "输出",
+            "amount": 280267390,
+            "share": 36.2172730561854,
+            "rank": 1,
+            "roleCount": 3,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "view": "damage",
+                "actorId": 2,
+                "startTime": 1757224,
+                "endTime": 2836731,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 167,
+            "name": "冬之优雅",
+            "metric": "effective_healing",
+            "roleLabel": "治疗",
+            "amount": 127326358,
+            "share": 100.0,
+            "rank": 1,
+            "roleCount": 1,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "view": "healing",
+                "actorId": 167,
+                "startTime": 1757224,
+                "endTime": 2836731,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "review": [
+          {
+            "actorId": 166,
+            "name": "呢喃的猫猫",
+            "death": {
+              "actorId": 166,
+              "name": "呢喃的猫猫",
+              "timestamp": 1776427,
+              "time": 19.203,
+              "ability": "Melee",
+              "abilityId": 1,
+              "killerId": 171,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 2,
+                  "view": "Deaths",
+                  "actorId": 166,
+                  "timestamp": 1776427,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 171,
+            "sourceName": "Dominated Brawler",
+            "fatalDamage": 1175717,
+            "maxHealth": 946760,
+            "healthBeforeBurst": 946760,
+            "burstDamage": 1175717,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108,
+              1294727
+            ],
+            "healingLast2Seconds": 0,
+            "lastHeal": {
+              "timestamp": 1774709,
+              "type": "heal",
+              "sourceID": 167,
+              "targetID": 166,
+              "abilityGameID": 139,
+              "fight": 2,
+              "hitType": 1,
+              "amount": 0,
+              "overheal": 6141,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 536,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 946760,
+              "maxHitPoints": 946760,
+              "attackPower": 3977,
+              "spellPower": 422,
+              "armor": 2678,
+              "absorb": 0,
+              "x": 51758,
+              "y": 448991,
+              "facing": -703,
+              "mapID": 2574,
+              "versatility": 187,
+              "avoidance": 453,
+              "itemLevel": 329
+            },
+            "fatalEvent": {
+              "timestamp": 1776325,
+              "type": "damage",
+              "sourceID": 171,
+              "sourceInstance": 1,
+              "targetID": 166,
+              "abilityGameID": 1,
+              "fight": 2,
+              "buffs": "1235108.1294727.",
+              "hitType": 2,
+              "amount": 946760,
+              "unmitigatedAmount": 944133,
+              "overkill": 228957,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 946760,
+              "attackPower": 3630,
+              "spellPower": 422,
+              "armor": 2678,
+              "absorb": 0,
+              "x": 52266,
+              "y": 449785,
+              "facing": -511,
+              "mapID": 2574,
+              "versatility": 187,
+              "avoidance": 453,
+              "itemLevel": 329,
+              "sourceMarker": 8
+            },
+            "hitEvents": [
+              {
+                "timestamp": 1776325,
+                "type": "damage",
+                "sourceID": 171,
+                "sourceInstance": 1,
+                "targetID": 166,
+                "abilityGameID": 1,
+                "fight": 2,
+                "buffs": "1235108.1294727.",
+                "hitType": 2,
+                "amount": 946760,
+                "unmitigatedAmount": 944133,
+                "overkill": 228957,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 1300,
+                    "type": 1
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 946760,
+                "attackPower": 3630,
+                "spellPower": 422,
+                "armor": 2678,
+                "absorb": 0,
+                "x": 52266,
+                "y": 449785,
+                "facing": -511,
+                "mapID": 2574,
+                "versatility": 187,
+                "avoidance": 453,
+                "itemLevel": 329,
+                "sourceMarker": 8
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "actorId": 166,
+                "view": "DamageTaken",
+                "startTime": 1766427,
+                "endTime": 1777427,
+                "complete": true,
+                "targetFilter": 166
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "actorId": 166,
+                "view": "All",
+                "startTime": 1766427,
+                "endTime": 1777427,
+                "complete": true,
+                "targetFilter": 166
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 1776325,
+                "time": 19.101,
+                "ability": "普通攻击",
+                "amount": 1175717,
+                "sourceId": 171
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接Dominated Brawler普攻117.6万。一击超过满血94.7万，按现有防护补满仍无法存活。",
+            "deathCount": 1
+          }
+        ],
+        "highlights": [
+          "本场死亡1次；已完成1次致死过程核验。",
+          "**非坦承接普攻**\n00:19 呢喃的猫猫：非坦克承接Dominated Brawler普攻117.6万。一击超过满血94.7万，按现有防护补满仍无法存活。"
+        ],
+        "damageWindows": [
+          {
+            "startTime": 1771427,
+            "endTime": 1777427,
+            "amount": 1686888,
+            "targetCount": 3,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1,
+                "ability": "Melee",
+                "amount": 946760
+              },
+              {
+                "abilityId": 1267894,
+                "ability": "Savage Leap",
+                "amount": 512080
+              },
+              {
+                "abilityId": 1228176,
+                "ability": "Lava Bolt",
+                "amount": 218502
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "view": "DamageTaken",
+                "startTime": 1771427,
+                "endTime": 1777427,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "windows": [
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 1771427,
+            "endTime": 1777427,
+            "observedThrough": 1777427,
+            "dataType": "DamageTaken"
+          }
+        ],
+        "analysisVersion": "death-causes-v2",
+        "causes": [
+          {
+            "actorId": 166,
+            "name": "呢喃的猫猫",
+            "death": {
+              "actorId": 166,
+              "name": "呢喃的猫猫",
+              "timestamp": 1776427,
+              "time": 19.203,
+              "ability": "Melee",
+              "abilityId": 1,
+              "killerId": 171,
+              "evidence": [
+                {
+                  "reportCode": "kNBvnCLXjqPQZhdg",
+                  "fightId": 2,
+                  "view": "Deaths",
+                  "actorId": 166,
+                  "timestamp": 1776427,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 171,
+            "sourceName": "Dominated Brawler",
+            "fatalDamage": 1175717,
+            "maxHealth": 946760,
+            "healthBeforeBurst": 946760,
+            "burstDamage": 1175717,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108,
+              1294727
+            ],
+            "healingLast2Seconds": 0,
+            "lastHeal": {
+              "timestamp": 1774709,
+              "type": "heal",
+              "sourceID": 167,
+              "targetID": 166,
+              "abilityGameID": 139,
+              "fight": 2,
+              "hitType": 1,
+              "amount": 0,
+              "overheal": 6141,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 536,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 946760,
+              "maxHitPoints": 946760,
+              "attackPower": 3977,
+              "spellPower": 422,
+              "armor": 2678,
+              "absorb": 0,
+              "x": 51758,
+              "y": 448991,
+              "facing": -703,
+              "mapID": 2574,
+              "versatility": 187,
+              "avoidance": 453,
+              "itemLevel": 329
+            },
+            "fatalEvent": {
+              "timestamp": 1776325,
+              "type": "damage",
+              "sourceID": 171,
+              "sourceInstance": 1,
+              "targetID": 166,
+              "abilityGameID": 1,
+              "fight": 2,
+              "buffs": "1235108.1294727.",
+              "hitType": 2,
+              "amount": 946760,
+              "unmitigatedAmount": 944133,
+              "overkill": 228957,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 946760,
+              "attackPower": 3630,
+              "spellPower": 422,
+              "armor": 2678,
+              "absorb": 0,
+              "x": 52266,
+              "y": 449785,
+              "facing": -511,
+              "mapID": 2574,
+              "versatility": 187,
+              "avoidance": 453,
+              "itemLevel": 329,
+              "sourceMarker": 8
+            },
+            "hitEvents": [
+              {
+                "timestamp": 1776325,
+                "type": "damage",
+                "sourceID": 171,
+                "sourceInstance": 1,
+                "targetID": 166,
+                "abilityGameID": 1,
+                "fight": 2,
+                "buffs": "1235108.1294727.",
+                "hitType": 2,
+                "amount": 946760,
+                "unmitigatedAmount": 944133,
+                "overkill": 228957,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 1300,
+                    "type": 1
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 946760,
+                "attackPower": 3630,
+                "spellPower": 422,
+                "armor": 2678,
+                "absorb": 0,
+                "x": 52266,
+                "y": 449785,
+                "facing": -511,
+                "mapID": 2574,
+                "versatility": 187,
+                "avoidance": 453,
+                "itemLevel": 329,
+                "sourceMarker": 8
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "actorId": 166,
+                "view": "DamageTaken",
+                "startTime": 1766427,
+                "endTime": 1777427,
+                "complete": true,
+                "targetFilter": 166
+              },
+              {
+                "reportCode": "kNBvnCLXjqPQZhdg",
+                "fightId": 2,
+                "actorId": 166,
+                "view": "All",
+                "startTime": 1766427,
+                "endTime": 1777427,
+                "complete": true,
+                "targetFilter": 166
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 1776325,
+                "time": 19.101,
+                "ability": "普通攻击",
+                "amount": 1175717,
+                "sourceId": 171
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接Dominated Brawler普攻117.6万。一击超过满血94.7万，按现有防护补满仍无法存活。",
+            "deathCount": 1
+          }
+        ],
+        "causalCoverage": {
+          "selectedDeaths": 1,
+          "analyzedDeaths": 1,
+          "recordedDeaths": 1,
+          "completeDeathList": true
+        },
+        "readAt": "2026-10-16T02:42:06.191762+00:00",
+        "sourceCalls": 6
+      },
+      "messages": {
+        "battle_summary": "# 虚空之痕竞技场 · 战斗分析\n**大秘境+12｜已完成｜17:59｜5人**\n\n本场死亡1次；已完成1次致死过程核验。\n\n**非坦承接普攻**\n00:19 呢喃的猫猫：非坦克承接Dominated Brawler普攻117.6万。一击超过满血94.7万，按现有防护补满仍无法存活。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2) · 第2场\n详情：/战斗详情-大腿 · /战斗详情-毒瘤",
+        "battle_good": "# 虚空之痕竞技场 · 战斗详情·大腿\n**大秘境+12｜已完成｜17:59｜5人**\n\n**1. Giannis｜输出贡献**\n记录伤害28026.7万，占同职责已核验总量36.2%；同职责第1/3。\n[整场记录伤害记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2&source=2)\n\n**2. 冬之优雅｜治疗贡献**\n有效治疗12732.6万，占同职责已核验总量100.0%；同职责第1/1。\n[整场有效治疗记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2&source=167)\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2) · 第2场",
+        "battle_review": "# 虚空之痕竞技场 · 战斗详情·毒瘤\n**大秘境+12｜已完成｜17:59｜5人**\n\n**1. 呢喃的猫猫｜00:19**\n非坦克承接Dominated Brawler普攻117.6万。一击超过满血94.7万，按现有防护补满仍无法存活。\n[致死记录](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2&type=deaths&source=166)\n\n选人依据：已核验的致死过程，优先展示不同类型的代表角色；死亡本身不等于责任。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/kNBvnCLXjqPQZhdg?fight=2) · 第2场"
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "scope": "official_qq_query_candidate_only",
+  "sourceFilesMatched": 14,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "testGroupNumber": "1127827451",
+  "officialChannelPid": 594573,
+  "unchangedServicePids": {
+    "chickenbro-api.service": 1195642,
+    "chickenbro-worker.service": 1195577,
+    "chickenbro-qq-official-worker.service": 267252
+  },
+  "rollbackDirectory": "/etc/chickenbro-qq-official/query-backup-20261014T133748Z",
+  "credentialKeysAdded": [
+    "WOW_WARCRAFTLOGS_CLIENT_ID",
+    "WOW_WARCRAFTLOGS_CLIENT_SECRET"
+  ],
+  "manualGroupAcceptance": "pending"
+}

@@ -15,6 +15,7 @@
 | 引擎与目录 | SimulationCraft 已升级游戏构建 `12.1.5.70391`，匹配天赋、装备和中文目录，并修复多线程动作采样缺失；[升级与验证](../artifacts/verification/2026-10-16-simc-update/repair/README.md) |
 | POE2 构筑与对话 | 独立游戏会话；PoB 字符串导入即展示角色、属性、技能搭配和中文天赋树；两步对比、构筑 ID 复制和列表删除；[正式发布证据](../artifacts/releases/2026-09-21-poe2/README.md) |
 | POE2 研究策略 | 复用已有基线与相同方案；Chat 每轮 12 次新计算、每研究 60 个方案／120 次执行，30 方案软提醒；读取、对比和复用不扣额度，Web 手动计算维持原策略 |
+| 官方炸鸡 QQBot | 原测试群内提供 WoW 角色／团本／大米最近三场查询、WCL 战斗摘要／打得好／菜鸡查询及无工具命令引导；[本轮集成与验证](../artifacts/verification/2026-10-16-qqbot-integration/README.md)，保持原单群范围 |
 | 旧版个人 QQ 退役 | NapCat／OneBot 旧版源码及云端专属服务、容器、数据库已清理，独立恢复核验通过；Web QQ 登录与官方 QQBot 保留。[退役记录](../artifacts/verification/2026-10-16-retire-legacy-qq/README.md) |
 | 运营与质量 | [魔兽／POE2 独立只读运营统计及对话用户去重](../artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md)、反馈归集、Badcase 通用修复与条件发布流程 |
 

@@ -1,0 +1,1293 @@
+{
+  "schemaVersion": 2,
+  "updatedAt": "2026-10-16",
+  "activeMilestone": "chickenbro_web_only_qq",
+  "status": "delivered_with_followups",
+  "qqGroupChannel": {
+    "status": "paused_by_user",
+    "selectedTransport": "personal_qq_napcat_onebot11",
+    "preparationAuthorizedAt": "2026-09-23",
+    "host": "wow-lighthouse",
+    "plan": "docs/plans/2026-09-23-qq-napcat-channel.md",
+    "environmentEvidence": "artifacts/verification/2026-09-23-qq-napcat/environment.json",
+    "napcatVersion": "4.18.28",
+    "containerRunning": true,
+    "qqLoggedIn": true,
+    "channelAdapter": "implemented",
+    "businessEnabled": false,
+    "groupBusinessAcceptance": "user_accepted_20260923",
+    "productionApplicationChanged": false,
+    "loginEvidence": "artifacts/verification/2026-09-23-qq-napcat/login-status.json",
+    "onebotEvidence": "artifacts/verification/2026-09-23-qq-napcat/onebot-login.json",
+    "loginRecoveryEvidence": "artifacts/verification/2026-09-23-qq-napcat/automatic-login-recovery.json",
+    "automaticLoginRecovery": "passed_password_fallback_container_restart",
+    "configuredGroupMembershipVerified": true,
+    "implementationAuthorizedAt": "2026-09-23",
+    "productionChannelDatabase": "chickenbro_qq_channel",
+    "runtimeEvidence": "artifacts/verification/2026-09-23-qq-napcat/candidate-runtime.json",
+    "implementationRecord": "artifacts/verification/2026-09-23-qq-napcat/implementation.md",
+    "candidateUserVisibleResult": "ack_only_confirmed_by_screenshot",
+    "productionUserVisibleResult": "final_answer_confirmed_by_user",
+    "businessAcceptanceEvidence": "artifacts/verification/2026-09-23-qq-napcat/production-hello.json",
+    "companionRole": {
+      "status": "production_social_user_accepted_with_followups",
+      "definitionAccepted": true,
+      "design": "docs/plans/2026-09-23-qq-companion-design.md",
+      "displayName": "炸鸡",
+      "selfNames": [
+        "鸡哥",
+        "小鸡"
+      ],
+      "mentionMustReply": true,
+      "observeWithoutMention": true,
+      "runtimeImplemented": true,
+      "designAccepted": true,
+      "implementationPlan": "docs/plans/2026-09-23-qq-companion-implementation.md",
+      "executionMethod": "native_sequential_then_independent_review",
+      "fixedProactiveCooldown": false,
+      "hourlyProactiveQuota": false,
+      "productionEnabled": false,
+      "proactiveEnabled": true,
+      "independentReview": "passed",
+      "verificationRecord": "artifacts/verification/2026-09-23-qq-companion/README.md",
+      "memePolicy": "current_group_reuse_then_contextual_web_search",
+      "originalStickerCatalogEnabled": false,
+      "memeRevisionEvidence": "artifacts/verification/2026-09-23-qq-companion/meme-revision.md",
+      "productionRelease": "20260923-companion-quote-v5",
+      "naturalReplyFixEvidence": "artifacts/verification/2026-09-23-qq-companion/natural-reply-fix.md",
+      "activationEvidence": "artifacts/verification/2026-09-23-qq-companion/activation/README.md",
+      "mentionTextAndExpressionAcceptance": "user_confirmed_20260923",
+      "proactiveGroupAcceptance": "user_confirmed_20260923",
+      "memoryGroupAcceptance": "pending",
+      "simcGroupAcceptance": "pending_candidate_verified",
+      "sourceWorktree": "/Users/boyuan/.codex/worktrees/qq-companion/wow_mini_program",
+      "quotePolicy": "social_default_direct_optional_current_message_quote",
+      "quoteEvidence": "artifacts/verification/2026-09-23-qq-companion/optional-quote/README.md",
+      "quoteGroupAcceptance": "user_confirmed_20260923",
+      "closureAuthorizedAt": "2026-09-23",
+      "closureEvidence": "artifacts/verification/2026-09-23-qq-companion/closure/README.md",
+      "sourceCommit": "f6f0745770ce7a55db00c930feb1b74dee4fc119",
+      "sourceBranch": "main",
+      "gitDelivery": "implementation_pushed"
+    },
+    "badcaseRepair": {
+      "status": "deployed_stopped_pending_live_acceptance",
+      "scope": [
+        "professional_dispatch",
+        "target_speaker_context",
+        "image_provenance",
+        "quiet_participation"
+      ],
+      "evidence": "artifacts/verification/2026-09-24-qq-badcase/README.md",
+      "startupAuthorized": false,
+      "liveAcceptance": "pending_user_resumption",
+      "deployedRelease": "/opt/chickenbro-qq-releases/20260924-badcase-v7",
+      "sourceCommit": "84867887eaf26a7e632593bf1230df88fc935f14",
+      "channelState": "inactive",
+      "workerState": "inactive",
+      "releaseEvidence": "artifacts/verification/2026-09-24-qq-badcase/release.json",
+      "readbackEvidence": "artifacts/verification/2026-09-24-qq-badcase/readback.json"
+    }
+  },
+  "targetProduct": {
+    "businessDomains": [
+      "chickenbro_chat",
+      "simc",
+      "poe2"
+    ],
+    "clients": [
+      "web"
+    ],
+    "identityOwner": "identity.users.id",
+    "specification": "docs/plans/2026-09-09-web-only-qq.md",
+    "implementationPlans": [
+      "docs/plans/2026-09-09-web-only-qq.md",
+      "docs/plans/2026-09-18-poe2-dual-module.md"
+    ],
+    "candidateDatabaseProvisioningAuthorized": false,
+    "identityContract": "QQ website identities map to internal user_id. Web HttpOnly sessions only; 186 explicitly approved WeChat-only test owners removed with independently restore-verified backup. No automatic identity linking."
+  },
+  "delivery": {
+    "phase1": "local_verified",
+    "phase2": "whitelist_recovery_verified_capacity_gate_open",
+    "phase3": "local_verified",
+    "phase4": "local_verified",
+    "phase5": "production_accepted_write_verified",
+    "phase6": "local_and_cloud_cleanup_complete",
+    "scope": "historical_six_phase_rebuild_only"
+  },
+  "gates": {
+    "implementationAuthorized": true,
+    "terminalGoalAuthorized": true,
+    "cleanupIntentAuthorized": true,
+    "cleanupBackupMode": {
+      "status": "none_user_authorized",
+      "confirmation": "I_UNDERSTAND_NO_BACKUP_IS_IRREVERSIBLE",
+      "scope": [
+        "production_cutover",
+        "legacy_retirement"
+      ],
+      "recordedAt": "2026-09-04"
+    },
+    "phase5Evidence": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover/evidence.json",
+    "productionCutoverAuthorized": true,
+    "productionCutoverReady": true,
+    "destructiveCleanupReady": true,
+    "finalUserAcceptance": "passed",
+    "cleanupPrerequisites": [
+      "whitelist_migration_restore_verified",
+      "candidate_capacity_gate_passed",
+      "production_dual_client_acceptance_passed",
+      "first_new_write_reconciled",
+      "stable_production_health",
+      "no_independent_backup_direct_delete_authorized",
+      "cloud_cleanup_result_applied",
+      "fresh_post_cleanup_inventory_reachable",
+      "local_cleanup_result_applied",
+      "post_cleanup_runtime_smoke_passed",
+      "final_main_origin_production_parity_verified"
+    ],
+    "capacityPreCleanup": {
+      "authorized": false,
+      "exactRejectedDatabaseCount": 4,
+      "completedDatabaseCount": 4,
+      "remainingDatabaseCount": 0,
+      "requiresPhase5Acceptance": false,
+      "requiresWhitelistRestoreVerification": true,
+      "protectsWowTest": true
+    },
+    "scope": "historical_six_phase_rebuild_only"
+  },
+  "refactorEvidence": {
+    "localInventory": "docs/refactor/chickenbro-simc-refactor-inventory.json",
+    "dispositionRules": "docs/refactor/chickenbro-simc-disposition-rules.json",
+    "cloudInventory": "docs/refactor/chickenbro-simc-cloud-inventory.json",
+    "cloudCleanupManifest": "docs/refactor/chickenbro-simc-cloud-cleanup-manifest.json",
+    "capacityCleanupManifest": "docs/refactor/chickenbro-simc-capacity-cleanup-manifest.json",
+    "recoveryInventory": "docs/refactor/chickenbro-simc-recovery-inventory.json",
+    "capacityGate": "post_cleanup_complete",
+    "targetIdentity": {
+      "provider": "tencent_cvm",
+      "instanceId": "ins-93tgv1rb",
+      "region": "ap-shanghai",
+      "zone": "ap-shanghai-2",
+      "publicAddress": "124.223.51.33",
+      "sshTarget": "wow-lighthouse",
+      "refreshRequiredBeforeApply": true
+    },
+    "observedRootFreeBytes": 60018577408,
+    "observedLegacyDatabaseBytes": 0,
+    "whitelistRecovery": {
+      "status": "restore_verified",
+      "manifestSha256": "a383d4c32f4edf08360055316c73f451d5b19fe1e81630dbb79b935126f8c818",
+      "archiveSha256": "d22acc8a78e0ed5a96e15b9918251a819caf825de91585da2e84c2e69ababb80",
+      "candidateDatabase": "chickenbro_prod",
+      "isolatedRestoreDatabase": "chickenbro_restore_verify_20260903_054604__c74b7e3af237",
+      "migrationReconciliation": "matched",
+      "restoreReconciliation": "matched"
+    },
+    "localCleanupDryRun": {
+      "deletable": 0,
+      "retained": 273,
+      "blocked": 2588,
+      "review": 1,
+      "phase5Accepted": true
+    },
+    "cloudCleanupDryRun": {
+      "total": 113,
+      "ready": 113,
+      "blocked": 0,
+      "unresolvedRequiredTargets": 0
+    },
+    "localCleanupApplyAllowed": true,
+    "capacityPreCleanupApplyAllowed": false,
+    "cloudCleanupApplyAllowed": true,
+    "cloudCleanupResult": {
+      "status": "applied",
+      "appliedManifestSha256": "d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc",
+      "resultPath": "/var/lib/chickenbro-retirement-quarantine/d96caa10b07160469c1e652b70783bfaa63e24a8df42833402707054dd3aa8cc/result.json",
+      "resultSha256": "58882aeae8e61ab406350f3e4ae0417b9c1b7bd73f722578087da9a6e839a242",
+      "resourceCount": 113,
+      "deleted": 1,
+      "previouslyAbsent": 112,
+      "runtimeMasksRemoved": 33,
+      "runtimeMaskEvidenceSha256": "fe88a3878edc06c76689e6ec5b2381e4f4e0446b2ebdd8db4116e32f16144572",
+      "postCleanupInventorySha256": "95937c5c4f3b2be9553ec673bfde7864ba83f132d0285cf7be0c7ca65cd4cdb2",
+      "postCleanupObservedAt": "2026-09-04T07:46:14Z"
+    },
+    "loginAcceptance": {
+      "mode": "user_authorized_skipped",
+      "realWechatQrLogin": "not_run",
+      "reason": "用户明确授权跳过本轮微信扫码登录；此前微信登录已验证，本轮不宣称新的扫码成功。"
+    },
+    "localCleanupResult": {
+      "status": "applied",
+      "inventoryFileSha256": "3e98a6afef753aba93fe26456e1141e07224a3d1f8d667be68381a4aa12f2a9b",
+      "inventorySha256": "71c339f59eeab03fd52f94830043585b856f74a754da6386f9dd0b207d4ac2b0",
+      "generatedFromCommit": "e61802cf9fa6414c6139919aa8e7d8c8ce4b5585",
+      "applyResultSha256": "2fcbdd056860102289e6f1cea726cc3ef6e76e0d02516a2a6807b75b17438106",
+      "deletedFiles": 2588,
+      "retainedFiles": 273,
+      "blocked": 0,
+      "review": 0,
+      "postApplyDryRun": {
+        "deletable": 0,
+        "retained": 273,
+        "targetMissing": 2588,
+        "review": 1,
+        "reviewReason": "INVENTORY_BASE_COMMIT_DIFFERS_FROM_HEAD"
+      }
+    },
+    "finalParity": {
+      "status": "passed",
+      "main": "HEAD",
+      "originMain": "origin/main",
+      "productionRuntimeCommit": "f1c745f5e418c9ed83dba1622ab0e673714c76a2",
+      "weappRefresh": "preview_refreshed"
+    },
+    "scope": "historical_six_phase_rebuild_only",
+    "asOf": "2026-09-04"
+  },
+  "executionAuthority": {
+    "architecture": "docs/chickenbro-simc-architecture.md",
+    "productionRunbook": "docs/chickenbro-simc-production-runbook.md",
+    "verificationMatrix": "docs/verification-matrix.md",
+    "projectOwnerMap": "docs/project-owner-map.json",
+    "backendOwnerMap": "docs/backend-owner-map.json",
+    "harness": "docs/harness.md"
+  },
+  "defaultLocalReleaseArtifact": "artifacts/releases/2026-09-02-chickenbro-simc-dual-client-cutover",
+  "releaseResolution": {
+    "ci": "task_scoped_pr_diff",
+    "local": "explicit_release_or_default_local_release_artifact",
+    "requiresCompletePacket": true,
+    "requiresCrossBoundManifest": true,
+    "requiresCleanVerificationHead": true,
+    "rejectsZeroOrMultipleTaskPackets": true
+  },
+  "productRelease": {
+    "version": "1.0.0",
+    "status": "user_accepted",
+    "acceptedAt": "2026-09-08",
+    "acceptance": "目前我认为1.0版本已经完成了！",
+    "scope": "historical_1_0_mini_web_accepted_implementation",
+    "releaseNotes": "docs/releases/1.0.md",
+    "verificationRecord": "artifacts/verification/2026-09-08-v1-close/README.md",
+    "finalUiChanges": "web_deployed_mini_uploaded",
+    "wechatPublicRelease": "cancelled_by_mini_retirement_2026-09-09",
+    "historicalRefactorEvidenceAsOf": "2026-09-04",
+    "latestApplicationSourceCommit": "189d711648c6846df73f07d9aeb2ae7f9766ff15",
+    "publicationEvidence": "artifacts/verification/2026-09-08-v1-close/alignment/release.json",
+    "latestMiniVersion": "1.0.5",
+    "latestMiniUpload": "succeeded",
+    "lastAlignmentSourceCommit": "1db94ba9598bfa2c8b67d7e305bcc67f3c6a64b1",
+    "note": "Historical 1.0 acceptance and source identities; not the current QQ/Web deployment or a pending Mini release."
+  },
+  "historicalRebuild": {
+    "asOf": "2026-09-08",
+    "targetProduct": {
+      "businessDomains": [
+        "chickenbro_chat",
+        "simc"
+      ],
+      "clients": [
+        "wechat_mini_program",
+        "web"
+      ],
+      "identityOwner": "identity.users.id",
+      "crossClientContract": "Independent Mini Bearer and Web HttpOnly sessions resolve to the same internal user_id; server-owned Chat and SimC records are therefore visible from both clients.",
+      "specification": "docs/superpowers/specs/2026-09-02-chickenbro-simc-total-rebuild-design.md",
+      "implementationPlans": [
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-01-control-plane.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-02-identity-data.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-03-chat.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-04-simc.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-05-dual-client-migration-cutover.md",
+        "docs/superpowers/plans/2026-09-02-chickenbro-simc-rebuild-06-legacy-retirement.md"
+      ],
+      "candidateDatabaseProvisioningAuthorized": true
+    },
+    "note": "Historical dual-client authorization and evidence; not authority for the QQ refactor or new deletion.",
+    "compatibilityFields": [
+      "delivery",
+      "gates",
+      "refactorEvidence",
+      "defaultLocalReleaseArtifact",
+      "productRelease"
+    ]
+  },
+  "qqWebRefactor": {
+    "status": "live_verified",
+    "implementationAuthorized": true,
+    "historyPolicy": "retain_without_migration",
+    "cloudSecretSaved": true,
+    "cloudSecretFile": "/etc/chickenbro-qq.env",
+    "applicationReview": "approved_verified_in_qq_console_2026-09-09",
+    "productionCutoverAuthorized": true,
+    "productionDeployed": true,
+    "realQqLoginVerified": true,
+    "miniProduct": "retired_from_live_runtime_and_build",
+    "plan": "docs/plans/2026-09-09-web-only-qq.md",
+    "verificationRecord": "artifacts/verification/2026-09-09-qq-web/deployment/README.md",
+    "localSourceCommit": "7a893c383d09f1a3a46e2d5cea66309bf7a74cff",
+    "candidateProvisioningAuthorized": true,
+    "registeredCallbacks": [
+      "https://www.chickenbro.cloud/api/v2-candidate/auth/qq/callback",
+      "https://www.chickenbro.cloud/api/v2/auth/qq/callback"
+    ],
+    "manualUserAcceptance": "not_claimed",
+    "avatarFix": {
+      "status": "live_verified",
+      "sourceCommit": "a89dc8a334d892a826e80fcb2e1decdeadbdee47",
+      "evidence": "artifacts/verification/2026-09-09-qq-web/deployment/avatar-fix.json"
+    },
+    "userQqLoginConfirmed": "2026-09-09"
+  },
+  "incrementalWork": {
+    "chatConversationReturn": {
+      "status": "live_verified",
+      "sourceCommit": "0f8b3ce9da11012e1afdcaaa5675d243ae0f8d67",
+      "scope": "web_only_copy_and_inflight_conversation_state",
+      "productionCutoverAuthorized": true,
+      "evidence": "artifacts/verification/2026-09-11-chat-return-state/README.md",
+      "webArtifactFilesVerified": 13,
+      "browserVerification": "actual_public_artifact_with_isolated_api_and_sse_fixture",
+      "manualUserAcceptance": "not_claimed",
+      "backendRestarted": false
+    },
+    "chatImages": {
+      "status": "live_verified",
+      "plan": "docs/plans/2026-09-09-chat-images.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "userAcceptance": "not_run",
+      "evidence": "artifacts/verification/2026-09-09-chat-images/README.md",
+      "miniVerification": "user_waived_2026-09-09",
+      "dependencyInstallationAuthorized": true,
+      "sourceCommit": "72e6224f21eb0d5fb0635237d454eebe8b845884",
+      "productionEvidence": "artifacts/verification/2026-09-09-chat-images/deployment/README.md",
+      "remoteConflictResolutionAuthorized": true,
+      "miniUpload": "not_run_this_task",
+      "inlineComposer": {
+        "status": "live_verified",
+        "sourceCommit": "4a519c4c1882db9085fe5b4ad345cc1c062e522d",
+        "evidence": "artifacts/verification/2026-09-09-inline-chat-images/release/README.md",
+        "userClosureAuthorized": true
+      }
+    },
+    "simcExperiments": {
+      "status": "live_verified",
+      "plan": "docs/plans/2026-09-09-simc-scenario-experiments.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "sourceCommit": "7ef8a5dfd9a48de9c9d6c12c660b6564446fd5eb",
+      "candidateVerified": true,
+      "liveBusinessVerified": true,
+      "modelEndToEndVerified": true,
+      "releaseEvidence": "artifacts/verification/2026-09-09-simc-scenario-experiments/release/README.md",
+      "userClosureAuthorized": true
+    },
+    "badcaseWorkflow": {
+      "status": "live_verified",
+      "sourceCommit": "fe4c35f8bb544a2066bfb804b5f00142ab8731bd",
+      "batchSha256": "373d650bbde119cb1cc7cdbb6b74caa6e59edac22a9a7114e18cee5d9f2c4aab",
+      "plan": "docs/plans/2026-09-08-badcase-workflow.md",
+      "evidence": "artifacts/verification/2026-09-09-badcase-workflow/production-final-release.json",
+      "releasedGroup": "G6",
+      "remainingFeedbackOutsideScope": 2,
+      "scheduledScan00": "completed",
+      "scheduledScan06": "usage_limit_failed",
+      "userAcceptance": "not_claimed"
+    },
+    "wclToolEfficiency": {
+      "status": "live_verified",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "plan": "docs/plans/2026-09-10-wcl-tool-efficiency.md",
+      "scope": [
+        "wcl_response_views",
+        "run_local_read_deduplication",
+        "bounded_window_statistics"
+      ],
+      "productionDeployed": true,
+      "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/README.md",
+      "backendTestsPassed": 667,
+      "controlTests": {
+        "passed": 63,
+        "failed": 0,
+        "evidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/control-tests-closure.log"
+      },
+      "modelComparisons": 2,
+      "releasePreparation": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release-preparation.json",
+      "sourceCommit": "f95f6bbe234a2da8a67ca86466e96c6c29c6b794",
+      "candidateVerified": true,
+      "liveBusinessVerified": true,
+      "userClosureAuthorized": true,
+      "userAcceptance": "not_claimed",
+      "releaseEvidence": "artifacts/verification/2026-09-10-wcl-tool-efficiency/release/README.md",
+      "rollback": "retained_source_and_private_configuration_validated_no_switchback_drill"
+    },
+    "boundedResearch": {
+      "status": "live_verified",
+      "plan": "docs/plans/2026-09-10-bounded-research.md",
+      "sourceCommit": "3f0c15d988fd33fd08dae8514f70ee483862c3c8",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "productionDeployed": true,
+      "backendTestsPassed": 693,
+      "controlTestsPassed": 63,
+      "evidence": "artifacts/verification/2026-09-10-bounded-research/release/README.md",
+      "preReleaseReportAccepted": true,
+      "manualPostReleaseAcceptance": "not_claimed",
+      "persistentCrossTurnBudget": true,
+      "productionRollbackDrill": "not_run",
+      "persistentCrossTurnBudgetEvidence": "artifacts/verification/2026-09-11-persistent-research/README.md"
+    },
+    "customApl": {
+      "status": "live_verified",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "sourceCommit": "c408a30e676c9884d27b7c4ea8cad39f8ac45a01",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "webScenarioVersion": 4,
+      "evidence": "artifacts/verification/2026-09-10-custom-apl/release/README.md",
+      "candidateBusinessVerified": true,
+      "productionBusinessVerified": true,
+      "publicWebFilesVerified": 13,
+      "manualPostReleaseAcceptance": "not_claimed",
+      "productionRollbackDrill": "not_run",
+      "terminologyResearch": "research-first verified; external sources did not establish current set effects in this smoke"
+    },
+    "nativeSearch": {
+      "status": "live_verified",
+      "sourceCommit": "1c7caa15984240fcd3ad1ca03495953c9aa6dfc9",
+      "plan": "docs/plans/2026-09-10-bounded-research.md",
+      "evidence": "artifacts/verification/2026-09-10-native-search/README.md",
+      "scope": "native_search_tool_capability",
+      "answerQualityBacklog": "G8_G9_finite_replay_G10_alias_path_live_verified_remaining_mechanism_and_version_evidence_open",
+      "originalBadcaseClosure": false,
+      "manualUserAcceptance": "not_claimed"
+    },
+    "catalogueAnswerQuality": {
+      "status": "live_verified",
+      "sourceCommit": "6c2b36b2ef7ba0a42d6adfb30f69eac9bed6029b",
+      "batchSha256": "e3269f3535a07595b3413204fc97c74bb35c2f61fcd4b7578be91152dca5a4c2",
+      "evidence": "artifacts/verification/2026-09-10-native-search/quality-README.md",
+      "scope": "G11_finite_catalogue_identity_coverage_version",
+      "pairedBeforePassed": 8,
+      "pairedAfterPassed": 10,
+      "pairedTrialsPerPhase": 10,
+      "livePassed": 2,
+      "remainingGroups": [],
+      "allManufacturingQualitiesVerified": false,
+      "manualUserAcceptance": "not_claimed",
+      "remainingGroupsScope": "listed_G8_G9_G10_scoped_paths_only_not_all_quality_or_mechanism_gaps",
+      "replayEvidence": "docs/plans/2026-09-11-remaining-issues-status.md"
+    },
+    "badcaseFollowup": {
+      "asOf": "2026-09-11",
+      "status": "scoped_fixes_live_verified_remaining_evidence_open",
+      "tracking": "docs/plans/2026-09-11-remaining-issues-status.md",
+      "G8": {
+        "status": "original_replay_passed",
+        "implementation": "existing_released_tools_reused",
+        "candidate": "original_replay_on_released_source_passed",
+        "live": "no_new_release_or_live_smoke_claimed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+        "limit": "Finite original replay; not a new five-class randomized model matrix."
+      },
+      "G9": {
+        "status": "two_original_replays_passed",
+        "implementation": "existing_released_behavior_reused",
+        "candidate": "two_budget_explanation_replays_passed",
+        "live": "no_new_release_or_live_smoke_claimed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/README.md",
+        "limit": "No fabricated server budget cap or simulation; original ring DPS belongs to G12."
+      },
+      "G10": {
+        "status": "automatic_alias_path_live_verified_with_declared_assumptions",
+        "implementation": "automatic_alias_research_path_released",
+        "candidate": "five_class_matrix_passed",
+        "live": "four_item_discovery_two_owned_simulations_compare_and_limits_verified",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
+        "limit": "Finite original alias path verified under disclosed item-level and engine assumptions; not universal aliases, exact item versions or real-combat superiority.",
+        "automaticAliasWork": {
+          "status": "live_verified",
+          "sourceCommit": "30a5870e3",
+          "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
+          "localTestsPassed": 45,
+          "localTestEvidence": "reported_by_owning_task",
+          "candidate": "five_class_matrix_passed",
+          "live": "four_item_discovery_two_owned_simulations_compare_and_limits_verified",
+          "manualUserAcceptance": "not_claimed",
+          "evidenceAtSourceCommit": [
+            "artifacts/verification/2026-09-11-g10-product-path/preregistration.json",
+            "artifacts/verification/2026-09-11-g10-product-path/before.json"
+          ],
+          "before": {
+            "sourceCommit": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+            "passed": false,
+            "nativeSearchEvents": 5,
+            "optionsCalls": 3,
+            "simc": 0,
+            "reason": "Asked for formal names and upgrade levels"
+          },
+          "budget": {
+            "models": 8,
+            "cloudSimc": 12,
+            "observedSources": 60
+          },
+          "evidence": "artifacts/verification/2026-09-11-g10-product-path/README.md",
+          "jointLocalTestsPassed": 125,
+          "consumption": {
+            "models": 7,
+            "cloudSimc": 6,
+            "sources": 31,
+            "initializationFailuresBeforeModel": 2
+          },
+          "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json"
+        }
+      },
+      "G12": {
+        "status": "enchant_completion_race_and_native_refusal_handling_live_verified",
+        "implementation": "95569fc01d91e335dd0f30bd3f7655fc12d87f65",
+        "candidate": "business_passed_model_matrix_9_of_10",
+        "live": "two_real_enchant_comparisons_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/release/README.md",
+        "limit": "Historical 2ed6 root cause remains unknown and original 9/10 retained. Expected failed policy refusal is not an assistant answer.",
+        "nativeOutputWork": {
+          "status": "live_verified",
+          "implementationCommit": "fff567fbe",
+          "integrationCommit": "45d8241b10cdaaa5ef3b1a9c75ad5cd8d1d31c4e",
+          "evidenceCommit": "9e0a485e8",
+          "evidence": "artifacts/verification/2026-09-11-native-output/README.md",
+          "historicalRootCause": "unknown_protocol_and_stderr_not_retained",
+          "newReproduction": "structured_cyberPolicy_zero_tools",
+          "implementation": "nonretryable_CODEX_REQUEST_REJECTED_failed_state_without_assistant_record",
+          "local": {
+            "backendRelevantTests": 128,
+            "chatStateTests": 31,
+            "typecheck": "passed",
+            "singleTaskWebBuild": "passed",
+            "jointLatestWebBuild": "passed"
+          },
+          "candidate": "original_failed_run_nonretryable_replay_passed_without_new_model",
+          "live": "expected_policy_rejection_nonretryable_replay_isolation_verified",
+          "manualUserAcceptance": "not_claimed",
+          "consumption": {
+            "models": 5,
+            "modelCeiling": 8,
+            "cloudSimc": 0,
+            "simcCeiling": 4
+          },
+          "releaseOwnerTask": "01a08f04-7fb0-73d1-813f-a4c755c75007",
+          "releasePrerequisite": "joint_verified_latest_source_migration_0009_and_web",
+          "durableFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "durableFixVerification": {
+            "relatedTestsPassed": 104,
+            "environment": "existing_cloud_runtime",
+            "localFullTests": "not_claimed_missing_fastapi",
+            "modelFreeReadbackRecheck": "passed"
+          },
+          "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+          "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json"
+        }
+      },
+      "G13": {
+        "status": "live_verified",
+        "implementation": "af244e22bea1b894745f2ec0fd2467843375061a",
+        "candidate": "deterministic_matrix_5_of_5_and_business_passed",
+        "live": "two_equipment_name_answers_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/release-rerun/README.md",
+        "limit": "Failed first release and verified recovery retained; release identity 60028b8338e6fb41b2509647afe7d27a26329279."
+      },
+      "food": {
+        "status": "conditional_burst_live_verified_full_timeline_open",
+        "implementation": "342039cab3516176e7436e7af30dc2e1c7897bfc",
+        "candidate": "original_elemental_two_stat_comparison_passed",
+        "live": "feral_stat_experiment_readback_and_business_passed",
+        "manualUserAcceptance": "not_claimed",
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/food-release/README.md",
+        "limit": "Conditional 20-second burst; not a complete boss timeline or proof of original food support."
+      },
+      "historicalConsumption": {
+        "modelsObservedThroughG10Comparison": 114,
+        "lastFiniteWindow": {
+          "models": 7,
+          "modelLimit": 12,
+          "cloudSimc": 20,
+          "cloudSimcLimit": 20,
+          "observedSourceOperations": 57,
+          "sourceLimit": 60
+        },
+        "evidence": "artifacts/verification/2026-09-11-g12-final-window/remaining-tests/g10-comparison/README.md",
+        "note": "Historical window remains stopped; new tasks track their own explicit budgets without resetting these totals. Provider-internal attempts are not known."
+      }
+    },
+    "cosAuditRecovery": {
+      "status": "closed_by_user_no_further_investigation",
+      "evidenceCommit": "b019358dd00baa195ed452d16c60015cf3f83893",
+      "evidence": "artifacts/security/2026-09-11-cos-audit-recovery/README.md",
+      "implementation": "documentation_and_read_only_evidence_only",
+      "candidate": "not_applicable_no_runtime_change",
+      "live": "seven_theme_images_and_manifest_origin_cdn_integrity_verified",
+      "localRecovery": "eight_files_rebuilt_from_same_git_source_verified",
+      "independentDisasterRecovery": false,
+      "cloudRestoreExecuted": false,
+      "productionDeployment": "not_required_no_runtime_change",
+      "manualUserAcceptance": "not_claimed",
+      "historicalAnonymousWrites": "unknown",
+      "authenticatedTargetConfiguration": "not_verified_console_account_appid_mismatch",
+      "supportTicket": "draft_not_sent",
+      "integratedEvidenceCommit": "9761f2f4318a9f7d8afd7866754b59b3a08e38c4",
+      "userDecision": {
+        "date": "2026-09-11",
+        "instruction": "这个也忽略，不用管了，没问题",
+        "scope": "Stop COS historical investigation and associated audit/recovery followups; retain historical evidence.",
+        "historicalSafetyConclusion": "unknown_not_reclassified_as_verified_safe"
+      },
+      "historicalBlockers": [
+        "target_account_authenticated_read_only_access",
+        "supplier_history_and_capability_confirmation",
+        "explicit_ticket_send_authorization",
+        "separate_authorization_for_new_costs_or_migration"
+      ],
+      "followupRequired": false
+    },
+    "simcAccuracy": {
+      "status": "live_verified",
+      "sourceCommit": "3c53101ec",
+      "integration": "9e92bc124a1069a617883a710615e6a0bd544d61",
+      "localTestsPassed": 99,
+      "evidenceAtSourceCommit": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "implementation": "preserve_engine_diagnostics_in_worker_results_and_get_compare",
+      "candidate": "persistence_get_compare_answer_and_owner_isolation_verified",
+      "live": "persisted_get_compare_and_answer_mechanism_limits_verified",
+      "manualUserAcceptance": "not_claimed",
+      "remainingEvidence": [
+        "real_crafted_item_version_fixture",
+        "enchant_quality_effect_mapping_and_report_readback",
+        "boss_timeline_and_entry_state",
+        "measured_trinket_mechanism_parameters"
+      ],
+      "budget": {
+        "models": 2,
+        "cloudSimc": 2,
+        "preferSharedG10Evidence": true
+      },
+      "evidence": "artifacts/verification/2026-09-11-simc-accuracy/README.md",
+      "candidateEvidence": "artifacts/verification/2026-09-11-simc-accuracy/candidate-evidence.json",
+      "consumption": {
+        "ownCloudSimc": 1,
+        "ownModels": 0,
+        "sharedG10CloudSimc": 2,
+        "sharedG10Models": 1,
+        "sharedConsumptionCountedOnlyInG10": true,
+        "sharedLiveG10CloudSimc": 2,
+        "sharedLiveG10Models": 1
+      },
+      "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+      "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json",
+      "scope": "engine_diagnostic_projection_only"
+    },
+    "persistentResearchBudget": {
+      "status": "live_verified",
+      "sourceCommit": "f48202568",
+      "integrationCommit": "30b3b7a52d4b9f0ba517dd405e7d84753bbf9df4",
+      "plan": "docs/plans/2026-09-11-persistent-research-budget.md",
+      "evidence": "artifacts/verification/2026-09-11-persistent-research/README.md",
+      "candidate": "passed_after_zero_model_native_recheck",
+      "live": "persistent_budget_reissue_and_business_verified",
+      "manualUserAcceptance": "not_claimed",
+      "releasePrerequisite": "completed_old_task_drain_additive_migration_and_joint_web_cutover",
+      "localVerification": {
+        "postgresTests": 28,
+        "backendTests": 719,
+        "webInputTests": 25,
+        "typecheck": "passed",
+        "lint": "passed",
+        "webBuild": "passed_with_existing_size_warning"
+      },
+      "limits": {
+        "chatSimcSubmissionsPerResearch": 4,
+        "generationSafetySeconds": 360,
+        "nativeWebGatewayPageHardLimit": false
+      },
+      "acceptanceBudget": {
+        "models": 6,
+        "cloudSimc": 2
+      },
+      "releaseSourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+      "releaseEvidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
+      "liveEvidence": "artifacts/verification/2026-09-11-persistent-research/live.json",
+      "migration": "0009_applied",
+      "consumption": {
+        "models": 6,
+        "modelCeiling": 6,
+        "cloudSimc": 2,
+        "simcCeiling": 2
+      },
+      "scopeLimit": "Native web retains its existing contract rather than gateway five-page hard accounting; no account-wide multi-research quota.",
+      "playerIdentityFix": {
+        "status": "live_verified",
+        "sourceCommit": "5ba5ff6ce689c1d95bf954022d3abb2f475ed6b3",
+        "evidence": "artifacts/verification/2026-09-17-research-player-identity/README.md",
+        "scope": "Existing sampled players reuse quota across RIO realm slugs and WCL compact realm names, including persisted research.",
+        "candidate": "real_chat_wcl_damage_table_and_owner_isolation_passed",
+        "live": "real_chat_wcl_damage_table_and_owner_isolation_passed",
+        "localTests": 67,
+        "postgresTests": 14,
+        "releaseHelperTests": 23,
+        "manualUserAcceptance": "not_claimed",
+        "rollbackDrill": false
+      }
+    },
+    "trinketMechanismStudy": {
+      "asOf": "2026-09-11",
+      "status": "bounded_sensitivity_complete_empirical_probability_unknown",
+      "evidence": "artifacts/verification/2026-09-11-trinket-mechanism/README.md",
+      "scope": "elemental_298_feather_gaze_fixed_300s",
+      "combatSimulations": 2,
+      "spellQueries": 2,
+      "sourceOperations": 13,
+      "modelCalls": 0,
+      "productChanged": false,
+      "releaseRequired": false,
+      "furtherSampling": "stopped",
+      "empiricalProcProbability": "unknown"
+    },
+    "lightspireSensitivityStudy": {
+      "asOf": "2026-09-11",
+      "status": "bounded_sensitivity_complete_empirical_positioning_unknown",
+      "evidence": "artifacts/verification/2026-09-11-lightspire-sensitivity/README.md",
+      "scope": "elemental_321_lightspire_venom_fixed_300s",
+      "combatSimulations": 4,
+      "spellQueries": 2,
+      "sourceOperations": 5,
+      "modelCalls": 0,
+      "productChanged": false,
+      "releaseRequired": false,
+      "furtherSampling": "stopped",
+      "rankingReversed": false
+    },
+    "agentSkills": {
+      "status": "live_verified",
+      "sourceCommit": "2294cb95095a3822e1f4e2c43e225bf0bfdb2f63",
+      "plan": "docs/plans/2026-09-12-agent-skills.md",
+      "evidence": "artifacts/verification/2026-09-12-agent-skills/README.md",
+      "implementationAuthorized": true,
+      "productionCutoverAuthorized": true,
+      "backendTests": {
+        "total": 802,
+        "passed": 801,
+        "skipped": 1
+      },
+      "finalCandidateModelCases": 5,
+      "liveModelCases": 3,
+      "runtimeFilesVerified": 144,
+      "publicWebFilesVerified": 13,
+      "corePromptBytes": 8438,
+      "manualUserAcceptance": "not_claimed",
+      "rollbackDrill": "not_run",
+      "efficiencyLimit": "Smaller standing prompt; complex cases incur workflow retrieval overhead, no universal latency improvement claimed."
+    },
+    "githubHeader": {
+      "status": "live_verified",
+      "sourceCommit": "4407d547facc1f6d44cfa1758b46d47379f7ae5d",
+      "scope": "web_header_external_link",
+      "evidence": "artifacts/verification/2026-09-16-github-owner/README.md",
+      "publicWebFilesMatched": 13,
+      "browserVerification": "public_artifact_with_isolated_api_fixture",
+      "manualUserAcceptance": "not_claimed",
+      "rollbackDrill": false,
+      "repositoryUrl": "https://github.com/Giannis-bo/Chicken-Bro"
+    },
+    "adminGames": {
+      "status": "live_verified",
+      "scope": "read_only_admin_game_separation_and_poe2_aggregates",
+      "evidence": "artifacts/verification/2026-09-21-admin-games/README.md",
+      "productionDeployed": true,
+      "manualUserAcceptance": "not_claimed",
+      "productionCutoverAuthorized": true,
+      "backend": "/opt/chickenbro-releases/admin-users-20260921",
+      "web": "/var/www/chickenbro-web/releases/admin-users-20260921",
+      "userCohorts": {
+        "status": "live_verified",
+        "rule": "distinct_users_by_game_questions_total_before_end_new_first_question_active_in_period",
+        "evidence": "artifacts/verification/2026-09-21-admin-games/user-cohorts/README.md"
+      }
+    },
+    "wowChatContextRepair": {
+      "status": "live_verified",
+      "sourceCommit": "9ef8a187d",
+      "evidence": "artifacts/verification/2026-09-21-wow-chat-context/README.md",
+      "scope": "WoW Chat trusted SimulationToolContext adaptation",
+      "cloudTargetedTests": 102,
+      "liveChatSimulationVerified": true,
+      "ownerIsolationVerified": true,
+      "publicWebFilesVerified": 15,
+      "manualUserAcceptance": "not_claimed"
+    }
+  },
+  "miniRetirement": {
+    "status": "live_verified",
+    "plan": "docs/plans/2026-09-09-mini-retirement.md",
+    "implementationAuthorized": true,
+    "codeCleanup": "live_verified",
+    "dataCleanup": "production_applied_verified",
+    "dataApplied": true,
+    "productionCodeDeployed": true,
+    "evidence": "artifacts/verification/2026-09-09-mini-retirement/README.md",
+    "docsCleanup": "verified",
+    "backupCreated": true,
+    "restoreVerified": true,
+    "dataScope": "186_explicitly_approved_wechat_only_owners",
+    "deletedTrackedFiles": 80,
+    "dataApproval": "user confirmation 可以 after exact scope question",
+    "dataEvidence": "artifacts/verification/2026-09-09-mini-retirement/data-cleanup/applied.json",
+    "recoveryEvidence": "artifacts/verification/2026-09-09-mini-retirement/data-cleanup/recovery.json",
+    "productionCutoverAuthorized": true,
+    "userClosureAuthorized": true,
+    "sourceCommit": "7adcdeffa3566add1cc9fe33325df5b7360e29df",
+    "releaseEvidence": "artifacts/verification/2026-09-09-mini-retirement/release/README.md",
+    "candidateVerified": true,
+    "liveBusinessVerified": true,
+    "manualQqLoginThisRelease": "not_repeated_existing_session_verified"
+  },
+  "adminAnalytics": {
+    "status": "live_verified",
+    "plan": "docs/plans/2026-09-09-admin-ops.md",
+    "verificationRecord": "artifacts/verification/2026-09-09-admin-ops/README.md",
+    "backendSourceCommit": "03275ee5ce677afe9c4e1d0d6a735642beed8e6b",
+    "webSourceCommit": "8fba1535f226c5dd6eebbcd3980fc2ca52c4075f",
+    "singleVerifiedQqOwner": true,
+    "browserVerified": true,
+    "secondAccountDenied": true,
+    "productionRollbackDrill": "not_run"
+  },
+  "currentDelivery": {
+    "asOf": "2026-09-11",
+    "scope": "web_only_qq",
+    "latestRecordedApplicationSourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+    "evidence": "artifacts/verification/2026-09-11-research-generalization/release-summary.json",
+    "status": "live_verified_for_recorded_release",
+    "manualPostReleaseAcceptance": "not_claimed",
+    "note": "Recorded source and live HTTP business verification; no continuous monitoring or manual acceptance claimed.",
+    "webFilesVerified": 13,
+    "observationSeconds": 0,
+    "rollbackDrill": "not_run",
+    "recoveryEvidence": "artifacts/verification/2026-09-11-research-generalization/release-summary.json",
+    "latestIdentityAndWebCheck": "artifacts/verification/2026-09-11-research-generalization/release-summary.json"
+  },
+  "jointRelease": {
+    "status": "released",
+    "rejectedCandidateSource": "9e92bc124a1069a617883a710615e6a0bd544d61",
+    "integratedFixCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "productionSourceAsReported": "22c681f99f457329f1b25570343b7f9be401201b",
+    "productionChanged": true,
+    "evidenceStatus": "final_receipts_cross_checked",
+    "required": "completed_migration_backend_web_and_semantic_checks",
+    "specializedCandidateEvidence": "retained_and_supplemented_by_live_reviews",
+    "sourceCommit": "22c681f99f457329f1b25570343b7f9be401201b",
+    "evidence": "artifacts/verification/2026-09-11-persistent-research/release/result.json",
+    "semanticReview": "artifacts/verification/2026-09-11-persistent-research/release/semantic-review.json",
+    "finalCheck": "artifacts/verification/2026-09-11-persistent-research/release/final-check.json",
+    "manualUserAcceptance": "not_claimed",
+    "rollbackDrill": "not_run",
+    "previousBlockingDefect": "durable_subscription_marked_policy_refusal_retryable",
+    "candidateRecheck": "artifacts/verification/2026-09-11-persistent-research/candidate-recheck.json",
+    "privateCopyRetention": {
+      "status": "existing_automation_connected_expiry_pending",
+      "localManifest": "/Users/boyuan/.codex/badcase/chickenbro/persistent-research-20260911/retention.json",
+      "remoteManifest": "/var/lib/chickenbro-joint-research-20260911/retention.json",
+      "manifestSha256": "2446de8c65b7a441e2312397db81e4e08c1869ab65ff561a457877066f1e1902",
+      "localMode": "0600",
+      "remoteOwnerMode": "root:root 0600",
+      "nativeExpiresAt": 1789639309.95872,
+      "g10ExpiresAt": 1789611698.4364,
+      "mixedTransportExpiresAt": 1789611698.4364,
+      "originalRetentionNotExtended": true,
+      "cleanupPerformed": false,
+      "existingMechanism": "Existing Badcase cron agent consumes pinned exact inventories before scans; raw prune and image retention remain separate.",
+      "notCovered": [],
+      "excluded": [
+        "production_records",
+        "rollback_metadata",
+        "source",
+        "release_manifests"
+      ],
+      "newSchedulerCreated": false,
+      "previousGap": "manifest_verified_not_connected_to_cleanup",
+      "coverageScope": "scheduler_agent_procedure_only_not_a_deployed_deterministic_cleaner",
+      "automationId": "badcase",
+      "inventoryEvidence": "artifacts/verification/2026-09-11-project-closure/automation-check.json",
+      "localInventorySha256": "92b4e38c4b10ead032385ecdc7f831d68326d9cb6d36b41fc039ec34f9d0aeeb",
+      "remoteInventorySha256": "f58f8100463de5e01837cc38246c82e7a0db0123281496e89afaff4d802a0aba"
+    }
+  },
+  "statusScope": "Authorized Web/QQ delivery complete; data evidence and external operations followups remain open.",
+  "closure": {
+    "asOf": "2026-09-11",
+    "userClosureAuthorized": true,
+    "manualUserAcceptance": "not_claimed",
+    "scope": "status_retention_scheduling_safe_git_cleanup",
+    "evidence": "artifacts/verification/2026-09-11-project-closure/README.md",
+    "productRedeployment": "not_required_no_product_diff",
+    "remainingWork": "expiry_pending_simulation_facts_and_retained_local_evidence"
+  },
+  "researchCompletion": {
+    "status": "live_verified",
+    "sourceCommit": "e61595bf20385b881e5023eab232e1cca23227bd",
+    "evidence": "artifacts/verification/2026-09-11-research-completion/README.md",
+    "modelTurns": 6,
+    "directWclValidationRequests": 5,
+    "newSimcJobs": 0,
+    "oldCumulativeWorkBlocksFollowup": false,
+    "newAccountDailyQuota": false,
+    "zeroAllUpstreamCalls": "not_achieved_one_bounded_buff_query_allowed",
+    "manualAcceptance": "not_claimed"
+  },
+  "researchGeneralization": {
+    "status": "live_verified",
+    "sourceCommit": "b406fc9155a03edba9e95912713606736fb2a1bd",
+    "evidence": "artifacts/verification/2026-09-11-research-generalization/README.md",
+    "candidateModelCases": 8,
+    "liveModelCases": 2,
+    "fixedSemanticCorpusCases": 20,
+    "fullCorpusRun": false,
+    "newSimcJobs": 0,
+    "manualAcceptance": "not_claimed"
+  },
+  "agentPerformanceBenchmark": {
+    "status": "completed_target_not_met",
+    "evidence": "artifacts/verification/2026-09-12-agent-benchmark/README.md",
+    "harnessCommit": "a914a9762074ca9146f9082a428a38b2b59bb7b9",
+    "fixedRuns": 48,
+    "fixedUserTurns": 60,
+    "fixedQualityPassed": 48,
+    "candidateRuns": 8,
+    "pairedMedianPercent": 9.621309554253216,
+    "productRedeployment": false,
+    "manualUserAcceptance": "not_claimed"
+  },
+  "g15TalentDecoder": {
+    "status": "live_verified",
+    "scope": "inactive hero allocations in talent exports only",
+    "sourceCommit": "891f83b7b750058127a04c21970763c3c57e332a",
+    "evidence": "artifacts/verification/2026-09-14-g15-decoder/README.md",
+    "unresolved": "Full addon profile input fidelity and four exact ring comparisons remain unsupported and separate.",
+    "userAccepted": false
+  },
+  "g16SourceCorrection": {
+    "status": "live_verified",
+    "sourceCommit": "cdc7d262a203b23707a8932fd8318c0358316cb5",
+    "evidence": "artifacts/verification/2026-09-14-g16-answer-quality/README.md",
+    "scope": "Source-supported correction and goal-preserving troubleshooting",
+    "gameClientExecution": "excluded_from_acceptance_by_user_2026-09-14",
+    "fixedAfterCases": 10,
+    "candidateCases": 2,
+    "liveCases": 1,
+    "manualUserAcceptance": "not_claimed"
+  },
+  "simcSubmissionQuotaRemoval": {
+    "status": "live_verified",
+    "sourceCommit": "22037c2a27c8db331e31d7a481425c97455f7c99",
+    "evidence": "artifacts/verification/2026-09-14-simc-quota/README.md",
+    "limits": {
+      "perTurn": null,
+      "perResearch": null
+    },
+    "historicalRecords": "retained",
+    "verification": {
+      "localBackendPassed": 135,
+      "postgresPassed": 13,
+      "controlPassed": 63,
+      "candidate": "fifth_submission_positive_dps_and_isolation_passed",
+      "live": "fifth_submission_positive_dps_and_isolation_passed",
+      "runtimeFilesMatched": 144,
+      "publicWebFilesMatched": 13
+    },
+    "manualUserAcceptance": "not_claimed",
+    "rollbackDrill": false
+  },
+  "simcRuntimeUpdate": {
+    "status": "live_verified",
+    "updatedAt": "2026-10-09",
+    "engineSourceCommit": "eed909156d8eccbfca0f284cc271c080949d6a20",
+    "previousEngineSourceCommit": "ac0f3a3c7ff9e521137c0ca1760d548330c697f3",
+    "gameBuild": "12.1.0.69933",
+    "hotfixDate": "2026-10-07",
+    "binarySha256": "ebd060418a7f42f701f0c205f10de2f666e99bb753ccb267dae6239db6908564",
+    "evidence": "artifacts/verification/2026-10-09-simc-update/README.md",
+    "productionDeployed": true,
+    "sourceCommit": "ff9df82b8df7eca05009354423c4ce56acf699a2",
+    "cloudRelatedTests": 190,
+    "candidateJobs": 3,
+    "liveJobs": 3,
+    "engineProfileRuns": 4,
+    "independentRecoveryRuns": 1,
+    "localizationStatus": "partial",
+    "manualUserAcceptance": false,
+    "productionRollbackDrill": false,
+    "verification": {
+      "sourceCommit": "ff9df82b8df7eca05009354423c4ce56acf699a2",
+      "backend": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2",
+      "web": "/var/www/chickenbro-web/releases/changelog-9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+      "runtimeFilesMatched": 199,
+      "publicWebFilesMatched": 15,
+      "recoverySnapshotVerified": true,
+      "rollbackDrill": false,
+      "observation": {
+        "seconds": 58.39,
+        "readinessSamples": 10,
+        "maxReadinessSeconds": 0.624,
+        "errorJournalEntries": 0,
+        "servicesActive": true
+      }
+    }
+  },
+  "simcPhaseState": {
+    "status": "live_verified",
+    "sourceCommit": "32add63464e28ea53a9df23690cc1800dbe74953",
+    "evidence": "artifacts/verification/2026-09-20-phase-state-release/README.md",
+    "compilerRevision": "chickenbro-simc-compiler-v7",
+    "candidateIterationsPerArm": 32,
+    "liveIterationsPerArm": 8,
+    "publicWebFilesMatched": 13,
+    "runtimeServerFilesMatched": 151,
+    "manualUserAcceptance": false,
+    "productionRollbackDrill": false
+  },
+  "poe2": {
+    "name": "poe2_dual_game",
+    "researchBudget": {
+      "status": "production_verified",
+      "plan": "docs/plans/2026-09-21-poe2-research-budget.md",
+      "newCalculationsPerTurn": 12,
+      "distinctCandidatesPerResearch": 60,
+      "executionAttemptsPerResearch": 120,
+      "softReminderAt": 30,
+      "existingResultsReused": true,
+      "scope": "chat_poe2_calculate",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateEvidencePath": "artifacts/verification/2026-09-21-poe2-research-budget/README.md"
+    },
+    "status": "production_verified",
+    "plan": "docs/plans/2026-09-18-poe2-dual-module.md",
+    "games": [
+      "wow",
+      "poe2"
+    ],
+    "cloudExecutionAuthorized": true,
+    "productionCutoverAuthorized": true,
+    "commitPushMergeAuthorized": true,
+    "userAcceptance": "accepted_2026-09-21",
+    "buildFlow": {
+      "steps": [
+        "import",
+        "compare"
+      ],
+      "importOverview": [
+        "character",
+        "stats",
+        "passive_tree",
+        "skills"
+      ],
+      "translatedTreeNodes": 4544,
+      "translatedTreeEffects": 5979,
+      "status": "production_verified",
+      "plan": "docs/plans/2026-09-21-poe2-two-step-cn.md",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateEvidencePath": "artifacts/verification/2026-09-21-poe2-two-step-cn/README.md"
+    },
+    "passiveTree": {
+      "status": "production_verified",
+      "plan": "docs/plans/2026-09-20-poe2-passive-tree.md",
+      "scope": "read_only_main_tree_ascendancy_allocations_weapon_sets_details",
+      "engineCommit": "7d6f530cbdab20389ff8bc6ba97a37ac27f74e41",
+      "userAcceptance": "accepted_2026-09-21",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateEvidencePath": "artifacts/verification/2026-09-20-poe2-passive-tree/README.md"
+    },
+    "terminology": {
+      "defaultLocale": "zh-CN",
+      "policy": "国服简体名称优先，未知名称先核实",
+      "status": "production_verified",
+      "dictionaryVersion": "2026-09-20.1",
+      "verifiedTerms": 69,
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateEvidencePath": "artifacts/verification/2026-09-20-poe2-cn-terms/README.md"
+    },
+    "characterImport": {
+      "plan": "docs/plans/2026-09-20-poe2-character-link-implementation.md",
+      "entrypoints": [
+        "international_pob_code"
+      ],
+      "status": "production_verified",
+      "currentEntryPlan": "docs/plans/2026-09-20-poe2-pob-only.md",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "wegameMode": "public_preview_with_missing_data_and_pob_supplement",
+      "wegameCompleteSampleAcceptance": "pending_missing_jewels_and_mapping",
+      "ninjaMode": "user_supplied_pob",
+      "candidateEvidencePath": "artifacts/verification/2026-09-20-poe2-pob-only/README.md"
+    },
+    "productionRelease": {
+      "sourceCommit": "77cee1603",
+      "url": "https://www.chickenbro.cloud/poe2",
+      "database": "chickenbro_prod",
+      "status": "production_verified",
+      "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+      "candidateDataMigrated": false,
+      "backupRestoreVerified": true,
+      "productionRollbackDrillPerformed": false
+    },
+    "candidateEnvironment": {
+      "database": "chickenbro_poe2_candidate",
+      "url": "https://www.chickenbro.cloud/poe2-candidate/",
+      "purpose": "isolated_validation_no_data_migration"
+    }
+  },
+  "currentProduction": {
+    "sourceCommit": "77cee1603",
+    "url": "https://www.chickenbro.cloud/poe2",
+    "database": "chickenbro_prod",
+    "status": "production_verified",
+    "evidence": "artifacts/releases/2026-09-21-poe2/README.md",
+    "candidateDataMigrated": false,
+    "backupRestoreVerified": true,
+    "productionRollbackDrillPerformed": false,
+    "recordedAt": "2026-09-21",
+    "scope": "Web/API/Worker dual-game release",
+    "integrationAndEvidenceCommit": "0b151e74d"
+  },
+  "qqOfficialTestChannel": {
+    "status": "candidate_summary_binding_v8_user_accepted",
+    "appId": "102828220",
+    "testGroupNumber": "1127827451",
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "game": "wow",
+    "commands": [
+      "/角色查询",
+      "/角色团本查询",
+      "/角色大米查询",
+      "/战斗分析",
+      "/战斗详情-大腿",
+      "/战斗详情-毒瘤"
+    ],
+    "slashMenu": "six_commands_api_readback_verified_v3_desktop_pending",
+    "candidateDatabase": "chickenbro_qq_official_candidate",
+    "sourceBranch": "codex/qq-official",
+    "sourceDelivery": "uncommitted_not_pushed_not_integrated",
+    "cloudTestsPassed": 292,
+    "runtimeFilesMatched": 28,
+    "manualUserAcceptance": "character_queries_accepted_20261015_battle_summary_binding_v8_accepted_20261016",
+    "queryPresentation": "markdown_recent3_v1",
+    "defaultReply": {
+      "status": "candidate_verified_pending_group_acceptance",
+      "presentation": "bounded-model-guidance-v1",
+      "defaultReplyCommandFormats": "help_link_only",
+      "emptyStatus": "short_help_hint",
+      "modelEnabled": true,
+      "toolAccess": false,
+      "chatHistoryAccess": false,
+      "freeChatEnabled": false,
+      "maxMessageCharacters": 160,
+      "maximumSeconds": 20,
+      "automaticModelRetry": false,
+      "cloudRelatedTestsPassed": 219,
+      "stagingRealModelCases": 8,
+      "candidateRealModelCases": 1,
+      "runtimeFilesMatched": 28,
+      "evidence": "artifacts/verification/2026-10-16-qq-dynamic-guidance/README.md"
+    },
+    "defaultRecentCountPerCategory": 3,
+    "helpPresentation": {
+      "status": "candidate_verified_pending_group_acceptance",
+      "groups": ["角色查询", "战斗分析"],
+      "characters": 489,
+      "cloudRelatedTestsPassed": 45,
+      "runtimeFilesMatched": 26,
+      "evidence": "artifacts/verification/2026-10-16-qq-help-grouping/README.md"
+    },
+    "scoreDisplay": "half_up_integer_color_from_original_percentile",
+    "raidPartitionScope": "all_partitions",
+    "queryShorthand": [
+      "difficulty_and_boss_name",
+      "difficulty_and_boss_ordinal",
+      "dungeon_and_key_level"
+    ],
+    "evidence": "artifacts/verification/2026-10-15-qq-query-shorthand/README.md",
+    "battleAnalysis": {
+      "status": "candidate_summary_binding_v8_model_verified",
+      "presentation": "single_summary_evidence_narrative_zhcn_v8",
+      "analysisVersion": "death-causes-v2",
+      "reportVersion": "team-report-v5",
+      "commentaryVersion": "battle-commentary-v6",
+      "scoreDisplay": "WCL分数",
+      "localizationLocale": "zhCN",
+      "localizationSource": "https://cn.warcraftlogs.com/api/v2/client",
+      "maxMessageCharacters": 1200,
+      "detailMaxPlayers": {
+        "raid": 3,
+        "mythicPlus": 2
+      },
+      "supports": [
+        "raid_kill",
+        "raid_wipe",
+        "mythic_plus_completed",
+        "mythic_plus_incomplete"
+      ],
+      "generalAiEnabled": false,
+      "evidence": "artifacts/verification/2026-10-16-qq-battle-summary-binding/README.md",
+      "urlSelectors": [
+        "numeric",
+        "last",
+        "all",
+        "multiple_choice"
+      ],
+      "mplusUserCase": {
+        "report": "kNBvnCLXjqPQZhdg",
+        "fightId": 1,
+        "keystoneLevel": 12
+      },
+      "userCase": {
+        "report": "mZBg8DbyNdTrXcFL",
+        "fightId": 3,
+        "kill": true,
+        "deaths": 6
+      },
+      "manualGroupAcceptance": "user_accepted_v8_20261016",
+      "manualGroupAcceptanceFeedback": "可以了，目前我觉得OK，再新增一个会话，用来优化默认回复。",
+      "previousManualGroupAcceptance": "v7_request_failed_summary_actor_20261016",
+      "commentaryDesignAcceptance": "user_approved_wcl_score_wording_20261016",
+      "deepCaseEvidence": "artifacts/verification/2026-10-15-qq-battle-analysis/deep-case/FINDINGS.md",
+      "deepAnalysisRuntimeImplemented": true,
+      "maxSourceCalls": 32,
+      "sourceDeadlineSeconds": 110,
+      "maxAnalyzedDeaths": 12,
+      "rollbackDrill": false,
+      "panelApiReadbackVerified": true,
+      "narrativeVersion": "battle-narrative-v8",
+      "narrativeModelEnabled": true,
+      "narrativeToolAccess": false,
+      "narrativeMaximumSeconds": 60,
+      "totalQueryWorkBudgetSeconds": 140,
+      "queryLeaseSeconds": 150,
+      "lastFailureCase": {
+        "report": "YptH9vaxBChMTn7b",
+        "fightId": 1,
+        "errorCode": "summary actor",
+        "previousModelSeconds": 36.3,
+        "replayVerified": true,
+        "originalRecordPreserved": true
+      }
+    }
+  }
+}

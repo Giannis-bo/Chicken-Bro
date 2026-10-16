@@ -1,0 +1,26 @@
+{
+  "runtimeFilesMatched": 28,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_evidence_narrative_zhcn_v8",
+  "defaultReplyPresentation": "bounded-model-guidance-v2",
+  "guidanceToolAccess": false,
+  "groupedHelpCharacters": 489,
+  "candidateModelResult": {
+    "schema": "qq-guidance-v1",
+    "version": "bounded-model-guidance-v2",
+    "status": "ready",
+    "text": "纯闲聊还没开，鸡哥暂时还接不了这活儿。",
+    "modelCalls": 1,
+    "seconds": 8.34
+  },
+  "unchangedServicePids": {
+    "chickenbro-api.service": "2319609",
+    "chickenbro-worker.service": "2319544",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "candidateDatabaseWrites": 0,
+  "qqValidationMessagesSent": 0,
+  "manualGroupAcceptance": "pending_user_test"
+}

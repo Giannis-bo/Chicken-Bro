@@ -72,8 +72,7 @@
         "server/app/chickenbro/**",
         "server/app/api/routes/chat.py",
         "packages/api-client/src/chat*.ts",
-        "packages/domain/src/chat*.ts",
-        "server/app/channels/**"
+        "packages/domain/src/chat*.ts"
       ]
     },
     {
@@ -241,6 +240,45 @@
         "packages/api-client/src/poe2*",
         "apps/mini-taro/src/web/*Poe2*",
         "apps/mini-taro/src/web/*PassiveTree*"
+      ]
+    },
+    {
+      "id": "qq_official",
+      "status": "active",
+      "factOwner": "server/app/channels/qq_official/query_commands.py",
+      "writeOwner": "server/app/channels/qq_official/query_repository.py",
+      "runtimeSurfaces": [
+        "server/app/channels/qq_official/runtime.py",
+        "server/app/channels/qq_official/gateway.py",
+        "server/qq-official/000_schema.sql",
+        "server/qq-official/004_group_revocations.sql"
+      ],
+      "characterization": [
+        "tests/app_qq_battle_analysis_test.py",
+        "tests/app_qq_battle_commentary_test.py",
+        "tests/app_qq_battle_depth_test.py",
+        "tests/app_qq_battle_locale_test.py",
+        "tests/app_qq_battle_mplus_links_test.py",
+        "tests/app_qq_battle_narrative_test.py",
+        "tests/app_qq_battle_postgres_test.py",
+        "tests/app_qq_battle_summary_binding_test.py",
+        "tests/app_qq_battle_team_report_test.py",
+        "tests/app_qq_character_commands_test.py",
+        "tests/app_qq_character_postgres_test.py",
+        "tests/app_qq_character_source_test.py",
+        "tests/app_qq_default_reply_test.py",
+        "tests/app_qq_dynamic_guidance_test.py",
+        "tests/app_qq_integration_test.py",
+        "tests/app_qq_official_postgres_test.py",
+        "tests/app_qq_official_test.py",
+        "tests/app_qq_query_shorthand_test.py",
+        "tests/app_qq_raid_partitions_test.py",
+        "tests/app_qq_recent_queries_test.py"
+      ],
+      "changedPathPatterns": [
+        "server/app/channels/qq_official/**",
+        "server/qq-official/**",
+        "tests/app_qq_*"
       ]
     }
   ],

@@ -1,0 +1,44 @@
+{
+  "panelId": "p_Y8umvG6jNCdoQEDhRyLC",
+  "previousVersion": 2,
+  "version": 3,
+  "items": [
+    {
+      "name": "角色查询",
+      "desc": "查询角色资料与WCL成绩",
+      "type": "command"
+    },
+    {
+      "name": "角色团本查询",
+      "desc": "查询团本成绩，支持指定首领",
+      "type": "command"
+    },
+    {
+      "name": "角色大米查询",
+      "desc": "查询大米成绩，支持副本层数",
+      "type": "command"
+    },
+    {
+      "name": "战斗分析",
+      "desc": "团本与大秘境战斗分析",
+      "type": "command"
+    },
+    {
+      "name": "战斗详情-大腿",
+      "desc": "团本最多3人，大秘境最多2人",
+      "type": "command"
+    },
+    {
+      "name": "战斗详情-毒瘤",
+      "desc": "团本最多3人，大秘境最多2人",
+      "type": "command"
+    }
+  ],
+  "apiReadbackVerified": true,
+  "scopeUnchanged": true,
+  "targetTypeUnchanged": true,
+  "qqMessagesSent": 0,
+  "desktopMenuAcceptance": "pending",
+  "firstAttemptErrorCode": 30013,
+  "rejectedVersionUnchanged": true
+}

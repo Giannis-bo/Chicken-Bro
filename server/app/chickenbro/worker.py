@@ -92,7 +92,7 @@ def start_chat_workers(settings, connection_factory, stop):
     from server.app.poe2.imports.repository import PostgresImportRepository
 
     port = int(os.environ.get('WOW_CHAT_WORKER_TOOL_PORT','28794'))
-    if port not in (28794,18794):
+    if port not in (28794,18794,18796):
         raise ValueError('Chat worker tool port must be an allowlisted loopback port')
     host = WorkerToolServer(port)
     host.start()

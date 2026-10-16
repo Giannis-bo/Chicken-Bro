@@ -1,0 +1,206 @@
+{
+  "runtimeFilesMatched": 14,
+  "health": {
+    "observedAt": 1792052417.416807,
+    "gatewayReady": true,
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "queryPresentation": "markdown_recent3_v1",
+    "runtimeRevision": "codex:sha256:0b2e9301d6100dddda3b9d5c80ebaeaa3a2f1962388f2f36f6b96a9f08b1f33f"
+  },
+  "results": [
+    {
+      "suffix": "H9",
+      "request": {
+        "kind": "raid",
+        "name": "Giannis",
+        "realm": "白银之手",
+        "region": "cn",
+        "raid": "",
+        "boss": "",
+        "boss_index": 9,
+        "difficulty": 4,
+        "dungeon": "",
+        "level": null
+      },
+      "packet": {
+        "identity": "Giannis｜白银之手｜国服",
+        "queriedAt": "2026-10-15T08:19:49.540743+00:00",
+        "sections": [
+          {
+            "title": "团本",
+            "rows": [
+              {
+                "name": "唤潮者",
+                "spec": "元素",
+                "metric": "DPS",
+                "percentile": 71.0349819010939,
+                "recordedAt": 1789227740900,
+                "reportUrl": "https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=51",
+                "scope": "烈毒之渊 · 全部分区",
+                "difficulty": "英雄"
+              },
+              {
+                "name": "唤潮者",
+                "spec": "元素",
+                "metric": "DPS",
+                "percentile": 49.36788413529294,
+                "recordedAt": 1788709009846,
+                "reportUrl": "https://www.warcraftlogs.com/reports/C4LfAhjJX8g1b3wM?fight=45",
+                "scope": "烈毒之渊 · 全部分区",
+                "difficulty": "英雄"
+              }
+            ],
+            "scope": "烈毒之渊 · 全部分区 · 9号 唤潮者",
+            "status": "ok"
+          }
+        ],
+        "sources": [
+          "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+        ]
+      },
+      "markdown": "# Giannis｜白银之手｜国服\n\n## 团本 · 最近 2 场\n烈毒之渊 · 全部分区 · 9号 唤潮者\n历史 WCL 排名百分位\n\n**1. 唤潮者 · 英雄**\n   元素 · DPS · **71（蓝分）**\n   2026-09-12 23:42 北京时间 · [日志](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=51)\n**2. 唤潮者 · 英雄**\n   元素 · DPS · **49（绿分）**\n   2026-09-06 23:36 北京时间 · [日志](https://www.warcraftlogs.com/reports/C4LfAhjJX8g1b3wM?fight=45)\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 16:19 北京时间"
+    },
+    {
+      "suffix": "H10",
+      "request": {
+        "kind": "raid",
+        "name": "Giannis",
+        "realm": "白银之手",
+        "region": "cn",
+        "raid": "",
+        "boss": "",
+        "boss_index": 10,
+        "difficulty": 4,
+        "dungeon": "",
+        "level": null
+      },
+      "packet": {
+        "identity": "Giannis｜白银之手｜国服",
+        "queriedAt": "2026-10-15T08:19:59.220573+00:00",
+        "sections": [
+          {
+            "title": "团本",
+            "rows": [],
+            "scope": "烈毒之渊 · 全部分区 · 10号 基希克斯",
+            "status": "no_records"
+          }
+        ],
+        "sources": [
+          "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+        ]
+      },
+      "markdown": "# Giannis｜白银之手｜国服\n\n## 团本\n烈毒之渊 · 全部分区 · 10号 基希克斯\n暂无公开记录\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 16:19 北京时间"
+    },
+    {
+      "suffix": "H唤潮者",
+      "request": {
+        "kind": "raid",
+        "name": "Giannis",
+        "realm": "白银之手",
+        "region": "cn",
+        "raid": "",
+        "boss": "唤潮者",
+        "boss_index": null,
+        "difficulty": 4,
+        "dungeon": "",
+        "level": null
+      },
+      "packet": {
+        "identity": "Giannis｜白银之手｜国服",
+        "queriedAt": "2026-10-15T08:20:06.619619+00:00",
+        "sections": [
+          {
+            "title": "团本",
+            "rows": [
+              {
+                "name": "唤潮者",
+                "spec": "元素",
+                "metric": "DPS",
+                "percentile": 71.0349819010939,
+                "recordedAt": 1789227740900,
+                "reportUrl": "https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=51",
+                "scope": "烈毒之渊 · 全部分区",
+                "difficulty": "英雄"
+              },
+              {
+                "name": "唤潮者",
+                "spec": "元素",
+                "metric": "DPS",
+                "percentile": 49.36788413529294,
+                "recordedAt": 1788709009846,
+                "reportUrl": "https://www.warcraftlogs.com/reports/C4LfAhjJX8g1b3wM?fight=45",
+                "scope": "烈毒之渊 · 全部分区",
+                "difficulty": "英雄"
+              }
+            ],
+            "scope": "烈毒之渊 · 全部分区",
+            "status": "ok"
+          }
+        ],
+        "sources": [
+          "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+        ]
+      },
+      "markdown": "# Giannis｜白银之手｜国服\n\n## 团本 · 最近 2 场\n烈毒之渊 · 全部分区\n历史 WCL 排名百分位\n\n**1. 唤潮者 · 英雄**\n   元素 · DPS · **71（蓝分）**\n   2026-09-12 23:42 北京时间 · [日志](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=51)\n**2. 唤潮者 · 英雄**\n   元素 · DPS · **49（绿分）**\n   2026-09-06 23:36 北京时间 · [日志](https://www.warcraftlogs.com/reports/C4LfAhjJX8g1b3wM?fight=45)\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 16:20 北京时间"
+    },
+    {
+      "suffix": "H基希克斯",
+      "request": {
+        "kind": "raid",
+        "name": "Giannis",
+        "realm": "白银之手",
+        "region": "cn",
+        "raid": "",
+        "boss": "基希克斯",
+        "boss_index": null,
+        "difficulty": 4,
+        "dungeon": "",
+        "level": null
+      },
+      "packet": {
+        "identity": "Giannis｜白银之手｜国服",
+        "queriedAt": "2026-10-15T08:20:12.788905+00:00",
+        "sections": [
+          {
+            "title": "团本",
+            "rows": [],
+            "scope": "烈毒之渊 · 全部分区",
+            "status": "no_records"
+          }
+        ],
+        "sources": [
+          "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+        ]
+      },
+      "markdown": "# Giannis｜白银之手｜国服\n\n## 团本\n烈毒之渊 · 全部分区\n暂无公开记录\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 16:20 北京时间"
+    }
+  ],
+  "h10PartitionCheck": {
+    "all": {
+      "bestAmount": 0,
+      "medianPerformance": null,
+      "averagePerformance": null,
+      "totalKills": 0,
+      "fastestKill": 0,
+      "difficulty": 4,
+      "metric": "dps",
+      "partition": -1,
+      "zone": 53,
+      "ranks": []
+    },
+    "patch": {
+      "bestAmount": 0,
+      "medianPerformance": null,
+      "averagePerformance": null,
+      "totalKills": 0,
+      "fastestKill": 0,
+      "difficulty": 4,
+      "metric": "dps",
+      "partition": 2,
+      "zone": 53,
+      "ranks": []
+    }
+  },
+  "groupAcceptance": "pending"
+}

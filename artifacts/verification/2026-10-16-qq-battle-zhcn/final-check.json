@@ -1,0 +1,18 @@
+{
+  "runtimeFilesMatched": 21,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_raid_mplus_zhcn_v4",
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1195642",
+    "chickenbro-worker.service": "1195577",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "webSourceSha256Unchanged": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4",
+  "legacyServices": {
+    "chickenbro-qq-channel.service": "inactive",
+    "chickenbro-qq-worker.service": "inactive"
+  },
+  "observedAt": 1792120100.6380208
+}

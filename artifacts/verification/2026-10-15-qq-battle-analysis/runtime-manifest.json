@@ -1,0 +1,119 @@
+{
+  "sourceBaseCommit": "8682f05fed6657b3354db7a8d2bfb29914c8f21b",
+  "branch": "codex/qq-official",
+  "sourceDelivery": "uncommitted_not_pushed_not_integrated",
+  "runtimeDirectory": "/opt/chickenbro-qq-official-candidate-20261014",
+  "appId": "102828220",
+  "testGroupNumber": "1127827451",
+  "cloudTestsPassed": 181,
+  "files": [
+    {
+      "path": "server/app/channels/qq_official/__init__.py",
+      "sha256": "cdc28f3f21f652264951033000ab233d36c25d53670d8bd7cba3ebc6b0fb563f",
+      "previousSha256": "cdc28f3f21f652264951033000ab233d36c25d53670d8bd7cba3ebc6b0fb563f",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/battle_analysis.py",
+      "sha256": "1b551d947c9c8fb2cb7d1407266485f88824884605ce2bee5e9a062a09cd2d9c",
+      "previousSha256": null,
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/battle_commands.py",
+      "sha256": "549129d6c0ccb64cb8118b7d6fb5e77fc10ffb0c2597368874d6e7c6e98fabfc",
+      "previousSha256": null,
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/battle_source.py",
+      "sha256": "53b382849fbdbc2b42a5931958427a7527016b46b87d325e8f2a5df5c9499d4f",
+      "previousSha256": null,
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/character_source.py",
+      "sha256": "b312f76f03fd709900e688edca6e61abdd9844c6800707e4b35754fe00611c8c",
+      "previousSha256": "b312f76f03fd709900e688edca6e61abdd9844c6800707e4b35754fe00611c8c",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/client.py",
+      "sha256": "53cf43f13ffe8d677a637ccb2ac217aacae72a49dfbd15026d670b16f3ce4b83",
+      "previousSha256": "53cf43f13ffe8d677a637ccb2ac217aacae72a49dfbd15026d670b16f3ce4b83",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/deployment.py",
+      "sha256": "3881fdaec38cb36dc167062722258b25d1786b49175e5f057a3a3705bd2edc15",
+      "previousSha256": "3881fdaec38cb36dc167062722258b25d1786b49175e5f057a3a3705bd2edc15",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/gateway.py",
+      "sha256": "c121dc82958f6af814e15606c8dd007eca5d29c7ba8467b52a678f180c03dc3b",
+      "previousSha256": "c121dc82958f6af814e15606c8dd007eca5d29c7ba8467b52a678f180c03dc3b",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/policy.py",
+      "sha256": "5e160042dec0bed422be30c679daac9e91801a56cf8b4f03d912bffbcba98384",
+      "previousSha256": "5e160042dec0bed422be30c679daac9e91801a56cf8b4f03d912bffbcba98384",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/query_commands.py",
+      "sha256": "900dcd7407a94cbf7ad67be46e65b35dd25c8c76a35b99df6762684e9482cc35",
+      "previousSha256": "28726868a5d1b1dbb11aea92c2250b604dd26008d99f3d02fbc5468aa601cf77",
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/query_labels.py",
+      "sha256": "198c00adb376d422d14aeef5c773a8146f0a71e4894317e9e87d84b7f747c3c9",
+      "previousSha256": "198c00adb376d422d14aeef5c773a8146f0a71e4894317e9e87d84b7f747c3c9",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/query_repository.py",
+      "sha256": "7d2ae9e22234e99d9be09ad5e518605c85b26ac51c7aca85fcb2c1574f1836d3",
+      "previousSha256": "b4d23efd49987cd3672ec0ccbcd2c34a97c8c9f6c89d63b4bcb0d5057bacafec",
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/query_service.py",
+      "sha256": "297c36c10f6ef4f2d59646d2188d9c5684727e76c2f2a221303a710dd7eba362",
+      "previousSha256": "8b4894b6e887898d0966f4760a1b113a391dbd7647baee189752ba218b35d162",
+      "changed": true
+    },
+    {
+      "path": "server/app/channels/qq_official/repository.py",
+      "sha256": "32b0fbcbb60111294d6a9e5e8285c0f413ba717e96758bc47e9b0ddcdf268bda",
+      "previousSha256": "32b0fbcbb60111294d6a9e5e8285c0f413ba717e96758bc47e9b0ddcdf268bda",
+      "changed": false
+    },
+    {
+      "path": "server/app/channels/qq_official/runtime.py",
+      "sha256": "4e8f64286abf642d90defa7365233c276d4d570540316a7703b7f4273e0059c5",
+      "previousSha256": "ce8f8f8490d4bd2c43e28f6eed3a09ccd772ffd01caacb2fdbd21261fa0ec4ac",
+      "changed": true
+    },
+    {
+      "path": "server/qq-official/001_transport.sql",
+      "sha256": "96b55e012883fcaa27f13083d33a5e9c4a15cac3af2907562a56abeb52c964c5",
+      "previousSha256": "96b55e012883fcaa27f13083d33a5e9c4a15cac3af2907562a56abeb52c964c5",
+      "changed": false
+    },
+    {
+      "path": "server/qq-official/002_queries.sql",
+      "sha256": "1688cb3f5cbe4e2bfa08404746571f8b214e11bb1a53b9d7a409717cdb00b307",
+      "previousSha256": "1688cb3f5cbe4e2bfa08404746571f8b214e11bb1a53b9d7a409717cdb00b307",
+      "changed": false
+    },
+    {
+      "path": "server/qq-official/003_battles.sql",
+      "sha256": "bfe05c15c6388f2d1216a1d61d8e7e4bff7a94b2020bfa4d5e74b88edfa6f62b",
+      "previousSha256": null,
+      "changed": true
+    }
+  ]
+}

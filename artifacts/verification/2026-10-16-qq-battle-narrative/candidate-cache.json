@@ -1,0 +1,18 @@
+{
+  "root": "/opt/chickenbro-qq-official-candidate-20261014",
+  "qqMessagesSent": 0,
+  "results": [
+    {
+      "name": "raid_kill",
+      "sameMessages": true,
+      "additionalSourceCalls": 0,
+      "additionalModelCalls": 0
+    },
+    {
+      "name": "key_last",
+      "sameMessages": true,
+      "additionalSourceCalls": 0,
+      "additionalModelCalls": 0
+    }
+  ]
+}

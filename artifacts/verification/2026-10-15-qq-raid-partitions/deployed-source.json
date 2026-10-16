@@ -1,0 +1,80 @@
+{
+  "runtimeFilesMatched": 14,
+  "officialChannelPid": "3820082",
+  "health": {
+    "observedAt": 1792033556.7282007,
+    "gatewayReady": true,
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "queryPresentation": "markdown_recent5_v1",
+    "runtimeRevision": "codex:sha256:0b2e9301d6100dddda3b9d5c80ebaeaa3a2f1962388f2f36f6b96a9f08b1f33f"
+  },
+  "packet": {
+    "identity": "Giannis｜白银之手｜国服",
+    "queriedAt": "2026-10-15T03:05:51.150187+00:00",
+    "sections": [
+      {
+        "title": "团本",
+        "rows": [
+          {
+            "name": "乌拉特克",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 80.46049876060898,
+            "recordedAt": 1791891480252,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "The Coiled Altar",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 64.8574715233876,
+            "recordedAt": 1791724239828,
+            "reportUrl": "https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "盘魂者内克扎莉",
+            "spec": "恢复",
+            "metric": "HPS",
+            "percentile": 27.78327313212842,
+            "recordedAt": 1791721279708,
+            "reportUrl": "https://www.warcraftlogs.com/reports/BnKcgPbD64zmLA2w?fight=1",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "The Coiled Altar",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 41.717581254164756,
+            "recordedAt": 1789822461322,
+            "reportUrl": "https://www.warcraftlogs.com/reports/Dt2XC8WpAjKmdzrY?fight=41",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "双子毒牙",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 43.545985356520035,
+            "recordedAt": 1789821221956,
+            "reportUrl": "https://www.warcraftlogs.com/reports/Dt2XC8WpAjKmdzrY?fight=34",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          }
+        ],
+        "scope": "烈毒之渊 · 全部分区",
+        "status": "ok"
+      }
+    ],
+    "sources": [
+      "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+    ]
+  },
+  "markdown": "# Giannis｜白银之手｜国服\n\n## 团本 · 最近 5 场\n烈毒之渊 · 全部分区\n历史 WCL 排名百分位\n\n1. **乌拉特克 · 英雄**\n   元素 · DPS · **80（紫分）**\n   2026-10-13 19:38 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3)\n2. **The Coiled Altar · 英雄**\n   元素 · DPS · **65（蓝分）**\n   2026-10-11 21:10 北京时间 · [日志](https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48)\n3. **盘魂者内克扎莉 · 英雄**\n   恢复 · HPS · **28（绿分）**\n   2026-10-11 20:21 北京时间 · [日志](https://www.warcraftlogs.com/reports/BnKcgPbD64zmLA2w?fight=1)\n4. **The Coiled Altar · 英雄**\n   元素 · DPS · **42（绿分）**\n   2026-09-19 20:54 北京时间 · [日志](https://www.warcraftlogs.com/reports/Dt2XC8WpAjKmdzrY?fight=41)\n5. **双子毒牙 · 英雄**\n   元素 · DPS · **44（绿分）**\n   2026-09-19 20:33 北京时间 · [日志](https://www.warcraftlogs.com/reports/Dt2XC8WpAjKmdzrY?fight=34)\n\n来源：[WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 11:05 北京时间",
+  "groupAcceptance": "pending"
+}

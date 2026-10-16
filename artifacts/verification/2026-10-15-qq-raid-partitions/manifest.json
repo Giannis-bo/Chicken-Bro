@@ -1,0 +1,8 @@
+{
+  "path": "server/app/channels/qq_official/character_source.py",
+  "sha256": "aae62cc240bae0b5f774368212ec1a2d2bb54f7891bdfff458df9f3cd12fe422",
+  "previousSha256": "b819a3fa1297f3b75c2ebcd27bdb05f0d1f9f75c5b0b7410d41df4b45254ec42",
+  "cloudTestsPassed": 85,
+  "testGroupNumber": "1127827451",
+  "raidPartitionScope": "all_partitions"
+}

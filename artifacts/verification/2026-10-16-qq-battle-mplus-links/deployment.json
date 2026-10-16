@@ -1,0 +1,18 @@
+{
+  "runtimeFilesMatched": 20,
+  "changedFiles": 6,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_raid_mplus_v3",
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1195642",
+    "chickenbro-worker.service": "1195577",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "rollbackDirectory": "/etc/chickenbro-qq-official/battle-mplus-links-backup-20261016T024330Z",
+  "rollbackDrill": false,
+  "databaseChanged": false,
+  "configAndCredentialsChanged": false,
+  "sourceDelivery": "uncommitted_not_pushed_not_integrated"
+}

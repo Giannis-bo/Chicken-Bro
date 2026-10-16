@@ -1,0 +1,256 @@
+[
+  {
+    "command": "/角色查询 Giannis 白银之手",
+    "seconds": 16.55,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-14T13:31:57.131840+00:00",
+      "sections": [
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜史诗｜DPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜史诗｜HPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜英雄｜DPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜英雄｜HPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜普通｜DPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜普通｜HPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "大米",
+          "scope": "Mythic+ Season 2｜Season 2｜同层 DPS/HPS 排名百分位｜历史",
+          "rows": [
+            {
+              "name": "毒牙祭坛",
+              "spec": "元素",
+              "level": 13,
+              "timed": true,
+              "percentile": 98.60589321215973,
+              "recordedAt": 1788536367138,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=6"
+            },
+            {
+              "name": "毒牙祭坛",
+              "spec": "恢复",
+              "level": 11,
+              "timed": false,
+              "percentile": 66.59216376546166,
+              "recordedAt": 1787924068274,
+              "metric": "HPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/fCcNHand9MBjKqXh?fight=3"
+            },
+            {
+              "name": "纳洛拉克的洞穴",
+              "spec": "元素",
+              "level": 11,
+              "timed": true,
+              "percentile": 92.54228634276339,
+              "recordedAt": 1788357780380,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/mxbZ4AR1dpyTGVK2?fight=1"
+            },
+            {
+              "name": "纳洛拉克的洞穴",
+              "spec": "恢复",
+              "level": 12,
+              "timed": false,
+              "percentile": 54.80529389353183,
+              "recordedAt": 1788590255298,
+              "metric": "HPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/ZtNRXbx2FB1yrGVv?fight=2"
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "level": 12,
+              "timed": true,
+              "percentile": 95.65488409730952,
+              "recordedAt": 1788531031720,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=3"
+            },
+            {
+              "name": "诸王之眠",
+              "spec": "恢复",
+              "level": 11,
+              "timed": true,
+              "percentile": 79.28685271689639,
+              "recordedAt": 1787921816511,
+              "metric": "HPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/fCcNHand9MBjKqXh?fight=1"
+            },
+            {
+              "name": "密谋小径",
+              "spec": "元素",
+              "level": 11,
+              "timed": true,
+              "percentile": 97.23025683494153,
+              "recordedAt": 1788677336905,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y?fight=3"
+            },
+            {
+              "name": "密谋小径",
+              "spec": "恢复",
+              "level": 12,
+              "timed": true,
+              "percentile": 91.51993219210465,
+              "recordedAt": 1788579047979,
+              "metric": "HPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=12"
+            },
+            {
+              "name": "红玉新生法池",
+              "spec": "元素",
+              "level": 10,
+              "timed": true,
+              "percentile": 93.55558876561368,
+              "recordedAt": 1787410859354,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/AgB4bmQatnfhz1WX?fight=20"
+            },
+            {
+              "name": "塞塔里斯神庙",
+              "spec": "元素",
+              "level": 13,
+              "timed": true,
+              "percentile": 96.6990158514967,
+              "recordedAt": 1789647487030,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/Zw9NPzvpKYaCnTAy?fight=1"
+            },
+            {
+              "name": "夺目谷",
+              "spec": "元素",
+              "level": 12,
+              "timed": true,
+              "percentile": 97.77795649279345,
+              "recordedAt": 1789649590288,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/Zw9NPzvpKYaCnTAy?fight=2"
+            },
+            {
+              "name": "虚空之痕竞技场",
+              "spec": "元素",
+              "level": 13,
+              "timed": true,
+              "percentile": 91.30036629682303,
+              "recordedAt": 1788534651126,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=5"
+            },
+            {
+              "name": "虚空之痕竞技场",
+              "spec": "恢复",
+              "level": 12,
+              "timed": true,
+              "percentile": 68.62054323680428,
+              "recordedAt": 1788581026273,
+              "metric": "HPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=13"
+            }
+          ],
+          "status": "ok"
+        }
+      ],
+      "sources": [
+        "https://raider.io/characters/cn/silver-hand/Giannis",
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ],
+      "profile": {
+        "source": "Raider.IO",
+        "race": "黑铁矮人",
+        "class": "萨满祭司",
+        "spec": "元素",
+        "itemLevel": 327,
+        "sourceTime": "2026-10-13T14:51:58.401Z",
+        "hero": "先知"
+      }
+    },
+    "text": "Giannis｜白银之手｜国服\n种族：黑铁矮人\n职业：萨满祭司\n天赋专精：元素\n英雄天赋：先知\n装备等级：327\n角色资料来源：Raider.IO；资料时间：2026-10-13 22:51 北京时间\n\n烈毒之渊｜12.1.5｜史诗｜DPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜史诗｜HPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜英雄｜DPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜英雄｜HPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜普通｜DPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜普通｜HPS 排名百分位｜历史\n暂无公开记录\n\n大米｜Mythic+ Season 2｜Season 2｜同层 DPS/HPS 排名百分位｜历史\n毒牙祭坛｜元素｜DPS｜+13｜限时｜最高 98.60589321215973（橙分）｜记录 2026-09-04 23:39 北京时间\n记录来源：https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=6\n毒牙祭坛｜恢复｜HPS｜+11｜未限时｜最高 66.59216376546166（蓝分）｜记录 2026-08-28 21:34 北京时间\n记录来源：https://www.warcraftlogs.com/reports/fCcNHand9MBjKqXh?fight=3\n纳洛拉克的洞穴｜元素｜DPS｜+11｜限时｜最高 92.54228634276339（紫分）｜记录 2026-09-02 22:03 北京时间\n记录来源：https://www.warcraftlogs.com/reports/mxbZ4AR1dpyTGVK2?fight=1\n纳洛拉克的洞穴｜恢复｜HPS｜+12｜未限时｜最高 54.80529389353183（蓝分）｜记录 2026-09-05 14:37 北京时间\n记录来源：https://www.warcraftlogs.com/reports/ZtNRXbx2FB1yrGVv?fight=2\n诸王之眠｜元素｜DPS｜+12｜限时｜最高 95.65488409730952（橙分）｜记录 2026-09-04 22:10 北京时间\n记录来源：https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=3\n诸王之眠｜恢复｜HPS｜+11｜限时｜最高 79.28685271689639（紫分）｜记录 2026-08-28 20:56 北京时间\n记录来源：https://www.warcraftlogs.com/reports/fCcNHand9MBjKqXh?fight=1\n密谋小径｜元素｜DPS｜+11｜限时｜最高 97.23025683494153（橙分）｜记录 2026-09-06 14:48 北京时间\n记录来源：https://www.warcraftlogs.com/reports/LPV3pf4nM9yhKw1Y?fight=3\n密谋小径｜恢复｜HPS｜+12｜限时｜最高 91.51993219210465（紫分）｜记录 2026-09-05 11:30 北京时间\n记录来源：https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=12\n红玉新生法池｜元素｜DPS｜+10｜限时｜最高 93.55558876561368（紫分）｜记录 2026-08-22 23:00 北京时间\n记录来源：https://www.warcraftlogs.com/reports/AgB4bmQatnfhz1WX?fight=20\n塞塔里斯神庙｜元素｜DPS｜+13｜限时｜最高 96.6990158514967（橙分）｜记录 2026-09-17 20:18 北京时间\n记录来源：https://www.warcraftlogs.com/reports/Zw9NPzvpKYaCnTAy?fight=1\n夺目谷｜元素｜DPS｜+12｜限时｜最高 97.77795649279345（橙分）｜记录 2026-09-17 20:53 北京时间\n记录来源：https://www.warcraftlogs.com/reports/Zw9NPzvpKYaCnTAy?fight=2\n虚空之痕竞技场｜元素｜DPS｜+13｜限时｜最高 91.30036629682303（紫分）｜记录 2026-09-04 23:10 北京时间\n记录来源：https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=5\n虚空之痕竞技场｜恢复｜HPS｜+12｜限时｜最高 68.62054323680428（蓝分）｜记录 2026-09-05 12:03 北京时间\n记录来源：https://www.warcraftlogs.com/reports/pqThd2cvwFyKXD6g?fight=13\n来源：https://raider.io/characters/cn/silver-hand/Giannis\n来源：https://www.warcraftlogs.com/character/cn/silver-hand/Giannis\n查询时间：2026-10-14 21:31 北京时间"
+  },
+  {
+    "command": "/角色团本查询 Giannis 白银之手 Boss=内克扎莉 难度=英雄",
+    "seconds": 8.75,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-14T13:32:13.681322+00:00",
+      "sections": [
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜英雄｜DPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        },
+        {
+          "title": "烈毒之渊",
+          "scope": "12.1.5｜英雄｜HPS 排名百分位｜历史",
+          "rows": [],
+          "status": "no_records"
+        }
+      ],
+      "sources": [
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ]
+    },
+    "text": "Giannis｜白银之手｜国服\n\n烈毒之渊｜12.1.5｜英雄｜DPS 排名百分位｜历史\n暂无公开记录\n\n烈毒之渊｜12.1.5｜英雄｜HPS 排名百分位｜历史\n暂无公开记录\n来源：https://www.warcraftlogs.com/character/cn/silver-hand/Giannis\n查询时间：2026-10-14 21:32 北京时间"
+  },
+  {
+    "command": "/角色大米查询 Giannis 白银之手 副本=诸王之眠 层数=12",
+    "seconds": 10.56,
+    "packet": {
+      "identity": "Giannis｜白银之手｜国服",
+      "queriedAt": "2026-10-14T13:32:22.426896+00:00",
+      "sections": [
+        {
+          "title": "大米",
+          "scope": "Mythic+ Season 2｜Season 2｜同层 DPS/HPS 排名百分位｜历史",
+          "rows": [
+            {
+              "name": "诸王之眠",
+              "spec": "元素",
+              "level": 12,
+              "timed": true,
+              "percentile": 95.65488409730952,
+              "recordedAt": 1788531031720,
+              "metric": "DPS",
+              "reportUrl": "https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=3"
+            }
+          ],
+          "status": "ok"
+        }
+      ],
+      "sources": [
+        "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+      ]
+    },
+    "text": "Giannis｜白银之手｜国服\n\n大米｜Mythic+ Season 2｜Season 2｜同层 DPS/HPS 排名百分位｜历史\n诸王之眠｜元素｜DPS｜+12｜限时｜最高 95.65488409730952（橙分）｜记录 2026-09-04 22:10 北京时间\n记录来源：https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=3\n来源：https://www.warcraftlogs.com/character/cn/silver-hand/Giannis\n查询时间：2026-10-14 21:32 北京时间"
+  }
+]

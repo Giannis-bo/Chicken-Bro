@@ -1,0 +1,20 @@
+{
+  "runtimeFilesMatched": 18,
+  "changedFiles": 8,
+  "gatewayReady": true,
+  "allowedGroupCount": 1,
+  "queryOnly": true,
+  "battlePresentation": "single_summary_evidence_v1",
+  "cloudTestsPassed": 181,
+  "unchangedServicePids": {
+    "chickenbro-api.service": "1195642",
+    "chickenbro-worker.service": "1195577",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "configAndCredentialsUnchanged": true,
+  "databaseChange": "additive_result_packet_column_only",
+  "rollbackDirectory": "/etc/chickenbro-qq-official/battle-backup-20261015T122939Z",
+  "rollbackDrill": false,
+  "manualGroupAcceptance": "pending",
+  "sourceDelivery": "uncommitted_not_pushed_not_integrated"
+}

@@ -1,0 +1,615 @@
+{
+  "characterData": {
+    "character": {
+      "id": 72040639,
+      "q0": {
+        "bestAmount": 0,
+        "medianPerformance": null,
+        "averagePerformance": null,
+        "totalKills": 0,
+        "fastestKill": 0,
+        "difficulty": 4,
+        "metric": "dps",
+        "partition": 2,
+        "zone": 53,
+        "ranks": []
+      },
+      "q1": {
+        "bestAmount": 147839.03185624,
+        "medianPerformance": 61.37520093476875,
+        "averagePerformance": 56.07345368123996,
+        "totalKills": 4,
+        "fastestKill": 297980,
+        "difficulty": 4,
+        "metric": "dps",
+        "partition": 1,
+        "zone": 53,
+        "ranks": [
+          {
+            "lockedIn": true,
+            "rankPercent": 65.15233221826442,
+            "historicalPercent": 65.15233221826442,
+            "todayPercent": 49.83939514570533,
+            "rankTotalParses": 39563,
+            "historicalTotalParses": 39563,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "QqrT6Nkg7jRBWCMH",
+              "startTime": 1789214769188,
+              "fightID": 3
+            },
+            "duration": 358046,
+            "startTime": 1789215715798,
+            "amount": 147839.03185624,
+            "bracketData": 318,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 57.77897522182053,
+            "historicalPercent": 57.77897522182053,
+            "todayPercent": 47.036767763936176,
+            "rankTotalParses": 46773,
+            "historicalTotalParses": 46773,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "MFfRmkQz1WX8LdHc",
+              "startTime": 1789801374440,
+              "fightID": 30
+            },
+            "duration": 361393,
+            "startTime": 1789817249875,
+            "amount": 145356.56196993,
+            "bracketData": 323,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 64.97142664771697,
+            "historicalPercent": 64.97142664771697,
+            "todayPercent": 45.19170716527303,
+            "rankTotalParses": 30604,
+            "historicalTotalParses": 30604,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "C4LfAhjJX8g1b3wM",
+              "startTime": 1788696492623,
+              "fightID": 3
+            },
+            "duration": 454847,
+            "startTime": 1788697182247,
+            "amount": 143722.27144512,
+            "bracketData": 316,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 36.39108063715793,
+            "historicalPercent": 36.39108063715793,
+            "todayPercent": 36.29456075072397,
+            "rankTotalParses": 63869,
+            "historicalTotalParses": 63869,
+            "todayTotalParses": 64856,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "BnKcgPbD64zmLA2w",
+              "startTime": 1791721049284,
+              "fightID": 1
+            },
+            "duration": 297980,
+            "startTime": 1791721279708,
+            "amount": 5225.2466608497,
+            "bracketData": 325,
+            "spec": "Restoration",
+            "bestSpec": "Restoration",
+            "class": 9,
+            "faction": 0
+          }
+        ]
+      },
+      "q2": {
+        "bestAmount": 147839.03185624,
+        "medianPerformance": 61.37520093476875,
+        "averagePerformance": 56.07345368123996,
+        "totalKills": 4,
+        "fastestKill": 297980,
+        "difficulty": 4,
+        "metric": "dps",
+        "partition": -1,
+        "zone": 53,
+        "ranks": [
+          {
+            "lockedIn": true,
+            "rankPercent": 65.15233221826442,
+            "historicalPercent": 65.15233221826442,
+            "todayPercent": 49.83939514570533,
+            "rankTotalParses": 39563,
+            "historicalTotalParses": 39563,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "QqrT6Nkg7jRBWCMH",
+              "startTime": 1789214769188,
+              "fightID": 3
+            },
+            "duration": 358046,
+            "startTime": 1789215715798,
+            "amount": 147839.03185624,
+            "bracketData": 318,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 57.77897522182053,
+            "historicalPercent": 57.77897522182053,
+            "todayPercent": 47.036767763936176,
+            "rankTotalParses": 46773,
+            "historicalTotalParses": 46773,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "MFfRmkQz1WX8LdHc",
+              "startTime": 1789801374440,
+              "fightID": 30
+            },
+            "duration": 361393,
+            "startTime": 1789817249875,
+            "amount": 145356.56196993,
+            "bracketData": 323,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 64.97142664771697,
+            "historicalPercent": 64.97142664771697,
+            "todayPercent": 45.19170716527303,
+            "rankTotalParses": 30604,
+            "historicalTotalParses": 30604,
+            "todayTotalParses": 70972,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "C4LfAhjJX8g1b3wM",
+              "startTime": 1788696492623,
+              "fightID": 3
+            },
+            "duration": 454847,
+            "startTime": 1788697182247,
+            "amount": 143722.27144512,
+            "bracketData": 316,
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "class": 9,
+            "faction": 0
+          },
+          {
+            "lockedIn": true,
+            "rankPercent": 36.39108063715793,
+            "historicalPercent": 36.39108063715793,
+            "todayPercent": 36.29456075072397,
+            "rankTotalParses": 63869,
+            "historicalTotalParses": 63869,
+            "todayTotalParses": 64856,
+            "guild": {
+              "id": null,
+              "name": null,
+              "faction": null
+            },
+            "report": {
+              "code": "BnKcgPbD64zmLA2w",
+              "startTime": 1791721049284,
+              "fightID": 1
+            },
+            "duration": 297980,
+            "startTime": 1791721279708,
+            "amount": 5225.2466608497,
+            "bracketData": 325,
+            "spec": "Restoration",
+            "bestSpec": "Restoration",
+            "class": 9,
+            "faction": 0
+          }
+        ]
+      },
+      "summary": {
+        "bestPerformanceAverage": 65.22048571428572,
+        "medianPerformanceAverage": 57.481314285714284,
+        "difficulty": 4,
+        "metric": "dps",
+        "partition": -1,
+        "zone": 53,
+        "size": 10,
+        "allStars": [
+          {
+            "partition": 1,
+            "spec": "Elemental",
+            "points": 649.517,
+            "possiblePoints": 1200,
+            "rank": 15037,
+            "regionRank": 5969,
+            "serverRank": 654,
+            "rankPercent": 83.68808175486559,
+            "total": 92178,
+            "rankTooltip": null
+          }
+        ],
+        "rankings": [
+          {
+            "encounter": {
+              "id": 3470,
+              "name": "Nek'zali the Soulcoiler"
+            },
+            "rankPercent": 65.1523,
+            "medianPercent": 64.9714,
+            "lockedIn": true,
+            "totalKills": 4,
+            "fastestKill": 297980,
+            "allStars": {
+              "points": 64.66,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 35528,
+              "regionRank": 16129,
+              "serverRank": 1622,
+              "rankPercent": 49.94223073888294,
+              "total": 70972
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 147839.03185624,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 64951104,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 147839.03185624,
+              "ilvl": 318,
+              "fight_metadata": 995874
+            }
+          },
+          {
+            "encounter": {
+              "id": 3445,
+              "name": "Entombed Sentinels"
+            },
+            "rankPercent": 79.3934,
+            "medianPercent": 75.4614,
+            "lockedIn": true,
+            "totalKills": 3,
+            "fastestKill": 318217,
+            "allStars": {
+              "points": 76.48,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 22821,
+              "regionRank": 9483,
+              "serverRank": 1000,
+              "rankPercent": 64.76056642525133,
+              "total": 64757
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 143902.84617101,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 80187013,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 143902.84617101,
+              "ilvl": 323,
+              "fight_metadata": 995875
+            }
+          },
+          {
+            "encounter": {
+              "id": 3455,
+              "name": "Vashnik the Malignant"
+            },
+            "rankPercent": 64.7009,
+            "medianPercent": 51.5071,
+            "lockedIn": true,
+            "totalKills": 3,
+            "fastestKill": 320576,
+            "allStars": {
+              "points": 67.86,
+              "possiblePoints": 0,
+              "partition": 1,
+              "rank": 27387,
+              "regionRank": 13910,
+              "serverRank": 1436,
+              "rankPercent": 56.72318705456614,
+              "total": 63281
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 185238.10890397,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 80203777,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 185238.10890397,
+              "ilvl": 323,
+              "fight_metadata": 995876
+            }
+          },
+          {
+            "encounter": {
+              "id": 3497,
+              "name": "The Lost Explorers"
+            },
+            "rankPercent": 50.7101,
+            "medianPercent": 35.0513,
+            "lockedIn": true,
+            "totalKills": 3,
+            "fastestKill": 296706,
+            "allStars": {
+              "points": 54.34,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 42877,
+              "regionRank": 20370,
+              "serverRank": 2011,
+              "rankPercent": 35.0992976507629,
+              "total": 66064
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 143746.0252938,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 49433585,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 143746.0252938,
+              "ilvl": 316,
+              "fight_metadata": 995877
+            }
+          },
+          {
+            "encounter": {
+              "id": 3420,
+              "name": "Sszorak"
+            },
+            "rankPercent": 72.4236,
+            "medianPercent": 70.7681,
+            "lockedIn": true,
+            "totalKills": 3,
+            "fastestKill": 306067,
+            "allStars": {
+              "points": 75.54,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 15331,
+              "regionRank": 5503,
+              "serverRank": 609,
+              "rankPercent": 63.541666666666664,
+              "total": 42048
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 155679.30002665,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 80252424,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 155679.30002665,
+              "ilvl": 324,
+              "fight_metadata": 995878
+            }
+          },
+          {
+            "encounter": {
+              "id": 3421,
+              "name": "The Twin Fangs"
+            },
+            "rankPercent": 43.546,
+            "medianPercent": 33.9389,
+            "lockedIn": true,
+            "totalKills": 2,
+            "fastestKill": 400503,
+            "allStars": {
+              "points": 66.11,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 21227,
+              "regionRank": 8996,
+              "serverRank": 901,
+              "rankPercent": 42.950061817986345,
+              "total": 37206
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 167676.18469774,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 80291818,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 167676.18469774,
+              "ilvl": 324,
+              "fight_metadata": 995879
+            }
+          },
+          {
+            "encounter": {
+              "id": 3429,
+              "name": "The Coiled Altar"
+            },
+            "rankPercent": 64.8575,
+            "medianPercent": 41.7176,
+            "lockedIn": true,
+            "totalKills": 3,
+            "fastestKill": 418778,
+            "allStars": {
+              "points": 76.88,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 13294,
+              "regionRank": 5386,
+              "serverRank": 569,
+              "rankPercent": 65.21978021978022,
+              "total": 38220
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 184625.46504353,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 129065042,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 184625.46504353,
+              "ilvl": 325,
+              "fight_metadata": 995880
+            }
+          },
+          {
+            "encounter": {
+              "id": 3492,
+              "name": "Ula'tek"
+            },
+            "rankPercent": 80.4605,
+            "medianPercent": 80.4605,
+            "lockedIn": true,
+            "totalKills": 1,
+            "fastestKill": 591311,
+            "allStars": {
+              "points": 92,
+              "possiblePoints": 120,
+              "partition": 1,
+              "rank": 7224,
+              "regionRank": 3676,
+              "serverRank": 420,
+              "rankPercent": 80.77915857260705,
+              "total": 37579
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 214033.67940052,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 131624429,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 214033.67940052,
+              "ilvl": 326,
+              "fight_metadata": 995881
+            }
+          },
+          {
+            "encounter": {
+              "id": 3379,
+              "name": "Nymrissa Wavecaller"
+            },
+            "rankPercent": 71.035,
+            "medianPercent": 60.2014,
+            "lockedIn": true,
+            "totalKills": 2,
+            "fastestKill": 349293,
+            "allStars": {
+              "points": 75.65,
+              "possiblePoints": 0,
+              "partition": 1,
+              "rank": 19409,
+              "regionRank": 7818,
+              "serverRank": 814,
+              "rankPercent": 65.83820319650778,
+              "total": 56812
+            },
+            "spec": "Elemental",
+            "bestSpec": "Elemental",
+            "bestAmount": 164422.64249543,
+            "rankTooltip": null,
+            "bestRank": {
+              "rank_id": 65139037,
+              "class": 9,
+              "spec": 1,
+              "per_second_amount": 164422.64249543,
+              "ilvl": 321,
+              "fight_metadata": 995882
+            }
+          },
+          {
+            "encounter": {
+              "id": 3513,
+              "name": "Kith'ix"
+            },
+            "rankPercent": null,
+            "medianPercent": null,
+            "allStars": null,
+            "lockedIn": true,
+            "totalKills": 0,
+            "fastestKill": 0,
+            "bestAmount": 0,
+            "spec": null
+          }
+        ]
+      }
+    }
+  },
+  "worldData": {
+    "zone": {
+      "id": 53,
+      "name": "The Venomous Abyss",
+      "partitions": [
+        {
+          "id": 1,
+          "name": "12.1",
+          "default": false
+        },
+        {
+          "id": 2,
+          "name": "12.1.5",
+          "default": true
+        }
+      ]
+    }
+  }
+}

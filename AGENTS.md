@@ -1,6 +1,6 @@
 # Repository Agent Guidelines
 
-Chickenbro now targets Web-only dual-game Chat, SimulationCraft and POE2 builds with QQ website login. The 1.0 Mini/Web product is historical. The six-phase rebuild and legacy retirement are complete; historical plans are not new execution authority.
+Chickenbro targets Web dual-game Chat, SimulationCraft and POE2 builds with QQ website login, plus the official WoW QQBot restricted to its existing single test group. Personal QQ/NapCat is retired. The 1.0 Mini/Web product is historical. The six-phase rebuild and legacy retirement are complete; historical plans are not new execution authority.
 
 The POE2 expansion under `docs/plans/2026-09-18-poe2-dual-module.md` adds fixed-game conversations and cloud PoB tools. The user accepted the Candidate and authorized production release, commit, push and integration on 2026-09-21. Runtime execution, tests and builds for this release run only on the cloud host. Preserve the existing WoW production capabilities and keep Candidate data isolated.
 
@@ -40,3 +40,9 @@ The user retired the personal QQ / NapCat / OneBot product and its cloud environ
 - Historical six-phase inventory and cutover gates apply only to their migration/retirement scope. Routine local config/document cleanup uses an exact diff, protects WIP and retains recoverability; it does not require production cutover acceptance.
 - A mid-flow “OK” continues the approved work; it is not proof of manual testing. Explicit post-test acceptance or a clear “可以收尾/合入吧” authorizes closure within the agreed scope. Local-only instructions still prohibit push or deployment.
 - For authorized release closure, review and verify, integrate without history rewrite, push `main`, verify relevant local/remote/deployed identities, and verify the Web artifact. Mini build, preview, upload and public release are retired. Remove finished worktrees/branches only after safety checks.
+
+## Official QQBot
+
+- Official runtime and schema live in `server/app/channels/qq_official/` and `server/qq-official/`; they must not depend on the retired personal QQ package. The `qq_channel` schema name is retained for official data compatibility.
+- Keep the existing single test group allowlist and Candidate database. Fixed WoW queries, bounded WCL battle summaries/reviews and tool-free command guidance are the current scope; no free Chat, proactive sending, private messages, new groups, POE2 or SimC.
+- Run `npm run test:qqbot` only on the cloud with a dedicated test database. Apply `000`–`004` SQL only to official databases, never the Web product migration sequence. A provider group removal is durable until explicitly reauthorized.

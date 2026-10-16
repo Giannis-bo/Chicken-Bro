@@ -8,7 +8,7 @@
     "retiredByUserAt": "2026-10-16",
     "selectedTransport": "personal_qq_napcat_onebot11",
     "businessEnabled": false,
-    "replacement": "official_qqbot_in_independent_candidate_worktree",
+    "replacement": "official_qqbot_existing_single_test_group",
     "evidence": "artifacts/verification/2026-10-16-retire-legacy-qq/README.md",
     "historicalEvidence": "artifacts/verification/2026-09-24-qq-badcase/README.md",
     "containerRunning": false,
@@ -1149,5 +1149,27 @@
       "status": "retired_removed_recovery_verified",
       "evidence": "artifacts/verification/2026-10-16-retire-legacy-qq/README.md"
     }
+  },
+  "qqOfficialBot": {
+    "status": "candidate_test_group_verified",
+    "scope": "existing_single_test_group_only",
+    "activeGroupCount": 1,
+    "testGroupNumber": "1127827451",
+    "productionExpansionAuthorized": false,
+    "freeChatEnabled": false,
+    "proactiveEnabled": false,
+    "database": "chickenbro_qq_official_candidate",
+    "workerScope": "qq_official",
+    "plan": "docs/plans/2026-10-16-qqbot-integration.md",
+    "evidence": "artifacts/verification/2026-10-16-qqbot-integration/README.md",
+    "capabilities": [
+      "character_raid_mythic_recent3",
+      "battle_narrative_v8",
+      "tool_free_guidance_v2"
+    ],
+    "manualAcceptance": "historical_test_group_only_no_new_acceptance_claimed",
+    "cloudRuntimeFilesVerified": 37,
+    "legacyCandidateFilesQuarantined": 45,
+    "recoveryVerified": true
   }
 }

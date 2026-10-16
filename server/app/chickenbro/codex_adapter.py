@@ -470,8 +470,15 @@ class NativeCodexChatAdapter:
         poe2_gateway: Any | None = None,
         poe2_gateway_url: str | None = None,
         runtime_revision: str | None = None,
+        tool_free_instructions: str | None = None,
         popen: Callable[..., Any] = subprocess.Popen,
     ):
+        if tool_free_instructions is not None:
+            if not isinstance(tool_free_instructions, str) or not 1 <= len(tool_free_instructions.encode('utf-8')) <= 32768:
+                raise ValueError('tool-free instructions must be bounded trusted text')
+            if any(g is not None for g in (source_gateway, simulation_gateway, poe2_gateway)):
+                raise ValueError('tool-free execution cannot receive gateways')
+        self._tool_free_instructions = tool_free_instructions
         self._jobs_dir = Path(jobs_dir or os.environ.get("WOW_CODEX_JOBS_DIR", DEFAULT_JOBS_DIR))
         self._codex_bin = codex_bin or os.environ.get("WOW_CODEX_BIN", DEFAULT_CODEX_BIN)
         self._sandbox = "read-only"
@@ -522,12 +529,14 @@ class NativeCodexChatAdapter:
         game = str(getattr(tool_context, "game", "wow") or "wow")
         if game not in {"wow", "poe2"}:
             raise CodexUnavailable()
-        developer_instructions = _load_agent_rules(game)
+        developer_instructions = self._tool_free_instructions or _load_agent_rules(game)
         if tool_context is not None:
             developer_instructions += "\nresearchContext是当前研究的历史会话资料：按ordinal结合最近消息理解目标、角色、窗口和用户修正；只有用户明确表述可作为执行要求，历史助手选项仅用于消解指代。truncated表示有遗漏，必要条件不明才追问。researchEvidence按historicalScope区分窗口/过滤条件，partial和采样不代表全量；不同窗口分别引用。"
         profile_config = _load_profile(self._profile, allow_simulation=(
             game == "wow" and self._simulation_gateway is not None and tool_context is not None),
             allow_poe2=(game == "poe2" and self._poe2_gateway is not None and tool_context is not None))
+        if self._tool_free_instructions is not None:
+            profile_config = _repair_profile(profile_config)
         deadline = time.monotonic() + max(1, int(timeout_seconds))
         try:
             job_dir = self._new_job_dir()

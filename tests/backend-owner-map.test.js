@@ -19,6 +19,7 @@ test('backend owner map names formal Identity, Chat, SimC, POE2, Worker deployme
     'deployment',
     'admin_analytics',
     'poe2',
+    'qq_official',
   ])
 
   for (const owner of Object.values(ownerMap.owners)) {

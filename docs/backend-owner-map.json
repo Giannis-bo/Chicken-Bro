@@ -121,6 +121,36 @@
       ],
       "candidateRuntime": "server/poe2_candidate_runtime.py",
       "runtime": "server/app/worker/main.py"
+    },
+    "qq_official": {
+      "path": "server/app/channels/qq_official/query_service.py",
+      "relatedOwners": [
+        "server/app/channels/qq_official/query_repository.py",
+        "server/app/channels/qq_official/repository.py",
+        "server/app/channels/qq_official/battle_source.py"
+      ],
+      "characterization": [
+        "tests/app_qq_battle_analysis_test.py",
+        "tests/app_qq_battle_commentary_test.py",
+        "tests/app_qq_battle_depth_test.py",
+        "tests/app_qq_battle_locale_test.py",
+        "tests/app_qq_battle_mplus_links_test.py",
+        "tests/app_qq_battle_narrative_test.py",
+        "tests/app_qq_battle_postgres_test.py",
+        "tests/app_qq_battle_summary_binding_test.py",
+        "tests/app_qq_battle_team_report_test.py",
+        "tests/app_qq_character_commands_test.py",
+        "tests/app_qq_character_postgres_test.py",
+        "tests/app_qq_character_source_test.py",
+        "tests/app_qq_default_reply_test.py",
+        "tests/app_qq_dynamic_guidance_test.py",
+        "tests/app_qq_integration_test.py",
+        "tests/app_qq_official_postgres_test.py",
+        "tests/app_qq_official_test.py",
+        "tests/app_qq_query_shorthand_test.py",
+        "tests/app_qq_raid_partitions_test.py",
+        "tests/app_qq_recent_queries_test.py"
+      ]
     }
   },
   "hotspotFiles": [

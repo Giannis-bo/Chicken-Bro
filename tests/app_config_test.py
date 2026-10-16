@@ -4,6 +4,16 @@ from server.app.platform.config import AppSettings
 
 
 class AppConfigTest(unittest.TestCase):
+    def test_official_qq_scope_is_separate_and_rejects_production_web_database(self):
+        base = {'WOW_APP_ENV': 'candidate', 'WOW_WORKER_V2_SCOPE': 'qq_official',
+                'WOW_DATABASE_URL': 'postgresql://wow_app@localhost/chickenbro_qq_official_candidate'}
+        settings = AppSettings.from_env(base)
+        self.assertEqual(settings.worker_heartbeat_path, '/var/lib/chickenbro/qq-official/worker-heartbeat.json')
+        for name in ('chickenbro_prod', 'chickenbro_qq_channel', 'chickenbro_qq_official_candidate_copy'):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                AppSettings.from_env({**base, 'WOW_DATABASE_URL': 'postgresql://wow_app@localhost/' + name})
+
+
     def test_test_login_accepts_only_the_exact_poe2_candidate_database_name(self):
         base = {
             "WOW_APP_ENV": "test", "WOW_TEST_LOGIN_ENABLED": "1",

@@ -98,3 +98,9 @@ Web 角色来源支持 Raider.IO 链接，或名称、服务器、地区三项�
 ## 产品接入边界（2026-10-16）
 
 炸鸡队长 Web 保留 QQ 网站登录；新版炸鸡 QQBot 使用官方接入，当前源码与 Candidate 位于独立 `codex/qq-official` 工作区，尚未提交合入。个人 QQ / NapCat / OneBot 旧版已授权退役，原群观察、主动互动与群记忆不再属于当前产品合同；历史记录仅供追溯。
+
+## 官方 QQBot 测试群
+
+官方 WoW QQBot 独立于 Web 身份、Chat、SimC 与 POE2，源码为 `server/app/channels/qq_official/`，配置范围维持原单群。角色最近三场查询、WCL 战斗 v8 与无工具引导 v2 是当前能力。模型仅接收限定证据或引导规则，强制禁用继承工具与 MCP。发送使用消息时效、五次预算及不确定状态停发；撤群持久禁用已有和新成员。
+
+云端专用数据库执行 `npm run test:qqbot`；官方 `000`–`004` schema 不进入 Web 迁移。更新前绑定文件清单与 SHA，保留 root 私有文件恢复包及独立恢复数据库，空队列后仅重启官方两项服务。核对原群配置哈希、queryOnly、工具禁用、健康更新时间，以及 Web PIDs／目录／静态文件未变。不得自动扩大群范围或发送验证消息；群端业务验收须另有实际用户消息与回执证据。详见 [本轮记录](../artifacts/verification/2026-10-16-qqbot-integration/README.md)。

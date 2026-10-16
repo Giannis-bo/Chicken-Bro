@@ -1,0 +1,4124 @@
+{
+  "qqMessagesSent": 0,
+  "results": [
+    {
+      "name": "raid_wipe",
+      "packet": {
+        "schema": "qq-battle-v1",
+        "status": "ready",
+        "reportCode": "QqrT6Nkg7jRBWCMH",
+        "sourceUrl": "https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH",
+        "fightId": 49,
+        "fight": {
+          "id": 49,
+          "name": "乌拉特克",
+          "difficulty": 4,
+          "kill": false,
+          "startTime": 12495098,
+          "endTime": 12653100,
+          "keystoneLevel": null,
+          "gameZone": {
+            "id": 3004,
+            "name": "烈毒之渊"
+          }
+        },
+        "battleType": "raid",
+        "detailMaxPlayers": 3,
+        "difficulty": "英雄",
+        "duration": 158.002,
+        "playerCount": 13,
+        "coverage": {
+          "actors": true,
+          "deaths": true,
+          "roles": true,
+          "damage": true,
+          "healing": true
+        },
+        "gaps": [
+          "深度归因已完成10/11次死亡"
+        ],
+        "playerRoles": {
+          "60": "dps",
+          "20": "dps",
+          "5": "dps",
+          "220": "dps",
+          "326": "dps",
+          "12": "dps",
+          "1": "dps",
+          "319": "dps",
+          "17": "healers",
+          "19": "healers",
+          "64": "healers",
+          "340": "tanks",
+          "7": "tanks"
+        },
+        "roleContributions": {
+          "damage": [
+            {
+              "actorId": 319,
+              "name": "Regensaison",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 27034546,
+              "share": 15.711974920488867,
+              "rank": 1,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 319,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "playerDetails",
+                  "actorId": 319,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Casts",
+                  "actorId": 319,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true,
+                  "count": 92
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Casts",
+                  "actorId": 319,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true,
+                  "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+                }
+              ],
+              "analysis": [
+                "射击猎人，装等308，2703.5万伤害，输出第1/8，占同职责15.7%。领先第二名94.0万。",
+                "本场记录死亡1次。",
+                "全程CPM 34.9；本场使用治疗石1次。",
+                "贡献排得上号，减员这笔账也得一起记。"
+              ],
+              "requiredAnalysis": [
+                0
+              ],
+              "prose": true
+            },
+            {
+              "actorId": 5,
+              "name": "Giannis",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 26094615,
+              "share": 15.165704518944484,
+              "rank": 2,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 5,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "playerDetails",
+                  "actorId": 5,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Casts",
+                  "actorId": 5,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true,
+                  "count": 111
+                }
+              ],
+              "analysis": [
+                "元素萨满祭司，装等321，2609.5万伤害，输出第2/8，占同职责15.2%。",
+                "本场记录死亡1次。",
+                "全程CPM 42.2。",
+                "贡献排得上号，减员这笔账也得一起记。"
+              ],
+              "requiredAnalysis": [
+                0
+              ],
+              "prose": true
+            },
+            {
+              "actorId": 1,
+              "name": "魔魔糊胡萝卜",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 25615054,
+              "share": 14.886992592180686,
+              "rank": 3,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 1,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 20,
+              "name": "桃花别死",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 24881516,
+              "share": 14.460673960485316,
+              "rank": 4,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 20,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 220,
+              "name": "Fusionbolt",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 21917284,
+              "share": 12.73791749760591,
+              "rank": 5,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 220,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 326,
+              "name": "黑脸法",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 18030921,
+              "share": 10.479235661857093,
+              "rank": 6,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 326,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 60,
+              "name": "圣洁鸣钟",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 17959704,
+              "share": 10.43784566707366,
+              "rank": 7,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 60,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 12,
+              "name": "放弃思考",
+              "metric": "damage",
+              "roleLabel": "输出",
+              "amount": 10529682,
+              "share": 6.119655181363987,
+              "rank": 8,
+              "roleCount": 8,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "damage",
+                  "actorId": 12,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            }
+          ],
+          "healing": [
+            {
+              "actorId": 17,
+              "name": "Alecia",
+              "metric": "effective_healing",
+              "roleLabel": "治疗",
+              "amount": 56236328,
+              "share": 38.26606056545212,
+              "rank": 1,
+              "roleCount": 3,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "healing",
+                  "actorId": 17,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Healing",
+                  "startTime": 12612472,
+                  "endTime": 12618472,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "playerDetails",
+                  "actorId": 17,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                },
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Casts",
+                  "actorId": 17,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true,
+                  "count": 112
+                }
+              ],
+              "analysis": [
+                "神圣牧师，装等317，5623.6万有效治疗，治疗第1/3，占同职责38.3%。领先第二名207.9万。",
+                "01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗。",
+                "本场没有死亡。",
+                "治疗榜的贡献落在了实际承伤窗口，这份成绩有具体落点。",
+                "全程CPM 42.5。"
+              ],
+              "requiredAnalysis": [
+                0
+              ],
+              "prose": true
+            },
+            {
+              "actorId": 19,
+              "name": "海街日记",
+              "metric": "effective_healing",
+              "roleLabel": "治疗",
+              "amount": 54157505,
+              "share": 36.85152356326992,
+              "rank": 2,
+              "roleCount": 3,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "healing",
+                  "actorId": 19,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            },
+            {
+              "actorId": 64,
+              "name": "阿橙捏",
+              "metric": "effective_healing",
+              "roleLabel": "治疗",
+              "amount": 36567540,
+              "share": 24.882415871277956,
+              "rank": 3,
+              "roleCount": 3,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "healing",
+                  "actorId": 64,
+                  "startTime": 12495098,
+                  "endTime": 12653100,
+                  "complete": true
+                }
+              ]
+            }
+          ]
+        },
+        "deaths": [
+          {
+            "actorId": 12,
+            "name": "放弃思考",
+            "timestamp": 12604291,
+            "time": 109.193,
+            "ability": "腐蚀浪潮",
+            "abilityId": 1292403,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 12,
+                "timestamp": 12604291,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 60,
+            "name": "圣洁鸣钟",
+            "timestamp": 12617472,
+            "time": 122.374,
+            "ability": "幽魂盘卷",
+            "abilityId": 1287265,
+            "killerId": 337,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 60,
+                "timestamp": 12617472,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 326,
+            "name": "黑脸法",
+            "timestamp": 12630154,
+            "time": 135.056,
+            "ability": "死疽蒸汽",
+            "abilityId": 1286835,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 326,
+                "timestamp": 12630154,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 220,
+            "name": "Fusionbolt",
+            "timestamp": 12633296,
+            "time": 138.198,
+            "ability": "普通攻击",
+            "abilityId": 1,
+            "killerId": 344,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 220,
+                "timestamp": 12633296,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 7,
+            "name": "Weex",
+            "timestamp": 12634496,
+            "time": 139.398,
+            "ability": "岩石剧毒",
+            "abilityId": 1298418,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 7,
+                "timestamp": 12634496,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 340,
+            "name": "非常有文化",
+            "timestamp": 12638284,
+            "time": 143.186,
+            "ability": "腐臭薄膜",
+            "abilityId": 1308275,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 340,
+                "timestamp": 12638284,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 1,
+            "name": "魔魔糊胡萝卜",
+            "timestamp": 12638492,
+            "time": 143.394,
+            "ability": "酸液爆发",
+            "abilityId": 1301800,
+            "killerId": 344,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 1,
+                "timestamp": 12638492,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 319,
+            "name": "Regensaison",
+            "timestamp": 12641764,
+            "time": 146.666,
+            "ability": "普通攻击",
+            "abilityId": 1,
+            "killerId": 338,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 319,
+                "timestamp": 12641764,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 5,
+            "name": "Giannis",
+            "timestamp": 12642660,
+            "time": 147.562,
+            "ability": "被缚之怒",
+            "abilityId": 1307367,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 5,
+                "timestamp": 12642660,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 64,
+            "name": "阿橙捏",
+            "timestamp": 12646653,
+            "time": 151.555,
+            "ability": "普通攻击",
+            "abilityId": 1,
+            "killerId": 344,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 64,
+                "timestamp": 12646653,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "actorId": 20,
+            "name": "桃花别死",
+            "timestamp": 12652616,
+            "time": 157.518,
+            "ability": "普通攻击",
+            "abilityId": 1,
+            "killerId": 331,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Deaths",
+                "actorId": 20,
+                "timestamp": 12652616,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "good": [
+          {
+            "actorId": 319,
+            "name": "Regensaison",
+            "metric": "damage",
+            "roleLabel": "输出",
+            "amount": 27034546,
+            "share": 15.711974920488867,
+            "rank": 1,
+            "roleCount": 8,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "damage",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 92
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "analysis": [
+              "射击猎人，装等308，2703.5万伤害，输出第1/8，占同职责15.7%。领先第二名94.0万。",
+              "本场记录死亡1次。",
+              "全程CPM 34.9；本场使用治疗石1次。",
+              "贡献排得上号，减员这笔账也得一起记。"
+            ],
+            "requiredAnalysis": [
+              0
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 17,
+            "name": "Alecia",
+            "metric": "effective_healing",
+            "roleLabel": "治疗",
+            "amount": 56236328,
+            "share": 38.26606056545212,
+            "rank": 1,
+            "roleCount": 3,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "healing",
+                "actorId": 17,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Healing",
+                "startTime": 12612472,
+                "endTime": 12618472,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 17,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 17,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 112
+              }
+            ],
+            "analysis": [
+              "神圣牧师，装等317，5623.6万有效治疗，治疗第1/3，占同职责38.3%。领先第二名207.9万。",
+              "01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗。",
+              "本场没有死亡。",
+              "治疗榜的贡献落在了实际承伤窗口，这份成绩有具体落点。",
+              "全程CPM 42.5。"
+            ],
+            "requiredAnalysis": [
+              0
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 5,
+            "name": "Giannis",
+            "metric": "damage",
+            "roleLabel": "输出",
+            "amount": 26094615,
+            "share": 15.165704518944484,
+            "rank": 2,
+            "roleCount": 8,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "damage",
+                "actorId": 5,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 5,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 5,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 111
+              }
+            ],
+            "analysis": [
+              "元素萨满祭司，装等321，2609.5万伤害，输出第2/8，占同职责15.2%。",
+              "本场记录死亡1次。",
+              "全程CPM 42.2。",
+              "贡献排得上号，减员这笔账也得一起记。"
+            ],
+            "requiredAnalysis": [
+              0
+            ],
+            "prose": true
+          }
+        ],
+        "review": [
+          {
+            "actorId": 220,
+            "name": "Fusionbolt",
+            "death": {
+              "actorId": 220,
+              "name": "Fusionbolt",
+              "timestamp": 12633296,
+              "time": 138.198,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 344,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 220,
+                  "timestamp": 12633296,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 344,
+            "sourceName": "疫鳞蝰蛇",
+            "fatalDamage": 531737,
+            "maxHealth": 932140,
+            "healthBeforeBurst": 478605,
+            "burstDamage": 531737,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108
+            ],
+            "healingLast2Seconds": 195806,
+            "lastHeal": {
+              "timestamp": 12633239,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 220,
+              "abilityGameID": 85222,
+              "fight": 49,
+              "hitType": 2,
+              "amount": 81653,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 175,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 478605,
+              "maxHitPoints": 932140,
+              "attackPower": 1102,
+              "spellPower": 3777,
+              "armor": 1560,
+              "absorb": 0,
+              "x": -776,
+              "y": 154221,
+              "facing": -286,
+              "mapID": 2610,
+              "versatility": 762,
+              "avoidance": 453,
+              "itemLevel": 323
+            },
+            "fatalEvent": {
+              "timestamp": 12633258,
+              "type": "damage",
+              "sourceID": 344,
+              "sourceInstance": 5,
+              "targetID": 220,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "1235108.",
+              "hitType": 1,
+              "amount": 478605,
+              "mitigated": 209054,
+              "unmitigatedAmount": 740791,
+              "overkill": 53132,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 932140,
+              "attackPower": 1050,
+              "spellPower": 3503,
+              "armor": 1560,
+              "absorb": 0,
+              "x": -771,
+              "y": 154219,
+              "facing": -286,
+              "mapID": 2610,
+              "versatility": 201,
+              "avoidance": 453,
+              "itemLevel": 323
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12633258,
+                "type": "damage",
+                "sourceID": 344,
+                "sourceInstance": 5,
+                "targetID": 220,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "1235108.",
+                "hitType": 1,
+                "amount": 478605,
+                "mitigated": 209054,
+                "unmitigatedAmount": 740791,
+                "overkill": 53132,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 175,
+                    "type": 11
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 932140,
+                "attackPower": 1050,
+                "spellPower": 3503,
+                "armor": 1560,
+                "absorb": 0,
+                "x": -771,
+                "y": 154219,
+                "facing": -286,
+                "mapID": 2610,
+                "versatility": 201,
+                "avoidance": 453,
+                "itemLevel": 323
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 220,
+                "view": "DamageTaken",
+                "startTime": 12623296,
+                "endTime": 12634296,
+                "complete": true,
+                "targetFilter": 220
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 220,
+                "view": "All",
+                "startTime": 12623296,
+                "endTime": 12634296,
+                "complete": true,
+                "targetFilter": 220
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 91
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12633258,
+                "time": 138.16,
+                "ability": "普通攻击",
+                "amount": 531737,
+                "sourceId": 344
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接疫鳞蝰蛇普攻53.2万。伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死时增益栏仅记录合剂。",
+            "deathCount": 1,
+            "analysis": [
+              "元素萨满祭司，装等323。",
+              "02:18：非坦克承接疫鳞蝰蛇普攻53.2万。伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死时增益栏仅记录合剂。",
+              "伤前生命47.9万/93.2万，致死伤害前2秒实际有效治疗19.6万。",
+              "全程CPM 34.6。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 319,
+            "name": "Regensaison",
+            "death": {
+              "actorId": 319,
+              "name": "Regensaison",
+              "timestamp": 12641764,
+              "time": 146.666,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 338,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 319,
+                  "timestamp": 12641764,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 338,
+            "sourceName": "疫鳞幼体",
+            "fatalDamage": 47245,
+            "maxHealth": 783508,
+            "healthBeforeBurst": 36587,
+            "burstDamage": 47245,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              390677,
+              1307578
+            ],
+            "healingLast2Seconds": 0,
+            "lastHeal": {
+              "timestamp": 12641683,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 319,
+              "abilityGameID": 53652,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 0,
+              "absorbed": 62964,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 125,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 36587,
+              "maxHitPoints": 783508,
+              "attackPower": 4213,
+              "spellPower": 524,
+              "armor": 1438,
+              "absorb": 281585,
+              "x": -437,
+              "y": 157723,
+              "facing": -342,
+              "mapID": 2610,
+              "versatility": 675,
+              "avoidance": 222,
+              "itemLevel": 308
+            },
+            "fatalEvent": {
+              "timestamp": 12641764,
+              "type": "damage",
+              "sourceID": 338,
+              "sourceInstance": 6,
+              "targetID": 319,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "390677.1307578.",
+              "hitType": 2,
+              "amount": 36587,
+              "unmitigatedAmount": 146992,
+              "overkill": 10658,
+              "absorbed": 141733,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 100,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 783508,
+              "attackPower": 3370,
+              "spellPower": 509,
+              "armor": 1438,
+              "absorb": 0,
+              "x": -437,
+              "y": 157723,
+              "facing": -342,
+              "mapID": 2610,
+              "versatility": 375,
+              "avoidance": 222,
+              "itemLevel": 308
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12641764,
+                "type": "damage",
+                "sourceID": 338,
+                "sourceInstance": 6,
+                "targetID": 319,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "390677.1307578.",
+                "hitType": 2,
+                "amount": 36587,
+                "unmitigatedAmount": 146992,
+                "overkill": 10658,
+                "absorbed": 141733,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 100,
+                    "max": 125,
+                    "type": 2
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 783508,
+                "attackPower": 3370,
+                "spellPower": 509,
+                "armor": 1438,
+                "absorb": 0,
+                "x": -437,
+                "y": 157723,
+                "facing": -342,
+                "mapID": 2610,
+                "versatility": 375,
+                "avoidance": 222,
+                "itemLevel": 308
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 319,
+                "view": "DamageTaken",
+                "startTime": 12631764,
+                "endTime": 12642764,
+                "complete": true,
+                "targetFilter": 319
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 319,
+                "view": "All",
+                "startTime": 12631764,
+                "endTime": 12642764,
+                "complete": true,
+                "targetFilter": 319
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 92
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12641764,
+                "time": 146.666,
+                "ability": "普通攻击",
+                "amount": 47245,
+                "sourceId": 338
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接疫鳞幼体普攻4.7万。伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。",
+            "deathCount": 1,
+            "analysis": [
+              "射击猎人，装等308。",
+              "02:26：非坦克承接疫鳞幼体普攻4.7万。伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。",
+              "伤前生命3.7万/78.4万，致死伤害前2秒实际有效治疗0。",
+              "全程CPM 34.9；本场使用治疗石1次。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 20,
+            "name": "桃花别死",
+            "death": {
+              "actorId": 20,
+              "name": "桃花别死",
+              "timestamp": 12652616,
+              "time": 157.518,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 20,
+                  "timestamp": 12652616,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 555489,
+            "maxHealth": 813280,
+            "healthBeforeBurst": 355296,
+            "burstDamage": 555489,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              390677,
+              391571,
+              440289,
+              440290
+            ],
+            "healingLast2Seconds": 699348,
+            "lastHeal": {
+              "timestamp": 12652229,
+              "type": "heal",
+              "sourceID": 20,
+              "targetID": 20,
+              "abilityGameID": 143924,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 15716,
+              "resourceActor": 1,
+              "classResources": [
+                {
+                  "amount": 830,
+                  "max": 1000,
+                  "type": 6
+                }
+              ],
+              "hitPoints": 399164,
+              "maxHitPoints": 813280,
+              "attackPower": 4210,
+              "spellPower": 345,
+              "armor": 2221,
+              "absorb": 0,
+              "x": -3133,
+              "y": 156713,
+              "facing": -476,
+              "mapID": 2610,
+              "versatility": 1190,
+              "avoidance": 160,
+              "itemLevel": 313
+            },
+            "fatalEvent": {
+              "timestamp": 12652604,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 20,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "390677.391571.440289.440290.",
+              "hitType": 1,
+              "amount": 355296,
+              "mitigated": 619763,
+              "unmitigatedAmount": 1414424,
+              "overkill": 200193,
+              "absorbed": 239172,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 1000,
+                  "type": 6
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 813280,
+              "attackPower": 3152,
+              "spellPower": 335,
+              "armor": 2221,
+              "absorb": 0,
+              "x": -3042,
+              "y": 157088,
+              "facing": -499,
+              "mapID": 2610,
+              "versatility": 890,
+              "avoidance": 160,
+              "itemLevel": 313
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12652604,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 20,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "390677.391571.440289.440290.",
+                "hitType": 1,
+                "amount": 355296,
+                "mitigated": 619763,
+                "unmitigatedAmount": 1414424,
+                "overkill": 200193,
+                "absorbed": 239172,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 1000,
+                    "type": 6
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 813280,
+                "attackPower": 3152,
+                "spellPower": 335,
+                "armor": 2221,
+                "absorb": 0,
+                "x": -3042,
+                "y": 157088,
+                "facing": -499,
+                "mapID": 2610,
+                "versatility": 890,
+                "avoidance": 160,
+                "itemLevel": 313
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 20,
+                "view": "DamageTaken",
+                "startTime": 12642616,
+                "endTime": 12653100,
+                "complete": true,
+                "targetFilter": 20
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 20,
+                "view": "All",
+                "startTime": 12642616,
+                "endTime": 12653100,
+                "complete": true,
+                "targetFilter": 20
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 143
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12652604,
+                "time": 157.506,
+                "ability": "普通攻击",
+                "amount": 555489,
+                "sourceId": 331
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接乌拉特克普攻55.5万。伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。",
+            "deathCount": 1,
+            "analysis": [
+              "冰霜死亡骑士，装等313。",
+              "02:37：非坦克承接乌拉特克普攻55.5万。伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。",
+              "伤前生命35.5万/81.3万，致死伤害前2秒实际有效治疗69.9万。",
+              "全程CPM 54.3；本场使用治疗石1次。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          }
+        ],
+        "highlights": [
+          "**整场结论**\n本场死亡11次，涉及11人；首次01:49，最后一次02:37；最后一次减员距战斗结束00:00。",
+          "**队伍表现**\n**Regensaison**：射击猎人，装等308，2703.5万伤害，输出第1/8，占同职责15.7%。领先第二名94.0万。本场记录死亡1次。\n**Alecia**：神圣牧师，装等317，5623.6万有效治疗，治疗第1/3，占同职责38.3%。领先第二名207.9万。01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗。本场没有死亡。",
+          "**减员原因**\n02:18 Fusionbolt：非坦克承接疫鳞蝰蛇普攻53.2万。伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死时增益栏仅记录合剂。\n02:26 Regensaison：非坦克承接疫鳞幼体普攻4.7万。伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。\n02:37 桃花别死：非坦克承接乌拉特克普攻55.5万。伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。",
+          "**关键承伤片段**\n01:57–02:03，12人合计承伤1485.3万；主要来源幽魂盘卷448.9万。同窗玩家有效治疗1724.0万。\n本场明确的减员问题是非坦承接致死普攻。"
+        ],
+        "damageWindows": [
+          {
+            "startTime": 12599291,
+            "endTime": 12605291,
+            "amount": 10151113,
+            "targetCount": 13,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1292403,
+                "ability": "腐蚀浪潮",
+                "amount": 2867300
+              },
+              {
+                "abilityId": 1298418,
+                "ability": "岩石剧毒",
+                "amount": 2096643
+              },
+              {
+                "abilityId": 1297213,
+                "ability": "恶性甲壳",
+                "amount": 2007206
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "DamageTaken",
+                "startTime": 12599291,
+                "endTime": 12605291,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "startTime": 12612472,
+            "endTime": 12618472,
+            "amount": 14852940,
+            "targetCount": 12,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1287265,
+                "ability": "幽魂盘卷",
+                "amount": 4488834
+              },
+              {
+                "abilityId": 1308275,
+                "ability": "腐臭薄膜",
+                "amount": 3499863
+              },
+              {
+                "abilityId": 1292403,
+                "ability": "腐蚀浪潮",
+                "amount": 1373932
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "DamageTaken",
+                "startTime": 12612472,
+                "endTime": 12618472,
+                "complete": true
+              }
+            ]
+          },
+          {
+            "startTime": 12625154,
+            "endTime": 12631154,
+            "amount": 11587136,
+            "targetCount": 11,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1308275,
+                "ability": "腐臭薄膜",
+                "amount": 4707982
+              },
+              {
+                "abilityId": 1307367,
+                "ability": "被缚之怒",
+                "amount": 2272966
+              },
+              {
+                "abilityId": 1298418,
+                "ability": "岩石剧毒",
+                "amount": 1938218
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "DamageTaken",
+                "startTime": 12625154,
+                "endTime": 12631154,
+                "complete": true
+              }
+            ]
+          }
+        ],
+        "windows": [
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 12599291,
+            "endTime": 12605291,
+            "observedThrough": 12605291,
+            "dataType": "DamageTaken"
+          },
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 12612472,
+            "endTime": 12618472,
+            "observedThrough": 12618472,
+            "dataType": "DamageTaken"
+          },
+          {
+            "complete": true,
+            "pages": 1,
+            "startTime": 12625154,
+            "endTime": 12631154,
+            "observedThrough": 12631154,
+            "dataType": "DamageTaken"
+          }
+        ],
+        "analysisVersion": "death-causes-v2",
+        "causes": [
+          {
+            "actorId": 12,
+            "name": "放弃思考",
+            "death": {
+              "actorId": 12,
+              "name": "放弃思考",
+              "timestamp": 12604291,
+              "time": 109.193,
+              "ability": "腐蚀浪潮",
+              "abilityId": 1292403,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 12,
+                  "timestamp": 12604291,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1292403,
+            "ability": "腐蚀浪潮",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 184886,
+            "maxHealth": 1080903,
+            "healthBeforeBurst": 57187,
+            "burstDamage": 184886,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              108446,
+              387636,
+              390677,
+              1287955
+            ],
+            "healingLast2Seconds": 149306,
+            "lastHeal": {
+              "timestamp": 12604212,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 12,
+              "abilityGameID": 156322,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 2168,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 250000,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 57187,
+              "maxHitPoints": 1080903,
+              "attackPower": 435,
+              "spellPower": 3537,
+              "armor": 1201,
+              "absorb": 1,
+              "x": -1074,
+              "y": 154065,
+              "facing": -459,
+              "mapID": 2610,
+              "versatility": 929,
+              "avoidance": 260,
+              "itemLevel": 320
+            },
+            "fatalEvent": {
+              "timestamp": 12604291,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 12,
+              "abilityGameID": 1292403,
+              "fight": 49,
+              "buffs": "108446.387636.390677.1287955.",
+              "hitType": 1,
+              "amount": 57187,
+              "mitigated": 23916,
+              "unmitigatedAmount": 232570,
+              "overkill": 127699,
+              "absorbed": 23768,
+              "isAoE": false,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 250000,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 1080903,
+              "attackPower": 414,
+              "spellPower": 3361,
+              "armor": 1201,
+              "absorb": 0,
+              "x": -1019,
+              "y": 154058,
+              "facing": -459,
+              "mapID": 2610,
+              "versatility": 166,
+              "avoidance": 260,
+              "itemLevel": 320
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12604291,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 12,
+                "abilityGameID": 1292403,
+                "fight": 49,
+                "buffs": "108446.387636.390677.1287955.",
+                "hitType": 1,
+                "amount": 57187,
+                "mitigated": 23916,
+                "unmitigatedAmount": 232570,
+                "overkill": 127699,
+                "absorbed": 23768,
+                "isAoE": false,
+                "tick": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 250000,
+                    "max": 250000,
+                    "type": 0
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 1080903,
+                "attackPower": 414,
+                "spellPower": 3361,
+                "armor": 1201,
+                "absorb": 0,
+                "x": -1019,
+                "y": 154058,
+                "facing": -459,
+                "mapID": 2610,
+                "versatility": 166,
+                "avoidance": 260,
+                "itemLevel": 320
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 12,
+                "view": "DamageTaken",
+                "startTime": 12594291,
+                "endTime": 12605291,
+                "complete": true,
+                "targetFilter": 12
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 12,
+                "view": "All",
+                "startTime": 12594291,
+                "endTime": 12605291,
+                "complete": true,
+                "targetFilter": 12
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12604291,
+                "time": 109.193,
+                "ability": "腐蚀浪潮",
+                "amount": 184886,
+                "sourceId": 331
+              }
+            ],
+            "cause": "dot_finisher",
+            "conclusion": "持续伤害收尾：腐蚀浪潮最后一跳18.5万致死。01:48先受同技能直击44.9万，随后持续伤害造成减员。"
+          },
+          {
+            "actorId": 60,
+            "name": "圣洁鸣钟",
+            "death": {
+              "actorId": 60,
+              "name": "圣洁鸣钟",
+              "timestamp": 12617472,
+              "time": 122.374,
+              "ability": "幽魂盘卷",
+              "abilityId": 1287265,
+              "killerId": 337,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 60,
+                  "timestamp": 12617472,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1287265,
+            "ability": "幽魂盘卷",
+            "sourceId": 337,
+            "sourceName": "幽魂盘卷",
+            "fatalDamage": 423249,
+            "maxHealth": 913920,
+            "healthBeforeBurst": 307770,
+            "burstDamage": 423249,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [
+              "集结呐喊"
+            ],
+            "buffCoverage": [
+              97463,
+              1235108
+            ],
+            "healingLast2Seconds": 296933,
+            "lastHeal": {
+              "timestamp": 12617410,
+              "type": "heal",
+              "sourceID": 60,
+              "targetID": 60,
+              "abilityGameID": 431939,
+              "fight": 49,
+              "hitType": 2,
+              "amount": 900,
+              "resourceActor": 1,
+              "classResources": [
+                {
+                  "amount": 250000,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 307770,
+              "maxHitPoints": 913920,
+              "attackPower": 3343,
+              "spellPower": 664,
+              "armor": 2677,
+              "absorb": 0,
+              "x": -2291,
+              "y": 155314,
+              "facing": -366,
+              "mapID": 2610,
+              "versatility": 487,
+              "avoidance": 326,
+              "itemLevel": 313
+            },
+            "fatalEvent": {
+              "timestamp": 12617453,
+              "type": "damage",
+              "sourceID": 337,
+              "sourceInstance": 3,
+              "targetID": 60,
+              "abilityGameID": 1287265,
+              "fight": 49,
+              "buffs": "97463.1235108.",
+              "hitType": 1,
+              "amount": 307770,
+              "mitigated": 204196,
+              "unmitigatedAmount": 627445,
+              "overkill": 115479,
+              "isAoE": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 250000,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 913920,
+              "attackPower": 3184,
+              "spellPower": 644,
+              "armor": 2677,
+              "absorb": 0,
+              "x": -2291,
+              "y": 155314,
+              "facing": -366,
+              "mapID": 2610,
+              "versatility": 187,
+              "avoidance": 326,
+              "itemLevel": 313
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12617453,
+                "type": "damage",
+                "sourceID": 337,
+                "sourceInstance": 3,
+                "targetID": 60,
+                "abilityGameID": 1287265,
+                "fight": 49,
+                "buffs": "97463.1235108.",
+                "hitType": 1,
+                "amount": 307770,
+                "mitigated": 204196,
+                "unmitigatedAmount": 627445,
+                "overkill": 115479,
+                "isAoE": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 250000,
+                    "max": 250000,
+                    "type": 0
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 913920,
+                "attackPower": 3184,
+                "spellPower": 644,
+                "armor": 2677,
+                "absorb": 0,
+                "x": -2291,
+                "y": 155314,
+                "facing": -366,
+                "mapID": 2610,
+                "versatility": 187,
+                "avoidance": 326,
+                "itemLevel": 313
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 60,
+                "view": "DamageTaken",
+                "startTime": 12607472,
+                "endTime": 12618472,
+                "complete": true,
+                "targetFilter": 60
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 60,
+                "view": "All",
+                "startTime": 12607472,
+                "endTime": 12618472,
+                "complete": true,
+                "targetFilter": 60
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12617453,
+                "time": 122.355,
+                "ability": "幽魂盘卷",
+                "amount": 423249,
+                "sourceId": 337
+              }
+            ],
+            "cause": "lethal_hit",
+            "conclusion": "直接致死：幽魂盘卷完整一击42.3万。命中前剩余生命30.8万，伤害超过当时生命。致死时已有集结呐喊。"
+          },
+          {
+            "actorId": 326,
+            "name": "黑脸法",
+            "death": {
+              "actorId": 326,
+              "name": "黑脸法",
+              "timestamp": 12630154,
+              "time": 135.056,
+              "ability": "死疽蒸汽",
+              "abilityId": 1286835,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 326,
+                  "timestamp": 12630154,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1286835,
+            "ability": "死疽蒸汽",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 14092,
+            "maxHealth": 755240,
+            "healthBeforeBurst": 4834,
+            "burstDamage": 14092,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              342246,
+              390677,
+              449336,
+              1287770
+            ],
+            "healingLast2Seconds": 0,
+            "lastHeal": {
+              "timestamp": 12629867,
+              "type": "heal",
+              "sourceID": 19,
+              "targetID": 326,
+              "abilityGameID": 77489,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 0,
+              "absorbed": 13297,
+              "tick": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 307027,
+                  "max": 314780,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 39034,
+              "maxHitPoints": 755240,
+              "attackPower": 299,
+              "spellPower": 3309,
+              "armor": 628,
+              "absorb": 0,
+              "x": -841,
+              "y": 152494,
+              "facing": -622,
+              "mapID": 2610,
+              "versatility": 1866,
+              "avoidance": 461,
+              "itemLevel": 316
+            },
+            "fatalEvent": {
+              "timestamp": 12630134,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 326,
+              "abilityGameID": 1286835,
+              "fight": 49,
+              "buffs": "342246.390677.449336.1287770.",
+              "hitType": 1,
+              "amount": 4834,
+              "mitigated": 12150,
+              "unmitigatedAmount": 27807,
+              "overkill": 9258,
+              "absorbed": 1565,
+              "isAoE": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 310363,
+                  "max": 314780,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 755240,
+              "attackPower": 285,
+              "spellPower": 3152,
+              "armor": 628,
+              "absorb": 0,
+              "x": -841,
+              "y": 152494,
+              "facing": -622,
+              "mapID": 2610,
+              "versatility": 1277,
+              "avoidance": 461,
+              "itemLevel": 316
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12630134,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 326,
+                "abilityGameID": 1286835,
+                "fight": 49,
+                "buffs": "342246.390677.449336.1287770.",
+                "hitType": 1,
+                "amount": 4834,
+                "mitigated": 12150,
+                "unmitigatedAmount": 27807,
+                "overkill": 9258,
+                "absorbed": 1565,
+                "isAoE": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 310363,
+                    "max": 314780,
+                    "type": 0
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 755240,
+                "attackPower": 285,
+                "spellPower": 3152,
+                "armor": 628,
+                "absorb": 0,
+                "x": -841,
+                "y": 152494,
+                "facing": -622,
+                "mapID": 2610,
+                "versatility": 1277,
+                "avoidance": 461,
+                "itemLevel": 316
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 326,
+                "view": "DamageTaken",
+                "startTime": 12620154,
+                "endTime": 12631154,
+                "complete": true,
+                "targetFilter": 326
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 326,
+                "view": "All",
+                "startTime": 12620154,
+                "endTime": 12631154,
+                "complete": true,
+                "targetFilter": 326
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12630134,
+                "time": 135.036,
+                "ability": "死疽蒸汽",
+                "amount": 14092,
+                "sourceId": 331
+              }
+            ],
+            "cause": "lethal_hit",
+            "conclusion": "直接致死：死疽蒸汽完整一击1.4万。命中前剩余生命4834，伤害超过当时生命。"
+          },
+          {
+            "actorId": 220,
+            "name": "Fusionbolt",
+            "death": {
+              "actorId": 220,
+              "name": "Fusionbolt",
+              "timestamp": 12633296,
+              "time": 138.198,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 344,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 220,
+                  "timestamp": 12633296,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 344,
+            "sourceName": "疫鳞蝰蛇",
+            "fatalDamage": 531737,
+            "maxHealth": 932140,
+            "healthBeforeBurst": 478605,
+            "burstDamage": 531737,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108
+            ],
+            "healingLast2Seconds": 195806,
+            "lastHeal": {
+              "timestamp": 12633239,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 220,
+              "abilityGameID": 85222,
+              "fight": 49,
+              "hitType": 2,
+              "amount": 81653,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 175,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 478605,
+              "maxHitPoints": 932140,
+              "attackPower": 1102,
+              "spellPower": 3777,
+              "armor": 1560,
+              "absorb": 0,
+              "x": -776,
+              "y": 154221,
+              "facing": -286,
+              "mapID": 2610,
+              "versatility": 762,
+              "avoidance": 453,
+              "itemLevel": 323
+            },
+            "fatalEvent": {
+              "timestamp": 12633258,
+              "type": "damage",
+              "sourceID": 344,
+              "sourceInstance": 5,
+              "targetID": 220,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "1235108.",
+              "hitType": 1,
+              "amount": 478605,
+              "mitigated": 209054,
+              "unmitigatedAmount": 740791,
+              "overkill": 53132,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 932140,
+              "attackPower": 1050,
+              "spellPower": 3503,
+              "armor": 1560,
+              "absorb": 0,
+              "x": -771,
+              "y": 154219,
+              "facing": -286,
+              "mapID": 2610,
+              "versatility": 201,
+              "avoidance": 453,
+              "itemLevel": 323
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12633258,
+                "type": "damage",
+                "sourceID": 344,
+                "sourceInstance": 5,
+                "targetID": 220,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "1235108.",
+                "hitType": 1,
+                "amount": 478605,
+                "mitigated": 209054,
+                "unmitigatedAmount": 740791,
+                "overkill": 53132,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 175,
+                    "type": 11
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 932140,
+                "attackPower": 1050,
+                "spellPower": 3503,
+                "armor": 1560,
+                "absorb": 0,
+                "x": -771,
+                "y": 154219,
+                "facing": -286,
+                "mapID": 2610,
+                "versatility": 201,
+                "avoidance": 453,
+                "itemLevel": 323
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 220,
+                "view": "DamageTaken",
+                "startTime": 12623296,
+                "endTime": 12634296,
+                "complete": true,
+                "targetFilter": 220
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 220,
+                "view": "All",
+                "startTime": 12623296,
+                "endTime": 12634296,
+                "complete": true,
+                "targetFilter": 220
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 91
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12633258,
+                "time": 138.16,
+                "ability": "普通攻击",
+                "amount": 531737,
+                "sourceId": 344
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接疫鳞蝰蛇普攻53.2万。伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死时增益栏仅记录合剂。",
+            "deathCount": 1,
+            "analysis": [
+              "元素萨满祭司，装等323。",
+              "02:18：非坦克承接疫鳞蝰蛇普攻53.2万。伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死时增益栏仅记录合剂。",
+              "伤前生命47.9万/93.2万，致死伤害前2秒实际有效治疗19.6万。",
+              "全程CPM 34.6。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 7,
+            "name": "Weex",
+            "death": {
+              "actorId": 7,
+              "name": "Weex",
+              "timestamp": 12634496,
+              "time": 139.398,
+              "ability": "岩石剧毒",
+              "abilityId": 1298418,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 7,
+                  "timestamp": 12634496,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1298418,
+            "ability": "岩石剧毒",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 158143,
+            "maxHealth": 1356940,
+            "healthBeforeBurst": 133194,
+            "burstDamage": 158143,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [
+              "防御姿态"
+            ],
+            "buffCoverage": [
+              132404,
+              224324,
+              275335,
+              385840,
+              386029,
+              386208,
+              390677
+            ],
+            "healingLast2Seconds": 331811,
+            "lastHeal": {
+              "timestamp": 12634135,
+              "type": "heal",
+              "sourceID": 7,
+              "targetID": 7,
+              "abilityGameID": 383104,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 9397,
+              "resourceActor": 1,
+              "classResources": [
+                {
+                  "amount": 238,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 361190,
+              "maxHitPoints": 1356940,
+              "attackPower": 4244,
+              "spellPower": 434,
+              "armor": 6341,
+              "absorb": 0,
+              "x": -3519,
+              "y": 155856,
+              "facing": -434,
+              "mapID": 2610,
+              "versatility": 520,
+              "avoidance": 211,
+              "itemLevel": 319,
+              "sourceMarker": 5,
+              "targetMarker": 5
+            },
+            "fatalEvent": {
+              "timestamp": 12634475,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 7,
+              "abilityGameID": 1298418,
+              "fight": 49,
+              "buffs": "132404.224324.275335.385840.386029.386208.390677.",
+              "hitType": 1,
+              "amount": 133194,
+              "mitigated": 89772,
+              "unmitigatedAmount": 247915,
+              "overkill": 24949,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 1300,
+                  "type": 1
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 1356940,
+              "attackPower": 3930,
+              "spellPower": 422,
+              "armor": 6341,
+              "absorb": 0,
+              "x": -3525,
+              "y": 155858,
+              "facing": -434,
+              "mapID": 2610,
+              "versatility": 220,
+              "avoidance": 211,
+              "itemLevel": 319,
+              "targetMarker": 5
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12634475,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 7,
+                "abilityGameID": 1298418,
+                "fight": 49,
+                "buffs": "132404.224324.275335.385840.386029.386208.390677.",
+                "hitType": 1,
+                "amount": 133194,
+                "mitigated": 89772,
+                "unmitigatedAmount": 247915,
+                "overkill": 24949,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 1300,
+                    "type": 1
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 1356940,
+                "attackPower": 3930,
+                "spellPower": 422,
+                "armor": 6341,
+                "absorb": 0,
+                "x": -3525,
+                "y": 155858,
+                "facing": -434,
+                "mapID": 2610,
+                "versatility": 220,
+                "avoidance": 211,
+                "itemLevel": 319,
+                "targetMarker": 5
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 7,
+                "view": "DamageTaken",
+                "startTime": 12624496,
+                "endTime": 12635496,
+                "complete": true,
+                "targetFilter": 7
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 7,
+                "view": "All",
+                "startTime": 12624496,
+                "endTime": 12635496,
+                "complete": true,
+                "targetFilter": 7
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12634475,
+                "time": 139.377,
+                "ability": "岩石剧毒",
+                "amount": 158143,
+                "sourceId": 331
+              }
+            ],
+            "cause": "lethal_hit",
+            "conclusion": "直接致死：岩石剧毒完整一击15.8万。命中前剩余生命13.3万，伤害超过当时生命。致死时已有防御姿态。"
+          },
+          {
+            "actorId": 1,
+            "name": "魔魔糊胡萝卜",
+            "death": {
+              "actorId": 1,
+              "name": "魔魔糊胡萝卜",
+              "timestamp": 12638492,
+              "time": 143.394,
+              "ability": "酸液爆发",
+              "abilityId": 1301800,
+              "killerId": 344,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 1,
+                  "timestamp": 12638492,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1301800,
+            "ability": "酸液爆发",
+            "sourceId": 344,
+            "sourceName": "疫鳞蝰蛇",
+            "fatalDamage": 233350,
+            "maxHealth": 876120,
+            "healthBeforeBurst": 211713,
+            "burstDamage": 233350,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              157128,
+              390677,
+              1235108
+            ],
+            "healingLast2Seconds": 85960,
+            "lastHeal": {
+              "timestamp": 12638436,
+              "type": "heal",
+              "sourceID": 19,
+              "targetID": 1,
+              "abilityGameID": 443126,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 65,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 63,
+                  "max": 120,
+                  "type": 3
+                }
+              ],
+              "hitPoints": 211713,
+              "maxHitPoints": 876120,
+              "attackPower": 3687,
+              "spellPower": 638,
+              "armor": 1138,
+              "absorb": 2877,
+              "x": -2680,
+              "y": 154143,
+              "facing": -242,
+              "mapID": 2610,
+              "versatility": 600,
+              "avoidance": 676,
+              "itemLevel": 321
+            },
+            "fatalEvent": {
+              "timestamp": 12638490,
+              "type": "damage",
+              "sourceID": 344,
+              "sourceInstance": 5,
+              "targetID": 1,
+              "abilityGameID": 1301800,
+              "fight": 49,
+              "buffs": "157128.390677.1235108.",
+              "hitType": 1,
+              "amount": 211713,
+              "mitigated": 41845,
+              "unmitigatedAmount": 278072,
+              "overkill": 21637,
+              "absorbed": 2877,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 250000,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 876120,
+              "attackPower": 3423,
+              "spellPower": 620,
+              "armor": 1138,
+              "absorb": 0,
+              "x": -2680,
+              "y": 154143,
+              "facing": -242,
+              "mapID": 2610,
+              "versatility": 0,
+              "avoidance": 676,
+              "itemLevel": 321
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12638490,
+                "type": "damage",
+                "sourceID": 344,
+                "sourceInstance": 5,
+                "targetID": 1,
+                "abilityGameID": 1301800,
+                "fight": 49,
+                "buffs": "157128.390677.1235108.",
+                "hitType": 1,
+                "amount": 211713,
+                "mitigated": 41845,
+                "unmitigatedAmount": 278072,
+                "overkill": 21637,
+                "absorbed": 2877,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 250000,
+                    "max": 250000,
+                    "type": 0
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 876120,
+                "attackPower": 3423,
+                "spellPower": 620,
+                "armor": 1138,
+                "absorb": 0,
+                "x": -2680,
+                "y": 154143,
+                "facing": -242,
+                "mapID": 2610,
+                "versatility": 0,
+                "avoidance": 676,
+                "itemLevel": 321
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 1,
+                "view": "DamageTaken",
+                "startTime": 12628492,
+                "endTime": 12639492,
+                "complete": true,
+                "targetFilter": 1
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 1,
+                "view": "All",
+                "startTime": 12628492,
+                "endTime": 12639492,
+                "complete": true,
+                "targetFilter": 1
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12638490,
+                "time": 143.392,
+                "ability": "酸液爆发",
+                "amount": 233350,
+                "sourceId": 344
+              }
+            ],
+            "cause": "lethal_hit",
+            "conclusion": "直接致死：酸液爆发完整一击23.3万。命中前剩余生命21.2万，伤害超过当时生命。"
+          },
+          {
+            "actorId": 319,
+            "name": "Regensaison",
+            "death": {
+              "actorId": 319,
+              "name": "Regensaison",
+              "timestamp": 12641764,
+              "time": 146.666,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 338,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 319,
+                  "timestamp": 12641764,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 338,
+            "sourceName": "疫鳞幼体",
+            "fatalDamage": 47245,
+            "maxHealth": 783508,
+            "healthBeforeBurst": 36587,
+            "burstDamage": 47245,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              390677,
+              1307578
+            ],
+            "healingLast2Seconds": 0,
+            "lastHeal": {
+              "timestamp": 12641683,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 319,
+              "abilityGameID": 53652,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 0,
+              "absorbed": 62964,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 125,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 36587,
+              "maxHitPoints": 783508,
+              "attackPower": 4213,
+              "spellPower": 524,
+              "armor": 1438,
+              "absorb": 281585,
+              "x": -437,
+              "y": 157723,
+              "facing": -342,
+              "mapID": 2610,
+              "versatility": 675,
+              "avoidance": 222,
+              "itemLevel": 308
+            },
+            "fatalEvent": {
+              "timestamp": 12641764,
+              "type": "damage",
+              "sourceID": 338,
+              "sourceInstance": 6,
+              "targetID": 319,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "390677.1307578.",
+              "hitType": 2,
+              "amount": 36587,
+              "unmitigatedAmount": 146992,
+              "overkill": 10658,
+              "absorbed": 141733,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 100,
+                  "max": 125,
+                  "type": 2
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 783508,
+              "attackPower": 3370,
+              "spellPower": 509,
+              "armor": 1438,
+              "absorb": 0,
+              "x": -437,
+              "y": 157723,
+              "facing": -342,
+              "mapID": 2610,
+              "versatility": 375,
+              "avoidance": 222,
+              "itemLevel": 308
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12641764,
+                "type": "damage",
+                "sourceID": 338,
+                "sourceInstance": 6,
+                "targetID": 319,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "390677.1307578.",
+                "hitType": 2,
+                "amount": 36587,
+                "unmitigatedAmount": 146992,
+                "overkill": 10658,
+                "absorbed": 141733,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 100,
+                    "max": 125,
+                    "type": 2
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 783508,
+                "attackPower": 3370,
+                "spellPower": 509,
+                "armor": 1438,
+                "absorb": 0,
+                "x": -437,
+                "y": 157723,
+                "facing": -342,
+                "mapID": 2610,
+                "versatility": 375,
+                "avoidance": 222,
+                "itemLevel": 308
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 319,
+                "view": "DamageTaken",
+                "startTime": 12631764,
+                "endTime": 12642764,
+                "complete": true,
+                "targetFilter": 319
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 319,
+                "view": "All",
+                "startTime": 12631764,
+                "endTime": 12642764,
+                "complete": true,
+                "targetFilter": 319
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 92
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12641764,
+                "time": 146.666,
+                "ability": "普通攻击",
+                "amount": 47245,
+                "sourceId": 338
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接疫鳞幼体普攻4.7万。伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。",
+            "deathCount": 1,
+            "analysis": [
+              "射击猎人，装等308。",
+              "02:26：非坦克承接疫鳞幼体普攻4.7万。伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。",
+              "伤前生命3.7万/78.4万，致死伤害前2秒实际有效治疗0。",
+              "全程CPM 34.9；本场使用治疗石1次。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          },
+          {
+            "actorId": 5,
+            "name": "Giannis",
+            "death": {
+              "actorId": 5,
+              "name": "Giannis",
+              "timestamp": 12642660,
+              "time": 147.562,
+              "ability": "被缚之怒",
+              "abilityId": 1307367,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 5,
+                  "timestamp": 12642660,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1307367,
+            "ability": "被缚之怒",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 256558,
+            "maxHealth": 892020,
+            "healthBeforeBurst": 132474,
+            "burstDamage": 256558,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              1235108
+            ],
+            "healingLast2Seconds": 178486,
+            "lastHeal": {
+              "timestamp": 12642564,
+              "type": "heal",
+              "sourceID": 17,
+              "targetID": 5,
+              "abilityGameID": 443126,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 24346,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 29,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 132474,
+              "maxHitPoints": 936620,
+              "attackPower": 1102,
+              "spellPower": 3885,
+              "armor": 1571,
+              "absorb": 0,
+              "x": -51,
+              "y": 155647,
+              "facing": -329,
+              "mapID": 2610,
+              "versatility": 505,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "fatalEvent": {
+              "timestamp": 12642634,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 5,
+              "abilityGameID": 1307367,
+              "fight": 49,
+              "buffs": "1235108.",
+              "hitType": 1,
+              "amount": 132474,
+              "mitigated": 52411,
+              "unmitigatedAmount": 308969,
+              "overkill": 124084,
+              "isAoE": true,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 175,
+                  "type": 11
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 892020,
+              "attackPower": 1050,
+              "spellPower": 3321,
+              "armor": 1571,
+              "absorb": 0,
+              "x": -39,
+              "y": 155604,
+              "facing": -329,
+              "mapID": 2610,
+              "versatility": 205,
+              "avoidance": 453,
+              "itemLevel": 321
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12642634,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 5,
+                "abilityGameID": 1307367,
+                "fight": 49,
+                "buffs": "1235108.",
+                "hitType": 1,
+                "amount": 132474,
+                "mitigated": 52411,
+                "unmitigatedAmount": 308969,
+                "overkill": 124084,
+                "isAoE": true,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 175,
+                    "type": 11
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 892020,
+                "attackPower": 1050,
+                "spellPower": 3321,
+                "armor": 1571,
+                "absorb": 0,
+                "x": -39,
+                "y": 155604,
+                "facing": -329,
+                "mapID": 2610,
+                "versatility": 205,
+                "avoidance": 453,
+                "itemLevel": 321
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 5,
+                "view": "DamageTaken",
+                "startTime": 12632660,
+                "endTime": 12643660,
+                "complete": true,
+                "targetFilter": 5
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 5,
+                "view": "All",
+                "startTime": 12632660,
+                "endTime": 12643660,
+                "complete": true,
+                "targetFilter": 5
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12642634,
+                "time": 147.536,
+                "ability": "被缚之怒",
+                "amount": 256558,
+                "sourceId": 331
+              }
+            ],
+            "cause": "lethal_hit",
+            "conclusion": "直接致死：被缚之怒完整一击25.7万。命中前剩余生命13.2万，伤害超过当时生命。致死时增益栏仅记录合剂。"
+          },
+          {
+            "actorId": 64,
+            "name": "阿橙捏",
+            "death": {
+              "actorId": 64,
+              "name": "阿橙捏",
+              "timestamp": 12646653,
+              "time": 151.555,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 344,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 64,
+                  "timestamp": 12646653,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 344,
+            "sourceName": "疫鳞蝰蛇",
+            "fatalDamage": 274168,
+            "maxHealth": 813600,
+            "healthBeforeBurst": 197236,
+            "burstDamage": 274168,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              448086
+            ],
+            "healingLast2Seconds": 453386,
+            "lastHeal": {
+              "timestamp": 12646630,
+              "type": "heal",
+              "sourceID": 64,
+              "targetID": 64,
+              "abilityGameID": 1244893,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 2060,
+              "tick": true,
+              "resourceActor": 1,
+              "classResources": [
+                {
+                  "amount": 191806,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 199296,
+              "maxHitPoints": 813600,
+              "attackPower": 3885,
+              "spellPower": 3736,
+              "armor": 4030,
+              "absorb": 0,
+              "x": -214,
+              "y": 154681,
+              "facing": -195,
+              "mapID": 2610,
+              "versatility": 929,
+              "avoidance": 453,
+              "itemLevel": 316
+            },
+            "fatalEvent": {
+              "timestamp": 12646631,
+              "type": "damage",
+              "sourceID": 344,
+              "sourceInstance": 1,
+              "targetID": 64,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "448086.",
+              "hitType": 1,
+              "amount": 197236,
+              "mitigated": 398295,
+              "unmitigatedAmount": 738266,
+              "overkill": 76932,
+              "absorbed": 65803,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 191810,
+                  "max": 250000,
+                  "type": 0
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 813600,
+              "attackPower": 3202,
+              "spellPower": 3079,
+              "armor": 4030,
+              "absorb": 0,
+              "x": -214,
+              "y": 154681,
+              "facing": -195,
+              "mapID": 2610,
+              "versatility": 629,
+              "avoidance": 453,
+              "itemLevel": 316
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12646631,
+                "type": "damage",
+                "sourceID": 344,
+                "sourceInstance": 1,
+                "targetID": 64,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "448086.",
+                "hitType": 1,
+                "amount": 197236,
+                "mitigated": 398295,
+                "unmitigatedAmount": 738266,
+                "overkill": 76932,
+                "absorbed": 65803,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 191810,
+                    "max": 250000,
+                    "type": 0
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 813600,
+                "attackPower": 3202,
+                "spellPower": 3079,
+                "armor": 4030,
+                "absorb": 0,
+                "x": -214,
+                "y": 154681,
+                "facing": -195,
+                "mapID": 2610,
+                "versatility": 629,
+                "avoidance": 453,
+                "itemLevel": 316
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 64,
+                "view": "DamageTaken",
+                "startTime": 12636653,
+                "endTime": 12647653,
+                "complete": true,
+                "targetFilter": 64
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 64,
+                "view": "All",
+                "startTime": 12636653,
+                "endTime": 12647653,
+                "complete": true,
+                "targetFilter": 64
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12646631,
+                "time": 151.533,
+                "ability": "普通攻击",
+                "amount": 274168,
+                "sourceId": 344
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接疫鳞蝰蛇普攻27.4万。伤前生命19.7万，满血81.4万；该次伤害超过当时剩余生命。"
+          },
+          {
+            "actorId": 20,
+            "name": "桃花别死",
+            "death": {
+              "actorId": 20,
+              "name": "桃花别死",
+              "timestamp": 12652616,
+              "time": 157.518,
+              "ability": "普通攻击",
+              "abilityId": 1,
+              "killerId": 331,
+              "evidence": [
+                {
+                  "reportCode": "QqrT6Nkg7jRBWCMH",
+                  "fightId": 49,
+                  "view": "Deaths",
+                  "actorId": 20,
+                  "timestamp": 12652616,
+                  "complete": true
+                }
+              ]
+            },
+            "abilityId": 1,
+            "ability": "普通攻击",
+            "sourceId": 331,
+            "sourceName": "乌拉特克",
+            "fatalDamage": 555489,
+            "maxHealth": 813280,
+            "healthBeforeBurst": 355296,
+            "burstDamage": 555489,
+            "burstCount": 1,
+            "burstMilliseconds": 0,
+            "recordedDefensives": [],
+            "buffCoverage": [
+              390677,
+              391571,
+              440289,
+              440290
+            ],
+            "healingLast2Seconds": 699348,
+            "lastHeal": {
+              "timestamp": 12652229,
+              "type": "heal",
+              "sourceID": 20,
+              "targetID": 20,
+              "abilityGameID": 143924,
+              "fight": 49,
+              "hitType": 1,
+              "amount": 15716,
+              "resourceActor": 1,
+              "classResources": [
+                {
+                  "amount": 830,
+                  "max": 1000,
+                  "type": 6
+                }
+              ],
+              "hitPoints": 399164,
+              "maxHitPoints": 813280,
+              "attackPower": 4210,
+              "spellPower": 345,
+              "armor": 2221,
+              "absorb": 0,
+              "x": -3133,
+              "y": 156713,
+              "facing": -476,
+              "mapID": 2610,
+              "versatility": 1190,
+              "avoidance": 160,
+              "itemLevel": 313
+            },
+            "fatalEvent": {
+              "timestamp": 12652604,
+              "type": "damage",
+              "sourceID": 331,
+              "targetID": 20,
+              "abilityGameID": 1,
+              "fight": 49,
+              "buffs": "390677.391571.440289.440290.",
+              "hitType": 1,
+              "amount": 355296,
+              "mitigated": 619763,
+              "unmitigatedAmount": 1414424,
+              "overkill": 200193,
+              "absorbed": 239172,
+              "isAoE": false,
+              "resourceActor": 2,
+              "classResources": [
+                {
+                  "amount": 0,
+                  "max": 1000,
+                  "type": 6
+                }
+              ],
+              "hitPoints": 0,
+              "maxHitPoints": 813280,
+              "attackPower": 3152,
+              "spellPower": 335,
+              "armor": 2221,
+              "absorb": 0,
+              "x": -3042,
+              "y": 157088,
+              "facing": -499,
+              "mapID": 2610,
+              "versatility": 890,
+              "avoidance": 160,
+              "itemLevel": 313
+            },
+            "hitEvents": [
+              {
+                "timestamp": 12652604,
+                "type": "damage",
+                "sourceID": 331,
+                "targetID": 20,
+                "abilityGameID": 1,
+                "fight": 49,
+                "buffs": "390677.391571.440289.440290.",
+                "hitType": 1,
+                "amount": 355296,
+                "mitigated": 619763,
+                "unmitigatedAmount": 1414424,
+                "overkill": 200193,
+                "absorbed": 239172,
+                "isAoE": false,
+                "resourceActor": 2,
+                "classResources": [
+                  {
+                    "amount": 0,
+                    "max": 1000,
+                    "type": 6
+                  }
+                ],
+                "hitPoints": 0,
+                "maxHitPoints": 813280,
+                "attackPower": 3152,
+                "spellPower": 335,
+                "armor": 2221,
+                "absorb": 0,
+                "x": -3042,
+                "y": 157088,
+                "facing": -499,
+                "mapID": 2610,
+                "versatility": 890,
+                "avoidance": 160,
+                "itemLevel": 313
+              }
+            ],
+            "complete": true,
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 20,
+                "view": "DamageTaken",
+                "startTime": 12642616,
+                "endTime": 12653100,
+                "complete": true,
+                "targetFilter": 20
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "actorId": 20,
+                "view": "All",
+                "startTime": 12642616,
+                "endTime": 12653100,
+                "complete": true,
+                "targetFilter": 20
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 143
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "extraReduction": null,
+            "hits": [
+              {
+                "timestamp": 12652604,
+                "time": 157.506,
+                "ability": "普通攻击",
+                "amount": 555489,
+                "sourceId": 331
+              }
+            ],
+            "cause": "non_tank_melee",
+            "conclusion": "非坦克承接乌拉特克普攻55.5万。伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。",
+            "deathCount": 1,
+            "analysis": [
+              "冰霜死亡骑士，装等313。",
+              "02:37：非坦克承接乌拉特克普攻55.5万。伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。",
+              "伤前生命35.5万/81.3万，致死伤害前2秒实际有效治疗69.9万。",
+              "全程CPM 54.3；本场使用治疗石1次。"
+            ],
+            "requiredAnalysis": [
+              1,
+              2
+            ],
+            "prose": true
+          }
+        ],
+        "causalCoverage": {
+          "selectedDeaths": 11,
+          "analyzedDeaths": 10,
+          "recordedDeaths": 11,
+          "completeDeathList": true
+        },
+        "reportVersion": "team-report-v5",
+        "teamReport": {
+          "timeline": "本场死亡11次，涉及11人；首次01:49，最后一次02:37；最后一次减员距战斗结束00:00。",
+          "utility": {
+            "interrupts": {
+              "complete": true,
+              "total": 0,
+              "actors": {},
+              "spells": {}
+            },
+            "dispels": {
+              "complete": true,
+              "total": 6,
+              "actors": {
+                "64": 6
+              },
+              "spells": {
+                "64": [
+                  {
+                    "abilityId": 1287036,
+                    "name": "剧毒撕咬",
+                    "count": 4
+                  },
+                  {
+                    "abilityId": 1301800,
+                    "name": "酸液爆发",
+                    "count": 2
+                  }
+                ]
+              }
+            }
+          },
+          "pressure": {
+            "startTime": 12612472,
+            "endTime": 12618472,
+            "amount": 14852940,
+            "targetCount": 12,
+            "complete": true,
+            "abilities": [
+              {
+                "abilityId": 1287265,
+                "ability": "幽魂盘卷",
+                "amount": 4488834
+              },
+              {
+                "abilityId": 1308275,
+                "ability": "腐臭薄膜",
+                "amount": 3499863
+              },
+              {
+                "abilityId": 1292403,
+                "ability": "腐蚀浪潮",
+                "amount": 1373932
+              }
+            ],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "DamageTaken",
+                "startTime": 12612472,
+                "endTime": 12618472,
+                "complete": true
+              }
+            ],
+            "healing": 17239914,
+            "healers": {
+              "20": 152378,
+              "319": 729638,
+              "7": 639181,
+              "5": 16926,
+              "60": 114584,
+              "340": 1364437,
+              "19": 4949088,
+              "1": 64425,
+              "17": 5055036,
+              "64": 4116785,
+              "220": 37436
+            },
+            "healingEvidence": {
+              "reportCode": "QqrT6Nkg7jRBWCMH",
+              "fightId": 49,
+              "view": "Healing",
+              "startTime": 12612472,
+              "endTime": 12618472,
+              "complete": true
+            }
+          }
+        },
+        "playerAssessments": {
+          "60": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 60,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 60,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 188
+              }
+            ],
+            "className": "Paladin",
+            "spec": "Retribution",
+            "itemLevel": 313,
+            "weaponEnchant": "附魔武器 - 加亚莱的精准",
+            "cpm": 71.39150137340033,
+            "consumables": {}
+          },
+          "20": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 143
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 20,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "className": "DeathKnight",
+            "spec": "Frost",
+            "itemLevel": 313,
+            "weaponEnchant": "堕落十字军符文",
+            "cpm": 54.30311008721408,
+            "consumables": {
+              "stone": 1
+            }
+          },
+          "5": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 5,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 5,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 111
+              }
+            ],
+            "className": "Shaman",
+            "spec": "Elemental",
+            "itemLevel": 321,
+            "weaponEnchant": "哈谢仪式",
+            "cpm": 42.15136517259275,
+            "consumables": {}
+          },
+          "220": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 220,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 91
+              }
+            ],
+            "className": "Shaman",
+            "spec": "Elemental",
+            "itemLevel": 323,
+            "weaponEnchant": "哈谢仪式",
+            "cpm": 34.55652460095442,
+            "consumables": {}
+          },
+          "326": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 326,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 326,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 96
+              }
+            ],
+            "className": "Mage",
+            "spec": "Arcane",
+            "itemLevel": 316,
+            "weaponEnchant": "哈谢仪式",
+            "cpm": 36.455234743864,
+            "consumables": {}
+          },
+          "12": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 12,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 12,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 55
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 12,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "className": "Warlock",
+            "spec": "Demonology",
+            "itemLevel": 320,
+            "weaponEnchant": "附魔武器 - 朗多雷之锐",
+            "cpm": 20.885811572005416,
+            "consumables": {
+              "stone": 1
+            }
+          },
+          "1": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 1,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 1,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 121
+              }
+            ],
+            "className": "Druid",
+            "spec": "Feral",
+            "itemLevel": 321,
+            "weaponEnchant": "哈谢仪式",
+            "cpm": 45.94878545841192,
+            "consumables": {}
+          },
+          "319": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 92
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 319,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "className": "Hunter",
+            "spec": "Marksmanship",
+            "itemLevel": 308,
+            "weaponEnchant": "附魔武器 - 加亚莱的精准",
+            "cpm": 34.936266629536334,
+            "consumables": {
+              "stone": 1
+            }
+          },
+          "17": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 17,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 17,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 112
+              }
+            ],
+            "className": "Priest",
+            "spec": "Holy",
+            "itemLevel": 317,
+            "weaponEnchant": "附魔武器 - 朗多雷之锐",
+            "cpm": 42.53110720117466,
+            "consumables": {}
+          },
+          "19": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 19,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 19,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 96
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 19,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "className": "Priest",
+            "spec": "Holy",
+            "itemLevel": 320,
+            "weaponEnchant": "附魔武器 - 朗多雷之锐",
+            "cpm": 36.455234743864,
+            "consumables": {
+              "stone": 1
+            }
+          },
+          "64": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 64,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 64,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 107
+              }
+            ],
+            "className": "Paladin",
+            "spec": "Holy",
+            "itemLevel": 316,
+            "weaponEnchant": "附魔武器 - 朗多雷之锐",
+            "cpm": 40.632397058265084,
+            "consumables": {}
+          },
+          "340": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 340,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 340,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 107
+              }
+            ],
+            "className": "DeathKnight",
+            "spec": "Blood",
+            "itemLevel": 319,
+            "weaponEnchant": "鲜红符文",
+            "cpm": 40.632397058265084,
+            "consumables": {}
+          },
+          "7": {
+            "emptySlots": [],
+            "evidence": [
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "playerDetails",
+                "actorId": 7,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 7,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "count": 168
+              },
+              {
+                "reportCode": "QqrT6Nkg7jRBWCMH",
+                "fightId": 49,
+                "view": "Casts",
+                "actorId": 7,
+                "startTime": 12495098,
+                "endTime": 12653100,
+                "complete": true,
+                "filterExpression": "ability.id IN (6262,285194,285206,415569,415628,430590,431416,452930,1238009,1238010,1262857)"
+              }
+            ],
+            "className": "Warrior",
+            "spec": "Protection",
+            "itemLevel": 319,
+            "weaponEnchant": "附魔武器 - 狂战士之怒",
+            "cpm": 63.796660801762,
+            "consumables": {
+              "stone": 1,
+              "healthPotion": 1
+            }
+          }
+        },
+        "commentaryVersion": "battle-commentary-v6",
+        "readAt": "2026-10-16T06:55:43.391763+00:00",
+        "sourceCalls": 23,
+        "localizationLocale": "zhCN",
+        "narrative": {
+          "summary": "本场死亡11次，涉及11人，本场以灭团结束。最早已核验的减员是01:49 放弃思考：持续伤害收尾：腐蚀浪潮最后一跳18.5万致死：先吃到腐蚀浪潮直击，随后被持续伤害收尾，这段危险延续到了直击之后，不能只盯着技能落下的瞬间。\n\n🏆 扛住场面的：Regensaison打出2703.5万伤害，同职责第1/8，伤害端确实站在前排；Alecia则有01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗，高压承伤期间拿得出实际治疗，队伍血线吃紧时，这份贡献很实在。\n\n💀 这场的失分点：后续还出现02:18 Fusionbolt：非坦克承接疫鳞蝰蛇普攻53.2万，非坦克成了怪物普攻的承接对象。这里与前面的持续伤害收尾是不同的致死环节：前者要顾到直击之后仍在持续的伤害，后者要处理普攻落到谁身上。伤害和治疗都有人做出贡献，但这些具体致死点仍然留下了缺口。\n\n本场要落实的处理，是顾住腐蚀浪潮直击后的持续掉血，并让怪物普攻回到坦克承接。",
+          "good": [
+            {
+              "actorId": 319,
+              "text": "射击猎人，装等308，打出2703.5万伤害，同职责第1/8，而且领先同职责第二名94.0万。这场伤害榜前排的位置拿得有分量，领先幅度也有实绩支撑。还有本场使用治疗石1次，输出之外有主动自救动作；火力这块确实撑起了场面，夸奖可以落在实际打出的伤害上。"
+            },
+            {
+              "actorId": 17,
+              "text": "5623.6万有效治疗，同职责第1/3，更值得夸的是01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗。这份治疗不只体现在整场累计上，队伍集中承伤时也确实接住了不少血量压力。加上本场死亡0次，本场既有高压阶段的实际贡献，也把自己保住了，治疗席上的存在感很扎实。"
+            },
+            {
+              "actorId": 5,
+              "text": "元素萨满祭司，装等321，本场打出2609.5万伤害，同职责第2/8。伤害端处在同职责前排，是这场值得肯定的贡献；队伍最终没过，已经打出的伤害仍然算数。元素这边的火力没有只停在角色面板上，实际结果撑得住评价，这份输出表现值得保留。"
+            }
+          ],
+          "review": [
+            {
+              "actorId": 220,
+              "text": "02:18，非坦克承接疫鳞蝰蛇普攻53.2万，伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死点落在非坦克承接怪物普攻，而且当时血量已经扛不住这次伤害。这里该调整的是普攻承接对象与承接时的血量条件，让蝰蛇回到坦克承接；元素在这段客串近战沙包，确实不合适。"
+            },
+            {
+              "actorId": 319,
+              "text": "02:26，非坦克承接疫鳞幼体普攻4.7万，伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。幼体这次普攻撞上了已经很薄的血线，直接把人收走，失分点是低血量时又成了普攻承接对象。本场使用治疗石1次，说明本场有主动自救动作；这段仍要把幼体交回坦克，伤害榜站得靠前，也经不起这样补刀。"
+            },
+            {
+              "actorId": 20,
+              "text": "02:37，非坦克承接乌拉特克普攻55.5万，伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。当时剩余生命接不住首领普攻，非坦克站上了承接位置，这段就很危险。本场使用治疗石1次，本场有过自救动作，但这次具体要处理的是首领普攻落点，让坦克承接；冰霜的板甲在这里撑不起临时坦克的岗位。"
+            }
+          ],
+          "status": "ready",
+          "version": "battle-narrative-v7",
+          "fingerprint": "bff0dad80ec11467ca2373ba2e97003f51057960a62488009f0ad35293256b4b",
+          "modelCalls": 1,
+          "seconds": 40.75
+        }
+      },
+      "messages": {
+        "battle_summary": "# 乌拉特克 · 战斗分析\n**英雄｜灭团｜02:38｜13人**\n\n本场死亡11次，涉及11人，本场以灭团结束。最早已核验的减员是01:49 放弃思考：持续伤害收尾：腐蚀浪潮最后一跳18.5万致死：先吃到腐蚀浪潮直击，随后被持续伤害收尾，这段危险延续到了直击之后，不能只盯着技能落下的瞬间。\n\n🏆 扛住场面的：Regensaison打出2703.5万伤害，同职责第1/8，伤害端确实站在前排；Alecia则有01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗，高压承伤期间拿得出实际治疗，队伍血线吃紧时，这份贡献很实在。\n\n💀 这场的失分点：后续还出现02:18 Fusionbolt：非坦克承接疫鳞蝰蛇普攻53.2万，非坦克成了怪物普攻的承接对象。这里与前面的持续伤害收尾是不同的致死环节：前者要顾到直击之后仍在持续的伤害，后者要处理普攻落到谁身上。伤害和治疗都有人做出贡献，但这些具体致死点仍然留下了缺口。\n\n本场要落实的处理，是顾住腐蚀浪潮直击后的持续掉血，并让怪物普攻回到坦克承接。\n\n读取范围未完整：深度归因已完成10/11次死亡。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49) · 第49场\n详情：/战斗详情-大腿 · /战斗详情-毒瘤",
+        "battle_good": "# 乌拉特克 · 战斗详情·大腿\n**英雄｜灭团｜02:38｜13人**\n\n**1. Regensaison**\n射击猎人，装等308，打出2703.5万伤害，同职责第1/8，而且领先同职责第二名94.0万。这场伤害榜前排的位置拿得有分量，领先幅度也有实绩支撑。还有本场使用治疗石1次，输出之外有主动自救动作；火力这块确实撑起了场面，夸奖可以落在实际打出的伤害上。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=damage-done&source=319)\n\n**2. Alecia**\n5623.6万有效治疗，同职责第1/3，更值得夸的是01:57–02:03队伍承伤1485.3万，你提供505.5万有效治疗。这份治疗不只体现在整场累计上，队伍集中承伤时也确实接住了不少血量压力。加上本场死亡0次，本场既有高压阶段的实际贡献，也把自己保住了，治疗席上的存在感很扎实。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=healing&source=17)\n\n**3. Giannis**\n元素萨满祭司，装等321，本场打出2609.5万伤害，同职责第2/8。伤害端处在同职责前排，是这场值得肯定的贡献；队伍最终没过，已经打出的伤害仍然算数。元素这边的火力没有只停在角色面板上，实际结果撑得住评价，这份输出表现值得保留。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=damage-done&source=5)\n\n读取范围未完整：深度归因已完成10/11次死亡。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49) · 第49场",
+        "battle_review": "# 乌拉特克 · 战斗详情·毒瘤\n**英雄｜灭团｜02:38｜13人**\n\n**1. Fusionbolt**\n02:18，非坦克承接疫鳞蝰蛇普攻53.2万，伤前生命47.9万，满血93.2万；该次伤害超过当时剩余生命。致死点落在非坦克承接怪物普攻，而且当时血量已经扛不住这次伤害。这里该调整的是普攻承接对象与承接时的血量条件，让蝰蛇回到坦克承接；元素在这段客串近战沙包，确实不合适。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=deaths&source=220)\n\n**2. Regensaison**\n02:26，非坦克承接疫鳞幼体普攻4.7万，伤前生命3.7万，满血78.4万；该次伤害超过当时剩余生命。幼体这次普攻撞上了已经很薄的血线，直接把人收走，失分点是低血量时又成了普攻承接对象。本场使用治疗石1次，说明本场有主动自救动作；这段仍要把幼体交回坦克，伤害榜站得靠前，也经不起这样补刀。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=deaths&source=319)\n\n**3. 桃花别死**\n02:37，非坦克承接乌拉特克普攻55.5万，伤前生命35.5万，满血81.3万；该次伤害超过当时剩余生命。当时剩余生命接不住首领普攻，非坦克站上了承接位置，这段就很危险。本场使用治疗石1次，本场有过自救动作，但这次具体要处理的是首领普攻落点，让坦克承接；冰霜的板甲在这里撑不起临时坦克的岗位。\n[日志证据](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49&type=deaths&source=20)\n\n读取范围未完整：深度归因已完成10/11次死亡。\n\n[WCL原始日志](https://www.warcraftlogs.com/reports/QqrT6Nkg7jRBWCMH?fight=49) · 第49场"
+      },
+      "raw": "{\"summary\":\"[[overview]]，本场以灭团结束。最早已核验的减员是[[event0]]：先吃到腐蚀浪潮直击，随后被持续伤害收尾，这段危险延续到了直击之后，不能只盯着技能落下的瞬间。\\n\\n🏆 扛住场面的：Regensaison打出[[good319_performance]]，伤害端确实站在前排；Alecia则有[[good17_extra0]]，高压承伤期间拿得出实际治疗，队伍血线吃紧时，这份贡献很实在。\\n\\n💀 这场的失分点：后续还出现[[event3]]，非坦克成了怪物普攻的承接对象。这里与前面的持续伤害收尾是不同的致死环节：前者要顾到直击之后仍在持续的伤害，后者要处理普攻落到谁身上。伤害和治疗都有人做出贡献，但这些具体致死点仍然留下了缺口。\\n\\n本场要落实的处理，是顾住腐蚀浪潮直击后的持续掉血，并让怪物普攻回到坦克承接。\",\"good\":[{\"actorId\":319,\"text\":\"[[good319_identity]]，打出[[good319_performance]]，而且[[good319_lead]]。这场伤害榜前排的位置拿得有分量，领先幅度也有实绩支撑。还有[[good319_stone]]，输出之外有主动自救动作；火力这块确实撑起了场面，夸奖可以落在实际打出的伤害上。\"},{\"actorId\":17,\"text\":\"[[good17_performance]]，更值得夸的是[[good17_extra0]]。这份治疗不只体现在整场累计上，队伍集中承伤时也确实接住了不少血量压力。加上[[good17_survival]]，本场既有高压阶段的实际贡献，也把自己保住了，治疗席上的存在感很扎实。\"},{\"actorId\":5,\"text\":\"[[good5_identity]]，本场打出[[good5_performance]]。伤害端处在同职责前排，是这场值得肯定的贡献；队伍最终没过，已经打出的伤害仍然算数。元素这边的火力没有只停在角色面板上，实际结果撑得住评价，这份输出表现值得保留。\"}],\"review\":[{\"actorId\":220,\"text\":\"[[review220_cause]]，[[review220_process0]]。致死点落在非坦克承接怪物普攻，而且当时血量已经扛不住这次伤害。这里该调整的是普攻承接对象与承接时的血量条件，让蝰蛇回到坦克承接；元素在这段客串近战沙包，确实不合适。\"},{\"actorId\":319,\"text\":\"[[review319_cause]]，[[review319_process0]]。幼体这次普攻撞上了已经很薄的血线，直接把人收走，失分点是低血量时又成了普攻承接对象。[[review319_stone]]，说明本场有主动自救动作；这段仍要把幼体交回坦克，伤害榜站得靠前，也经不起这样补刀。\"},{\"actorId\":20,\"text\":\"[[review20_cause]]，[[review20_process0]]。当时剩余生命接不住首领普攻，非坦克站上了承接位置，这段就很危险。[[review20_stone]]，本场有过自救动作，但这次具体要处理的是首领普攻落点，让坦克承接；冰霜的板甲在这里撑不起临时坦克的岗位。\"}]}",
+      "errorType": null
+    }
+  ]
+}

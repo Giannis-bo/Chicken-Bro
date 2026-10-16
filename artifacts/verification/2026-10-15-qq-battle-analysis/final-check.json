@@ -1,0 +1,23 @@
+{
+  "runtimeFilesMatched": 18,
+  "health": {
+    "observedAt": 1792067616.2534134,
+    "gatewayReady": true,
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "queryPresentation": "markdown_recent3_v1",
+    "battlePresentation": "single_summary_evidence_v1",
+    "runtimeRevision": "codex:sha256:0b2e9301d6100dddda3b9d5c80ebaeaa3a2f1962388f2f36f6b96a9f08b1f33f"
+  },
+  "services": {
+    "chickenbro-api.service": "active",
+    "chickenbro-worker.service": "active",
+    "chickenbro-qq-official.service": "active",
+    "chickenbro-qq-official-worker.service": "active",
+    "chickenbro-qq-worker.service": "inactive",
+    "chickenbro-qq-channel.service": "inactive"
+  },
+  "resultPacketRolePermissionsVerified": true,
+  "qqGroupSendAcceptance": "pending",
+  "sourceBaseCommit": "8682f05fed6657b3354db7a8d2bfb29914c8f21b"
+}

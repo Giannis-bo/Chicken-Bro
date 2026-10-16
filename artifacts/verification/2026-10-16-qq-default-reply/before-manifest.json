@@ -1,0 +1,26 @@
+[
+  {
+    "path": "server/app/channels/qq_official/query_commands.py",
+    "sha256": "900dcd7407a94cbf7ad67be46e65b35dd25c8c76a35b99df6762684e9482cc35"
+  },
+  {
+    "path": "server/app/channels/qq_official/query_repository.py",
+    "sha256": "51440047745624091ca377198bac25fac5410c9100a133635f48ebb39ad1d4bb"
+  },
+  {
+    "path": "docs/project-state.json",
+    "sha256": "b3fd2413ca00c49013a7782e31d7c236c7bfe93561f903abcc5b5d8624c76fc8"
+  },
+  {
+    "path": "docs/roadmap.md",
+    "sha256": "361763598bdc78ee39bbcff60da15ddf96054e2a1dd7e3f790ab142fee046b82"
+  },
+  {
+    "path": "docs/plans/README.md",
+    "sha256": "5f61084943bd5441b9184c849148ce8344e4a0d4b4fa53fcf86d706436398915"
+  },
+  {
+    "path": "docs/plans/2026-10-14-qq-official.md",
+    "sha256": "ad6bf6654387af9bc4c0bf3147116463f2f766d9779546388838eb11f3cc308c"
+  }
+]

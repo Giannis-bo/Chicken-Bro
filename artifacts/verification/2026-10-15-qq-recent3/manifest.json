@@ -1,0 +1,22 @@
+{
+  "testGroupNumber": "1127827451",
+  "presentation": "markdown_recent3_v1",
+  "cloudTestsPassed": 86,
+  "files": [
+    {
+      "path": "server/app/channels/qq_official/query_commands.py",
+      "sha256": "ff29e54cea91c0c242d62a290e197a51cb960179eae9d3c7eb5c7facebd6b45c",
+      "previousSha256": "c0836f134328e1331df1fcb848b8d9e6b7ca2dcc07a6c2dcc02ea5346f238cd7"
+    },
+    {
+      "path": "server/app/channels/qq_official/character_source.py",
+      "sha256": "1fd60e50c7bc281330901b0f936b0dea97e7ce99bdf09589f140c63ed52a47ba",
+      "previousSha256": "aae62cc240bae0b5f774368212ec1a2d2bb54f7891bdfff458df9f3cd12fe422"
+    },
+    {
+      "path": "server/app/channels/qq_official/runtime.py",
+      "sha256": "ce8f8f8490d4bd2c43e28f6eed3a09ccd772ffd01caacb2fdbd21261fa0ec4ac",
+      "previousSha256": "b407865884a26f621eaf186770e099b73b542f809c3f3318cf607125ef3f089a"
+    }
+  ]
+}

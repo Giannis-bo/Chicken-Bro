@@ -1,0 +1,70 @@
+{
+  "sourceBaseCommit": "8682f05fed6657b3354db7a8d2bfb29914c8f21b",
+  "branch": "codex/qq-official",
+  "sourceDelivery": "uncommitted_isolated_worktree",
+  "runtimeDirectory": "/opt/chickenbro-qq-official-candidate-20261014",
+  "testGroupNumber": "1127827451",
+  "appId": "102828220",
+  "cloudTestsPassed": 85,
+  "queryOnly": true,
+  "files": [
+    {
+      "path": "server/app/channels/qq_official/__init__.py",
+      "sha256": "cdc28f3f21f652264951033000ab233d36c25d53670d8bd7cba3ebc6b0fb563f"
+    },
+    {
+      "path": "server/app/channels/qq_official/character_source.py",
+      "sha256": "aae62cc240bae0b5f774368212ec1a2d2bb54f7891bdfff458df9f3cd12fe422"
+    },
+    {
+      "path": "server/app/channels/qq_official/client.py",
+      "sha256": "53cf43f13ffe8d677a637ccb2ac217aacae72a49dfbd15026d670b16f3ce4b83"
+    },
+    {
+      "path": "server/app/channels/qq_official/deployment.py",
+      "sha256": "3881fdaec38cb36dc167062722258b25d1786b49175e5f057a3a3705bd2edc15"
+    },
+    {
+      "path": "server/app/channels/qq_official/gateway.py",
+      "sha256": "c121dc82958f6af814e15606c8dd007eca5d29c7ba8467b52a678f180c03dc3b"
+    },
+    {
+      "path": "server/app/channels/qq_official/policy.py",
+      "sha256": "5e160042dec0bed422be30c679daac9e91801a56cf8b4f03d912bffbcba98384"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_commands.py",
+      "sha256": "c0836f134328e1331df1fcb848b8d9e6b7ca2dcc07a6c2dcc02ea5346f238cd7"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_labels.py",
+      "sha256": "9b8209691cedad7d9e640b6e4390da0e288d569dc2bd3f4669c49e307a1a62b4"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_repository.py",
+      "sha256": "b4d23efd49987cd3672ec0ccbcd2c34a97c8c9f6c89d63b4bcb0d5057bacafec"
+    },
+    {
+      "path": "server/app/channels/qq_official/query_service.py",
+      "sha256": "8b4894b6e887898d0966f4760a1b113a391dbd7647baee189752ba218b35d162"
+    },
+    {
+      "path": "server/app/channels/qq_official/repository.py",
+      "sha256": "32b0fbcbb60111294d6a9e5e8285c0f413ba717e96758bc47e9b0ddcdf268bda"
+    },
+    {
+      "path": "server/app/channels/qq_official/runtime.py",
+      "sha256": "b407865884a26f621eaf186770e099b73b542f809c3f3318cf607125ef3f089a"
+    },
+    {
+      "path": "server/qq-official/001_transport.sql",
+      "sha256": "96b55e012883fcaa27f13083d33a5e9c4a15cac3af2907562a56abeb52c964c5"
+    },
+    {
+      "path": "server/qq-official/002_queries.sql",
+      "sha256": "1688cb3f5cbe4e2bfa08404746571f8b214e11bb1a53b9d7a409717cdb00b307"
+    }
+  ],
+  "presentation": "markdown_recent5_v1",
+  "raidPartitionScope": "all_partitions"
+}

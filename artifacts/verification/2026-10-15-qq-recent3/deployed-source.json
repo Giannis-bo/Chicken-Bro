@@ -1,0 +1,120 @@
+{
+  "runtimeFilesMatched": 14,
+  "health": {
+    "observedAt": 1792034739.6992488,
+    "gatewayReady": true,
+    "allowedGroupCount": 1,
+    "queryOnly": true,
+    "queryPresentation": "markdown_recent3_v1",
+    "runtimeRevision": "codex:sha256:0b2e9301d6100dddda3b9d5c80ebaeaa3a2f1962388f2f36f6b96a9f08b1f33f"
+  },
+  "packet": {
+    "identity": "Giannis｜白银之手｜国服",
+    "queriedAt": "2026-10-15T03:25:27.600329+00:00",
+    "sections": [
+      {
+        "title": "团本",
+        "rows": [
+          {
+            "name": "乌拉特克",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 80.46049876060898,
+            "recordedAt": 1791891480252,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "The Coiled Altar",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 64.8574715233876,
+            "recordedAt": 1791724239828,
+            "reportUrl": "https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          },
+          {
+            "name": "盘魂者内克扎莉",
+            "spec": "恢复",
+            "metric": "HPS",
+            "percentile": 27.78327313212842,
+            "recordedAt": 1791721279708,
+            "reportUrl": "https://www.warcraftlogs.com/reports/BnKcgPbD64zmLA2w?fight=1",
+            "scope": "烈毒之渊 · 全部分区",
+            "difficulty": "英雄"
+          }
+        ],
+        "scope": "烈毒之渊 · 全部分区",
+        "status": "ok"
+      },
+      {
+        "title": "大秘境",
+        "rows": [
+          {
+            "name": "虚空之痕竞技场",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 80.3157504015893,
+            "recordedAt": 1791900574063,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 12,
+            "timed": true
+          },
+          {
+            "name": "毒牙祭坛",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 92.33264621485529,
+            "recordedAt": 1791898093435,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=7",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 12,
+            "timed": true
+          },
+          {
+            "name": "诸王之眠",
+            "spec": "元素",
+            "metric": "DPS",
+            "percentile": 74.04892020531919,
+            "recordedAt": 1791896091930,
+            "reportUrl": "https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=6",
+            "scope": "Mythic+ Season 2 · Season 2",
+            "level": 16,
+            "timed": true
+          }
+        ],
+        "scope": "Mythic+ Season 2 · Season 2",
+        "status": "ok"
+      }
+    ],
+    "sources": [
+      "https://raider.io/characters/cn/silver-hand/Giannis",
+      "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+    ],
+    "profile": {
+      "source": "Raider.IO",
+      "race": "黑铁矮人",
+      "class": "萨满祭司",
+      "spec": "元素",
+      "itemLevel": 327,
+      "sourceTime": "2026-10-13T14:51:58.401Z",
+      "hero": "先知"
+    }
+  },
+  "markdown": "# Giannis｜白银之手｜国服\n\n**角色资料**\n种族：黑铁矮人 · 职业：萨满祭司\n专精：元素 · 英雄天赋：先知\n**装备等级：327**\n资料：Raider.IO · 2026-10-13 22:51 北京时间\n\n## 团本 · 最近 3 场\n烈毒之渊 · 全部分区\n历史 WCL 排名百分位\n\n**1. 乌拉特克 · 英雄**\n   元素 · DPS · **80（紫分）**\n   2026-10-13 19:38 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=3)\n**2. The Coiled Altar · 英雄**\n   元素 · DPS · **65（蓝分）**\n   2026-10-11 21:10 北京时间 · [日志](https://www.warcraftlogs.com/reports/MdbDjrvCw7tnh3R6?fight=48)\n**3. 盘魂者内克扎莉 · 英雄**\n   恢复 · HPS · **28（绿分）**\n   2026-10-11 20:21 北京时间 · [日志](https://www.warcraftlogs.com/reports/BnKcgPbD64zmLA2w?fight=1)\n\n## 大秘境 · 最近 3 场\nMythic\\+ Season 2 · Season 2\n历史 WCL 排名百分位（同层）\n\n**1. 虚空之痕竞技场 +12**\n   元素 · DPS · **80（紫分）** · 限时\n   2026-10-13 22:09 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=10)\n**2. 毒牙祭坛 +12**\n   元素 · DPS · **92（紫分）** · 限时\n   2026-10-13 21:28 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=7)\n**3. 诸王之眠 +16**\n   元素 · DPS · **74（蓝分）** · 限时\n   2026-10-13 20:54 北京时间 · [日志](https://www.warcraftlogs.com/reports/mZBg8DbyNdTrXcFL?fight=6)\n\n来源：[Raider.IO](https://raider.io/characters/cn/silver-hand/Giannis) · [WCL 角色](https://www.warcraftlogs.com/character/cn/silver-hand/Giannis)\n\n查询时间：2026-10-15 11:25 北京时间",
+  "literalNumbers": [
+    "1",
+    "2",
+    "3",
+    "1",
+    "2",
+    "3"
+  ],
+  "partLengths": [
+    1242
+  ],
+  "groupAcceptance": "pending"
+}

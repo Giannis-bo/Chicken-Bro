@@ -1,0 +1,42 @@
+[
+  {
+    "path": "server/app/channels/qq_official/query_commands.py",
+    "sha256": "588595c6353887aba5129fcd44a395caf5dc03b5c66fb190eb23ce14dc777f47"
+  },
+  {
+    "path": "server/app/channels/qq_official/query_repository.py",
+    "sha256": "6d6cb1c3d30badb2674b9f7623a34e5965d645c7b9cc2e1863571cfb0ee29b83"
+  },
+  {
+    "path": "server/app/channels/qq_official/query_service.py",
+    "sha256": "bbb1537edd6a04133e4678610b32b56794fcb2960f126a518305ba874245e88c"
+  },
+  {
+    "path": "server/app/channels/qq_official/runtime.py",
+    "sha256": "ed3224557b489781722fd1651cc008f4b3baf1ddc485af68912c36936e23dfc6"
+  },
+  {
+    "path": "tests/app_qq_default_reply_test.py",
+    "sha256": "33c33c6271c7562696213a7ff2e66d0b87920832019cb92560120915ff82d0c2"
+  },
+  {
+    "path": "tests/app_qq_character_postgres_test.py",
+    "sha256": "7d1de30e18cc8b325c62019f4d548fabd79252b38a9868cd8a7073ddc589d0e0"
+  },
+  {
+    "path": "docs/project-state.json",
+    "sha256": "b2db46d4015822a12cf26e776a118b12e627c54b7d62fd83e140abb061be6bef"
+  },
+  {
+    "path": "docs/roadmap.md",
+    "sha256": "4d334a7d5a0155955f707600666a15e9a1ac47c469339b6ec2886d2418439cc4"
+  },
+  {
+    "path": "docs/plans/README.md",
+    "sha256": "dbbab4b9190605408735b8cd000acb5750e3ed325f3fa58b653a8495723e599d"
+  },
+  {
+    "path": "docs/plans/2026-10-14-qq-official.md",
+    "sha256": "5813835b620c0cffd6477b9bc3d80f7fb04d8c8f8923501e4d1b7ba9619a9c1f"
+  }
+]

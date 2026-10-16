@@ -1,0 +1,24 @@
+{
+  "runtimeFilesMatched": 26,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_evidence_narrative_zhcn_v8",
+  "defaultReplyCharacters": 57,
+  "defaultReplies": {
+    "你都能干啥？": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "你能做什么": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "你好": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "/未知命令": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。"
+  },
+  "helpCharacters": 489,
+  "groupedHelpVerified": true,
+  "helpContent": "@炸鸡 后发送命令，查询结果在本群公开。\n\n## 角色查询\n\n**角色资料与近期成绩**\n/角色查询 角色名 服务器名 [地域=国服]\n\n**团本成绩**\n/角色团本查询 角色名 服务器名 [团本=名称] [Boss=名称] [难度=英雄] [地域=国服]\n\n**大米成绩**\n/角色大米查询 角色名 服务器名 [副本=名称] [层数=12] [地域=国服]\n\n方括号内为可选条件，带空格的名称用双引号。\n快捷筛选：团本 H乌拉特克、H8/H9/H10（H英雄/N普通/M史诗）；大米 诸王+12。\n地域：国服/美服/欧服/台服/韩服，默认国服。\n\n## 战斗分析\n\n**整场摘要**\n/战斗分析 WCL报告链接 [场次=5]\n支持团本和大秘境，链接可用 fight=last。\n\n**人物详情**\n/战斗详情-大腿：看贡献亮点\n/战斗详情-毒瘤：看失误与问题\n默认查看你上次分析的战斗；每类团本最多3人、大秘境最多2人。\n两个详情命令后也可加 WCL报告链接 [场次=5]。\n分析范围为整场，网页视图与角色筛选不缩小范围。\n\n/状态：查看自己的最近查询；/帮助：查看命令用法。",
+  "unchangedServicePids": {
+    "chickenbro-api.service": "2319609",
+    "chickenbro-worker.service": "2319544",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "qqValidationMessagesSent": 0,
+  "manualGroupAcceptance": "pending_user_test"
+}

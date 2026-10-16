@@ -1,0 +1,23 @@
+{
+  "runtimeFilesMatched": 26,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_evidence_narrative_zhcn_v8",
+  "defaultReplyCharacters": 57,
+  "defaultReplies": {
+    "你都能干啥？": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "你能做什么": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "你好": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。",
+    "/未知命令": "我是炸鸡，能查魔兽角色资料、团本和大米成绩，也能分析 WCL 战斗日志，点评大腿和毒瘤。\n具体命令格式看 /帮助。"
+  },
+  "helpCharacters": 407,
+  "fullHelpPreserved": true,
+  "unchangedServicePids": {
+    "chickenbro-api.service": "2319609",
+    "chickenbro-worker.service": "2319544",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "qqValidationMessagesSent": 0,
+  "manualGroupAcceptance": "pending_user_test"
+}

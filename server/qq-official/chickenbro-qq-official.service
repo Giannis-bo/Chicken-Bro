@@ -1,0 +1,24 @@
+[Unit]
+Description=Chickenbro official QQ test-group channel
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/chickenbro-qq-official-candidate-20261014
+EnvironmentFile=/etc/chickenbro-qq-official/runtime.env
+LoadCredential=credentials.json:/etc/chickenbro-qq-official/credentials.json
+LoadCredential=channel.json:/etc/chickenbro-qq-official/channel.json
+ExecStart=/opt/chickenbro-qq-official-runtime/bin/python -m server.app.channels.qq_official.runtime
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+MemoryMax=512M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target

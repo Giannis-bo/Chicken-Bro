@@ -22,7 +22,8 @@
     "test:ops": "node --test tests/deploy-chickenbro-candidate.test.js tests/cutover-chickenbro.test.js tests/provision-chickenbro-database.test.js tests/chickenbro-simc-runtime-update.test.js tests/retire-chickenbro-legacy.test.js && python3 -m unittest tests.candidate_acceptance_test tests.legacy_qq_cleanup_test -v",
     "harness": "node scripts/project-harness.js",
     "test:chat-images": "python3 -m unittest tests.app_chat_images_test tests.app_chat_images_postgres_test -v",
-    "test:admin:postgres": "python3 -m unittest tests.app_admin_postgres_test -v"
+    "test:admin:postgres": "python3 -m unittest tests.app_admin_postgres_test -v",
+    "test:qqbot": "python3 -m unittest tests.app_qq_battle_analysis_test tests.app_qq_battle_commentary_test tests.app_qq_battle_depth_test tests.app_qq_battle_locale_test tests.app_qq_battle_mplus_links_test tests.app_qq_battle_narrative_test tests.app_qq_battle_postgres_test tests.app_qq_battle_summary_binding_test tests.app_qq_battle_team_report_test tests.app_qq_character_commands_test tests.app_qq_character_postgres_test tests.app_qq_character_source_test tests.app_qq_default_reply_test tests.app_qq_dynamic_guidance_test tests.app_qq_integration_test tests.app_qq_official_postgres_test tests.app_qq_official_test tests.app_qq_query_shorthand_test tests.app_qq_raid_partitions_test tests.app_qq_recent_queries_test -v"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",

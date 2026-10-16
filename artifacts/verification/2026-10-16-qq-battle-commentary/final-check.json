@@ -1,0 +1,26 @@
+{
+  "runtimeFilesMatched": 24,
+  "gatewayReady": true,
+  "queryOnly": true,
+  "allowedGroupCount": 1,
+  "battlePresentation": "single_summary_player_commentary_zhcn_v6",
+  "unchangedDuringDeploymentServicePids": {
+    "chickenbro-api.service": "1943579",
+    "chickenbro-worker.service": "1943440",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "currentServicePids": {
+    "chickenbro-api.service": "1943579",
+    "chickenbro-worker.service": "1943440",
+    "chickenbro-qq-official-worker.service": "267252"
+  },
+  "subsequentServiceRestarts": {},
+  "deploymentReceiptMtime": 1792133585.1314726,
+  "webResolvedPath": "/opt/chickenbro-releases/simc-repaired-20261016-128530c9797bdcbf6bd24af86ec2b29d9ec57af0/server/app/chickenbro/wcl_source.py",
+  "webSourceSha256Unchanged": "b525e2fb883108c0fd5d2132381556b543688f7d7f15614ca7d4bfa6e1d783d4",
+  "legacyServices": {
+    "chickenbro-qq-channel.service": "inactive",
+    "chickenbro-qq-worker.service": "inactive"
+  },
+  "observedAt": 1792133646.0748167
+}

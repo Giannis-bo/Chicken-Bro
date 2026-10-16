@@ -1,0 +1,9 @@
+{
+  "path": "server/app/channels/qq_official/query_commands.py",
+  "sha256": "c0836f134328e1331df1fcb848b8d9e6b7ca2dcc07a6c2dcc02ea5346f238cd7",
+  "previousSha256": "f8a37d9e5e39e28cec413f7fa3dcdda19daed07d057042676622786bdfa2bae9",
+  "testGroupNumber": "1127827451",
+  "cloudTestsPassed": 82,
+  "displayRounding": "half_up_integer",
+  "colorClassification": "original_percentile"
+}

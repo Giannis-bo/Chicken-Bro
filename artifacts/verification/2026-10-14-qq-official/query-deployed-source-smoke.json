@@ -1,0 +1,26 @@
+{
+  "identity": "Giannis｜白银之手｜国服",
+  "queriedAt": "2026-10-14T13:40:57.058647+00:00",
+  "sections": [
+    {
+      "title": "大米",
+      "scope": "Mythic+ Season 2｜Season 2｜同层 DPS/HPS 排名百分位｜历史",
+      "rows": [
+        {
+          "name": "诸王之眠",
+          "spec": "元素",
+          "level": 12,
+          "timed": true,
+          "percentile": 95.65488409730952,
+          "recordedAt": 1788531031720,
+          "metric": "DPS",
+          "reportUrl": "https://www.warcraftlogs.com/reports/869yMbVg1LCRk2vP?fight=3"
+        }
+      ],
+      "status": "ok"
+    }
+  ],
+  "sources": [
+    "https://www.warcraftlogs.com/character/cn/silver-hand/Giannis"
+  ]
+}

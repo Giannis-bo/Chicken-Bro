@@ -15,6 +15,7 @@
 
 | 能力 | 设计与交付记录 |
 | --- | --- |
+| 官方 QQBot 集成验证，保持原单测试群 | [集成计划](2026-10-16-qqbot-integration.md)、[验证记录](../../artifacts/verification/2026-10-16-qqbot-integration/README.md) |
 | 旧版个人 QQ / NapCat 退役，Web QQ 登录与官方 QQBot 保留 | [退役清单与验证](2026-10-16-retire-legacy-qq.md) |
 | Web SimC 手动角色输入、账号最多 3 个绑定与选择记忆；正式站验证通过 | [发布与验证](../../artifacts/verification/2026-10-16-simc-characters/README.md) |
 | POE2 正式发布 | [发布记录](../../artifacts/releases/2026-09-21-poe2/README.md)、[首版计划](2026-09-18-poe2-dual-module.md)、[进度](2026-09-18-poe2-progress.md) |
