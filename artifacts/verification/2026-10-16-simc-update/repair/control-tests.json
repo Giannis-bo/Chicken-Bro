@@ -1,0 +1,12 @@
+{
+  "location": "cloud_complete_source_snapshot",
+  "passed": 11,
+  "failures": 0,
+  "skipped": 0,
+  "logSha256": "58d8d8a5be3ff849a9ee453cc2efecca309ca16d3c086d4a93d67b70551441b6",
+  "sourceTree": "4927e6be34c5673a7da077f76a41938765536cf4",
+  "archiveSha256": "87fa4579e69b9ceb30c0b8f05fa33124f201953d1f310616b0f7e95efcd16ea2",
+  "earlierEnvironmentFailures": "runtime_copy_missing_git_and_historical_evidence",
+  "retentionRegistrationAdded": true,
+  "sourceCommit": "4fc6743f1ecda05092c40b73c9cb46834496d5f1"
+}
