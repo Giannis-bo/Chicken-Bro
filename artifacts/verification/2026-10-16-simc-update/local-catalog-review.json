@@ -1,0 +1,58 @@
+{
+  "traits-12.1.0.json": {
+    "changedTopLevel": [
+      "sourceSha256",
+      "revision",
+      "rows",
+      "build"
+    ],
+    "revision": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "build": "12.1.5.70391"
+  },
+  "trait-labels-12.1.0.json": {
+    "changedTopLevel": [
+      "sourceSha256",
+      "revision",
+      "entries",
+      "build"
+    ],
+    "revision": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "build": "12.1.5.70391",
+    "changedEntries": [
+      "132287",
+      "80141",
+      "103733",
+      "135736",
+      "136697",
+      "103745",
+      "136699",
+      "128609",
+      "103728"
+    ]
+  },
+  "trait-paths-12.1.0.json": {
+    "changedTopLevel": [
+      "specs",
+      "revision",
+      "exactBuildEdgePatch",
+      "engineSourceSha256",
+      "build"
+    ],
+    "revision": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "build": "12.1.5.70391"
+  },
+  "item-variants-12.1.0.json": {
+    "changedTopLevel": [
+      "sourceSha256",
+      "revision",
+      "items",
+      "build"
+    ],
+    "revision": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "build": "12.1.5.70391",
+    "oldItems": 16,
+    "newItems": 19,
+    "oldUpgrades": 34,
+    "newUpgrades": 34
+  }
+}

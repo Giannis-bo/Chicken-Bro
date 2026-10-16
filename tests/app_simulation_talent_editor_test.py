@@ -81,11 +81,18 @@ class TalentEditorTest(unittest.TestCase):
             with self.assertRaises(TalentEditError):
                 decode_talents(code, char, runtime)
 
-    def test_current_official_profiles_and_cross_node_move(self):
+    def test_retained_official_profiles_and_cross_node_move(self):
         profiles = json.loads((FIXTURES / 'engine_talent_exports_12_1.json').read_text())
         self.assertGreaterEqual(len(profiles), 39)
         for fixture in profiles:
             with self.subTest(profile=fixture['name']):
+                if fixture['name'] in ('MID1_Demon_Hunter_Devourer.simc', 'MID1_Demon_Hunter_Devourer_Void-Scarred.simc'):
+                    # Retained pre-12.1.5 exports miss newly required Devourer paths.
+                    with self.assertRaises(TalentEditError) as caught:
+                        edit_talents({'string': fixture['talents']}, fixture['character'], RUNTIME,
+                                     {'string': fixture['talents']})
+                    self.assertEqual(caught.exception.code, 'TALENT_PREREQUISITE_INVALID')
+                    continue
                 result = edit_talents({'string': fixture['talents']}, fixture['character'], RUNTIME,
                                       {'string': fixture['talents']})
                 self.assertEqual(result['changes'], [])
@@ -95,6 +102,17 @@ class TalentEditorTest(unittest.TestCase):
         ]})
         self.assertEqual({r['nodeId'] for r in moved['changes']}, {103579, 103622})
         self.assertEqual(moved['validation'], 'versioned_tree_rules')
+
+    def test_current_devourer_engine_export_satisfies_exact_build_paths(self):
+        proof = json.loads((FIXTURES / 'devourer_engine_export_70391.json').read_text())
+        self.assertEqual(proof['runtimeSource'], _catalog()[0]['revision'])
+        self.assertEqual(proof['gameBuild'], _catalog()[0]['build'])
+        character = {'classKey': 'demon_hunter', 'specKey': 'devourer', 'level': 90}
+        result = edit_talents({'string': proof['talents']}, character, RUNTIME, {'string': proof['talents']})
+        self.assertEqual(result['changes'], [])
+        ranks = {e['id']: e['rank'] for e in result['loadout']}
+        self.assertEqual(ranks[136697], 1)  # Star Fragments prerequisite
+        self.assertEqual(ranks[134330], 1)  # Improved Consume descendant
 
     def test_tiered_node_uses_total_rank_with_engine_entry_order(self):
         result = edit_talents({'string': self.code}, self.character, RUNTIME,

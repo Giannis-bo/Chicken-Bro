@@ -1,0 +1,30 @@
+{
+  "profileTalents": "CgcBAAAAAAAAAAAAAAAAAAAAAAAWMzMzMzMzMwMAAAAAAALzYMYGAAAAAAAAmxMMmZmZYmZGzsNzYsptFAEwAMjZmZbmZa2mZbmZMjBA",
+  "errors": [
+    {
+      "selected": {
+        "id": 134330,
+        "nodeID": 108144,
+        "rank": 1
+      },
+      "label": {
+        "name": "Improved Consume",
+        "spellId": 1272817,
+        "requiredPoints": 8
+      },
+      "parents": [
+        {
+          "nodeId": 110172,
+          "selected": false,
+          "entries": [
+            {
+              "name": "Star Fragments",
+              "spellId": 1240204,
+              "requiredPoints": 8
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

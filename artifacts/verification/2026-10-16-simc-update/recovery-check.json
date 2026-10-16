@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "sourceCommit": "eed909156d8eccbfca0f284cc271c080949d6a20",
+  "binarySha256": "ebd060418a7f42f701f0c205f10de2f666e99bb753ccb267dae6239db6908564",
+  "independentCopy": true,
+  "dps": 241870.2386876405,
+  "productionRollbackDrill": false
+}

@@ -1,0 +1,30 @@
+{
+  "reason": "Upstream profile selects Improved Consume without its current-build prerequisite Star Fragments",
+  "upstreamProfileSha256": "5a63c3c87467b6ab74924ff5eebf22747ab0df6b16836846fdf6336549be8a42",
+  "correctedProfileSha256": "8ef582cff50fc43bda47afc06869748d0b56efd4ed49743426a3eaedcbf03c17",
+  "changes": [
+    {
+      "nodeId": 107339,
+      "before": [
+        {
+          "id": 132281,
+          "rank": 1,
+          "nodeID": 107339
+        }
+      ],
+      "after": []
+    },
+    {
+      "nodeId": 110172,
+      "before": [],
+      "after": [
+        {
+          "id": 136697,
+          "rank": 1,
+          "nodeID": 110172
+        }
+      ]
+    }
+  ],
+  "sameTotalPoints": true
+}

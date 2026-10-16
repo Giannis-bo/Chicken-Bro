@@ -1,0 +1,37 @@
+{
+  "runtimeSource": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+  "gameBuild": "12.1.5.70391",
+  "method": "Cloud SimC export from the minimum two-node, equal-point correction to upstream MID2 profile; validated against exact-build TraitEdge",
+  "talents": "CgcBAAAAAAAAAAAAAAAAAAAAAAAWMzMzMzMzMwMAAAAAAALzYMYGAAAAAAAEMjZYYmZGmZmxMbzMGbabBAAGgZMzMbzMTz2MbzMjZmBA",
+  "reportSha256": "6da16c953434c04ede9c60148d8a616154faaeb6973d5dcbfdec387ad0820ca3",
+  "profileCorrection": {
+    "reason": "Upstream profile selects Improved Consume without its current-build prerequisite Star Fragments",
+    "upstreamProfileSha256": "5a63c3c87467b6ab74924ff5eebf22747ab0df6b16836846fdf6336549be8a42",
+    "correctedProfileSha256": "8ef582cff50fc43bda47afc06869748d0b56efd4ed49743426a3eaedcbf03c17",
+    "changes": [
+      {
+        "nodeId": 107339,
+        "before": [
+          {
+            "id": 132281,
+            "rank": 1,
+            "nodeID": 107339
+          }
+        ],
+        "after": []
+      },
+      {
+        "nodeId": 110172,
+        "before": [],
+        "after": [
+          {
+            "id": 136697,
+            "rank": 1,
+            "nodeID": 110172
+          }
+        ]
+      }
+    ],
+    "sameTotalPoints": true
+  }
+}

@@ -1,0 +1,43 @@
+[
+  {
+    "case": "enhancement",
+    "sourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "binarySha256": "225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b",
+    "profileSha256": "732a7ab8e2494d2e2a87a4b6546119f9b5ed31e6d6547d121b7cc319cf9981cd",
+    "reportSha256": "dffdd144045d2f79b4d876870e827a113b6c56b2339cc5177c2a250c1e3c1453",
+    "dps": 562110.5088286083,
+    "gameBuild": "12.1.5.70391",
+    "normalized": true
+  },
+  {
+    "case": "protection",
+    "sourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "binarySha256": "225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b",
+    "profileSha256": "1966973157a6bba09fbaff0cea644a5abba0175d1585b091029e769e806036b3",
+    "reportSha256": "5cc92bb3b35b20933004e7fc77c0fc411c47c2527e74fd6b4764d63b149ec8ae",
+    "dps": 237704.1816728137,
+    "gameBuild": "12.1.5.70391",
+    "normalized": true
+  },
+  {
+    "case": "devourer",
+    "sourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "binarySha256": "225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b",
+    "profileSha256": "8ef582cff50fc43bda47afc06869748d0b56efd4ed49743426a3eaedcbf03c17",
+    "reportSha256": "6da16c953434c04ede9c60148d8a616154faaeb6973d5dcbfdec387ad0820ca3",
+    "dps": 311663.7444251676,
+    "gameBuild": "12.1.5.70391",
+    "normalized": true,
+    "newDevourerGraphValidated": true
+  },
+  {
+    "case": "independent",
+    "sourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "binarySha256": "225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b",
+    "profileSha256": "8444833f12e77c4143b29add2c4103b62bc4a818f7b97c915d4ed507c3adcef9",
+    "reportSha256": "a14d2fc2821d905c2181f75505f7705ab68d63cded2006b682017ed5b7ef63ff",
+    "dps": 241735.21886356646,
+    "gameBuild": "12.1.5.70391",
+    "normalized": true
+  }
+]

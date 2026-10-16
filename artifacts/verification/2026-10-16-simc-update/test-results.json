@@ -1,0 +1,35 @@
+{
+  "location": "cloud",
+  "testsPassed": 191,
+  "skipped": 0,
+  "failures": 0,
+  "modules": [
+    "app_wcl_talents_test",
+    "app_simulation_talent_editor_test",
+    "app_simulation_localization_test",
+    "app_simulation_runtime_info_test",
+    "app_simulation_sources_test",
+    "app_simulation_compiler_test",
+    "app_simulation_effective_config_test",
+    "app_simulation_report_test",
+    "app_simulation_worker_test",
+    "app_simc_workbench_test",
+    "app_simc_workbench_api_test",
+    "app_simulation_phase_test"
+  ],
+  "testSourceSha256": {
+    "app_wcl_talents_test": "03e9487a44acb5df2959e6346ae5875cdc7a9d010ce1698c9734a44d029413af",
+    "app_simulation_talent_editor_test": "015f21095f936255acf14e8e469d7beda3633c60eab6dd1d20062423fd24d773",
+    "app_simulation_localization_test": "c1ec430aeb021a1894ae944221ec9c52dacff48077eed70bf1b9e7c761c332ad",
+    "app_simulation_runtime_info_test": "4dc16a2a2e281d5df9abb33c135bc45db8666b1d48ed2a851c3b90658170c318",
+    "app_simulation_sources_test": "65544250d62a30bfd32e9a07dd81605d410280b9b2fd3e8e4e1fa7668d6521b1",
+    "app_simulation_compiler_test": "ef23fbedec917fd73b982e66250bfe0fd474d175495b1c18626094da2ceb30c1",
+    "app_simulation_effective_config_test": "d1a8b95d50bad4db1e7de76166d76497825e9a3afa0bbc6db9eb4152278ddabb",
+    "app_simulation_report_test": "d31208c506f286a535e105401fd2eb1af56bc1c75f1d6839590c5b3f76afe3ad",
+    "app_simulation_worker_test": "dfe0af325e5ead8bddd5a3bc22b0744eb6a781b0a8c866f16ba5c14ad8c2d780",
+    "app_simc_workbench_test": "6f8484eb53adde708bc8324c14bab35cd1892ece88c6da3292d95c806471a135",
+    "app_simc_workbench_api_test": "4840cd267ed8c67ba92abd89fb2f123b95a86e37700188fe2b369904efdc7250",
+    "app_simulation_phase_test": "da2e7a44323fea0ce98a039aebefb93699b1e12d17136850ba4c1f9295487114"
+  },
+  "logSha256": "5a30a87417e9be84ce0c9d3a95b39e2b4688a37cd989c1c2daf8e20e018d6f82"
+}
