@@ -2,6 +2,17 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-runtime-release-evidence-20261016",
+      "disposition": "keep",
+      "category": "current-release-evidence",
+      "owner": "control_and_cleanup",
+      "reason": "Retain the verified SimC 70391 upgrade and action sampling repair, initial failure/recovery, and the preceding 69933 rollback release evidence.",
+      "prefixes": [
+        "artifacts/verification/2026-10-16-simc-update/",
+        "artifacts/verification/2026-10-09-simc-update/"
+      ]
+    },
+    {
       "id": "qq-badcase-20260924",
       "disposition": "keep",
       "category": "target-product",
