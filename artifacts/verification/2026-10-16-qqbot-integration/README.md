@@ -19,4 +19,4 @@ QQBot 全量 221/221 测试通过（含最小权限数据库回归）；共享�
 
 Web API/Worker PID 和目录保持，1811 个后端文件与 15 个 Web 文件 SHA 保持；[公开静态文件](public-web.json) 15/15 一致。原官方 WIP 289 文件逐项匹配且原工作区未改动，[保护记录](wip-preservation.json)。
 
-Git 提交、合入和远端身份见最终 `closure.json`。
+实现提交与验证身份见 `closure.json`；main 与 origin/main 的交付 SHA 以本记录所在的 Git 提交为准。

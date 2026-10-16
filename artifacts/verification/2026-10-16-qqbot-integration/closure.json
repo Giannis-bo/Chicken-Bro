@@ -1,0 +1,33 @@
+{
+  "implementationCommit": "11a56009f4e8a4084d72d6d5350c449cd0bd80f1",
+  "baseMain": "6b11e9db6c6e10ba61bc28272507573dcc630a8c",
+  "scope": "existing_single_test_group_only",
+  "testGroupNumber": "1127827451",
+  "activeGroupCount": 1,
+  "officialTests": {
+    "passed": 221,
+    "failed": 0,
+    "skipped": 0
+  },
+  "backendTests": {
+    "total": 889,
+    "passed": 888,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Windows junction check on Linux"
+  },
+  "controlTests": {
+    "passed": 63,
+    "failed": 0
+  },
+  "runtimeFilesMatchedToImplementationCommit": 37,
+  "verifiedInputFilesMatchedToImplementationCommit": 185,
+  "originalWipFilesPreserved": 289,
+  "webBackendFilesUnchanged": 1811,
+  "publicWebFilesUnchanged": 15,
+  "modelCallsInValidation": 2,
+  "qqMessagesSentByValidation": 0,
+  "newManualGroupAcceptanceClaimed": false,
+  "rollbackSwitchbackDrill": false,
+  "fileAndDatabaseRestoreVerified": true
+}
