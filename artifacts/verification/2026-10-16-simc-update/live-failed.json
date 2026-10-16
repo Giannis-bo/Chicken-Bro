@@ -1,0 +1,15 @@
+{
+  "phase": "after",
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/simc-20261016-445b6bbe74db5ced7d2f1d52e441742cbf552f1b",
+  "checks": {},
+  "runtime": {
+    "status": "available",
+    "version": "1210-01",
+    "gameVersion": "12.1.5.70391",
+    "build": "70391",
+    "sourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+    "runtimeRevision": "simc:managed:76f8118cf3f7f41dad20708e8328e1f4ab2deebc:225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b"
+  },
+  "lastJobId": "ad82df72-1bf1-4640-ad94-51d55b2cd3fa"
+}

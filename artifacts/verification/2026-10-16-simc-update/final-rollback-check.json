@@ -1,0 +1,19 @@
+{
+  "status": "upgrade_held_production_recovered",
+  "backend": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2",
+  "engine": "/opt/wow-simc/releases/eed909156d8eccbfca0f284cc271c080949d6a20",
+  "sourceCommit": "eed909156d8eccbfca0f284cc271c080949d6a20",
+  "binarySha256": "ebd060418a7f42f701f0c205f10de2f666e99bb753ccb267dae6239db6908564",
+  "baseRuntimeFilesMatched": 199,
+  "publicWebFilesMatched": 15,
+  "realQueueRecoveryPassed": true,
+  "recoveryDps": 267566.6055448529,
+  "failedNewEngineJobId": "ad82df72-1bf1-4640-ad94-51d55b2cd3fa",
+  "liveFailureRootCause": "unresolved_original_raw_report_not_retained",
+  "fixedSeedReproductionCount": 6,
+  "fixedSeedReproduced": false,
+  "qqStates": {
+    "chickenbro-qq": "inactive",
+    "chickenbro-qq-worker": "inactive"
+  }
+}

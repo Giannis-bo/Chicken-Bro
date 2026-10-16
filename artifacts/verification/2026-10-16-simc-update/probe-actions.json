@@ -1,0 +1,50 @@
+[
+  {
+    "seed": 1,
+    "actionEvidence": "passed",
+    "rowCount": 59,
+    "invalidRows": [],
+    "dps": 265914.33490310976,
+    "reportSha256": "e4379299e75d435c8dab69af220ffed6979a21800c0760b50d66d059c17e721b"
+  },
+  {
+    "seed": 2,
+    "actionEvidence": "passed",
+    "rowCount": 62,
+    "invalidRows": [],
+    "dps": 263297.97481708264,
+    "reportSha256": "701ee81ada98c15aa85a0d1d8507c61e64a9b8289efacb9af3315bf6f4de02af"
+  },
+  {
+    "seed": 3,
+    "actionEvidence": "passed",
+    "rowCount": 61,
+    "invalidRows": [],
+    "dps": 267141.8397236357,
+    "reportSha256": "2ff91c97b1f5f397328000926aec7f994fee5a50af6cb4a28c312531c11f1979"
+  },
+  {
+    "seed": 4,
+    "actionEvidence": "passed",
+    "rowCount": 61,
+    "invalidRows": [],
+    "dps": 267316.0165826818,
+    "reportSha256": "6b463729e4171e2092df4a2afb66e073ea8680d270b64eee7423d7dbe3d747d4"
+  },
+  {
+    "seed": 5,
+    "actionEvidence": "passed",
+    "rowCount": 61,
+    "invalidRows": [],
+    "dps": 266907.24279505585,
+    "reportSha256": "e99ce2f40a63b5df9d0c0150bfdcec42707af8592b2c2e6e94695950c6f177e2"
+  },
+  {
+    "seed": 6,
+    "actionEvidence": "passed",
+    "rowCount": 61,
+    "invalidRows": [],
+    "dps": 266349.89265457226,
+    "reportSha256": "ac5970a252c0d27455ba01575f7193a54717884d5246122fd8fcc79bee0abe77"
+  }
+]

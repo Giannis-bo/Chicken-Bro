@@ -1,0 +1,14 @@
+{
+  "overlaySourceCommit": "445b6bbe74db5ced7d2f1d52e441742cbf552f1b",
+  "sourceHashes": {
+    "server/app/simulation/data/traits-12.1.0.json": "45af32cfbf50f41bc8f05c6e4a49d657552974247834db6593ad05f0d01b1ccb",
+    "server/app/simulation/data/trait-labels-12.1.0.json": "e2dc9c415b61eb9c17a521688fcf28cf890f8a29c3371a1043a83e0d1c72c177",
+    "server/app/simulation/data/trait-paths-12.1.0.json": "a60b7371b41d96cb843ed47c0f122b5a452bbad69540c58a2889a83f5d16b09a",
+    "server/app/simulation/data/item-variants-12.1.0.json": "4a01ebb6aade21b0eb9b84bf78c62d624b8c32d9cec9665a04be8f2156cd7019",
+    "server/app/simulation/data/localization/12.1.5.70391/catalog.json.gz": "13bd15d819652c93d7fad410dd3089cb41b4d4e0017c71456999ff7daa4d1642",
+    "server/app/simulation/data/localization/12.1.5.70391/engine-rules.json": "ed2788737c4df47b48d7e0c0df37dad4a4776d3fabccc4112f826419c734cf79",
+    "server/app/simulation/data/localization/12.1.5.70391/manifest.json": "4dac27998f082bea47b39e3f9f57fc73c2584b094b2860cc1b486d927f8d7d5f"
+  },
+  "preservedBase": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2",
+  "runtimeBaseHashesBound": true
+}

@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "445b6bbe74db5ced7d2f1d52e441742cbf552f1b",
+  "manifestSha256": "4b0c586953be860ec82447ac8d6c64ae0a177862f7cf59345a508606cf36ba6a",
+  "executorSha256": "d54c034bd3ed56a9c7d0d6fc2be681f9b96ef3c19726d4ea5cb67b0ec48cb11a",
+  "overlayFilesMatchCommittedBytes": 7,
+  "candidateRuntimeMatchesExactBaseAndOverlay": true,
+  "runtimeFiles": 202
+}

@@ -1,0 +1,65 @@
+{
+  "phase": "after",
+  "mode": "production",
+  "source": "/opt/chickenbro-releases/simc-20261009-ff9df82b8df7eca05009354423c4ce56acf699a2",
+  "checks": {
+    "realQueueWorkerPositiveMetrics": true,
+    "sourceAndEngineIdentity": true,
+    "effectiveConfigVerified": true,
+    "idempotency": true,
+    "secondOwnerIsolation": true,
+    "unauthenticatedDenied": true,
+    "scenarioDifference": false,
+    "talentChoiceChangeVerified": false,
+    "localizedNewBuild": true
+  },
+  "runtime": {
+    "status": "available",
+    "version": "1210-01",
+    "gameVersion": "12.1.0.69933",
+    "build": "69933",
+    "sourceCommit": "eed909156d8eccbfca0f284cc271c080949d6a20",
+    "runtimeRevision": "simc:managed:eed909156d8eccbfca0f284cc271c080949d6a20:ebd060418a7f42f701f0c205f10de2f666e99bb753ccb267dae6239db6908564"
+  },
+  "lastJobId": "9bf69e67-850b-4b66-94f4-759d9476775c",
+  "cases": [
+    {
+      "case": "single",
+      "localizationStatus": "partial",
+      "localizationRevision": "5fed9ada164a942547da860703a6537025bcb05e5e98218293ebf5c9391879d5",
+      "jobId": "9bf69e67-850b-4b66-94f4-759d9476775c",
+      "targets": 1,
+      "dps": 267566.6055448529,
+      "runtimeRevision": "simc:managed:eed909156d8eccbfca0f284cc271c080949d6a20:ebd060418a7f42f701f0c205f10de2f666e99bb753ccb267dae6239db6908564",
+      "compilerRevision": "chickenbro-simc-compiler-v6",
+      "effectiveConfigStatus": "verified",
+      "resultKeys": [
+        "report",
+        "metricName",
+        "provenance",
+        "metricError",
+        "metricValue",
+        "actionEvidence",
+        "metricErrorPct",
+        "reportIdentity",
+        "effectiveConfig",
+        "engineDiagnostics"
+      ],
+      "publicReportKeys": [
+        "id",
+        "profileSha256",
+        "report",
+        "metricError",
+        "metricName",
+        "metricValue",
+        "compilerRevision",
+        "runtimeRevision",
+        "provenance",
+        "createdAt"
+      ]
+    }
+  ],
+  "passed": true,
+  "sessionsRevoked": true,
+  "productionIdentitiesCreated": 0
+}

@@ -1,0 +1,17 @@
+{
+  "status": "upgrade_held_production_recovered",
+  "candidateVerified": true,
+  "candidateTestsPassed": 191,
+  "candidateJobsPassed": 3,
+  "liveUpgradeAccepted": false,
+  "originalFailedJobRetained": true,
+  "newEngineSourceCommit": "76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+  "currentProductionEngineSourceCommit": "eed909156d8eccbfca0f284cc271c080949d6a20",
+  "currentProductionBuild": "12.1.0.69933",
+  "recoveryLivePassed": true,
+  "newEngineSimulations": 16,
+  "oldEngineSimulations": 3,
+  "rootCause": "unresolved_original_raw_report_not_retained",
+  "mainIntegrated": false,
+  "productionRollbackPerformed": true
+}
