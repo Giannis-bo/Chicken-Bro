@@ -6,7 +6,6 @@ from uuid import UUID
 
 
 SessionKind = Literal["web_cookie"]
-ActorKind = Literal["web_cookie", "qq_group"]
 
 
 @dataclass(frozen=True)
@@ -14,7 +13,7 @@ class Principal:
     """Authenticated internal identity; provider subjects stay outside the domain object."""
 
     user_id: UUID
-    session_kind: ActorKind
+    session_kind: SessionKind
 
 
 def digest(value: str) -> str:

@@ -1,0 +1,16 @@
+[
+  {
+    "worktree": "/Users/boyuan/.codex/worktrees/qq-companion/wow_mini_program",
+    "branch": "codex/qq-companion",
+    "head": "9aa62cb3febd3dabefb0a033a1638d6830abb7d8",
+    "filesRestoredAndVerified": 1927,
+    "removed": true
+  },
+  {
+    "worktree": "/Users/boyuan/.codex/worktrees/qqbot-badcase-fixes/wow_mini_program",
+    "branch": "fix/qqbot-badcase-20260924",
+    "head": "6209f3c54dad21fb6732d54e11c0398f628cae5d",
+    "filesRestoredAndVerified": 1965,
+    "removed": true
+  }
+]

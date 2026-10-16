@@ -11,6 +11,10 @@ The POE2 expansion under `docs/plans/2026-09-18-poe2-dual-module.md` adds fixed-
 - Keep the roadmap concise; record confirmed product decisions there and unconfirmed ideas in [ideas](docs/roadmap/ideas.md). Use `已完成`, `正在推进`, `下一步`, `后续`, `暂缓`, `待决策` consistently.
 - [server/app/chickenbro/agent/AGENTS.md](server/app/chickenbro/agent/AGENTS.md) is a runtime product prompt loaded by Chat, not a repository development policy. Treat edits to it as runtime behavior changes.
 
+## Retired Personal QQ (2026-10-16)
+
+The user retired the personal QQ / NapCat / OneBot product and its cloud environment. Preserve Web QQ OAuth and the official QQBot in its independent `codex/qq-official` worktree. Old companion plans and evidence are historical, not permission to restart or redeploy it.
+
 ## Product and Engineering Boundaries
 
 - Chickenbro conversations, SimC jobs and POE2 builds gain product behavior. Do not revive news, legacy gear/talent/profile, old simulator, WebSim or prototype domains.

@@ -1,0 +1,26 @@
+{
+  "runtime": "cloud_only",
+  "backend": {
+    "run": 888,
+    "pass": 887,
+    "skip": 1,
+    "skipReason": "Windows junction check on Linux"
+  },
+  "control": {
+    "pass": 63,
+    "skip": 0
+  },
+  "postgres": {
+    "pass": 22,
+    "skip": 0,
+    "freshDatabase": true
+  },
+  "finalTargeted": {
+    "pass": 12,
+    "skip": 0
+  },
+  "sourceBaseCommit": "16f339565e20a59b05c34ec93e6145898a850143",
+  "webOrOfficialProcessesRestarted": false,
+  "webClientBuildRequired": false,
+  "reason": "No client source or retained live application bytes changed"
+}

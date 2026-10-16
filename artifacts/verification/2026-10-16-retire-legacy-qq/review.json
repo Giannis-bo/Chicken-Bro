@@ -1,0 +1,25 @@
+{
+  "method": "independent_read_only_subagent",
+  "sourceReview": "no_material_findings_after_removing_legacy_shared_hooks",
+  "findingsAddressed": [
+    "durable_per_resource_resume_journal",
+    "independent_empty_Docker_restore_for_image_and_writable_layers",
+    "bind_container_removal_to_original_id_and_image"
+  ],
+  "faultTests": 3,
+  "cloudBackendTests": {
+    "run": 888,
+    "passed": 887,
+    "skipped": 1,
+    "skipReason": "Windows directory junction check on Linux"
+  },
+  "cloudControlTests": {
+    "passed": 63,
+    "skipped": 0
+  },
+  "cloudPostgresTests": {
+    "passed": 22,
+    "skipped": 0
+  },
+  "retirementContractRedGreen": true
+}

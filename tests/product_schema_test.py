@@ -318,6 +318,13 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                     "0007_chat_images",
                     "0007_qq_web_login",
                     "0008_chat_durable_execution",
+                    "0009_chat_research_lifecycle",
+                    "0010_research_execution_observability",
+                    "0011_poe2",
+                    "0012_poe2_builds",
+                    "0013_poe2_character_imports",
+                    "0014_poe2_build_soft_delete",
+                    "0021_simc_characters",
                 ),
             )
             avatar_column = connection.execute(
@@ -336,7 +343,9 @@ class ProductSchemaIntegrationTest(unittest.TestCase):
                 by_schema.setdefault(schema, set()).add(table)
             expected = {schema: set(tables) for schema, tables in EXPECTED_TABLES.items()}
             expected["identity"].add("qq_login_attempts")
-            expected["chat"].update(("images", "executions", "tool_results"))
+            expected["chat"].update(("images", "executions", "tool_results", "research_sessions", "research_runs"))
+            expected["simc"].add("character_preferences")
+            self.assertIsNone(connection.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name = 'qq_channel'").fetchone())
             self.assertEqual(by_schema, expected)
         finally:
             connection.rollback()

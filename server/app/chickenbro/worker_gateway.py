@@ -94,13 +94,10 @@ class ToolRecorder:
 
 
 class RegisteredGateway:
-    def __init__(self, host, gateway, recorder, kind, *, scope=None, scope_check=None):
+    def __init__(self, host, gateway, recorder, kind):
         self.host, self.gateway, self.recorder, self.kind = host,gateway,recorder,kind
-        self.scope,self.scope_check=scope,scope_check
 
     def issue_capability(self, *args):
-        if self.scope is not None and (self.scope_check is None or not self.scope_check()):
-            raise ValueError('QQ capability scope unavailable')
         token = self.gateway.issue_capability(*args)
         with self.host.lock:
             self.host.routes[token] = self
@@ -127,16 +124,6 @@ class RegisteredGateway:
         return self.gateway.answer_evidence(token)
 
     def execute(self, token, body):
-        if self.scope is not None:
-            from server.app.channels.qq.execution_policy import allowed_operation,allowed_source_target
-            operation=('source.'+str(body.get('provider',''))) if self.kind=='source' else self.kind+'.'+str(body.get('operation',''))
-            if not allowed_operation(self.scope,operation) or not self.scope_check():
-                raise ValueError('QQ tool scope denied')
-            if self.kind=='source':
-                if not allowed_source_target(body.get('provider'),body.get('target')):
-                    raise ValueError('QQ source target denied')
-                if body.get('provider')=='public_web' and '://' not in body['target']:
-                    body={**body,'target':'World of Warcraft '+body['target']}
         if self.kind == 'source':
             if set(body)-{'provider','target','options'}:
                 raise ValueError('invalid source arguments')
@@ -207,5 +194,5 @@ class WorkerToolServer:
         self.server.server_close()
         self.thread.join()
 
-    def register(self,gateway,recorder,kind,**policy):
-        return RegisteredGateway(self,gateway,recorder,kind,**policy)
+    def register(self,gateway,recorder,kind):
+        return RegisteredGateway(self,gateway,recorder,kind)

@@ -1,3 +1,5 @@
+> 历史计划：2026-10-16 用户已决定退役旧版个人 QQ，禁止按本计划重新部署。当前状态见 [退役计划](2026-10-16-retire-legacy-qq.md)。
+
 # QQ 群陪伴角色「炸鸡」Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. 执行方式由用户选择；本计划建议当前会话顺序实施，再独立审查整体改动。
