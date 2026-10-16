@@ -1,0 +1,26 @@
+[
+  {
+    "case": "single",
+    "jobId": "271d2500-8eb1-450c-8f48-238dc11dbbb0",
+    "dps": 264044.6855481632,
+    "sampledActions": 62,
+    "sampleProfileSha256": "6178604f682a431a7dc63c59ee95a16d85f52acabe6ad3220b69cb1694c4631f",
+    "effectiveConfigStatus": "verified"
+  },
+  {
+    "case": "multi",
+    "jobId": "ab94d9b7-d8c9-4eea-b1c9-414f9dcaa67e",
+    "dps": 896148.2618818608,
+    "sampledActions": 66,
+    "sampleProfileSha256": "46e4e56da437e43842b5241f238b2b6037f09cd225957ffca005f8f831b674ac",
+    "effectiveConfigStatus": "verified"
+  },
+  {
+    "case": "talent",
+    "jobId": "57bab72e-8295-4ab1-a117-c23896bbafe5",
+    "dps": 259169.25040092212,
+    "sampledActions": 62,
+    "sampleProfileSha256": "e8b1673829050f4e0876e61c60c9cc4871d0fd9b24990a3ca55a0cf852aa3949",
+    "effectiveConfigStatus": "verified"
+  }
+]

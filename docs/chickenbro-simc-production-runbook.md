@@ -39,6 +39,7 @@
 
 | 日期 | 已交付内容 | 批次证据 |
 | --- | --- | --- |
+| 2026-10-16 | SimC `12.1.5.70391`、绑定目录与多线程动作采样修复 | [升级与修复](../artifacts/verification/2026-10-16-simc-update/repair/README.md) |
 | 2026-10-09 | SimC 引擎与匹配目录更新，游戏构建 `12.1.0.69933` | [引擎与目录](../artifacts/verification/2026-10-09-simc-update/README.md) |
 | 2026-09-17 | 已采样玩家跨来源身份与额度复用 | [玩家身份修复](../artifacts/verification/2026-09-17-research-player-identity/README.md) |
 | 2026-09-15 | SimC 引擎与匹配目录更新，游戏构建 `12.1.0.69814` | [引擎与目录](../artifacts/verification/2026-09-15-simc-update/README.md) |

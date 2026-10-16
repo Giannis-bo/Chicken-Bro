@@ -13,5 +13,7 @@
   "oldEngineSimulations": 3,
   "rootCause": "unresolved_original_raw_report_not_retained",
   "mainIntegrated": false,
-  "productionRollbackPerformed": true
+  "productionRollbackPerformed": true,
+  "supersededBy": "repair/final-check.json",
+  "finalStatus": "live_verified_after_repair"
 }
