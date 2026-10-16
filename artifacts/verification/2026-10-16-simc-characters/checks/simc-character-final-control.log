@@ -1,0 +1,392 @@
+
+> wow-mini-program-workspace@0.1.0 test:control
+> node --test tests/project-harness.test.js tests/project-state.test.js tests/project-owner-map.test.js tests/backend-owner-map.test.js tests/chickenbro-simc-refactor-inventory.test.js tests/chickenbro-simc-local-cleanup.test.js tests/prototype-retirement.test.js tests/retained-client-boundary.test.js
+
+TAP version 13
+# Subtest: backend owner map names formal Identity, Chat, SimC, POE2, Worker deployment and analytics owners
+ok 1 - backend owner map names formal Identity, Chat, SimC, POE2, Worker deployment and analytics owners
+  ---
+  duration_ms: 3.011699
+  type: 'test'
+  ...
+# Subtest: engineering health hotspots are current formal owners
+ok 2 - engineering health hotspots are current formal owners
+  ---
+  duration_ms: 0.317964
+  type: 'test'
+  ...
+# Subtest: cleanup accepts exact files and rejects directories, globs and broad roots
+ok 3 - cleanup accepts exact files and rejects directories, globs and broad roots
+  ---
+  duration_ms: 3.899579
+  type: 'test'
+  ...
+# Subtest: changed or missing delete targets fail closed before caller analysis
+ok 4 - changed or missing delete targets fail closed before caller analysis
+  ---
+  duration_ms: 3.028646
+  type: 'test'
+  ...
+# Subtest: a retained import, documentation link or route literal blocks deletion
+ok 5 - a retained import, documentation link or route literal blocks deletion
+  ---
+  duration_ms: 14.710814
+  type: 'test'
+  ...
+# Subtest: references from another exact delete target do not block an atomic cleanup set
+ok 6 - references from another exact delete target do not block an atomic cleanup set
+  ---
+  duration_ms: 0.58439
+  type: 'test'
+  ...
+# Subtest: plain prose and cleanup-control fixtures are not treated as runtime callers
+ok 7 - plain prose and cleanup-control fixtures are not treated as runtime callers
+  ---
+  duration_ms: 2.793454
+  type: 'test'
+  ...
+# Subtest: immutable current-rebuild evidence records do not act as live callers
+ok 8 - immutable current-rebuild evidence records do not act as live callers
+  ---
+  duration_ms: 0.481657
+  type: 'test'
+  ...
+# Subtest: unclassified tracked files and inventory identity drift are review blockers
+ok 9 - unclassified tracked files and inventory identity drift are review blockers
+  ---
+  duration_ms: 0.874469
+  type: 'test'
+  ...
+# Subtest: an inventory-only commit is accepted while any other post-base diff remains review
+ok 10 - an inventory-only commit is accepted while any other post-base diff remains review
+  ---
+  duration_ms: 2.331619
+  type: 'test'
+  ...
+# Subtest: apply is atomic, exact, and requires Phase 5 accepted production evidence
+ok 11 - apply is atomic, exact, and requires Phase 5 accepted production evidence
+  ---
+  duration_ms: 6.928333
+  type: 'test'
+  ...
+# Subtest: Phase 5 acceptance reads the current project-state gate contract
+ok 12 - Phase 5 acceptance reads the current project-state gate contract
+  ---
+  duration_ms: 6.08713
+  type: 'test'
+  ...
+# Subtest: CLI reports retired targets as missing and cannot replay cleanup without review inputs
+ok 13 - CLI reports retired targets as missing and cannot replay cleanup without review inputs
+  ---
+  duration_ms: 569.499775
+  type: 'test'
+  ...
+# Subtest: cleanup implementation contains no recursive or shell-based delete primitive
+ok 14 - cleanup implementation contains no recursive or shell-based delete primitive
+  ---
+  duration_ms: 1.856691
+  type: 'test'
+  ...
+# Subtest: target owners are kept while prototype and legacy product surfaces are retired
+ok 15 - target owners are kept while prototype and legacy product surfaces are retired
+  ---
+  duration_ms: 24.070478
+  type: 'test'
+  ...
+# Subtest: specific rules win before broader known-tree rules
+ok 16 - specific rules win before broader known-tree rules
+  ---
+  duration_ms: 0.263268
+  type: 'test'
+  ...
+# Subtest: unknown top-level paths fail closed without a repository catch-all
+ok 17 - unknown top-level paths fail closed without a repository catch-all
+  ---
+  duration_ms: 7.089575
+  type: 'test'
+  ...
+# Subtest: inventory ordering, file hashes, and content hash are deterministic
+ok 18 - inventory ordering, file hashes, and content hash are deterministic
+  ---
+  duration_ms: 6.17564
+  type: 'test'
+  ...
+# Subtest: every current repository path is classified and the inventory excludes only itself
+ok 19 - every current repository path is classified and the inventory excludes only itself
+  ---
+  duration_ms: 60.910281
+  type: 'test'
+  ...
+# Subtest: the current repository has a final keep-or-delete disposition with no migration limbo
+ok 20 - the current repository has a final keep-or-delete disposition with no migration limbo
+  ---
+  duration_ms: 30.315655
+  type: 'test'
+  ...
+# Subtest: CLI may replace only its output file while rejecting every other tracked change
+ok 21 - CLI may replace only its output file while rejecting every other tracked change
+  ---
+  duration_ms: 202.327052
+  type: 'test'
+  ...
+# Subtest: project harness exposes help without running a manifest
+ok 22 - project harness exposes help without running a manifest
+  ---
+  duration_ms: 48.031374
+  type: 'test'
+  ...
+# Subtest: project harness rejects unknown options and missing option values
+ok 23 - project harness rejects unknown options and missing option values
+  ---
+  duration_ms: 139.997538
+  type: 'test'
+  ...
+# Subtest: project harness emits the current repo-native harness manifest as read-only JSON
+ok 24 - project harness emits the current repo-native harness manifest as read-only JSON
+  ---
+  duration_ms: 72.558368
+  type: 'test'
+  ...
+# Subtest: project harness writes a local release manifest only when --write is requested
+ok 25 - project harness writes a local release manifest only when --write is requested
+  ---
+  duration_ms: 50.3367
+  type: 'test'
+  ...
+# Subtest: project harness sanitizes release path segments before writing artifacts
+ok 26 - project harness sanitizes release path segments before writing artifacts
+  ---
+  duration_ms: 67.735922
+  type: 'test'
+  ...
+# Subtest: project harness loads a local evidence packet without executing it
+ok 27 - project harness loads a local evidence packet without executing it
+  ---
+  duration_ms: 72.507605
+  type: 'test'
+  ...
+# Subtest: project harness refuses evidence packets outside the repository root
+ok 28 - project harness refuses evidence packets outside the repository root
+  ---
+  duration_ms: 70.443799
+  type: 'test'
+  ...
+# Subtest: project harness check accepts a valid requirement and evidence packet
+ok 29 - project harness check accepts a valid requirement and evidence packet
+  ---
+  duration_ms: 82.406005
+  type: 'test'
+  ...
+# Subtest: project harness rejects a stale manifest from another task packet
+ok 30 - project harness rejects a stale manifest from another task packet
+  ---
+  duration_ms: 48.005634
+  type: 'test'
+  ...
+# Subtest: project harness binds the manifest to the checked evidence path
+ok 31 - project harness binds the manifest to the checked evidence path
+  ---
+  duration_ms: 45.629575
+  type: 'test'
+  ...
+# Subtest: project harness requires separate runtime verification and closure identities
+ok 32 - project harness requires separate runtime verification and closure identities
+  ---
+  duration_ms: 218.589964
+  type: 'test'
+  ...
+# Subtest: project harness rejects branch-only or mismatched runtime identity binding
+ok 33 - project harness rejects branch-only or mismatched runtime identity binding
+  ---
+  duration_ms: 46.923279
+  type: 'test'
+  ...
+# Subtest: project harness resolves the verification identity to the exact checked Git HEAD
+ok 34 - project harness resolves the verification identity to the exact checked Git HEAD
+  ---
+  duration_ms: 78.449882
+  type: 'test'
+  ...
+# Subtest: project harness rejects bound verification when checked bytes differ from HEAD
+ok 35 - project harness rejects bound verification when checked bytes differ from HEAD
+  ---
+  duration_ms: 83.481225
+  type: 'test'
+  ...
+# Subtest: project harness rejects manual acceptance rollups that do not match their items
+ok 36 - project harness rejects manual acceptance rollups that do not match their items
+  ---
+  duration_ms: 41.229456
+  type: 'test'
+  ...
+# Subtest: project harness accepts a truthful manual acceptance matrix with explicit user waiver
+ok 37 - project harness accepts a truthful manual acceptance matrix with explicit user waiver
+  ---
+  duration_ms: 97.267745
+  type: 'test'
+  ...
+# Subtest: project harness rejects an unproven manual acceptance or user waiver
+ok 38 - project harness rejects an unproven manual acceptance or user waiver
+  ---
+  duration_ms: 85.287029
+  type: 'test'
+  ...
+# Subtest: project harness rejects a manual acceptance matrix that omits required items
+ok 39 - project harness rejects a manual acceptance matrix that omits required items
+  ---
+  duration_ms: 40.294173
+  type: 'test'
+  ...
+# Subtest: project harness check returns stable reason codes for invalid packets
+ok 40 - project harness check returns stable reason codes for invalid packets
+  ---
+  duration_ms: 526.22233
+  type: 'test'
+  ...
+# Subtest: project harness check reports invalid JSON with a stable reason code
+ok 41 - project harness check reports invalid JSON with a stable reason code
+  ---
+  duration_ms: 41.67225
+  type: 'test'
+  ...
+# Subtest: project harness check refuses requirement packets outside the repository root
+ok 42 - project harness check refuses requirement packets outside the repository root
+  ---
+  duration_ms: 34.908133
+  type: 'test'
+  ...
+# Subtest: project harness check never executes commands listed in packets
+ok 43 - project harness check never executes commands listed in packets
+  ---
+  duration_ms: 70.321973
+  type: 'test'
+  ...
+# Subtest: project harness check fails when a critical changed file has no owner map hit
+ok 44 - project harness check fails when a critical changed file has no owner map hit
+  ---
+  duration_ms: 67.812854
+  type: 'test'
+  ...
+# Subtest: project harness check fails when a changed project owner domain has no valid fact owner
+ok 45 - project harness check fails when a changed project owner domain has no valid fact owner
+  ---
+  duration_ms: 72.075204
+  type: 'test'
+  ...
+# Subtest: project owner map covers exactly the rebuilt product domains
+ok 46 - project owner map covers exactly the rebuilt product domains
+  ---
+  duration_ms: 1.660159
+  type: 'test'
+  ...
+# Subtest: every owner and characterization path is retained and exists
+ok 47 - every owner and characterization path is retained and exists
+  ---
+  duration_ms: 2.61321
+  type: 'test'
+  ...
+# Subtest: the route owner targets Web Chat, SimC, POE2 and restricted analytics
+ok 48 - the route owner targets Web Chat, SimC, POE2 and restricted analytics
+  ---
+  duration_ms: 0.276904
+  type: 'test'
+  ...
+# Subtest: project state names the approved Web-only QQ dual-game product
+ok 49 - project state names the approved Web-only QQ dual-game product
+  ---
+  duration_ms: 7.875224
+  type: 'test'
+  ...
+# Subtest: project state records the accepted production boundary and completed local/cloud cleanup
+ok 50 - project state records the accepted production boundary and completed local/cloud cleanup
+  ---
+  duration_ms: 1.774189
+  type: 'test'
+  ...
+# Subtest: all execution authorities and refactor evidence are explicit existing files
+ok 51 - all execution authorities and refactor evidence are explicit existing files
+  ---
+  duration_ms: 4.672094
+  type: 'test'
+  ...
+# Subtest: every local link in retained Markdown resolves to another retained path
+ok 52 - every local link in retained Markdown resolves to another retained path
+  ---
+  duration_ms: 24.577891
+  type: 'test'
+  ...
+# Subtest: formal backend runtime has no prototype owner, route, dependency, or setting
+ok 53 - formal backend runtime has no prototype owner, route, dependency, or setting
+  ---
+  duration_ms: 2.067927
+  type: 'test'
+  ...
+# Subtest: formal typed clients export only real identity, Chat, and SimC contracts
+ok 54 - formal typed clients export only real identity, Chat, and SimC contracts
+  ---
+  duration_ms: 1.315909
+  type: 'test'
+  ...
+# Subtest: Chickenbro service definitions contain no prototype bypass configuration
+ok 55 - Chickenbro service definitions contain no prototype bypass configuration
+  ---
+  duration_ms: 0.452909
+  type: 'test'
+  ...
+# Subtest: the retained app shell has no legacy design asset runtime
+ok 56 - the retained app shell has no legacy design asset runtime
+  ---
+  duration_ms: 15.946232
+  type: 'test'
+  ...
+# Subtest: the H5 manifest exposes one inert Web entry and no Mini product pages
+ok 57 - the H5 manifest exposes one inert Web entry and no Mini product pages
+  ---
+  duration_ms: 0.518371
+  type: 'test'
+  ...
+# Subtest: the retained build control plane has no legacy UI or news compatibility hooks
+ok 58 - the retained build control plane has no legacy UI or news compatibility hooks
+  ---
+  duration_ms: 0.447141
+  type: 'test'
+  ...
+# Subtest: the shared API client creates only transport, Chat, SimC and Web auth
+ok 59 - the shared API client creates only transport, Chat, SimC and Web auth
+  ---
+  duration_ms: 0.61265
+  type: 'test'
+  ...
+# Subtest: the retained transport has no legacy endpoint registry, bearer token or analytics path
+ok 60 - the retained transport has no legacy endpoint registry, bearer token or analytics path
+  ---
+  duration_ms: 0.385514
+  type: 'test'
+  ...
+# Subtest: the public domain barrel exposes only Chat, SimC and real Web identity
+ok 61 - the public domain barrel exposes only Chat, SimC and real Web identity
+  ---
+  duration_ms: 0.355231
+  type: 'test'
+  ...
+# Subtest: the root workspace and CI expose only retained product workflows
+ok 62 - the root workspace and CI expose only retained product workflows
+  ---
+  duration_ms: 8.20883
+  type: 'test'
+  ...
+# Subtest: Mini source, provider and platform build dependencies remain absent
+ok 63 - Mini source, provider and platform build dependencies remain absent
+  ---
+  duration_ms: 7.998274
+  type: 'test'
+  ...
+1..63
+# tests 63
+# suites 0
+# pass 63
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2445.30406

@@ -2,6 +2,27 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "id": "simc-character-bindings-20261016",
+      "disposition": "keep",
+      "category": "target-product",
+      "owner": "simc",
+      "reason": "Retain authorized manual character input, account shortcuts and isolated cloud verification.",
+      "prefixes": [
+        "artifacts/verification/2026-10-16-simc-characters/"
+      ],
+      "paths": [
+        "tests/app_simc_characters_test.py",
+        "tests/app_simc_characters_postgres_test.py",
+        "tests/simc_characters_candidate_runtime.py",
+        "tests/simc_characters_candidate_browser.cjs",
+        "packages/domain/src/simc-characters.ts",
+        "packages/domain/src/simc-characters.test.ts",
+        "apps/mini-taro/src/web/WebSimcSource.tsx",
+        "server/app/simulation/characters.py",
+        "server/migrations/product/0021_simc_characters.sql"
+      ]
+    },
+    {
       "id": "simc-runtime-release-evidence-20261016",
       "disposition": "keep",
       "category": "current-release-evidence",

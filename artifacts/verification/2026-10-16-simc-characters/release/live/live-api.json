@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "anonymous 401 and missing CSRF 403",
+    "three roles bind and duplicate retains three",
+    "second owner cannot bind source, select or unbind foreign role",
+    "selected role persists on independent HTTP request",
+    "fourth distinct real role rejected with CHARACTER_LIMIT_REACHED",
+    "smoke bindings removed; original empty preference restored"
+  ],
+  "scope": "public production HTTPS; existing dedicated smoke owners; historical own ready snapshots for bind-limit operations; fourth real US source read live; no fabricated profile or owner copy"
+}

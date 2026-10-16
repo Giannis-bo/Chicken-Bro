@@ -1,0 +1,185 @@
+{
+  "passed": true,
+  "checks": [
+    "manual defaults CN and accepts Chinese realm",
+    "real Chinese realm source ready",
+    "binds and selects on account",
+    "desktop has no horizontal overflow",
+    "390px has no horizontal overflow",
+    "reload restores selected bound role without input",
+    "new submission refreshes selected character",
+    "real queue worker positive DPS and matching character snapshot provenance",
+    "B cannot read A roles/jobs or bind A snapshot or select A role",
+    "independent browser restores account selection",
+    "unbind clears selected role and retains simulation history"
+  ],
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/jobs",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/b1104e36-89e5-478b-a81d-8bfbb8899565",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/b1104e36-89e5-478b-a81d-8bfbb8899565",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/b1104e36-89e5-478b-a81d-8bfbb8899565",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/b1104e36-89e5-478b-a81d-8bfbb8899565",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters/74e4e27c-489c-4ef0-a728-8f55addb1b0f/select",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters/74e4e27c-489c-4ef0-a728-8f55addb1b0f/unbind",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "dimensions": {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "height": 900,
+    "scrollHeight": 900
+  },
+  "job": {
+    "id": "b1104e36-89e5-478b-a81d-8bfbb8899565",
+    "character": {
+      "name": "Giannis",
+      "className": "shaman",
+      "specialization": "elemental",
+      "race": "dark_iron_dwarf",
+      "level": 90
+    },
+    "status": "succeeded",
+    "metric": 385073.2749462865,
+    "snapshotId": "9ffb671e-4a63-419a-ac22-e4807d9ecb56",
+    "runtimeRevision": "simc:managed:76f8118cf3f7f41dad20708e8328e1f4ab2deebc:225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b"
+  },
+  "scope": "loopback isolated Candidate; real built Web/API/PostgreSQL/source/queue/SimC; synthetic formal sessions; production and real QQ login not changed"
+}

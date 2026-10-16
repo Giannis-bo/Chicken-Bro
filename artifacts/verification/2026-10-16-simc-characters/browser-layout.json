@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "checks": [
+    "manual defaults CN and accepts Chinese realm",
+    "real Chinese realm source ready",
+    "binds and selects on account",
+    "desktop has no horizontal overflow",
+    "390px has no horizontal overflow and shows binding limit",
+    "1366x768 bound role setup fits one screen"
+  ],
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "dimensions": {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "height": 900,
+    "scrollHeight": 900
+  },
+  "compact": {
+    "height": 768,
+    "scrollHeight": 768
+  },
+  "scope": "Final build layout and binding UI with a copied, previously verified owner-scoped role snapshot. Snapshot reads replay fixed data; no new provider or engine call."
+}

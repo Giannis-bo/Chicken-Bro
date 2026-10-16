@@ -1,0 +1,186 @@
+{
+  "passed": true,
+  "checks": [
+    "manual defaults CN and accepts Chinese realm",
+    "real Chinese realm source ready",
+    "binds and selects on account",
+    "desktop has no horizontal overflow",
+    "390px has no horizontal overflow and shows binding limit",
+    "1366x768 bound role setup fits one screen",
+    "reload restores selected bound role without input",
+    "new submission refreshes selected character",
+    "real queue worker positive DPS and matching character snapshot provenance",
+    "B cannot read A roles/jobs or bind A snapshot or select A role",
+    "independent browser restores account selection",
+    "unbind clears selected role and retains simulation history"
+  ],
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/jobs",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs/a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters/d2d9448c-2ac0-408e-a4c8-b1885e6045b9/select",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/characters/d2d9448c-2ac0-408e-a4c8-b1885e6045b9/unbind",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "dimensions": {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "height": 900,
+    "scrollHeight": 900
+  },
+  "job": {
+    "id": "a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+    "character": {
+      "name": "魔魔糊胡萝卜",
+      "className": "druid",
+      "specialization": "feral",
+      "race": "night_elf",
+      "level": 90
+    },
+    "status": "succeeded",
+    "metric": 318665.2217584144,
+    "snapshotId": "7f71b79f-babe-47de-80ca-63b654f37cf0",
+    "runtimeRevision": "simc:managed:76f8118cf3f7f41dad20708e8328e1f4ab2deebc:225703cc73083e60f318e532ecd18039dce7a2e8e7f1c232c238f9cb76a6946b"
+  },
+  "scope": "public production HTTPS; real built Web/API/PostgreSQL/source/queue/SimC; short-lived formal sessions on existing dedicated smoke owners; real QQ OAuth and user manual acceptance not exercised"
+}

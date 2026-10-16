@@ -10,6 +10,7 @@
 | 对话体验 | 流式回复、研究进展、截图提问、会话切换与回复状态恢复、回答反馈、七种插画主题 |
 | 研究与日志 | 实时搜索、WCL 战斗视图和窗口统计、跨轮研究范围管理、历史证据复用与按需研究流程；[修复同一玩家跨来源重复计额](../artifacts/verification/2026-09-17-research-player-identity/README.md) |
 | 云端模拟 | Raider.IO 角色导入，输出与坦克专精，装备与天赋场景、自定义施法、食物／属性实验及任务对照；[指定阶段初始资源、增益、冷却和短窗口统计](../artifacts/verification/2026-09-20-phase-state-release/README.md) |
+| 角色来源与绑定 | Raider.IO 链接或手动名称／服务器／地区（默认国服）；账号最多绑定 3 个角色并恢复当前选择，提交前更新资料；[正式发布与验证](../artifacts/verification/2026-10-16-simc-characters/README.md) |
 | 连续实验 | Chat 单轮与跨轮 SimC 任务不限次数，保留任务历史、幂等与账号隔离 |
 | 引擎与目录 | SimulationCraft 已升级游戏构建 `12.1.5.70391`，匹配天赋、装备和中文目录，并修复多线程动作采样缺失；[升级与验证](../artifacts/verification/2026-10-16-simc-update/repair/README.md) |
 | POE2 构筑与对话 | 独立游戏会话；PoB 字符串导入即展示角色、属性、技能搭配和中文天赋树；两步对比、构筑 ID 复制和列表删除；[正式发布证据](../artifacts/releases/2026-09-21-poe2/README.md) |

@@ -1,0 +1,22 @@
+{
+  "host": "wow-lighthouse",
+  "runtimeTestsLocal": false,
+  "cloudBackendTests": 95,
+  "cloudFrontendApiDomainTests": 60,
+  "cloudPostgresTests": 3,
+  "controlTests": 63,
+  "releaseFaultTests": 3,
+  "typecheck": "passed",
+  "lint": "passed",
+  "h5Build": "passed_with_existing_size_warnings",
+  "independentCodeReview": "all_valid_findings_fixed_and_reviewed",
+  "liveWebApiWorkerSimcBusiness": "passed",
+  "liveBindingLimitAndOwnerIsolation": "passed",
+  "manualUserAcceptance": false,
+  "realQqOAuthExercised": false,
+  "productionRollbackDrill": false,
+  "temporarySessionsRevoked": 2,
+  "temporarySmokeBindingsRestoredEmpty": true,
+  "independentRecoveryTables": 25,
+  "transportMetadata": "75 AppleDouble archive entries moved to independent quarantine before final control/typecheck/lint; none in deployed inventory"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "8894f8ef-3d6c-415b-af71-2d605bee026c",
+  "character": {
+    "name": "Fusionbolt",
+    "className": "shaman",
+    "specialization": "elemental",
+    "race": "dwarf",
+    "level": null
+  },
+  "provider": "raiderio",
+  "sourceUrl": "https://raider.io/characters/cn/alar/Fusionbolt",
+  "sourceKey": "cn|alar|Fusionbolt",
+  "revision": 2,
+  "readiness": "INCOMPLETE_FOR_SIMC",
+  "missingFields": [
+    "character.level"
+  ],
+  "blockers": [
+    "CHARACTER_LEVEL_MISSING"
+  ],
+  "fetchedAt": "2026-10-16T07:37:29.098361+00:00",
+  "provenance": {
+    "sourceRevision": "2026-10-16T01:14:13.000Z",
+    "sourceRawSha256": "e1b1eea8226ea4c4884adbfcbd704a01667c1d8c14c9efd09cd71d6f1f16ee76"
+  }
+}

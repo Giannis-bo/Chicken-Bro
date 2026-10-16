@@ -1,0 +1,76 @@
+{
+  "passed": true,
+  "releaseId": "fc393359efea1d13fc35ccd53a6b19fe2ace938a6d553e3788c7f4ce341a194f",
+  "manifestSha256": "3b8b2f5fc85fc8cefbc0992ecf033aff199e783701d501953c4134dc77a07fe8",
+  "publicOrigin": "https://www.chickenbro.cloud",
+  "publicAssetsMatched": [
+    "index.html",
+    "js/app.js",
+    "js/app.js.LICENSE.txt",
+    "js/31.js.LICENSE.txt",
+    "js/31.js",
+    "brand/gugu-v1.ico",
+    "brand/gugu-v1-32.png",
+    "brand/gugu-v1-16.png",
+    "css/699.css",
+    "css/app.css",
+    "chunk/699.js",
+    "chunk/672.js",
+    "chunk/672.js.LICENSE.txt",
+    "chunk/173.js",
+    "static/images/web/assets/gu-gu-mascot.png"
+  ],
+  "simcEntryMatched": true,
+  "effectiveConfigurationMatched": true,
+  "backendInventoryMatched": true,
+  "workerApiCwdMatched": true,
+  "enginePathUnchanged": "/opt/wow-simc/releases/76f8118cf3f7f41dad20708e8328e1f4ab2deebc",
+  "healthThreshold": {
+    "samples": 10,
+    "maxSeconds": 2,
+    "intervalSeconds": 5
+  },
+  "healthSamples": [
+    {
+      "status": "ready",
+      "seconds": 0.021
+    },
+    {
+      "status": "ready",
+      "seconds": 0.019
+    },
+    {
+      "status": "ready",
+      "seconds": 0.019
+    },
+    {
+      "status": "ready",
+      "seconds": 0.021
+    },
+    {
+      "status": "ready",
+      "seconds": 0.021
+    },
+    {
+      "status": "ready",
+      "seconds": 0.018
+    },
+    {
+      "status": "ready",
+      "seconds": 0.027
+    },
+    {
+      "status": "ready",
+      "seconds": 0.021
+    },
+    {
+      "status": "ready",
+      "seconds": 0.018
+    },
+    {
+      "status": "ready",
+      "seconds": 0.023
+    }
+  ],
+  "serviceErrorEntries": 0
+}

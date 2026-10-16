@@ -87,6 +87,11 @@ function success<T>(payload: T): ApiResult<T> {
 }
 
 class FakeSimcClient implements SimcClient {
+  async listCharacters() { return success({ items: [], selectedId: null }) }
+  async bindCharacter() { return success({ items: [], selectedId: null }) }
+  async selectCharacter() { return success({ items: [], selectedId: null }) }
+  async unbindCharacter() { return success({ items: [], selectedId: null }) }
+
   async getRuntime(): Promise<never> { throw new Error('not used by model') }
   readonly calls: Array<{ name: string; auth: ClientAuthContext }> = []
   readonly submitKeys: string[] = []

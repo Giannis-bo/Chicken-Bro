@@ -252,6 +252,8 @@ class SimulationApplication:
         self._compiler = compiler
         self._runtime_capabilities = runtime_capabilities
         self._clock = clock or (lambda: datetime.now(timezone.utc))
+        from server.app.simulation.characters import CharacterBindings
+        self.characters = CharacterBindings(repository)
 
     def resolve_source(self, principal: Principal, source_url: str) -> SourceSnapshot:
         try:

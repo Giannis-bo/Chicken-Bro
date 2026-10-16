@@ -5,6 +5,9 @@ import {
   isValidIdempotencyKey,
   isSimulationScenario,
   isSimulationRuntimeView,
+  isCharacterCollection,
+  type CharacterInput,
+  type CharacterCollection,
   type SimulationRuntimeView,
   type SimulationScenario,
   type SimulationJobDetail,
@@ -27,9 +30,7 @@ export interface SimcJobMutationOptions extends SimcRequestOptions {
   idempotencyKey: string
 }
 
-export interface SourceSnapshotCreateRequest {
-  sourceUrl: string
-}
+export type SourceSnapshotCreateRequest = { sourceUrl: string } | { character: CharacterInput }
 
 export interface SimulationJobListRequest {
   cursor?: string
@@ -44,6 +45,10 @@ export interface SimulationJobCreateRequest {
 }
 
 export interface SimcClient {
+  listCharacters(options: SimcRequestOptions): Promise<ApiResult<CharacterCollection>>
+  bindCharacter(snapshotId: string, options: SimcRequestOptions): Promise<ApiResult<CharacterCollection>>
+  selectCharacter(characterId: string, options: SimcRequestOptions): Promise<ApiResult<CharacterCollection>>
+  unbindCharacter(characterId: string, options: SimcRequestOptions): Promise<ApiResult<CharacterCollection>>
   getRuntime(options: SimcRequestOptions): Promise<ApiResult<SimulationRuntimeView>>
   createSnapshot(
     request: SourceSnapshotCreateRequest,
@@ -156,6 +161,26 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
   }
 
   return {
+    listCharacters(options) {
+      return request(apiV2Path('/simc/characters'), undefined, options, {
+        mutating: false, fallback: () => ({ items: [], selectedId: null }), validate: isCharacterCollection,
+      })
+    },
+    bindCharacter(snapshotId, options) {
+      return request(apiV2Path('/simc/characters'), { snapshotId: boundedIdentifier(snapshotId, 'snapshot id') }, options, {
+        method: 'POST', mutating: true, fallback: () => ({ items: [], selectedId: null }), validate: isCharacterCollection,
+      })
+    },
+    selectCharacter(characterId, options) {
+      return request(apiV2Path(`/simc/characters/${encodeURIComponent(boundedIdentifier(characterId, 'character id'))}/select`), undefined, options, {
+        method: 'POST', mutating: true, fallback: () => ({ items: [], selectedId: null }), validate: isCharacterCollection,
+      })
+    },
+    unbindCharacter(characterId, options) {
+      return request(apiV2Path(`/simc/characters/${encodeURIComponent(boundedIdentifier(characterId, 'character id'))}/unbind`), undefined, options, {
+        method: 'POST', mutating: true, fallback: () => ({ items: [], selectedId: null }), validate: isCharacterCollection,
+      })
+    },
     getRuntime(options) {
       return request(apiV2Path('/simc/runtime'), undefined, options, {
         mutating: false,
@@ -166,7 +191,7 @@ export function createSimcClient(transport: ApiTransport): SimcClient {
     createSnapshot(createRequest, options) {
       return request(
         apiV2Path('/simc/snapshots'),
-        { sourceUrl: sourceUrl(createRequest.sourceUrl) },
+        'sourceUrl' in createRequest ? { sourceUrl: sourceUrl(createRequest.sourceUrl) } : { character: { ...createRequest.character } },
         options,
         {
           method: 'POST',

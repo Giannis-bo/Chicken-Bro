@@ -1,0 +1,8 @@
+{
+  "action": "promote",
+  "sourceBaseCommit": "289e0531d8c5916cf8d2b69b98428cfab879079a",
+  "releaseId": "fc393359efea1d13fc35ccd53a6b19fe2ace938a6d553e3788c7f4ce341a194f",
+  "backend": "/opt/chickenbro-releases/simc-characters-20261016-fc393359efea1d13",
+  "web": "/var/www/chickenbro-web/releases/simc-characters-20261016-fc393359efea1d13",
+  "businessSmoke": "required"
+}

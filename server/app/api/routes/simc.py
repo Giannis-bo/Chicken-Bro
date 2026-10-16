@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from server.app.api.dependencies import (
     require_mutating_principal,
@@ -27,10 +27,29 @@ router = APIRouter(prefix="/api/v2/simc")
 _SAFE_CODE = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
 
 
+class CharacterInputBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=64)
+    realm: str = Field(min_length=1, max_length=128)
+    region: str = Field(default="cn", min_length=2, max_length=2)
+
+
 class SourceSnapshotCreateBody(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
-    source_url: str = Field(alias="sourceUrl", min_length=1, max_length=2048)
+    source_url: str | None = Field(default=None, alias="sourceUrl", min_length=1, max_length=2048)
+    character: CharacterInputBody | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_source(self):
+        if (self.source_url is None) == (self.character is None):
+            raise ValueError("provide a character link or character fields")
+        return self
+
+
+class CharacterBindBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    snapshotId: UUID
 
 
 class SimulationCreateBody(BaseModel):
@@ -157,6 +176,10 @@ def _job_detail(view: SimulationJobView, workbench: bool = False, localized: boo
 def _raise_simulation_error(error: SimulationApplicationError) -> None:
     status_code = {
         "INVALID_LINK": 422,
+        "INVALID_CHARACTER": 422,
+        "CHARACTER_UNAVAILABLE": 409,
+        "CHARACTER_LIMIT_REACHED": 409,
+        "CHARACTER_NOT_BOUND": 404,
         "INVALID_CURSOR": 422,
         "SIMULATION_NOT_FOUND": 404,
         "SNAPSHOT_NOT_FOUND": 404,
@@ -190,7 +213,55 @@ def create_snapshot(
     application: SimulationApplication = Depends(simulation_application),
 ) -> dict[str, object]:
     try:
-        return _snapshot_payload(application.resolve_source(principal, body.source_url), view == "workbench")
+        from server.app.simulation.characters import character_source_url
+        source = body.source_url if body.source_url is not None else character_source_url(
+            body.character.name, body.character.realm, body.character.region)
+        return _snapshot_payload(application.resolve_source(principal, source), view == "workbench")
+    except SimulationApplicationError as error:
+        _raise_simulation_error(error)
+
+
+@router.get("/characters")
+def list_characters(
+    principal: Principal = Depends(require_principal),
+    application: SimulationApplication = Depends(simulation_application),
+) -> dict[str, object]:
+    return application.characters.read(principal)
+
+
+@router.post("/characters")
+def bind_character(
+    body: CharacterBindBody,
+    principal: Principal = Depends(require_mutating_principal),
+    application: SimulationApplication = Depends(simulation_application),
+) -> dict[str, object]:
+    try:
+        snapshot = application.read_snapshot(principal, body.snapshotId)
+        return application.characters.bind(principal, snapshot)
+    except SimulationApplicationError as error:
+        _raise_simulation_error(error)
+
+
+@router.post("/characters/{character_id}/select")
+def select_character(
+    character_id: UUID,
+    principal: Principal = Depends(require_mutating_principal),
+    application: SimulationApplication = Depends(simulation_application),
+) -> dict[str, object]:
+    try:
+        return application.characters.change(principal, character_id)
+    except SimulationApplicationError as error:
+        _raise_simulation_error(error)
+
+
+@router.post("/characters/{character_id}/unbind")
+def unbind_character(
+    character_id: UUID,
+    principal: Principal = Depends(require_mutating_principal),
+    application: SimulationApplication = Depends(simulation_application),
+) -> dict[str, object]:
+    try:
+        return application.characters.change(principal, character_id, unbind=True)
     except SimulationApplicationError as error:
         _raise_simulation_error(error)
 

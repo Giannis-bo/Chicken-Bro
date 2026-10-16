@@ -1,0 +1,31 @@
+{
+  "tables": {
+    "chat.agent_runs": 668,
+    "chat.conversations": 226,
+    "chat.executions": 647,
+    "chat.images": 58,
+    "chat.messages": 1304,
+    "chat.research_runs": 493,
+    "chat.research_sessions": 133,
+    "chat.tool_results": 2733,
+    "identity.auth_sessions": 275,
+    "identity.qq_login_attempts": 185,
+    "identity.user_identities": 97,
+    "identity.users": 111,
+    "identity.web_login_sessions": 46,
+    "ops.audit_events": 11171,
+    "ops.job_queue": 135,
+    "ops.schema_migrations": 15,
+    "ops.usage_counters": 0,
+    "poe2.builds": 3,
+    "poe2.character_import_actions": 0,
+    "poe2.character_imports": 0,
+    "poe2.jobs": 4,
+    "simc.simulation_attempts": 155,
+    "simc.simulation_jobs": 135,
+    "simc.simulation_results": 121,
+    "simc.source_snapshots": 68
+  },
+  "dumpSha256": "40ef749da3b83f573c7b5b0d97dc6342d26f70fe2ae1e3654f195b172a910373",
+  "countsSource": "immutable exported pg_dump COPY records"
+}

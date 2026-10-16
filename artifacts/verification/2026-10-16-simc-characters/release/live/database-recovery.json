@@ -1,0 +1,15 @@
+{
+  "restoredTables": 25,
+  "restoreCountsMatched": true,
+  "database": "chickenbro_simc_characters_recovery_verified_20261016",
+  "dumpSha256": "40ef749da3b83f573c7b5b0d97dc6342d26f70fe2ae1e3654f195b172a910373",
+  "newMigrationVerified": true,
+  "runtimeRoleChecks": {
+    "runtimeRoleBindingReadUnbind": true,
+    "secondOwnerIsolated": true
+  },
+  "recoveryBackendCopyVerified": true,
+  "recoveryWebCopyVerified": true,
+  "productionDataOverwritten": false,
+  "productionRollbackDrill": false
+}

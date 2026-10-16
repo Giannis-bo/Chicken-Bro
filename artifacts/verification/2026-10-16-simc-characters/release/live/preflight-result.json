@@ -1,0 +1,13 @@
+{
+  "action": "preflight",
+  "active": {
+    "chat": 0,
+    "executions": 0,
+    "simc": 0,
+    "queue": 0,
+    "poe2": 0,
+    "poe2_imports": 0
+  },
+  "sourceBaseCommit": "289e0531d8c5916cf8d2b69b98428cfab879079a",
+  "releaseId": "fc393359efea1d13fc35ccd53a6b19fe2ace938a6d553e3788c7f4ce341a194f"
+}

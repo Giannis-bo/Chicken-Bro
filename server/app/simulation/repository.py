@@ -35,6 +35,34 @@ class PostgresSimulationRepository:
     def __init__(self, connection_factory: Callable[[], Any]):
         self._connection_factory = connection_factory
 
+    @staticmethod
+    def _characters(cursor, user_id):
+        cursor.execute("SELECT preferences FROM simc.character_preferences WHERE user_id = %s", (user_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return {"items": [], "selectedId": None}
+        value = _row_value(row, "preferences", 0)
+        return json.loads(value) if isinstance(value, str) else value
+
+    def read_characters(self, user_id):
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                return self._characters(cursor, user_id)
+
+    def mutate_characters(self, user_id, operation):
+        with self._connection_factory() as connection:
+            with connection.cursor() as cursor:
+                # Serializes first insertion as well as concurrent binds/selects/unbinds.
+                cursor.execute("SELECT id FROM identity.users WHERE id = %s FOR UPDATE", (user_id,))
+                if cursor.fetchone() is None:
+                    raise RuntimeError("character owner disappeared")
+                state = operation(self._characters(cursor, user_id))
+                cursor.execute("""
+                    INSERT INTO simc.character_preferences (user_id, preferences) VALUES (%s, %s::jsonb)
+                    ON CONFLICT (user_id) DO UPDATE SET preferences = EXCLUDED.preferences
+                """, (user_id, _json_value(state)))
+                return state
+
     def save_snapshot_with_next_revision(self, snapshot: SourceSnapshot) -> SourceSnapshot:
         """Serialize per-owner revision allocation and immutable snapshot insertion."""
         with self._connection_factory() as connection:

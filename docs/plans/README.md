@@ -16,6 +16,7 @@
 
 | 能力 | 设计与交付记录 |
 | --- | --- |
+| Web SimC 手动角色输入、账号最多 3 个绑定与选择记忆；正式站验证通过 | [发布与验证](../../artifacts/verification/2026-10-16-simc-characters/README.md) |
 | QQ「炸鸡」陪伴角色；@、主动文字／表情、按需引用已验收 | [角色设计](2026-09-23-qq-companion-design.md)、[交付记录](../../artifacts/verification/2026-09-23-qq-companion/closure/README.md) |
 | POE2 正式发布 | [发布记录](../../artifacts/releases/2026-09-21-poe2/README.md)、[首版计划](2026-09-18-poe2-dual-module.md)、[进度](2026-09-18-poe2-progress.md) |
 | POE2 构筑与中文展示 | [字符串入口](2026-09-20-poe2-pob-only.md)、[天赋树](2026-09-20-poe2-passive-tree.md)、[两步流程](2026-09-21-poe2-two-step-cn.md)、[简体术语](2026-09-20-poe2-cn-terms.md) |

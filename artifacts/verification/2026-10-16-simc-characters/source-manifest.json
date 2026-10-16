@@ -1,0 +1,162 @@
+{
+  "baseCommit": "289e0531d8c5916cf8d2b69b98428cfab879079a",
+  "branch": "codex/simc-character-bindings",
+  "uncommittedAtBuild": true,
+  "files": [
+    {
+      "path": "apps/mini-taro/src/features/simc/simc-model.test.ts",
+      "size": 15630,
+      "sha256": "747c0e3ea636271751c477986b682a6cbc004a7cb907d7e1e2a7c605a8d29e8a"
+    },
+    {
+      "path": "apps/mini-taro/src/features/simc/simc-model.ts",
+      "size": 16550,
+      "sha256": "85c7e4aa528c9daff60e13958e0c7c22875c8c7e8936066220a36ccf75b08ff7"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebSimc.module.scss",
+      "size": 22644,
+      "sha256": "df09e41d227f5f81bee91e13a4c37ce21360a3d8fb1b660f8bfb32c0494f8127"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebSimcSource.tsx",
+      "size": 11802,
+      "sha256": "cec801f1de2fc04ac0144cd89298c044887a7061fedb55cb6642c76d5cd08602"
+    },
+    {
+      "path": "apps/mini-taro/src/web/WebSimcView.tsx",
+      "size": 17469,
+      "sha256": "ce8037128498ce1bf0febf844250cad75f7ec1c2e284dae61acb0e7950819f41"
+    },
+    {
+      "path": "apps/mini-taro/src/web/web-simc-workbench.test.tsx",
+      "size": 29050,
+      "sha256": "53e3b52a7501c5492cb78f9e335eb6e236bc59372086b813c6a9806fcd3e08c4"
+    },
+    {
+      "path": "docs/backend-owner-map.json",
+      "size": 5612,
+      "sha256": "066fd257977fc6bdd5a168ba6d9577daf5ebc22cad52e4392832a8fe6ececfea"
+    },
+    {
+      "path": "docs/chickenbro-simc-architecture.md",
+      "size": 15035,
+      "sha256": "05135b0cb06c0904a50afcd553762a4fe567a88888dadcbdc7701bd049628a41"
+    },
+    {
+      "path": "docs/plans/README.md",
+      "size": 3173,
+      "sha256": "48b432a6ede669b605ac252c40ce208395f9469a18f95417bda9898e035c757f"
+    },
+    {
+      "path": "docs/project-owner-map.json",
+      "size": 10120,
+      "sha256": "ffdde6d0d149fab69c8ffc6914050fdbf2c89e1067d1003e3aa7054012c0ad70"
+    },
+    {
+      "path": "docs/project-state.json",
+      "size": 54476,
+      "sha256": "d830424c9b09ae5c113d4e83cba5717c2d51c238cf4b8f60038a950e951236ad"
+    },
+    {
+      "path": "docs/refactor/chickenbro-simc-disposition-rules.json",
+      "size": 67105,
+      "sha256": "c7e76766bd4d9b0f5eaba3dbd328ef7c2dc319c977e3e3adbfb89ea8256fc9e3"
+    },
+    {
+      "path": "docs/roadmap.md",
+      "size": 4180,
+      "sha256": "4812911cf727ae6b89e4196ac36f1a36a153edaa8314d4318e8c1af4febd3b41"
+    },
+    {
+      "path": "docs/verification-matrix.md",
+      "size": 6712,
+      "sha256": "0dce89a563f42d9b87df14aa898734c9d2bf615b645066982052c1cc4c849c90"
+    },
+    {
+      "path": "package.json",
+      "size": 5409,
+      "sha256": "30409f12a32c73049b89fecf3e7f6a954c4562ff63d9630b5205f4ef7f30806e"
+    },
+    {
+      "path": "packages/api-client/src/simc.test.ts",
+      "size": 7254,
+      "sha256": "a32c4087396529c96322e20203ce4ff104bcdec2f07ec96dd76bb49f000ab221"
+    },
+    {
+      "path": "packages/api-client/src/simc.ts",
+      "size": 8936,
+      "sha256": "9dcb6206214f2a66b0ea5bfe6896d834ee78098fd01aa9c3a4bc3413cdf07c31"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "size": 1314,
+      "sha256": "5ae18eba1a6e9b9466f9209de22a8d9634249d0c355652d6d2a929ef0648855f"
+    },
+    {
+      "path": "packages/domain/src/simc-characters.test.ts",
+      "size": 1231,
+      "sha256": "450c9a4d03b73c8433102c0b1ea1598845be3cb503f144a48d7aefd0d8712210"
+    },
+    {
+      "path": "packages/domain/src/simc-characters.ts",
+      "size": 1779,
+      "sha256": "57a694b0bc538ee9f89433217c296e853319a4652be346875fdc01def448d63e"
+    },
+    {
+      "path": "server/app/api/routes/simc.py",
+      "size": 13347,
+      "sha256": "b8d1ce4e24d8c806379613ea2a52074ead1c6a1d5244c22387d538fce0e28d08"
+    },
+    {
+      "path": "server/app/simulation/application.py",
+      "size": 19690,
+      "sha256": "c0a545a4ad4b4a3c8e0734b7919dc1e43fcaa0240a1ca81c1b6c6a581f3e0b51"
+    },
+    {
+      "path": "server/app/simulation/characters.py",
+      "size": 3698,
+      "sha256": "864a2e563a52b50f6fbde9ef8e4d24c48a124ff6d58a39a410dd3e3fc56d02cb"
+    },
+    {
+      "path": "server/app/simulation/repository.py",
+      "size": 29626,
+      "sha256": "3fd2adc82f727c1bf1e4c6ebbaa074a26e4c04f4b26d8e8155448827d42ccd5d"
+    },
+    {
+      "path": "server/app/simulation/sources.py",
+      "size": 38535,
+      "sha256": "08977efb967980bb89f8cf98ac4d61b5f2dcb31835d2b945f82281d28ce00c63"
+    },
+    {
+      "path": "server/migrations/product/0021_simc_characters.sql",
+      "size": 382,
+      "sha256": "8122d73f3dddd5f973f2d06a7b8a9a52a1a44fc03ad70725d77f3068866a808a"
+    },
+    {
+      "path": "tests/app_simc_characters_postgres_test.py",
+      "size": 5335,
+      "sha256": "589e9d403763493c2f1967ff5b1bbfcfae74c6b9f00420360581b294bf5fd9f5"
+    },
+    {
+      "path": "tests/app_simc_characters_test.py",
+      "size": 5339,
+      "sha256": "4cd926bae43555caf4db4724d29616ac74944661c5b7b329ad317b273e4d068a"
+    },
+    {
+      "path": "tests/app_simulation_sources_test.py",
+      "size": 36533,
+      "sha256": "10b2a31f09e3ee3e8520c6258c3eec61962bf17db9fb30bd0fc2729116536d0e"
+    },
+    {
+      "path": "tests/simc_characters_candidate_browser.cjs",
+      "size": 11319,
+      "sha256": "5ebba1a321bc4fb1c36e6c54b6d4799a76bbce9cf4c2ad35daba80735aa2c68f"
+    },
+    {
+      "path": "tests/simc_characters_candidate_runtime.py",
+      "size": 2660,
+      "sha256": "fe9ec279cec23d7391ab459d588c4f3d031e442bbef91e2dc0029d7a4352fb9b"
+    }
+  ]
+}

@@ -80,6 +80,25 @@ class SimulationSourcesTest(unittest.TestCase):
         official = BlizzardProfileEnricher(gateway, token_provider=lambda: "")
         return gateway, official, primary, details, report, identity
 
+    def test_manual_chinese_realm_uses_upstream_canonical_identity_for_detail_enrichment(self):
+        gateway, official, primary, _, _, _ = self._giannis_gateway()
+        primary['profile_url'] = 'https://raider.io/characters/cn/silver-hand/Giannis'
+        candidate = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(
+            parse_character_source_url('https://raider.io/characters/cn/白银之手/Giannis'))
+        self.assertEqual(candidate.source_key, 'cn|silver-hand|Giannis')
+        self.assertEqual(candidate.source_url, 'https://raider.io/characters/cn/silver-hand/Giannis')
+        self.assertEqual(candidate.snapshot['character'].get('level'), 90)
+
+    def test_unrelated_upstream_profile_url_cannot_change_requested_character(self):
+        for url in ('https://evil.invalid/characters/cn/silver-hand/Giannis',
+                    'https://raider.io/characters/cn/silver-hand/Other',
+                    'https://raider.io/characters/us/silver-hand/Giannis'):
+            gateway, official, primary, _, _, _ = self._giannis_gateway()
+            primary['profile_url'] = url
+            candidate = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(
+                parse_character_source_url('https://raider.io/characters/cn/silver-hand/Giannis'))
+            self.assertEqual(candidate.source_key, 'cn|silver-hand|Giannis')
+
     def test_giannis_cn_profile_gets_explicit_level_from_verified_character_details(self):
         gateway, official, primary, details, _, _ = self._giannis_gateway()
         candidate = RaiderIOCharacterAdapter(gateway, official_enricher=official).resolve(

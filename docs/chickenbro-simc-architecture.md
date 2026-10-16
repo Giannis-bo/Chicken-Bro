@@ -66,6 +66,8 @@ WCL 参数在预留上游工作前校验；统计保留窗口、过滤、层级�
 
 `server/app/simulation` 拥有 Raider.IO 快照、预检、compiler、任务、attempt 和结果；`server/app/worker` 负责 PostgreSQL 队列 claim、lease、心跳和 dispatch。引擎仅在云端运行，成功须有正业务指标与完整来源。输出/坦克支持由运行配置和 readiness 控制，治疗拒绝；WCL 用于研究和历史天赋恢复，不用于新角色导入。
 
+Web 角色来源支持 Raider.IO 链接，或名称、服务器、地区三项输入（默认国服）。中文服务器名通过上游返回的标准角色链接继续读取资料。`simc.character_preferences` 按登录 owner 保存最多 3 个角色和当前选择；绑定去重、选择与解绑通过用户行锁串行化，解绑保留快照和任务。再次进入恢复所选角色；每次新模拟提交前刷新资料，网络失败后的同一次提交重试保留原快照与幂等键。临时输入、切换和解绑立即使旧快照失效，迟到响应不得恢复旧角色。
+
 任务及对照保留原始快照。`preview_simulation` 执行只读编译预检，`query_simulation_options` 提供引擎绑定选项，`compare_simulation_jobs` 核对同快照、引擎/compiler 与控制参数后计算差异及保守误差。天赋覆盖校验节点、点数门槛和英雄树；连续编辑保留已有有效配置，未覆盖资料拒绝执行。候选装备的假设版本须明示，制造/特殊版本不能从装等推定。
 
 `scenario.actionLists` 为完整自定义 APL：default 必填，子列表有界；省略沿用，提供则整组替换。拒绝换行、路径/顶层选项注入及缺失/递归引用。预检仅证明可编译，云端校验实际语义；结果核对有效装备、天赋，并以 profile hash 绑定最多 512 条动作样本。APL 是优先级，样本与包装动作不能证明内部施放顺序。Web 通过 scenarioVersion=4 接收新字段，旧请求保留既有合同；实际 compiler 版本按运行核对。

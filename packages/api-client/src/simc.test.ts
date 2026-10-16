@@ -21,6 +21,22 @@ class RecordingTransport implements ApiTransport {
 
 
 describe('formal SimC client', () => {
+  it('sends manual fields and account-scoped character mutations through the authenticated transport', async () => {
+    const transport = new RecordingTransport()
+    const client = createSimcClient(transport)
+    const options = { auth: { kind: 'web' as const, csrfToken: 'csrf' } }
+    await client.createSnapshot({ character: { name: '炸鸡', realm: '白银之手' } }, options)
+    await client.listCharacters(options)
+    await client.bindCharacter('snapshot-one', options)
+    await client.selectCharacter('bound-one', options)
+    await client.unbindCharacter('bound-one', options)
+    expect(transport.requests.map(row => row.path)).toEqual(['/api/v2/simc/snapshots', '/api/v2/simc/characters', '/api/v2/simc/characters', '/api/v2/simc/characters/bound-one/select', '/api/v2/simc/characters/bound-one/unbind'])
+    expect(transport.requests[0]?.options.data).toEqual({ character: { name: '炸鸡', realm: '白银之手' } })
+    expect(transport.requests[2]?.options.data).toEqual({ snapshotId: 'snapshot-one' })
+    expect(transport.requests.filter(row => row.path !== '/api/v2/simc/characters' || row.options.data).every(row => row.options.method === 'POST')).toBe(true)
+    expect(transport.requests.every(row => row.options.auth === options.auth)).toBe(true)
+  })
+
   it('opts into the same zhCN report for Web sessions without putting ownership in the URL', async () => {
     const transport = new RecordingTransport()
     const client = createSimcClient(transport)

@@ -3,7 +3,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ listJobs: vi.fn(), getJob: vi.fn(), createJob: vi.fn(), createSnapshot: vi.fn(), getRuntime: vi.fn() }))
+const api = vi.hoisted(() => ({ listJobs: vi.fn(), getJob: vi.fn(), createJob: vi.fn(), createSnapshot: vi.fn(), getRuntime: vi.fn(), listCharacters: vi.fn(), bindCharacter: vi.fn(), selectCharacter: vi.fn(), unbindCharacter: vi.fn() }))
 vi.mock('@wow-mini/api-client', () => ({ wowApi: { simc: api } }))
 vi.mock('@tarojs/components', async () => {
   const { createElement: element } = await import('react')
@@ -39,7 +39,7 @@ const job = {
     runtimeRevision: 'runtime-old', compilerRevision: 'compiler-v2', createdAt: '2026-09-06T04:31:00Z',
     provenance: { scenarioHash: 'b'.repeat(64) }, report },
 }
-const snapshot = { id: 'snapshot', readiness: 'READY_FOR_SIMC', character: actor, provider: 'raiderio',
+const snapshot = { id: 'snapshot', sourceUrl: 'https://raider.io/characters/cn/silver-hand/Giannis', sourceKey: 'cn|silver-hand|Giannis', readiness: 'READY_FOR_SIMC', character: actor, provider: 'raiderio',
   revision: 1, missingFields: [], blockers: [], provenance: { sourceRevision: 'source-one' } }
 
 describe('Web SimC workbench', () => {
@@ -48,6 +48,7 @@ describe('Web SimC workbench', () => {
   beforeEach(async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
     vi.clearAllMocks()
+    api.listCharacters.mockResolvedValue(success({ items: [], selectedId: null }))
     api.listJobs.mockResolvedValue(success({ items: [job], nextCursor: null }))
     api.getJob.mockResolvedValue(success(job))
     api.createJob.mockResolvedValue(success(job))
@@ -84,6 +85,97 @@ describe('Web SimC workbench', () => {
     await click('模拟任务')
     await act(async () => container.querySelector<HTMLButtonElement>('[data-job-id="job-completed"]')!.click())
   }
+
+  it('supports manual character fields with China selected by default', async () => {
+    await click('手动输入')
+    expect(container.querySelector<HTMLSelectElement>('[name="characterRegion"]')?.value).toBe('cn')
+    await input('characterName', '炸鸡')
+    await input('characterRealm', '白银之手')
+    await click('读取角色')
+    expect(api.createSnapshot.mock.calls[0]?.[0]).toEqual({ character: { name: '炸鸡', realm: '白银之手', region: 'cn' } })
+    expect(button('开始模拟').disabled).toBe(false)
+    await input('characterName', '另一个角色')
+    expect(button('开始模拟').disabled).toBe(true)
+  })
+
+  it('binds a read character and restores the selected character after remount', async () => {
+    const bound = { id: 'bound-one', name: '测试萨满', realm: 'Silver Hand', region: 'cn', sourceUrl: 'https://raider.io/characters/cn/silver-hand/Giannis' }
+    const collection = { items: [bound], selectedId: bound.id }
+    api.bindCharacter.mockResolvedValue(success(collection))
+    await input('sourceUrl', bound.sourceUrl)
+    await click('读取角色')
+    await click('绑定此角色')
+    expect(api.bindCharacter.mock.calls[0]?.[0]).toBe('snapshot')
+    expect(container.textContent).toContain('已绑定 1/3')
+    api.listCharacters.mockResolvedValue(success(collection))
+    await act(async () => { root.unmount(); root = createRoot(container); root.render(createElement(WebSimcView, { auth: { kind: 'web', csrfToken: 'csrf' } })) })
+    expect(container.querySelector('[data-bound-id="bound-one"]')?.getAttribute('aria-pressed')).toBe('true')
+    expect(api.createSnapshot.mock.lastCall?.[0]).toEqual({ sourceUrl: bound.sourceUrl })
+    expect(button('开始模拟').disabled).toBe(false)
+    api.unbindCharacter.mockResolvedValue(success({ items: [], selectedId: null }))
+    await click('解绑')
+    expect(container.querySelector('[data-bound-id]')).toBeNull()
+    expect(button('开始模拟').disabled).toBe(true)
+  })
+
+  it('clears the previous snapshot while switching and does not submit after a read failure', async () => {
+    const items = [1, 2].map(i => ({ id: `bound-${i}`, name: `角色${i}`, realm: 'Silver Hand', region: 'cn', sourceUrl: `https://raider.io/characters/cn/silver-hand/role${i}` }))
+    api.listCharacters.mockResolvedValue(success({ items, selectedId: items[0]!.id }))
+    await act(async () => { root.unmount(); root = createRoot(container); root.render(createElement(WebSimcView, { auth: { kind: 'web', csrfToken: 'csrf' } })) })
+    expect(button('开始模拟').disabled).toBe(false)
+    api.selectCharacter.mockResolvedValue(success({ items, selectedId: items[1]!.id }))
+    let finish!: (value: unknown) => void
+    api.createSnapshot.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-bound-id="bound-2"]')!.click())
+    expect(button('开始模拟').disabled).toBe(true)
+    await act(async () => finish({ fromFallback: true, payload: null, error: '资料暂不可用', problemCode: 'SNAPSHOT_UNAVAILABLE' }))
+    expect(button('开始模拟').disabled).toBe(true)
+    expect(api.createJob).not.toHaveBeenCalled()
+  })
+
+  it('refreshes the character before a new simulation and stops on refresh failure', async () => {
+    await input('sourceUrl', 'https://raider.io/characters/cn/silver-hand/Giannis')
+    await click('读取角色')
+    api.createSnapshot.mockResolvedValueOnce({ fromFallback: true, payload: null, error: '资料暂不可用', problemCode: 'SNAPSHOT_UNAVAILABLE' })
+    await click('开始模拟')
+    expect(api.createJob).not.toHaveBeenCalled()
+    expect(button('开始模拟').disabled).toBe(true)
+    api.createSnapshot.mockResolvedValueOnce(success(snapshot))
+    await click('读取角色')
+    api.createSnapshot.mockResolvedValueOnce(success({ ...snapshot, id: 'fresh-snapshot' }))
+    await click('开始模拟')
+    expect(api.createJob.mock.calls[0]?.[0].snapshotId).toBe('fresh-snapshot')
+  })
+
+  it('retries an uncertain submission with the same refreshed snapshot and idempotency key', async () => {
+    await input('sourceUrl', 'https://raider.io/characters/cn/silver-hand/Giannis')
+    await click('读取角色')
+    api.createSnapshot.mockResolvedValueOnce(success({ ...snapshot, id: 'refreshed-for-retry' }))
+    api.createJob.mockResolvedValueOnce({ fromFallback: true, payload: null, error: '网络连接失败', problemCode: 'NETWORK_ERROR' })
+    await click('开始模拟')
+    const reads = api.createSnapshot.mock.calls.length
+    await click('开始模拟')
+    expect(api.createSnapshot.mock.calls.length).toBe(reads)
+    expect(api.createJob.mock.calls[1]?.[0].snapshotId).toBe('refreshed-for-retry')
+    expect(api.createJob.mock.calls[1]?.[1].idempotencyKey).toBe(api.createJob.mock.calls[0]?.[1].idempotencyKey)
+    expect(container.textContent).toContain('模拟报告')
+  })
+
+  it('preserves an uncertain bound-character submission across task navigation', async () => {
+    const item = { id: 'bound-one', name: '测试萨满', realm: 'Silver Hand', region: 'cn', sourceUrl: 'https://raider.io/characters/cn/silver-hand/Giannis' }
+    api.listCharacters.mockResolvedValue(success({ items: [item], selectedId: item.id }))
+    await act(async () => { root.unmount(); root = createRoot(container); root.render(createElement(WebSimcView, { auth: { kind: 'web', csrfToken: 'csrf' } })) })
+    api.createSnapshot.mockResolvedValueOnce(success({ ...snapshot, id: 'uncertain-snapshot' }))
+    api.createJob.mockResolvedValueOnce({ fromFallback: true, payload: null, error: '网络连接失败', problemCode: 'NETWORK_ERROR' })
+    await click('开始模拟')
+    await click('模拟任务')
+    api.createSnapshot.mockResolvedValueOnce(success({ ...snapshot, id: 'restored-snapshot' }))
+    await click('新建模拟')
+    await click('开始模拟')
+    expect(api.createJob.mock.calls[1]?.[0].snapshotId).toBe('uncertain-snapshot')
+    expect(api.createJob.mock.calls[1]?.[1].idempotencyKey).toBe(api.createJob.mock.calls[0]?.[1].idempotencyKey)
+    expect(container.textContent).toContain('模拟报告')
+  })
 
   it('copies the full job ID without opening its report and reports clipboard failures', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)

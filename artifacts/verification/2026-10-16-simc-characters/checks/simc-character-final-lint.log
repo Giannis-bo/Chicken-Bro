@@ -1,0 +1,4 @@
+
+> wow-mini-program-workspace@0.1.0 lint
+> eslint apps/mini-taro/config/index.ts apps/mini-taro/src packages/api-client/src packages/domain/src vitest.config.ts --max-warnings=0
+

@@ -549,6 +549,18 @@ class RaiderIOCharacterAdapter:
         if not isinstance(raw, Mapping) or raw.get("error") or not _text(raw.get("name")):
             return _failure_candidate(parsed_url, SourceReadiness.CHARACTER_NOT_FOUND, fetched_at=fetched_at)
 
+        # Raider.IO accepts localized realm names; detail endpoints require its canonical slug.
+        # Only accept an HTTPS Raider.IO identity for the requested region and character.
+        try:
+            canonical = parse_character_source_url(raw.get("profile_url", ""))
+            if (canonical.provider is SourceProvider.RAIDERIO
+                    and canonical.region == parsed_url.region
+                    and canonical.character_name.casefold() == parsed_url.character_name.casefold()
+                    and _text(raw.get("name")).casefold() == parsed_url.character_name.casefold()):
+                parsed_url = canonical
+        except (InvalidSourceLink, ValueError):
+            pass
+
         raw_class = raw.get("class") if isinstance(raw.get("class"), Mapping) else {}
         raw_race = raw.get("race") if isinstance(raw.get("race"), Mapping) else {}
         character = _character_fields(

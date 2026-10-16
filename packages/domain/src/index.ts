@@ -1,4 +1,5 @@
 export * from './simc-workbench'
+export * from './simc-characters'
 export {
   isChatImage,
   isChatEventEnvelope,

@@ -1,0 +1,18 @@
+{
+  "id": "088f08bb-0110-4f13-bcaa-87e83d60b7a8",
+  "character": null,
+  "provider": "raiderio",
+  "sourceUrl": "https://raider.io/characters/cn/%E5%A5%A5%E6%8B%89%E5%B0%94/Fusionbolt",
+  "sourceKey": "cn|奥拉尔|Fusionbolt",
+  "revision": 1,
+  "readiness": "SNAPSHOT_UNAVAILABLE",
+  "missingFields": [],
+  "blockers": [
+    "SNAPSHOT_UNAVAILABLE"
+  ],
+  "fetchedAt": "2026-10-16T07:36:11.172344+00:00",
+  "provenance": {
+    "sourceRevision": null,
+    "sourceRawSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  }
+}

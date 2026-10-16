@@ -1,0 +1,29 @@
+
+ RUN  v4.1.10 /opt/chickenbro-candidates/simc-character-bindings-20261016
+
+-----x----------------------------
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/mini-taro/src/web/web-simc-workbench.test.tsx > Web SimC workbench > preserves an uncertain bound-character submission across task navigation
+AssertionError: expected 'snapshot' to be 'uncertain-snapshot' // Object.is equality
+
+Expected: "uncertain-snapshot"
+Received: "snapshot"
+
+ ❯ apps/mini-taro/src/web/web-simc-workbench.test.tsx:175:57
+    173|     await click('新建模拟')
+    174|     await click('开始模拟')
+    175|     expect(api.createJob.mock.calls[1]?.[0].snapshotId).toBe('uncertai…
+       |                                                         ^
+    176|     expect(api.createJob.mock.calls[1]?.[1].idempotencyKey).toBe(api.c…
+    177|     expect(container.textContent).toContain('模拟报告')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 33 skipped (34)
+   Start at  15:22:12
+   Duration  1.80s (transform 696ms, setup 0ms, import 822ms, tests 228ms, environment 574ms)
+

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-09",
+  "updatedAt": "2026-10-16",
   "activeMilestone": "chickenbro_web_only_qq",
   "status": "delivered_with_followups",
   "qqGroupChannel": {
@@ -1168,5 +1168,35 @@
     "recordedAt": "2026-09-21",
     "scope": "Web/API/Worker dual-game release",
     "integrationAndEvidenceCommit": "0b151e74d"
+  },
+  "simcCharacterBindings": {
+    "status": "live_verified",
+    "implementationAuthorizedAt": "2026-10-16",
+    "maxBoundCharacters": 3,
+    "defaultRegion": "cn",
+    "inputModes": [
+      "raiderio_url",
+      "name_realm_region"
+    ],
+    "accountScopedSelection": true,
+    "freshSourceBeforeNewSubmission": true,
+    "productionDeployed": true,
+    "manualUserAcceptance": false,
+    "evidence": "artifacts/verification/2026-10-16-simc-characters/README.md",
+    "releaseAuthorizedAt": "2026-10-16",
+    "commitMergePushAuthorized": true,
+    "releaseId": "fc393359efea1d13fc35ccd53a6b19fe2ace938a6d553e3788c7f4ce341a194f",
+    "sourceBaseCommit": "289e0531d8c5916cf8d2b69b98428cfab879079a",
+    "releaseSourceIdentity": "pinned_file_hashes_committed_after_live_verification",
+    "independentDatabaseRestoreVerified": true,
+    "productionRollbackDrill": false,
+    "cloudBackendTests": 95,
+    "cloudFrontendApiDomainTests": 60,
+    "cloudPostgresTests": 3,
+    "releaseFaultTests": 3,
+    "publicWebFilesMatched": 15,
+    "liveJobId": "a13ff500-6216-49b6-ba91-d8b3dee9df9c",
+    "liveDps": 318665.2217584144,
+    "realQqOAuthExercised": false
   }
 }

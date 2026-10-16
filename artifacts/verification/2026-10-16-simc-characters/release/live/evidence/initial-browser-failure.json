@@ -1,0 +1,28 @@
+{
+  "calls": [
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/characters",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/runtime",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/simc/jobs",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/simc/snapshots",
+      "status": 201
+    }
+  ],
+  "checks": [
+    "manual defaults CN and accepts Chinese realm"
+  ],
+  "errors": []
+}

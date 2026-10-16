@@ -3,6 +3,7 @@ import type {
   ClientAuthContext,
   SimcClient,
   SimulationScenarioRequest,
+  SourceSnapshotCreateRequest,
 } from '@wow-mini/api-client'
 import type {
   SimulationJobDetail,
@@ -30,6 +31,7 @@ export interface SimcModelDependencies {
   maxPolls?: number
   workbench?: boolean
   localizedReport?: boolean
+  refreshBeforeSubmit?: boolean
 }
 
 export interface SimulationPollOptions {
@@ -135,7 +137,9 @@ export class SimcModel {
   private readonly maxPolls: number
   private readonly workbench: boolean
   private readonly localizedReport: boolean
-  private pendingSubmission: { identity: string; idempotencyKey: string } | null = null
+  private readonly refreshBeforeSubmit: boolean
+  private resolvedSource: string | Exclude<SourceSnapshotCreateRequest, { sourceUrl: string }> | null = null
+  private pendingSubmission: { identity: string; idempotencyKey: string; snapshot: SourceSnapshotView } | null = null
   private submitInFlight: Promise<SimulationJobDetail | null> | null = null
   private sourceGeneration = 0
   private jobsGeneration = 0
@@ -149,6 +153,7 @@ export class SimcModel {
   ) {
     this.workbench = dependencies.workbench ?? false
     this.localizedReport = dependencies.localizedReport ?? false
+    this.refreshBeforeSubmit = dependencies.refreshBeforeSubmit ?? false
     this.requestId = dependencies.requestId ?? defaultRequestId
     this.sleep = dependencies.sleep ?? defaultSleep
     this.maxPolls = Math.min(Math.max(dependencies.maxPolls ?? 8, 1), 20)
@@ -164,13 +169,25 @@ export class SimcModel {
     return () => this.listeners.delete(listener)
   }
 
-  async resolveSource(sourceUrl: string): Promise<SourceSnapshotView | null> {
+  clearSource(options: { preserveStatus?: boolean; preserveSubmission?: boolean } = {}): void {
+    this.sourceGeneration += 1
+    if (!options.preserveSubmission) this.pendingSubmission = null
+    this.resolvedSource = null
+    if (options.preserveStatus) {
+      this.update({ snapshot: null })
+      return
+    }
+    this.operationGeneration += 1
+    this.update({ snapshot: null, phase: 'idle', errorCode: '', errorMessage: '', retryable: false })
+  }
+
+  async resolveSource(source: string | Exclude<SourceSnapshotCreateRequest, { sourceUrl: string }>): Promise<SourceSnapshotView | null> {
     const operationGeneration = this.operationGeneration + 1
     this.operationGeneration = operationGeneration
     const generation = this.sourceGeneration + 1
     this.sourceGeneration = generation
     this.activeJobGeneration += 1
-    if (!isSupportedCharacterSourceUrl(sourceUrl)) {
+    if (typeof source === 'string' && !isSupportedCharacterSourceUrl(source)) {
       this.update({ snapshot: null, activeJob: null })
       this.fail('INVALID_LINK', '仅支持 HTTPS 的 Raider.IO 角色链接', false)
       return null
@@ -192,7 +209,7 @@ export class SimcModel {
     })
     let result: ApiResult<SourceSnapshotView>
     try {
-      result = await this.client.createSnapshot({ sourceUrl }, { auth, ...(this.workbench ? { workbench: true } : {}) })
+      result = await this.client.createSnapshot(typeof source === 'string' ? { sourceUrl: source } : source, { auth, ...(this.workbench ? { workbench: true } : {}) })
     } catch (error) {
       if (
         generation === this.sourceGeneration
@@ -209,6 +226,7 @@ export class SimcModel {
       }
       return null
     }
+    this.resolvedSource = source
     this.update({
       snapshot: result.payload,
       ...(operationGeneration === this.operationGeneration
@@ -261,6 +279,16 @@ export class SimcModel {
   }
 
   private async submitJobOnce(scenario: SimulationScenarioRequest): Promise<SimulationJobDetail | null> {
+    const previous = this.state.snapshot
+    const pendingRetry = this.pendingSubmission
+    const retrying = previous && pendingRetry
+      && previous.provider === pendingRetry.snapshot.provider
+      && previous.sourceKey.toLowerCase() === pendingRetry.snapshot.sourceKey.toLowerCase()
+      && pendingRetry.identity === submissionIdentity(pendingRetry.snapshot.id, scenario)
+    if (retrying) this.update({ snapshot: pendingRetry.snapshot })
+    if (this.refreshBeforeSubmit && previous?.readiness === 'READY_FOR_SIMC' && this.resolvedSource && !retrying) {
+      if (!await this.resolveSource(this.resolvedSource)) return null
+    }
     const operationGeneration = this.operationGeneration + 1
     this.operationGeneration = operationGeneration
     const snapshot = this.state.snapshot
@@ -278,7 +306,7 @@ export class SimcModel {
     const identity = submissionIdentity(snapshot.id, scenario)
     const pending = this.pendingSubmission?.identity === identity
       ? this.pendingSubmission
-      : { identity, idempotencyKey: idempotencyKey(this.requestId()) }
+      : { identity, idempotencyKey: idempotencyKey(this.requestId()), snapshot }
     this.pendingSubmission = pending
     const activeJobGeneration = this.activeJobGeneration + 1
     this.activeJobGeneration = activeJobGeneration
