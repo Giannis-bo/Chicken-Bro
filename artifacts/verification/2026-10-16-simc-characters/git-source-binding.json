@@ -1,0 +1,12 @@
+{
+  "implementationCommit": "a39243dea6f61d03216cbe75575dfbb141b29de8",
+  "baseCommit": "289e0531d8c5916cf8d2b69b98428cfab879079a",
+  "releaseId": "fc393359efea1d13fc35ccd53a6b19fe2ace938a6d553e3788c7f4ce341a194f",
+  "sourceFilesMatchedCommit": 31,
+  "deployedBackendOverlayFilesMatchedCommit": 6,
+  "publicWebFilesMatchedReleaseManifest": 15,
+  "sourceUncommittedAtDeployment": true,
+  "ordering": "production deployment and business verification completed before implementation commit; this documentation-only receipt binds verified source hashes to the resulting commit",
+  "rawCloudLogsRetained": true,
+  "savedLogsFormatting": "ANSI and trailing whitespace normalized"
+}

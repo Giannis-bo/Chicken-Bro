@@ -26,4 +26,3 @@ Received: "snapshot"
       Tests  1 failed | 33 skipped (34)
    Start at  15:22:12
    Duration  1.80s (transform 696ms, setup 0ms, import 822ms, tests 228ms, environment 574ms)
-
