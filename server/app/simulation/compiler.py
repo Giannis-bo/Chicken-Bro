@@ -307,6 +307,10 @@ class SimcProfileCompiler:
                 line += f",enchant_id={int(enchant)}"
             lines.append(line)
 
+        if self._capabilities.compiler_revision in {"chickenbro-simc-compiler-v6", "chickenbro-simc-compiler-v7"}:
+            # The parent must reach its sampled iteration: child action
+            # sequences are not merged back from SimC's shared work queue.
+            lines.append("strict_work_queue=1")
         lines.extend([
             f"iterations={normalized_scenario['iterations']}",
             f"fight_style={normalized_scenario['fightStyle']}",

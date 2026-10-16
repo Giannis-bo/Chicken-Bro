@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=/var/lib/chickenbro-simc-update-20261016
+cd /opt/chickenbro-candidates/simc-update-20261016
+/opt/chickenbro-runtime/bin/python "$root/verify-repaired-engine.py" > "$root/repaired-engine.log" 2>&1
+/opt/chickenbro-runtime/bin/python -m unittest tests.app_wcl_talents_test tests.app_simulation_talent_editor_test tests.app_simulation_localization_test tests.app_simulation_runtime_info_test tests.app_simulation_sources_test tests.app_simulation_compiler_test tests.app_simulation_effective_config_test tests.app_simulation_report_test tests.app_simulation_worker_test tests.app_simc_workbench_test tests.app_simc_workbench_api_test tests.app_simulation_phase_test tests.app_simulation_action_lists_test tests.app_simulation_application_test tests.app_simc_api_test tests.app_simc_cross_client_test tests.app_chickenbro_simulation_tools_test tests.app_simulation_specializations_test > "$root/repair-targeted-tests.log" 2>&1
+/opt/chickenbro-runtime/bin/python -c 'import json,os; from pathlib import Path; r=Path("/var/lib/chickenbro-simc-update-20261016"); s=json.loads((r/"replay-candidate.json").read_text())["snapshotId"]; py="/opt/chickenbro-runtime/bin/python"; os.execv(py,[py,str(r/"capturing-smoke.py"),"candidate","/opt/chickenbro-candidates/simc-update-20261016","--label","repaired-candidate","--snapshot-id",s])' > "$root/repaired-candidate.log" 2>&1

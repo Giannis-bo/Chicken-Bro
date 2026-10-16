@@ -1,0 +1,42 @@
+[
+  {
+    "case": "original-failure-shape",
+    "iterations": 100,
+    "threads": 32,
+    "profileSha256": "6178604f682a431a7dc63c59ee95a16d85f52acabe6ad3220b69cb1694c4631f",
+    "strictWorkQueue": true,
+    "dps": 272640.4577114669,
+    "sampledActions": 65,
+    "reportSha256": "3364ba12a2be1bed8d16f467ea4d84e7bf5558060ba421f95f4236c53c3612d6"
+  },
+  {
+    "case": "holdout",
+    "iterations": 128,
+    "threads": 64,
+    "profileSha256": "6178604f682a431a7dc63c59ee95a16d85f52acabe6ad3220b69cb1694c4631f",
+    "strictWorkQueue": true,
+    "dps": 252514.1762470211,
+    "sampledActions": 66,
+    "reportSha256": "3fc367ca8587a2360aff60e7e2b2e2b282f6d47ea8c74cb8313503a6a4775b6f"
+  },
+  {
+    "case": "normal",
+    "iterations": 100,
+    "threads": 4,
+    "profileSha256": "6178604f682a431a7dc63c59ee95a16d85f52acabe6ad3220b69cb1694c4631f",
+    "strictWorkQueue": true,
+    "dps": 266533.427023734,
+    "sampledActions": 61,
+    "reportSha256": "3c6267f63da75f07ae1121525c7c5d7719354ad4c95e80f77a8d95e8386a8d27"
+  },
+  {
+    "case": "one-iteration",
+    "iterations": 1,
+    "threads": 1,
+    "profileSha256": "6178604f682a431a7dc63c59ee95a16d85f52acabe6ad3220b69cb1694c4631f",
+    "strictWorkQueue": true,
+    "dps": 266783.4453574683,
+    "sampledActions": 62,
+    "reportSha256": "ab71838483d44f5d2f86a6b076b2966e36126dce2cbf83e8d3660de042a8ae93"
+  }
+]

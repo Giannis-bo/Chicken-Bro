@@ -34,6 +34,19 @@ class SimulationCompilerTest(unittest.TestCase):
         )
         self.capabilities = capabilities
 
+    def test_action_evidence_profiles_reserve_work_for_each_simc_thread(self):
+        # SimC samples the parent thread's second iteration and does not merge
+        # child action sequences. A shared queue can leave it with no sample.
+        for revision in ('chickenbro-simc-compiler-v6', 'chickenbro-simc-compiler-v7'):
+            with self.subTest(compiler=revision):
+                compiler = SimcProfileCompiler(capabilities=replace(self.capabilities,
+                    compiler_revision=revision))
+                compiled = compiler.compile(self.snapshot, {'iterations': 100})
+                options = [line for line in compiled.profile.splitlines()
+                           if line.startswith('strict_work_queue=')]
+                self.assertEqual(options, ['strict_work_queue=1'])
+                self.assertEqual(compiled.scenario['iterations'], 100)
+
     def test_bounded_stat_experiment_reuses_engine_bonus_options(self):
         compiler=SimcProfileCompiler(capabilities=replace(self.capabilities,compiler_revision='chickenbro-simc-compiler-v6'))
         base=compiler.compile(self.snapshot,{'food':'disabled','maxTime':20})

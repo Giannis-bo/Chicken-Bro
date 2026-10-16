@@ -1,0 +1,16 @@
+{
+  "location": "cloud",
+  "passed": 269,
+  "failures": 0,
+  "skipped": 0,
+  "logSha256": "2b9e37c35164723870817fe2596285bfc805e567d2f46109fb282b24b3a57dec",
+  "compilerSha256": "0d8070851ea99b350cf809140adea2312d7f85f7a5204a1f94a9869ec047cf1a",
+  "regressionRed": {
+    "failures": 2,
+    "logSha256": "6d2dbb4a5e9c85cdf7effef71ec7f5ebb29556fbbb220df3b16b9fb9eda3a909"
+  },
+  "regressionGreen": {
+    "passed": 1,
+    "logSha256": "c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881"
+  }
+}
